@@ -698,7 +698,7 @@ void Sample_TileMesh::handleMeshChanged(class InputGeom* geom)
 	initToolStates(this);
 }
 
-bool Sample_TileMesh::handleBuild(char*& message)
+bool Sample_TileMesh::handleBuild()
 {
 	if (!m_geom || !m_geom->getMesh())
 	{
@@ -739,7 +739,7 @@ bool Sample_TileMesh::handleBuild(char*& message)
 	}
 	
 	if (m_buildAll)
-		buildAllTiles(message);
+		buildAllTiles();
 	
 	if (m_tool)
 		m_tool->init(this);
@@ -826,7 +826,7 @@ void Sample_TileMesh::removeTile(const float* pos)
 	m_navMesh->removeTile(m_navMesh->getTileRefAt(tx,ty,0),0,0);
 }
 
-void Sample_TileMesh::buildAllTiles(char*& message)
+void Sample_TileMesh::buildAllTiles()
 {
 	if (!m_geom) return;
 	if (!m_navMesh) return;
@@ -840,9 +840,9 @@ void Sample_TileMesh::buildAllTiles(char*& message)
 	const int th = (gh + ts-1) / ts;
 	const float tcs = m_tileSize*m_cellSize;
 
-	// todo: fixme! this leaks!
-	char* buffer = new char[512];
-	float max = (float)(th * tw), index = 0.0;
+	// This was added by EQNavigation, commented out so we can do it better.
+	//char* buffer = new char[512];
+	//float max = (float)(th * tw), index = 0.0;
 	
 	// Start the build process.
 	m_ctx->startTimer(RC_TIMER_TEMP);
@@ -851,9 +851,9 @@ void Sample_TileMesh::buildAllTiles(char*& message)
 	{
 		for (int x = 0; x < tw; ++x)
 		{
-			index++;
-			sprintf(buffer, "Building Navmesh: %1.1f%%%%", index / max * 100);
-			message = buffer;
+			//index++;
+			//sprintf(buffer, "Building Navmesh: %1.1f%%%%", index / max * 100);
+			//message = buffer;
 
 			m_tileBmin[0] = bmin[0] + x*tcs;
 			m_tileBmin[1] = bmin[1];

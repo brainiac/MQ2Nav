@@ -353,23 +353,23 @@ Interface::Interface(const char* everquest_path, const char * output_path) {
 
 DWORD WINAPI BuildThread(LPVOID lpParam)
 {	
-	if(sample)
-		sample->handleBuild(message);
-	message = NULL;
+	if (sample)
+		sample->handleBuild();
+
 	return NULL;
 }
  DWORD WINAPI LoadThread(LPVOID lpParam) 
 {
 	lockRendering = true;
 	geom = new InputGeom();
-	geom->loadMesh((char*)lpParam,everquest_path,message,progress);
+	geom->loadMesh((char*)lpParam, everquest_path);
 	if (sample && geom)
 	{
 		sample->handleMeshChanged(geom);
 		resetCamera = true;
 	}
 	lockRendering = false;
-	message = NULL;
+
 	return NULL;
 }
 void Interface::Halt() 

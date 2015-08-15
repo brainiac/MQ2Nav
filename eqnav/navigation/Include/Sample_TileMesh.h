@@ -93,13 +93,13 @@ public:
 	virtual void handleRender();
 	virtual void handleRenderOverlay(double* proj, double* model, int* view);
 	virtual void handleMeshChanged(class InputGeom* geom);
-	virtual bool handleBuild(char*& message);
+	virtual bool handleBuild(c);
 	
 	void getTilePos(const float* pos, int& tx, int& ty);
 	
 	void buildTile(const float* pos);
 	void removeTile(const float* pos);
-	void buildAllTiles(char*& message);
+	void buildAllTiles();
 	void removeAllTiles();
 
 	void setOutputPath(const char* output_path);

@@ -60,8 +60,7 @@ public:
 	InputGeom();
 	~InputGeom();
 	
-	bool loadMesh(class rcContext* ctx, const char* filepath);
-	bool loadMeshEQ(class rcContext* ctx, const char* filepath, const char* everquest_path, char*& message, float& progress);
+	bool loadMesh(class rcContext* ctx, const char* filepath, const char* everquest_path, char*& message);
 	
 	bool load(class rcContext* ctx, const char* filepath);
 	bool save(const char* filepath);

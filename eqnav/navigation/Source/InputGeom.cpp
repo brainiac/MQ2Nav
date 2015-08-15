@@ -118,7 +118,7 @@ InputGeom::~InputGeom()
 	delete m_mesh;
 }
 
-bool InputGeom::loadMeshEQ(rcContext* ctx, const char* filepath, const char* everquest_path, char*& message, float& progress)
+bool InputGeom::loadMesh(rcContext* ctx, const char* filepath, const char* everquest_path, char*& message)
 {
 	if (m_mesh)
 	{
@@ -136,7 +136,7 @@ bool InputGeom::loadMeshEQ(rcContext* ctx, const char* filepath, const char* eve
 		ctx->log(RC_LOG_ERROR, "loadMesh: Out of memory 'm_mesh'.");
 		return false;
 	}
-	if (!m_mesh->load(filepath, everquest_path, message, progress))
+	if (!m_mesh->load(filepath, everquest_path, message))
 	{
 		ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not load '%s'", filepath);
 		return false;
