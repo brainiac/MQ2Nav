@@ -93,7 +93,7 @@ public:
 	virtual void handleRender();
 	virtual void handleRenderOverlay(double* proj, double* model, int* view);
 	virtual void handleMeshChanged(class InputGeom* geom);
-	virtual bool handleBuild(c);
+	virtual bool handleBuild();
 	
 	void getTilePos(const float* pos, int& tx, int& ty);
 	

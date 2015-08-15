@@ -11,6 +11,9 @@
 // Windows Header Files:
 #include <windows.h>
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 // C RunTime Header Files
 #include <stdlib.h>
 #include <malloc.h>
@@ -18,4 +21,15 @@
 #include <tchar.h>
 #include <stdio.h>
 
-// TODO: reference additional headers your program requires here
+#include <iostream>
+#include <tchar.h>
+#include <io.h>
+#include <string>
+#include <fstream>
+
+#include <shlobj.h>
+#include <Shlwapi.h>
+
+#include "SDL.h"
+#include "SDL_opengl.h"
+#include <SDL_syswm.h>
