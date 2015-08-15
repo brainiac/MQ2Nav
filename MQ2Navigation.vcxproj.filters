@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Detour">
+      <UniqueIdentifier>{7849215a-156e-4d3c-96a8-016689a330be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Detour\Include">
+      <UniqueIdentifier>{afb75d73-739b-440e-bc5a-0bedb2910a82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Detour\Source">
+      <UniqueIdentifier>{0d032476-d97e-4dd8-ae89-91532d6f0d00}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="EQDraw">
+      <UniqueIdentifier>{d5a04592-71be-4c03-bd25-670263d91d3e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="EQDraw\Source">
+      <UniqueIdentifier>{055687e7-7190-4ec4-9004-dd2aa5f54068}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="EQDraw\Include">
+      <UniqueIdentifier>{f8722e89-cafe-4dce-a80a-5d787cb77796}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Release\Zones.ini" />
+    <None Include="..\Release\DoorAdjustments.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Pathfinding\Detour\Include\DetourCommon.h">
+      <Filter>Detour\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Pathfinding\Detour\Include\DetourNavMesh.h">
+      <Filter>Detour\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Pathfinding\Detour\Include\DetourNavMeshBuilder.h">
+      <Filter>Detour\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Pathfinding\Detour\Include\DetourNode.h">
+      <Filter>Detour\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h">
+      <Filter>EQDraw\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h">
+      <Filter>EQDraw\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="resource1.h" />
+    <ClInclude Include="meshext.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Pathfinding\Detour\Source\DetourCommon.cpp">
+      <Filter>Detour\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Pathfinding\Detour\Source\DetourNavMesh.cpp">
+      <Filter>Detour\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Pathfinding\Detour\Source\DetourNavMeshBuilder.cpp">
+      <Filter>Detour\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Pathfinding\Detour\Source\DetourNode.cpp">
+      <Filter>Detour\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp">
+      <Filter>EQDraw\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="MQ2Navigation.cpp" />
+    <ClCompile Include="meshext.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MQ2Navigation1.rc" />
+  </ItemGroup>
+</Project>

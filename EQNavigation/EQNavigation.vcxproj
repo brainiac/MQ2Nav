@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{5BB431DF-EDA3-425B-BE54-F5EE7D01999F}</ProjectGuid>
+    <RootNamespace>EQNavigation</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v100</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v100</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateManifest>
+    <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</EmbedManifest>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\Rendering\SDL\Include;..\Rendering\IMGUI\Include;..\Rendering\Interface\Include;..\Zone Parsing\AZone2\Include;..\Zone Parsing\ZLib\Include;..\Pathfinding\DebugUtils\Include;..\Pathfinding\Navigation\Include;..\Pathfinding\Recast\Include;..\Pathfinding\Detour\Include</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>LIVE;WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>openGL32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>Debug;..\Zone Parsing\ZLib\Lib;..\Rendering\SDL\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\Rendering\SDL\Include;..\Rendering\IMGUI\Include;..\Rendering\Interface\Include;..\Zone Parsing\AZone2\Include;..\Zone Parsing\ZLib\Include;..\Pathfinding\DebugUtils\Include;..\Pathfinding\Navigation\Include;..\Pathfinding\Recast\Include;..\Pathfinding\Detour\Include</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>LIVE;WIN32;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DisableSpecificWarnings>4091;4018;4800;4101;4244</DisableSpecificWarnings>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>openGL32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\Zone Parsing\ZLib\Lib;..\Rendering\SDL\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="..\Pathfinding\License.txt" />
+    <None Include="..\Pathfinding\Readme.txt" />
+    <None Include="..\AZone2\License.txt" />
+    <None Include="..\AZone2\Readme.txt" />
+    <None Include="..\Zone Parsing\ZLib\License.txt" />
+    <None Include="..\Zone Parsing\ZLib\Readme.txt" />
+    <None Include="..\Rendering\SDL\License.txt" />
+    <None Include="..\Rendering\SDL\Readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Pathfinding\Recast\Include\Recast.h" />
+    <ClInclude Include="..\Pathfinding\Recast\Include\RecastLog.h" />
+    <ClInclude Include="..\Pathfinding\Recast\Include\RecastTimer.h" />
+    <ClInclude Include="..\Pathfinding\Detour\Include\DetourCommon.h" />
+    <ClInclude Include="..\Pathfinding\Detour\Include\DetourNavMesh.h" />
+    <ClInclude Include="..\Pathfinding\Detour\Include\DetourNavMeshBuilder.h" />
+    <ClInclude Include="..\Pathfinding\Detour\Include\DetourNode.h" />
+    <ClInclude Include="..\Pathfinding\DebugUtils\Include\DebugDraw.h" />
+    <ClInclude Include="..\Pathfinding\DebugUtils\Include\DetourDebugDraw.h" />
+    <ClInclude Include="..\Pathfinding\DebugUtils\Include\RecastDebugDraw.h" />
+    <ClInclude Include="..\Pathfinding\DebugUtils\Include\RecastDump.h" />
+    <ClInclude Include="..\Pathfinding\Navigation\Include\ChunkyTriMesh.h" />
+    <ClInclude Include="..\Pathfinding\Navigation\Include\ConvexVolumeTool.h" />
+    <ClInclude Include="..\Pathfinding\Navigation\Include\InputGeom.h" />
+    <ClInclude Include="..\Pathfinding\Navigation\Include\MeshLoaderObj.h" />
+    <ClInclude Include="..\Pathfinding\Navigation\Include\NavMeshTesterTool.h" />
+    <ClInclude Include="..\Pathfinding\Navigation\Include\OffMeshConnectionTool.h" />
+    <ClInclude Include="..\Pathfinding\Navigation\Include\Sample.h" />
+    <ClInclude Include="..\Pathfinding\Navigation\Include\Sample_TileMesh.h" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\3d.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\3d_base.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\archive.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\awater.h" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\azone.h" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\dat.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\file.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\file_loader.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\global.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\map.h" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\octree.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\pfs.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\s3d.h" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\ter.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\types.h" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\wld.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\wld_structs.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\zon.hpp" />
+    <ClInclude Include="..\Zone Parsing\AZone2\Include\zonv4.hpp" />
+    <ClInclude Include="..\Zone Parsing\ZLib\Include\zconf.h" />
+    <ClInclude Include="..\Zone Parsing\ZLib\Include\zlib.h" />
+    <ClInclude Include="..\Rendering\IMGUI\Include\imgui.h" />
+    <ClInclude Include="..\Rendering\IMGUI\Include\imguiRenderGL.h" />
+    <ClInclude Include="..\Rendering\Interface\Include\Interface.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\begin_code.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\close_code.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_active.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_audio.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_byteorder.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_cdrom.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_amiga.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_dreamcast.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_macos.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_macosx.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_minimal.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_nds.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_os2.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_symbian.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_config_win32.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_copying.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_cpuinfo.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_endian.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_error.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_events.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_getenv.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_joystick.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_keyboard.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_keysym.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_loadso.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_main.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_mouse.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_mutex.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_name.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_opengl.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_platform.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_quit.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_rwops.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_stdinc.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_syswm.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_thread.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_timer.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_types.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_version.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDL_video.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\SDLMain.h" />
+    <ClInclude Include="..\Rendering\SDL\Include\stb_truetype.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\Pathfinding\Recast\Source\Recast.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastArea.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastContour.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastFilter.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastLog.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastMesh.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastMeshDetail.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastRasterization.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastRegion.cpp" />
+    <ClCompile Include="..\Pathfinding\Recast\Source\RecastTimer.cpp" />
+    <ClCompile Include="..\Pathfinding\Detour\Source\DetourCommon.cpp" />
+    <ClCompile Include="..\Pathfinding\Detour\Source\DetourNavMesh.cpp" />
+    <ClCompile Include="..\Pathfinding\Detour\Source\DetourNavMeshBuilder.cpp" />
+    <ClCompile Include="..\Pathfinding\Detour\Source\DetourNode.cpp" />
+    <ClCompile Include="..\Pathfinding\DebugUtils\Source\DebugDraw.cpp" />
+    <ClCompile Include="..\Pathfinding\DebugUtils\Source\DetourDebugDraw.cpp" />
+    <ClCompile Include="..\Pathfinding\DebugUtils\Source\RecastDebugDraw.cpp" />
+    <ClCompile Include="..\Pathfinding\DebugUtils\Source\RecastDump.cpp" />
+    <ClCompile Include="..\Pathfinding\Navigation\Source\ChunkyTriMesh.cpp" />
+    <ClCompile Include="..\Pathfinding\Navigation\Source\ConvexVolumeTool.cpp" />
+    <ClCompile Include="..\Pathfinding\Navigation\Source\InputGeom.cpp" />
+    <ClCompile Include="..\Pathfinding\Navigation\Source\MeshLoaderObj.cpp" />
+    <ClCompile Include="..\Pathfinding\Navigation\Source\NavMeshTesterTool.cpp" />
+    <ClCompile Include="..\Pathfinding\Navigation\Source\OffMeshConnectionTool.cpp" />
+    <ClCompile Include="..\Pathfinding\Navigation\Source\Sample.cpp" />
+    <ClCompile Include="..\Pathfinding\Navigation\Source\Sample_TileMesh.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\azone.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\dat.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\file.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\global.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\pfs.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\ter.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\wld.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\zon.cpp" />
+    <ClCompile Include="..\Zone Parsing\AZone2\Source\zonv4.cpp" />
+    <ClCompile Include="..\Rendering\IMGUI\Source\imgui.cpp" />
+    <ClCompile Include="..\Rendering\IMGUI\Source\imguiRenderGL.cpp" />
+    <ClCompile Include="..\Rendering\Interface\Source\Interface.cpp" />
+    <ClCompile Include="EQNavigation.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="EQNavigation.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
