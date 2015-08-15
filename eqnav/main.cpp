@@ -174,7 +174,8 @@ char* findEQPath(bool bypassSettings)
 	PathRemoveFileSpec(FullPath);
 	PathAppend(FullPath, _T("EQNavigation.ini"));
 
-	if (!GetPrivateProfileString("General", "EverQuest Path", "", path, MAX_PATH, FullPath) || bypassSettings) {
+	if (!GetPrivateProfileString("General", "EverQuest Path", "", path, MAX_PATH, FullPath) || bypassSettings)
+	{
 		if (BrowseForFolder(NULL, "C:\\Program Files\\Sony\\EverQuest", path, "Select EverQuest Folder"))
 		{
 			WIN32_FIND_DATA FindFileData;
@@ -329,16 +330,19 @@ void loadZones(FileList& list)
 		printf("Zones.ini not found");
 	}
 }
-void Interface::DefineDirectories(bool bypassSettings) {
+void Interface::DefineDirectories(bool bypassSettings)
+{
 	everquest_path = new char[MAX_PATH];
-	if (char* buffer = findEQPath(bypassSettings))
-		strcpy(everquest_path, buffer);
-#ifndef KOSHER
+	//if (char* buffer = findEQPath(bypassSettings))
+	//	strcpy(everquest_path, buffer);
+	strcpy(everquest_path, "C:\\projects\\eq-scripts\\equpdate\\build_folder");
+
 	output_path = new char[MAX_PATH];
-	if (char* buffer = findMQPath(bypassSettings))
-		strcpy(output_path, buffer);
+	//if (char* buffer = findMQPath(bypassSettings))
+	//	strcpy(output_path, buffer);
+	strcpy(output_path, "c:\\projects\\mq2-mmobugs\\Debug");
 	sample->setOutputPath(output_path);
-#endif
+
 }
 
 Interface::Interface()
@@ -455,24 +459,9 @@ int Interface::ShowDialog(const char* defaultZone)
 
 	const SDL_VideoInfo* vi = SDL_GetVideoInfo();
 
-	bool presentationMode = false;
-
-	int width, height;
-	SDL_Surface* screen = 0;
-
-	if (presentationMode)
-	{
-		width = vi->current_w;
-		height = vi->current_h;
-		screen = SDL_SetVideoMode(width, height, 0, SDL_OPENGL | SDL_FULLSCREEN);
-	}
-	else
-	{
-		width = rcMin(vi->current_w, (int)(vi->current_h * 16.0 / 9.0));
-		width = width - 80;
-		height = vi->current_h - 80;
-		screen = SDL_SetVideoMode(width, height, 0, SDL_OPENGL);
-	}
+	int width = vi->current_w - 200;
+	int height = vi->current_h - 200;
+	SDL_Surface* screen = SDL_SetVideoMode(width, height, 0, SDL_OPENGL | SDL_RESIZABLE);
 
 	if (!screen)
 	{
@@ -482,9 +471,11 @@ int Interface::ShowDialog(const char* defaultZone)
 
 	SDL_SysWMinfo i;
 	SDL_VERSION(&i.version);
-	if (SDL_GetWMInfo(&i)) {
+	if (SDL_GetWMInfo(&i))
+	{
 		HWND hwnd = i.window;
 		SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, NULL);
+		
 	}
 	SDL_WM_SetCaption("EQ Navigation", 0);
 

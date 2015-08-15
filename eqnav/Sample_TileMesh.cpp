@@ -204,11 +204,11 @@ Sample_TileMesh::~Sample_TileMesh()
 	cleanup();
 	dtFreeNavMesh(m_navMesh);
 	m_navMesh = 0;
+	delete[] m_outputPath;
 }
 
 void Sample_TileMesh::cleanup()
 {
-	delete [] m_outputPath;
 	delete [] m_triareas;
 	m_triareas = 0;
 	rcFreeHeightField(m_solid);
