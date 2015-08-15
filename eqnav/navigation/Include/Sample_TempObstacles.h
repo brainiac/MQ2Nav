@@ -32,6 +32,7 @@ protected:
 
 	struct LinearAllocator* m_talloc;
 	struct FastLZCompressor* m_tcomp;
+	struct MeshProcess* m_tmproc;
 
 	class dtTileCache* m_tileCache;
 	
@@ -75,12 +76,15 @@ public:
 
 	void getTilePos(const float* pos, int& tx, int& ty);
 	
-	void renderCachedTile(const int tx, const int ty);
+	void renderCachedTile(const int tx, const int ty, const int type);
 	void renderCachedTileOverlay(const int tx, const int ty, double* proj, double* model, int* view);
 
 	void addTempObstacle(const float* pos);
 	void removeTempObstacle(const float* sp, const float* sq);
 	void clearAllTempObstacles();
+
+	void saveAll(const char* path);
+	void loadAll(const char* path);
 };
 
 

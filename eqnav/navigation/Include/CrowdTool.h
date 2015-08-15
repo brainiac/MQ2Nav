@@ -27,15 +27,8 @@
 
 // Tool to create crowds.
 
-class CrowdTool : public SampleTool
+struct CrowdToolParams
 {
-	Sample* m_sample;
-	unsigned char m_oldFlags;
-	
-	float m_targetPos[3];
-	dtPolyRef m_targetRef;
-
-
 	bool m_expandSelectedDebugDraw;
 	bool m_showCorners;
 	bool m_showCollisionSegments;
@@ -43,12 +36,13 @@ class CrowdTool : public SampleTool
 	bool m_showVO;
 	bool m_showOpt;
 	bool m_showNeis;
-
+	
 	bool m_expandDebugDraw;
 	bool m_showLabels;
 	bool m_showGrid;
 	bool m_showNodes;
 	bool m_showPerfGraph;
+	bool m_showDetailAll;
 	
 	bool m_expandOptions;
 	bool m_anticipateTurns;
@@ -58,8 +52,16 @@ class CrowdTool : public SampleTool
 	float m_obstacleAvoidanceType;
 	bool m_separation;
 	float m_separationWeight;
+};
+
+class CrowdToolState : public SampleToolState
+{
+	Sample* m_sample;
+	dtNavMesh* m_nav;
+	dtCrowd* m_crowd;
 	
-	bool m_run;
+	float m_targetPos[3];
+	dtPolyRef m_targetRef;
 
 	dtCrowdAgentDebugInfo m_agentDebug;
 	dtObstacleAvoidanceDebugData* m_vod;
@@ -73,16 +75,49 @@ class CrowdTool : public SampleTool
 	};
 	AgentTrail m_trails[MAX_AGENTS];
 	
-	dtCrowd m_crowd;
-		
 	ValueHistory m_crowdTotalTime;
 	ValueHistory m_crowdSampleCount;
+
+	CrowdToolParams m_toolParams;
+
+	bool m_run;
+
+public:
+	CrowdToolState();
+	virtual ~CrowdToolState();
+	
+	virtual void init(class Sample* sample);
+	virtual void reset();
+	virtual void handleRender();
+	virtual void handleRenderOverlay(double* proj, double* model, int* view);
+	virtual void handleUpdate(const float dt);
+
+	inline bool isRunning() const { return m_run; }
+	inline void setRunning(const bool s) { m_run = s; }
+	
+	void addAgent(const float* pos);
+	void removeAgent(const int idx);
+	void hilightAgent(const int idx);
+	void updateAgentParams();
+	int hitTestAgents(const float* s, const float* p);
+	void setMoveTarget(const float* p, bool adjust);
+	void updateTick(const float dt);
+
+	inline CrowdToolParams* getToolParams() { return &m_toolParams; }
+};
+
+
+class CrowdTool : public SampleTool
+{
+	Sample* m_sample;
+	CrowdToolState* m_state;
 	
 	enum ToolMode
 	{
 		TOOLMODE_CREATE,
 		TOOLMODE_MOVE_TARGET,
 		TOOLMODE_SELECT,
+		TOOLMODE_TOGGLE_POLYS,
 	};
 	ToolMode m_mode;
 	
@@ -91,7 +126,7 @@ class CrowdTool : public SampleTool
 	
 public:
 	CrowdTool();
-	~CrowdTool();
+	virtual ~CrowdTool();
 	
 	virtual int type() { return TOOL_CROWD; }
 	virtual void init(Sample* sample);

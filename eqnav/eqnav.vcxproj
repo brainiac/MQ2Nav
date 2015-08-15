@@ -16,6 +16,28 @@
   <ItemGroup>
     <ClCompile Include="eqnav.cpp" />
     <ClCompile Include="interface.cpp" />
+    <ClCompile Include="navigation\Source\ChunkyTriMesh.cpp" />
+    <ClCompile Include="navigation\Source\ConvexVolumeTool.cpp" />
+    <ClCompile Include="navigation\Source\CrowdTool.cpp" />
+    <ClCompile Include="navigation\Source\Filelist.cpp" />
+    <ClCompile Include="navigation\Source\imgui.cpp" />
+    <ClCompile Include="navigation\Source\imguiRenderGL.cpp" />
+    <ClCompile Include="navigation\Source\InputGeom.cpp" />
+    <ClCompile Include="navigation\Source\main.cpp" />
+    <ClCompile Include="navigation\Source\MeshLoaderObj.cpp" />
+    <ClCompile Include="navigation\Source\NavMeshPruneTool.cpp" />
+    <ClCompile Include="navigation\Source\NavMeshTesterTool.cpp" />
+    <ClCompile Include="navigation\Source\OffMeshConnectionTool.cpp" />
+    <ClCompile Include="navigation\Source\PerfTimer.cpp" />
+    <ClCompile Include="navigation\Source\Sample.cpp" />
+    <ClCompile Include="navigation\Source\SampleInterfaces.cpp" />
+    <ClCompile Include="navigation\Source\Sample_Debug.cpp" />
+    <ClCompile Include="navigation\Source\Sample_SoloMesh.cpp" />
+    <ClCompile Include="navigation\Source\Sample_TempObstacles.cpp" />
+    <ClCompile Include="navigation\Source\Sample_TileMesh.cpp" />
+    <ClCompile Include="navigation\Source\SlideShow.cpp" />
+    <ClCompile Include="navigation\Source\TestCase.cpp" />
+    <ClCompile Include="navigation\Source\ValueHistory.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
@@ -23,6 +45,28 @@
   <ItemGroup>
     <ClInclude Include="eqnav.h" />
     <ClInclude Include="interface.h" />
+    <ClInclude Include="navigation\Include\ChunkyTriMesh.h" />
+    <ClInclude Include="navigation\Include\ConvexVolumeTool.h" />
+    <ClInclude Include="navigation\Include\CrowdTool.h" />
+    <ClInclude Include="navigation\Include\Filelist.h" />
+    <ClInclude Include="navigation\Include\imgui.h" />
+    <ClInclude Include="navigation\Include\imguiRenderGL.h" />
+    <ClInclude Include="navigation\Include\InputGeom.h" />
+    <ClInclude Include="navigation\Include\MeshLoaderObj.h" />
+    <ClInclude Include="navigation\Include\NavMeshPruneTool.h" />
+    <ClInclude Include="navigation\Include\NavMeshTesterTool.h" />
+    <ClInclude Include="navigation\Include\OffMeshConnectionTool.h" />
+    <ClInclude Include="navigation\Include\PerfTimer.h" />
+    <ClInclude Include="navigation\Include\Sample.h" />
+    <ClInclude Include="navigation\Include\SampleInterfaces.h" />
+    <ClInclude Include="navigation\Include\Sample_Debug.h" />
+    <ClInclude Include="navigation\Include\Sample_SoloMesh.h" />
+    <ClInclude Include="navigation\Include\Sample_TempObstacles.h" />
+    <ClInclude Include="navigation\Include\Sample_TileMesh.h" />
+    <ClInclude Include="navigation\Include\SDLMain.h" />
+    <ClInclude Include="navigation\Include\SlideShow.h" />
+    <ClInclude Include="navigation\Include\TestCase.h" />
+    <ClInclude Include="navigation\Include\ValueHistory.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -61,7 +105,8 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)navigation\Include;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -77,6 +122,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

@@ -16,43 +16,36 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef RECASTSAMPLEDEBUG_H
-#define RECASTSAMPLEDEBUG_H
+#ifndef NAVMESHPRUNETOOL_H
+#define NAVMESHPRUNETOOL_H
 
 #include "Sample.h"
-#include "DetourNavMesh.h"
-#include "Recast.h"
 
-/// Sample used for random debugging.
-class Sample_Debug : public Sample
+// Prune navmesh to accessible locations from a point.
+
+class NavMeshPruneTool : public SampleTool
 {
-protected:
-	rcCompactHeightfield* m_chf;
-	rcContourSet* m_cset;
-	rcPolyMesh* m_pmesh;
+	Sample* m_sample;
+	
+	class NavmeshFlags* m_flags;
 
-	float m_ext[3];
-	float m_center[3];
-	float m_bmin[3], m_bmax[3];
-	dtPolyRef m_ref;
+	float m_hitPos[3];
+	bool m_hitPosSet;
 	
 public:
-	Sample_Debug();
-	virtual ~Sample_Debug();
+	NavMeshPruneTool();
+	~NavMeshPruneTool();
 	
-	virtual void handleSettings();
-	virtual void handleTools();
-	virtual void handleDebugMode();
+	virtual int type() { return TOOL_NAVMESH_PRUNE; }
+	virtual void init(Sample* sample);
+	virtual void reset();
+	virtual void handleMenu();
 	virtual void handleClick(const float* s, const float* p, bool shift);
 	virtual void handleToggle();
+	virtual void handleStep();
+	virtual void handleUpdate(const float dt);
 	virtual void handleRender();
 	virtual void handleRenderOverlay(double* proj, double* model, int* view);
-	virtual void handleMeshChanged(class InputGeom* geom);
-	virtual bool handleBuild();
-
-	virtual const float* getBoundsMin();
-	virtual const float* getBoundsMax();
 };
 
-
-#endif // RECASTSAMPLE_H
+#endif // NAVMESHPRUNETOOL_H

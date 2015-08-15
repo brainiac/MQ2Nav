@@ -71,7 +71,8 @@ int main(int /*argc*/, char** /*argv*/)
 	}
 	
 	// Center window
-	putenv("SDL_VIDEO_CENTERED=1");
+	char env[] = "SDL_VIDEO_CENTERED=1";
+	putenv(env);
 
 	// Init OpenGL
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -100,7 +101,8 @@ int main(int /*argc*/, char** /*argv*/)
 	}
 	else
 	{	
-		width = vi->current_w - 20;
+		width = rcMin(vi->current_w, (int)(vi->current_h * 16.0 / 9.0));
+		width = width - 80;
 		height = vi->current_h - 80;
 		screen = SDL_SetVideoMode(width, height, 0, SDL_OPENGL);
 	}
@@ -374,8 +376,8 @@ int main(int /*argc*/, char** /*argv*/)
 		// Hit test mesh.
 		if (processHitTest && geom && sample)
 		{
-			float t;
-			bool hit = geom->raycastMesh(rays, raye, t);
+			float hitt;
+			bool hit = geom->raycastMesh(rays, raye, hitt);
 			
 			if (hit)
 			{
@@ -383,16 +385,16 @@ int main(int /*argc*/, char** /*argv*/)
 				{
 					// Marker
 					mposSet = true;
-					mpos[0] = rays[0] + (raye[0] - rays[0])*t;
-					mpos[1] = rays[1] + (raye[1] - rays[1])*t;
-					mpos[2] = rays[2] + (raye[2] - rays[2])*t;
+					mpos[0] = rays[0] + (raye[0] - rays[0])*hitt;
+					mpos[1] = rays[1] + (raye[1] - rays[1])*hitt;
+					mpos[2] = rays[2] + (raye[2] - rays[2])*hitt;
 				}
 				else
 				{
 					float pos[3];
-					pos[0] = rays[0] + (raye[0] - rays[0])*t;
-					pos[1] = rays[1] + (raye[1] - rays[1])*t;
-					pos[2] = rays[2] + (raye[2] - rays[2])*t;
+					pos[0] = rays[0] + (raye[0] - rays[0])*hitt;
+					pos[1] = rays[1] + (raye[1] - rays[1])*hitt;
+					pos[2] = rays[2] + (raye[2] - rays[2])*hitt;
 					sample->handleClick(rays, pos, processHitTestShift);
 				}
 			}
@@ -423,10 +425,10 @@ int main(int /*argc*/, char** /*argv*/)
 		}
 
 		// Clamp the framerate so that we do not hog all the CPU.
-		const float FRAME_RATE = 40;
-		if (dt < FRAME_RATE)
+		const float MIN_FRAME_TIME = 1.0f/40.0f;
+		if (dt < MIN_FRAME_TIME)
 		{
-			int ms = (int)((FRAME_RATE - dt)*1000.0f);
+			int ms = (int)((MIN_FRAME_TIME - dt)*1000.0f);
 			if (ms > 10) ms = 10;
 			if (ms >= 0)
 				SDL_Delay(ms);
@@ -816,7 +818,6 @@ int main(int /*argc*/, char** /*argv*/)
 					{
 						delete geom;
 						geom = 0;
-						
 						showLog = true;
 						logScroll = 0;
 						ctx.dumpLog("Geom load log %s:", meshName);
@@ -825,6 +826,10 @@ int main(int /*argc*/, char** /*argv*/)
 					{
 						sample->handleMeshChanged(geom);
 					}
+
+					// This will ensure that tile & poly bits are updated in tiled sample.
+					if (sample)
+						sample->handleSettings();
 
 					ctx.resetLog();
 					if (sample && !sample->handleBuild())
@@ -859,7 +864,7 @@ int main(int /*argc*/, char** /*argv*/)
 						}
 						rx = 45;
 						ry = -45;
-						glFogf(GL_FOG_START, camr*0.1f);
+						glFogf(GL_FOG_START, camr*0.2f);
 						glFogf(GL_FOG_END, camr*1.25f);
 					}
 					
