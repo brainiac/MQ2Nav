@@ -26,7 +26,7 @@ public:
 	~rcMeshLoaderObj();
 	
 	bool loadOrig(const char* fileName);
-	bool load(const char* filename, const char* everquest_path, char*& message);
+	bool load(const char* filename, const char* everquest_path);
 
 	inline const float* getVerts() const { return m_verts; }
 	inline const float* getNormals() const { return m_normals; }

@@ -60,11 +60,8 @@ public:
 	InputGeom();
 	~InputGeom();
 	
-	bool loadMesh(class rcContext* ctx, const char* filepath, const char* everquest_path, char*& message);
-	
-	bool load(class rcContext* ctx, const char* filepath);
-	bool save(const char* filepath);
-	
+	bool loadMesh(class rcContext* ctx, const char* filepath, const char* everquest_path);
+
 	/// Method to return static mesh data.
 	inline const rcMeshLoaderObj* getMesh() const { return m_mesh; }
 	inline const float* getMeshBoundsMin() const { return m_meshBMin; }

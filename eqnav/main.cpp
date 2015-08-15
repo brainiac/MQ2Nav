@@ -1,65 +1,37 @@
 
 #include "pch.h"
 
+#include "imgui.h"
+#include "imguiRenderGL.h"
+#include "Recast.h"
+#include "RecastDebugDraw.h"
 #include "InputGeom.h"
+#include "TestCase.h"
+
 #include "Sample_TileMesh.h"
+#include "Sample_Debug.h"
+
+#undef main
 
 class Interface
 {
 public:
-	Interface(const char* everquest_path = NULL, const char* output_path = NULL);
+	Interface();
 	~Interface();
 
-	bool ShowDialog(const char* defaultZone = NULL);
+	int ShowDialog(const char* defaultZone = NULL);
 	void Halt();
 	void StartBuild();
-	void LoadGeom(char* zoneShortName);
+
+	void LoadGeom(BuildContext* ctx, char* zoneShortName);
 
 private:
 	void DefineDirectories(bool bypassSettings = false);
 };
 
-//
-// Copyright (c) 2009 Mikko Mononen memon@inside.org
-//
-// This software is provided 'as-is', without any express or implied
-// warranty.  In no event will the authors be held liable for any damages
-// arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-// 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgment in the product documentation would be
-//    appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be
-//    misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
 
-#include <stdio.h>
-#include <iostream>
-#include <math.h>
-#include <tchar.h>
-#include <io.h>
-#include <string>
-#include <iostream>
-#include <fstream>
-#pragma comment(lib,"SDL.lib")
-#pragma comment(lib,"shlwapi.lib")
-#include "SDL.h"
-#include "SDL_opengl.h"
-#include <SDL_syswm.h>
-#include "imgui.h"
-#include "imguiRenderGL.h"
-#include "Recast.h"
-#include "RecastDebugDraw.h"
-#include "Interface.h"
-#include "InputGeom.h"
-#include "shlobj.h"
-#include "shlwapi.h"
-#include "Sample_TileMesh.h"
 #define snprintf _snprintf
-#pragma warning (disable : 4800)
+#define putenv _putenv
 
 static Sample_TileMesh* sample;
 static HANDLE handle;
@@ -352,7 +324,8 @@ void loadZones(FileList& list)
 		delete[] buf;
 		list.sort();
 	}
-	else {
+	else
+	{
 		printf("Zones.ini not found");
 	}
 }
@@ -368,12 +341,17 @@ void Interface::DefineDirectories(bool bypassSettings) {
 #endif
 }
 
-Interface::Interface(const char* everquest_path, const char * output_path) {
+Interface::Interface()
+{
 	resetCamera = true;
 	message = new char[256];
 	geom = 0;
 	sample = new Sample_TileMesh();
 	DefineDirectories();
+}
+
+Interface::~Interface()
+{
 }
 
 DWORD WINAPI BuildThread(LPVOID lpParam)
@@ -383,55 +361,85 @@ DWORD WINAPI BuildThread(LPVOID lpParam)
 
 	return NULL;
 }
+
+void Interface::StartBuild()
+{
+	Halt();
+	handle = CreateThread(NULL, 0, &BuildThread, 0, 0, NULL);
+}
+
+struct LoadThreadParams
+{
+	BuildContext* ctx;
+	char* zoneShortName;
+};
+
 DWORD WINAPI LoadThread(LPVOID lpParam)
 {
 	lockRendering = true;
+
+	LoadThreadParams* params = (LoadThreadParams*)lpParam;
+
 	geom = new InputGeom();
-	geom->loadMesh((char*)lpParam, everquest_path);
+	geom->loadMesh(params->ctx, params->zoneShortName, everquest_path);
+
 	if (sample && geom)
 	{
 		sample->handleMeshChanged(geom);
 		resetCamera = true;
 	}
+
+	delete params;
 	lockRendering = false;
 
 	return NULL;
 }
+
+void Interface::LoadGeom(BuildContext* ctx, char* zoneShortName)
+{
+	Halt();
+
+	LoadThreadParams* params = new LoadThreadParams;
+	params->ctx = ctx;
+	params->zoneShortName = zoneShortName;
+
+	handle = CreateThread(NULL, 0, &LoadThread, params, 0, NULL);
+}
+
 void Interface::Halt()
 {
 	message = NULL;
-	if (handle) {
-		DWORD exitCode;
+	if (handle)
+	{
+		DWORD exitCode = 0;
 		GetExitCodeThread(handle, &exitCode);
 		TerminateThread(handle, exitCode);
 	}
-	if (lockRendering) {
+
+	if (lockRendering)
+	{
 		delete sample;
 		delete geom;
 		sample = new Sample_TileMesh();
 		geom = new InputGeom();
 		lockRendering = false;
 	}
+
 	handle = NULL;
 }
-void Interface::StartBuild()
-{
-	Halt();
-	handle = CreateThread(NULL, 0, &BuildThread, 0, 0, NULL);
-}
-void Interface::LoadGeom(char* zoneShortName)
-{
-	Halt();
-	handle = CreateThread(NULL, 0, &LoadThread, zoneShortName, 0, NULL);
-}
 
-bool Interface::ShowDialog(const char* defaultZone) {
+int Interface::ShowDialog(const char* defaultZone)
+{
 	// Init SDL
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 	{
 		printf("Could not initialise SDL\n");
-		return false;
+		return -1;
 	}
+
+	// Center window
+	char env[] = "SDL_VIDEO_CENTERED=1";
+	putenv(env);
 
 	// Init OpenGL
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -440,17 +448,38 @@ bool Interface::ShowDialog(const char* defaultZone) {
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+	//#ifndef WIN32
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+	//#endif
 
 	const SDL_VideoInfo* vi = SDL_GetVideoInfo();
 
-	int width = vi->current_w - 200;
-	int height = vi->current_h - 200;
-	SDL_Surface* screen = SDL_SetVideoMode(width, height, 0, SDL_OPENGL | SDL_RESIZABLE);
+	bool presentationMode = false;
+
+	int width, height;
+	SDL_Surface* screen = 0;
+
+	if (presentationMode)
+	{
+		width = vi->current_w;
+		height = vi->current_h;
+		screen = SDL_SetVideoMode(width, height, 0, SDL_OPENGL | SDL_FULLSCREEN);
+	}
+	else
+	{
+		width = rcMin(vi->current_w, (int)(vi->current_h * 16.0 / 9.0));
+		width = width - 80;
+		height = vi->current_h - 80;
+		screen = SDL_SetVideoMode(width, height, 0, SDL_OPENGL);
+	}
+
 	if (!screen)
 	{
 		printf("Could not initialise SDL opengl\n");
-		return false;
+		return -1;
 	}
+
 	SDL_SysWMinfo i;
 	SDL_VERSION(&i.version);
 	if (SDL_GetWMInfo(&i)) {
@@ -463,7 +492,7 @@ bool Interface::ShowDialog(const char* defaultZone) {
 	{
 		printf("Could not init GUI renderer. Likely missing the 'DroidSans.tff' file.\n");
 		SDL_Quit();
-		return false;
+		return -1;
 	}
 
 	float t = 0.0f;
@@ -482,7 +511,7 @@ bool Interface::ShowDialog(const char* defaultZone) {
 	bool showLog = false;
 	bool showDebugMode = false;
 	bool showTools = false;
-	bool showLevels = defaultZone;
+	bool showLevels = defaultZone != 0;
 	bool showSample = true;
 	bool showTestCases = false;
 	bool showPreview = true;
@@ -500,10 +529,7 @@ bool Interface::ShowDialog(const char* defaultZone) {
 	float mpos[3] = { 0, 0, 0 };
 	bool mposSet = false;
 
-
-	rcLog log;
-	log.clear();
-	rcSetLog(&log);
+	BuildContext ctx;
 
 	glEnable(GL_CULL_FACE);
 
@@ -580,7 +606,7 @@ bool Interface::ShowDialog(const char* defaultZone) {
 									pos[1] = rays[1] + (raye[1] - rays[1])*t;
 									pos[2] = rays[2] + (raye[2] - rays[2])*t;
 									bool shift = (SDL_GetModState() & KMOD_SHIFT) ? true : false;
-									if (!message) sample->handleClick(pos, shift);
+									if (!message) sample->handleClick(rays, pos, shift);
 								}
 							}
 							else
@@ -876,7 +902,7 @@ bool Interface::ShowDialog(const char* defaultZone) {
 					strcpy(meshShortName, defaultZone);
 					defaultZone = 0;
 				}
-				LoadGeom(meshShortName);
+				LoadGeom(&ctx, meshShortName);
 			}
 			imguiEndScrollArea();
 		}
@@ -906,8 +932,8 @@ bool Interface::ShowDialog(const char* defaultZone) {
 		{
 			if (imguiBeginScrollArea("Log", 10, 10, width - 300, 200, &logScroll))
 				mouseOverMenu = true;
-			for (int i = 0; i < log.getMessageCount(); ++i)
-				imguiLabel(log.getMessageText(i));
+			for (int i = 0; i < ctx.getLogCount(); ++i)
+				imguiLabel(ctx.getLogText(i));
 			imguiEndScrollArea();
 		}
 
@@ -938,12 +964,10 @@ bool Interface::ShowDialog(const char* defaultZone) {
 	return true;
 }
 
-
-int _tmain(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
 	Interface window;
-	window.ShowDialog();
-	return 0;
+	return window.ShowDialog();
 }
 
 //----------------------------------------------------------------------------

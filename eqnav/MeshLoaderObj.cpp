@@ -18,10 +18,6 @@
 
 #include "MeshLoaderObj.h"
 
-// Load azone2 headers
-#include "map.h"
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -140,7 +136,7 @@ static int parseFace(char* row, int* data, int n, int vcnt)
 	return j;
 }
 
-bool rcMeshLoaderObj::load(const char* zoneShortName, const char* everquest_path, char*& message)
+bool rcMeshLoaderObj::load(const char* zoneShortName, const char* everquest_path)
 {
 #if 0
 	int vcap = 0, tcap = 0, counter1 = 0, counter2 = 0;
