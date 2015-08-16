@@ -387,14 +387,7 @@ DWORD WINAPI LoadThread(LPVOID lpParam)
 
 	LoadThreadParams* params = (LoadThreadParams*)lpParam;
 
-	geom = new InputGeom();
-	geom->loadMesh(params->ctx, params->zoneShortName, everquest_path);
 
-	if (sample && geom)
-	{
-		sample->handleMeshChanged(geom);
-		resetCamera = true;
-	}
 
 	delete params;
 	lockRendering = false;
@@ -406,11 +399,14 @@ void Interface::LoadGeom(BuildContext* ctx, char* zoneShortName)
 {
 	Halt();
 
-	LoadThreadParams* params = new LoadThreadParams;
-	params->ctx = ctx;
-	params->zoneShortName = zoneShortName;
+	geom = new InputGeom();
+	geom->loadMesh(ctx, zoneShortName, everquest_path);
 
-	handle = CreateThread(NULL, 0, LoadThread, params, 0, NULL);
+	if (sample && geom)
+	{
+		sample->handleMeshChanged(geom);
+		resetCamera = true;
+	}
 }
 
 void Interface::Halt()

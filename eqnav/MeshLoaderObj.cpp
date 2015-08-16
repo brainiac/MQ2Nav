@@ -96,29 +96,81 @@ bool rcMeshLoaderObj::load(const char* zoneShortName, const char* everquest_path
 
 	if (map.Build(filename))
 	{
+#if 1
 		// load terrain geometry
 		std::shared_ptr<EQEmu::EQG::Terrain> terrain = map.GetTerrain();
 		if (terrain)
 		{
-			//const auto& tiles = terrain->GetTiles();
+			const auto& tiles = terrain->GetTiles();
+			uint32_t quads_per_tile = terrain->GetQuadsPerTile();
+			float units_per_vertex = terrain->GetUnitsPerVertex();
+			uint32_t vert_count = ((quads_per_tile + 1) * (quads_per_tile + 1));
+			uint32_t quad_count = (quads_per_tile * quads_per_tile);
 
-			//for (uint32_t i = 0; i < tiles.size(); ++i)
-			//{
-			//	auto& tile = tiles[i];
+			for (uint32_t i = 0; i < tiles.size(); ++i)
+			{
+				auto& tile = tiles[i];
+				bool flat = tile->IsFlat();
 
-			//	float x = tile->GetX();
-			//	float y = tile->GetY();
+				float x = tile->GetX();
+				float y = tile->GetY();
 
-			//	if (tile->IsFlat())
-			//	{
-			//		float z = tile->GetFloats()[0];
 
-			//		//addVertex(x, z, y, vcap);
-			//	}
-			//}
+				if (flat)
+				{
+					float z = tile->GetFloats()[0];
+
+					// get x,y of corner point for this quad
+					float dt = quads_per_tile * units_per_vertex;
+
+					addVertex(x,      z, y, vcap);
+					addVertex(x + dt, z, y, vcap);
+					addVertex(x + dt, z, y + dt, vcap);
+					addVertex(x,      z, y + dt, vcap);
+
+					addTriangle(counter + 0, counter + 2, counter + 1, tcap);
+					addTriangle(counter + 2, counter + 0, counter + 3, tcap);
+
+					counter += 4;
+				}
+				else
+				{
+					auto& floats = tile->GetFloats();
+					int row_number = -1;
+
+					for (uint32_t quad = 0; quad < quad_count; ++quad)
+					{
+						if (quad % quads_per_tile == 0)
+							++row_number;
+
+						if (tile->GetFlags()[quad] & 0x01)
+							continue;
+
+						// get x,y of corner point for this quad
+						float _x = x + (row_number * units_per_vertex);
+						float _y = y + (quad % quads_per_tile) * units_per_vertex;
+						float dt = units_per_vertex;
+
+						float z1 = floats[quad + row_number];
+						float z2 = floats[quad + row_number + quads_per_tile + 1];
+						float z3 = floats[quad + row_number + quads_per_tile + 2];
+						float z4 = floats[quad + row_number + 1];
+
+						addVertex(_x,      z1, _y, vcap);
+						addVertex(_x + dt, z2, _y, vcap);
+						addVertex(_x + dt, z3, _y + dt, vcap);
+						addVertex(_x,      z4, _y + dt, vcap);
+
+						addTriangle(counter + 0, counter + 2, counter + 1, tcap);
+						addTriangle(counter + 2, counter + 0, counter + 3, tcap);
+
+						counter += 4;
+					}
+				}
+			}
 		}
-
-
+#endif
+#if 1
 		const auto& collide_indices = map.GetCollideIndices();
 
 		for (uint32_t index = 0; index < collide_indices.size(); index += 3, counter += 3)
@@ -137,6 +189,7 @@ bool rcMeshLoaderObj::load(const char* zoneShortName, const char* everquest_path
 
 			addTriangle(counter, counter + 2, counter + 1, tcap);
 		}
+#endif
 
 		//const auto& non_collide_indices = map.GetNonCollideIndices();
 
