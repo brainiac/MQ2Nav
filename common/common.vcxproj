@@ -26,6 +26,7 @@
     <ClInclude Include="eqg_v4_loader.h" />
     <ClInclude Include="eqg_water_sheet.h" />
     <ClInclude Include="light.h" />
+    <ClInclude Include="map.h" />
     <ClInclude Include="octree.h" />
     <ClInclude Include="oriented_bounding_box.h" />
     <ClInclude Include="pfs.h" />
@@ -55,6 +56,7 @@
     <ClCompile Include="eqg_loader.cpp" />
     <ClCompile Include="eqg_model_loader.cpp" />
     <ClCompile Include="eqg_v4_loader.cpp" />
+    <ClCompile Include="map.cpp" />
     <ClCompile Include="oriented_bounding_box.cpp" />
     <ClCompile Include="pfs.cpp" />
     <ClCompile Include="pfs_crc.cpp" />

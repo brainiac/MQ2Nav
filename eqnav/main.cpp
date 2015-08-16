@@ -33,6 +33,8 @@ private:
 #define snprintf _snprintf
 #define putenv _putenv
 
+BuildContext ctx;
+
 static Sample_TileMesh* sample;
 static HANDLE handle;
 static char* output_path;
@@ -351,6 +353,7 @@ Interface::Interface()
 	message = new char[256];
 	geom = 0;
 	sample = new Sample_TileMesh();
+	sample->setContext(&ctx);
 	DefineDirectories();
 }
 
@@ -407,7 +410,7 @@ void Interface::LoadGeom(BuildContext* ctx, char* zoneShortName)
 	params->ctx = ctx;
 	params->zoneShortName = zoneShortName;
 
-	handle = CreateThread(NULL, 0, &LoadThread, params, 0, NULL);
+	handle = CreateThread(NULL, 0, LoadThread, params, 0, NULL);
 }
 
 void Interface::Halt()
@@ -425,6 +428,7 @@ void Interface::Halt()
 		delete sample;
 		delete geom;
 		sample = new Sample_TileMesh();
+		sample->setContext(&ctx);
 		geom = new InputGeom();
 		lockRendering = false;
 	}
@@ -519,8 +523,6 @@ int Interface::ShowDialog(const char* defaultZone)
 
 	float mpos[3] = { 0, 0, 0 };
 	bool mposSet = false;
-
-	BuildContext ctx;
 
 	glEnable(GL_CULL_FACE);
 

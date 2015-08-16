@@ -348,7 +348,7 @@ void Sample_TileMesh::handleSettings()
 	Sample::handleCommonSettings();
 
 #if 0
-	if (imguiCheck("Keep Itermediate Results", m_keepInterResults))
+	if (imguiCheck("Keep Intermediate Results", m_keepInterResults))
 		m_keepInterResults = !m_keepInterResults;
 
 	if (imguiCheck("Build All Tiles", m_buildAll))

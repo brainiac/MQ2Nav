@@ -16,13 +16,16 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
+#include "pch.h"
 #include "MeshLoaderObj.h"
+#include "map.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+
 
 rcMeshLoaderObj::rcMeshLoaderObj() :
 	m_scale(1.0f),
@@ -77,97 +80,90 @@ void rcMeshLoaderObj::addTriangle(int a, int b, int c, int& cap)
 	m_triCount++;
 }
 
-static char* parseRow(char* buf, char* bufEnd, char* row, int len)
-{
-	bool start = true;
-	bool done = false;
-	int n = 0;
-	while (!done && buf < bufEnd)
-	{
-		char c = *buf;
-		buf++;
-		// multirow
-		switch (c)
-		{
-			case '\\':
-				break;
-			case '\n':
-				if (start) break;
-				done = true;
-				break;
-			case '\r':
-				break;
-			case '\t':
-			case ' ':
-				if (start) break;
-			default:
-				start = false;
-				row[n++] = c;
-				if (n >= len-1)
-					done = true;
-				break;
-		}
-	}
-	row[n] = '\0';
-	return buf;
-}
-
-static int parseFace(char* row, int* data, int n, int vcnt)
-{
-	int j = 0;
-	while (*row != '\0')
-	{
-		// Skip initial white space
-		while (*row != '\0' && (*row == ' ' || *row == '\t'))
-			row++;
-		char* s = row;
-		// Find vertex delimiter and terminated the string there for conversion.
-		while (*row != '\0' && *row != ' ' && *row != '\t')
-		{
-			if (*row == '/') *row = '\0';
-			row++;
-		}
-		if (*s == '\0')
-			continue;
-		int vi = atoi(s);
-		data[j++] = vi < 0 ? vi+vcnt : vi-1;
-		if (j >= n) return j;
-	}
-	return j;
-}
-
 bool rcMeshLoaderObj::load(const char* zoneShortName, const char* everquest_path)
 {
-#if 0
-	int vcap = 0, tcap = 0, counter1 = 0, counter2 = 0;
-	QTBuilder zoneBuilder(everquest_path);
-	if (zoneBuilder.build(zoneShortName,message)) {
-			m_normals = new float[zoneBuilder.faceCount*3];
-			message = "Unyfing data...";
-			for(int counter1 = 0, counter2 = 0; counter1 < (int)zoneBuilder.faceCount; counter1++, counter2+=3)
-			{
-				addVertex(zoneBuilder.faceBlock[counter1].a.x, 
-					      zoneBuilder.faceBlock[counter1].a.z, 
-						  zoneBuilder.faceBlock[counter1].a.y, 
-						  vcap);
-				addVertex(zoneBuilder.faceBlock[counter1].b.x,
-						  zoneBuilder.faceBlock[counter1].b.z,
-						  zoneBuilder.faceBlock[counter1].b.y, 
-						  vcap);
-				addVertex(zoneBuilder.faceBlock[counter1].c.x, 
-						  zoneBuilder.faceBlock[counter1].c.z, 
-						  zoneBuilder.faceBlock[counter1].c.y, 
-						  vcap);
-				//m_normals[counter2] = zoneBuilder.faceBlock[counter1].nx;
-				//m_normals[counter2+1] = zoneBuilder.faceBlock[counter1].ny;
-				//m_normals[counter2+2] = zoneBuilder.faceBlock[counter1].nz;
-				addTriangle(counter2,counter2+2,counter2+1,tcap);
-			}
-	} else
+	std::string filename = zoneShortName;
+	Map map;
+
+	// change the working directory to the everquest folder
+	char orig_directory[_MAX_PATH] = { 0 };
+	GetCurrentDirectoryA(_MAX_PATH, orig_directory);
+
+	SetCurrentDirectoryA(everquest_path);
+
+	int tcap = 0, vcap = 0;
+	uint32_t counter = 0;
+
+	if (map.Build(filename))
+	{
+		// load terrain geometry
+		std::shared_ptr<EQEmu::EQG::Terrain> terrain = map.GetTerrain();
+		if (terrain)
+		{
+			//const auto& tiles = terrain->GetTiles();
+
+			//for (uint32_t i = 0; i < tiles.size(); ++i)
+			//{
+			//	auto& tile = tiles[i];
+
+			//	float x = tile->GetX();
+			//	float y = tile->GetY();
+
+			//	if (tile->IsFlat())
+			//	{
+			//		float z = tile->GetFloats()[0];
+
+			//		//addVertex(x, z, y, vcap);
+			//	}
+			//}
+		}
+
+
+		const auto& collide_indices = map.GetCollideIndices();
+
+		for (uint32_t index = 0; index < collide_indices.size(); index += 3, counter += 3)
+		{
+			uint32_t vert_index1 = collide_indices[index];
+			const glm::vec3& vert1 = map.GetCollideVert(vert_index1);
+			addVertex(vert1.x, vert1.z, vert1.y, vcap);
+
+			uint32_t vert_index2 = collide_indices[index + 2];
+			const glm::vec3& vert2 = map.GetCollideVert(vert_index2);
+			addVertex(vert2.x, vert2.z, vert2.y, vcap);
+
+			uint32_t vert_index3 = collide_indices[index + 1];
+			const glm::vec3& vert3 = map.GetCollideVert(vert_index3);
+			addVertex(vert3.x, vert3.z, vert3.y, vcap);
+
+			addTriangle(counter, counter + 2, counter + 1, tcap);
+		}
+
+		//const auto& non_collide_indices = map.GetNonCollideIndices();
+
+		//for (uint32_t index = 0; index < non_collide_indices.size(); index += 3, counter += 3)
+		//{
+		//	uint32_t vert_index1 = non_collide_indices[index];
+		//	const glm::vec3& vert1 = map.GetNonCollideVert(vert_index1);
+		//	addVertex(vert1.x, vert1.z, vert1.y, vcap);
+
+		//	uint32_t vert_index2 = non_collide_indices[index + 1];
+		//	const glm::vec3& vert2 = map.GetNonCollideVert(vert_index2);
+		//	addVertex(vert2.x, vert2.z, vert2.y, vcap);
+
+		//	uint32_t vert_index3 = non_collide_indices[index + 2];
+		//	const glm::vec3& vert3 = map.GetNonCollideVert(vert_index3);
+		//	addVertex(vert3.x, vert3.z, vert3.y, vcap);
+
+		//	addTriangle(counter, counter + 2, counter + 1, tcap);
+		//}
+	}
+	else
+	{
+		SetCurrentDirectoryA(orig_directory);
 		return false;
-	// Calculate normals.
+	}
 	
-	message = "Calculating Surface Normals...";
+	//message = "Calculating Surface Normals...";
 	m_normals = new float[m_triCount*3];
 	for (int i = 0; i < m_triCount*3; i += 3)
 	{
@@ -196,9 +192,7 @@ bool rcMeshLoaderObj::load(const char* zoneShortName, const char* everquest_path
 	
 	strncpy(m_filename, zoneShortName, sizeof(m_filename));
 	m_filename[sizeof(m_filename)-1] = '\0';
-	
+	SetCurrentDirectoryA(orig_directory);
+
 	return true;
-#else
-	return false;
-#endif
 }
