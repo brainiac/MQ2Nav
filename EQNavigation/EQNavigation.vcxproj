@@ -1,0 +1,142 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="eqnav.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ChunkyTriMesh.cpp" />
+    <ClCompile Include="ConvexVolumeTool.cpp" />
+    <ClCompile Include="CrowdTool.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="imgui.cpp" />
+    <ClCompile Include="imguiRenderGL.cpp" />
+    <ClCompile Include="InputGeom.cpp" />
+    <ClCompile Include="MapGeometryLoader.cpp" />
+    <ClCompile Include="NavMeshPruneTool.cpp" />
+    <ClCompile Include="NavMeshTesterTool.cpp" />
+    <ClCompile Include="OffMeshConnectionTool.cpp" />
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="PerfTimer.cpp" />
+    <ClCompile Include="Sample.cpp" />
+    <ClCompile Include="SampleInterfaces.cpp" />
+    <ClCompile Include="Sample_Debug.cpp" />
+    <ClCompile Include="Sample_TileMesh.cpp" />
+    <ClCompile Include="TestCase.cpp" />
+    <ClCompile Include="ValueHistory.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ChunkyTriMesh.h" />
+    <ClInclude Include="ConvexVolumeTool.h" />
+    <ClInclude Include="CrowdTool.h" />
+    <ClInclude Include="imgui.h" />
+    <ClInclude Include="imguiRenderGL.h" />
+    <ClInclude Include="InputGeom.h" />
+    <ClInclude Include="MapGeometryLoader.h" />
+    <ClInclude Include="NavMeshPruneTool.h" />
+    <ClInclude Include="NavMeshTesterTool.h" />
+    <ClInclude Include="OffMeshConnectionTool.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="PerfTimer.h" />
+    <ClInclude Include="Sample.h" />
+    <ClInclude Include="SampleInterfaces.h" />
+    <ClInclude Include="Sample_Debug.h" />
+    <ClInclude Include="Sample_TileMesh.h" />
+    <ClInclude Include="TestCase.h" />
+    <ClInclude Include="ValueHistory.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\dependencies\imgui\imgui.vcxproj">
+      <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\recast\Recast.vcxproj">
+      <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\zone-utilities-projects\common.vcxproj">
+      <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\zone-utilities-projects\log.vcxproj">
+      <Project>{b7b63df5-f5e8-4395-8249-caf1c049cc86}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{0F4E974D-3E48-44F0-945E-90C97E1E254D}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>EQNavigation</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>SDL.lib;shlwapi.lib;openGL32.lib;glu32.lib;zlib1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\dependencies\sdl\lib;$(ProjectDir)..\dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\dependencies\sdl\lib;$(ProjectDir)..\dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL.lib;shlwapi.lib;openGL32.lib;glu32.lib;zlib1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

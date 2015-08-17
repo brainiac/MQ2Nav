@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\zone-utilities\common\any.h" />
+    <ClInclude Include="..\zone-utilities\common\compression.h" />
+    <ClInclude Include="..\zone-utilities\common\eqemu_endian.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_geometry.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_invis_wall.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_loader.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_material.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_model_loader.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_region.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_structs.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_terrain.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_terrain_tile.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_v4_loader.h" />
+    <ClInclude Include="..\zone-utilities\common\eqg_water_sheet.h" />
+    <ClInclude Include="..\zone-utilities\common\light.h" />
+    <ClInclude Include="..\zone-utilities\common\octree.h" />
+    <ClInclude Include="..\zone-utilities\common\oriented_bounding_box.h" />
+    <ClInclude Include="..\zone-utilities\common\pfs.h" />
+    <ClInclude Include="..\zone-utilities\common\pfs_crc.h" />
+    <ClInclude Include="..\zone-utilities\common\placeable.h" />
+    <ClInclude Include="..\zone-utilities\common\placeable_group.h" />
+    <ClInclude Include="..\zone-utilities\common\s3d_bsp.h" />
+    <ClInclude Include="..\zone-utilities\common\s3d_geometry.h" />
+    <ClInclude Include="..\zone-utilities\common\s3d_loader.h" />
+    <ClInclude Include="..\zone-utilities\common\s3d_skeleton_track.h" />
+    <ClInclude Include="..\zone-utilities\common\s3d_texture.h" />
+    <ClInclude Include="..\zone-utilities\common\s3d_texture_brush.h" />
+    <ClInclude Include="..\zone-utilities\common\s3d_texture_brush_set.h" />
+    <ClInclude Include="..\zone-utilities\common\safe_alloc.h" />
+    <ClInclude Include="..\zone-utilities\common\string_util.h" />
+    <ClInclude Include="..\zone-utilities\common\water_map.h" />
+    <ClInclude Include="..\zone-utilities\common\water_map_v1.h" />
+    <ClInclude Include="..\zone-utilities\common\water_map_v2.h" />
+    <ClInclude Include="..\zone-utilities\common\wld_fragment.h" />
+    <ClInclude Include="..\zone-utilities\common\wld_fragment_reference.h" />
+    <ClInclude Include="..\zone-utilities\common\wld_structs.h" />
+    <ClInclude Include="..\zone-utilities\common\zone_map.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\zone-utilities\common\compression.cpp" />
+    <ClCompile Include="..\zone-utilities\common\eqg_loader.cpp" />
+    <ClCompile Include="..\zone-utilities\common\eqg_model_loader.cpp" />
+    <ClCompile Include="..\zone-utilities\common\eqg_v4_loader.cpp" />
+    <ClCompile Include="..\zone-utilities\common\oriented_bounding_box.cpp" />
+    <ClCompile Include="..\zone-utilities\common\pfs.cpp" />
+    <ClCompile Include="..\zone-utilities\common\pfs_crc.cpp" />
+    <ClCompile Include="..\zone-utilities\common\s3d_loader.cpp" />
+    <ClCompile Include="..\zone-utilities\common\string_util.cpp" />
+    <ClCompile Include="..\zone-utilities\common\water_map.cpp" />
+    <ClCompile Include="..\zone-utilities\common\water_map_v1.cpp" />
+    <ClCompile Include="..\zone-utilities\common\water_map_v2.cpp" />
+    <ClCompile Include="..\zone-utilities\common\wld_fragment.cpp" />
+    <ClCompile Include="..\zone-utilities\common\zone_map.cpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{200FB60C-6C01-48A7-886A-8E3683EB21BC}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>common</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\glm\glm;$(ProjectDir)..\zlib\include;$(ProjectDir)..\zone-utilities\log</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\glm\glm;$(ProjectDir)..\zlib\include;$(ProjectDir)..\zone-utilities\log</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
