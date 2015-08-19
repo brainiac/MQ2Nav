@@ -22,6 +22,7 @@
 #include "Recast.h"
 #include "SampleInterfaces.h"
 
+class BuildContext;
 
 /// Tool types.
 enum SampleToolType

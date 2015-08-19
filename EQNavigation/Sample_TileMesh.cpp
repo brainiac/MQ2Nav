@@ -37,6 +37,8 @@
 #include "ConvexVolumeTool.h"
 #include "CrowdTool.h"
 
+#include "Interface.h"
+
 
 #ifdef WIN32
 #	define snprintf _snprintf
@@ -667,8 +669,12 @@ void Sample_TileMesh::handleRenderOverlay(double* proj, double* model, int* view
 	GLdouble x, y, z;
 	
 	// Draw start and end point labels
-	if (m_tileBuildTime > 0.0f && gluProject((GLdouble)(m_tileBmin[0]+m_tileBmax[0])/2, (GLdouble)(m_tileBmin[1]+m_tileBmax[1])/2, (GLdouble)(m_tileBmin[2]+m_tileBmax[2])/2,
-											 model, proj, view, &x, &y, &z))
+	if (m_tileBuildTime > 0.0f
+		&& gluProject(
+			(GLdouble)(m_tileBmin[0]+m_tileBmax[0])/2,
+			(GLdouble)(m_tileBmin[1]+m_tileBmax[1])/2,
+			(GLdouble)(m_tileBmin[2]+m_tileBmax[2])/2,
+			model, proj, view, &x, &y, &z))
 	{
 		char text[32];
 		snprintf(text,32,"%.3fms / %dTris / %.1fkB", m_tileBuildTime, m_tileTriCount, m_tileMemUsage);

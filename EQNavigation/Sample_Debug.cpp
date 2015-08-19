@@ -30,6 +30,8 @@
 #include "SDL.h"
 #include "SDL_opengl.h"
 
+#include "Interface.h"
+
 #ifdef WIN32
 #	define snprintf _snprintf
 #endif
@@ -365,7 +367,6 @@ void Sample_Debug::handleToggle()
 
 bool Sample_Debug::handleBuild()
 {
-
 	if (m_chf)
 	{
 		rcFreeContourSet(m_cset);

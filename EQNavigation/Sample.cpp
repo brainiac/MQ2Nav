@@ -31,6 +31,8 @@
 #include "SDL.h"
 #include "SDL_opengl.h"
 
+#include "Interface.h"
+
 #ifdef WIN32
 #	define snprintf _snprintf
 #endif

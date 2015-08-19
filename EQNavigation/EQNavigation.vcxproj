@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -17,10 +17,11 @@
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="CrowdTool.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Interface.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imguiRenderGL.cpp" />
     <ClCompile Include="InputGeom.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
     <ClCompile Include="NavMeshPruneTool.cpp" />
     <ClCompile Include="NavMeshTesterTool.cpp" />
@@ -43,6 +44,7 @@
     <ClInclude Include="imgui.h" />
     <ClInclude Include="imguiRenderGL.h" />
     <ClInclude Include="InputGeom.h" />
+    <ClInclude Include="Interface.h" />
     <ClInclude Include="MapGeometryLoader.h" />
     <ClInclude Include="NavMeshPruneTool.h" />
     <ClInclude Include="NavMeshTesterTool.h" />
@@ -79,13 +81,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v120_xp</PlatformToolset>
+    <PlatformToolset>v140_xp</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v120_xp</PlatformToolset>
+    <PlatformToolset>v140_xp</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
