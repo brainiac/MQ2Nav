@@ -17,6 +17,7 @@
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="CrowdTool.cpp" />
+    <ClCompile Include="EQConfig.cpp" />
     <ClCompile Include="Interface.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imguiRenderGL.cpp" />
@@ -41,6 +42,7 @@
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="CrowdTool.h" />
+    <ClInclude Include="EQConfig.h" />
     <ClInclude Include="imgui.h" />
     <ClInclude Include="imguiRenderGL.h" />
     <ClInclude Include="InputGeom.h" />
@@ -61,6 +63,9 @@
   <ItemGroup>
     <ProjectReference Include="..\dependencies\imgui\imgui.vcxproj">
       <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\nfd\nfd.vcxproj">
+      <Project>{d488c036-1f87-4a72-a710-154fe8733e43}</Project>
     </ProjectReference>
     <ProjectReference Include="..\dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
@@ -109,7 +114,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\nfd\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -127,7 +132,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\nfd\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

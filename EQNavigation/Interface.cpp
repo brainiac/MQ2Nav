@@ -14,13 +14,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include <sstream>
+
 //============================================================================
 
 static const int32_t MAX_LOG_MESSAGES = 1000;
-
-// These are TEMP until UI is implemented to allow a choice
-const char* EVERQUEST_INSTALL_FOLDER = "C:\\projects\\eq-scripts\\equpdate\\build_folder";
-const char* OUTPUT_PATH = "c:\\projects\\mq2-mmobugs\\Debug";
 
 //============================================================================
 
@@ -28,8 +26,6 @@ Interface::Interface(const std::string& defaultZone)
 	: m_context(new BuildContext())
 	, m_mesh(new Sample_TileMesh)
 	, m_screen(nullptr)
-	, m_everquestPath(EVERQUEST_INSTALL_FOLDER)
-	, m_outputPath(OUTPUT_PATH)
 	, m_resetCamera(true)
 	, m_defaultZone(defaultZone)
 	, m_width(1600), m_height(900)
@@ -45,7 +41,7 @@ Interface::Interface(const std::string& defaultZone)
 {
 
 	m_mesh->setContext(m_context.get());
-	m_mesh->setOutputPath(m_outputPath.c_str());
+	m_mesh->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 
 	InitializeWindow();
 }
@@ -449,15 +445,12 @@ void Interface::RenderInterface()
 
 		imguiSeparator();
 
-		char meshName[128] = "Choose Zone...";
-		char* meshShortName = new char[MAX_PATH];
-
 		if (m_mesh)
 		{
 			imguiSeparator();
 			imguiLabel("Zone Mesh");
 
-			if (imguiButton(meshName))
+			if (imguiButton(m_zoneDisplayName.c_str()))
 			{
 				if (m_showLevels)
 				{
@@ -468,9 +461,6 @@ void Interface::RenderInterface()
 					m_showSample = false;
 					m_showTestCases = false;
 					m_showLevels = true;
-
-					// TODO: Fixme
-					//loadZones(files);
 				}
 			}
 
@@ -532,82 +522,64 @@ void Interface::RenderInterface()
 		std::unique_lock<std::mutex> lock(m_renderMutex);
 
 		static int levelScroll = 0;
-		if (imguiBeginScrollArea("Choose Zone",
-			m_width - 10 - 300 - 10 - 200,
-			m_height - 10 - 800, 250, 800, &levelScroll))
+		if (imguiBeginScrollArea("Choose Expansion",
+			m_width - 10 - 300 - 10 - 350,
+			m_height - 10 - 800, 400, 800, &levelScroll))
 		{
 			m_mouseOverMenu = true;
 		}
 
-		int levelToLoad = -1;
-#if 0
-		for (int i = 0; i < files.size; ++i)
-		{
-			if (imguiItem(files.files[i]))
-				levelToLoad = i;
-		}
-#endif
+		std::string levelToLoad;
 
-		if (levelToLoad != -1 || !m_defaultZone.empty())
+		const auto& mapList = m_eqConfig.GetMapList();
+		for (const auto& mapIter : mapList)
+		{
+			const std::string& expansionName = mapIter.first;
+			bool expanded = m_expansionExpanded[expansionName];
+
+			if (imguiCollapse(expansionName.c_str(), 0, expanded))
+				m_expansionExpanded[expansionName] = !expanded;
+
+			if (m_expansionExpanded[expansionName])
+			{
+				imguiIndent();
+
+				for (const auto& zonePair : mapIter.second)
+				{
+					std::stringstream ss;
+					ss << zonePair.first << " (" << zonePair.second << ")";
+
+					if (imguiItem(ss.str().c_str()))
+						levelToLoad = zonePair.second;
+
+				}
+
+				imguiUnindent();
+			}
+		}
+
+
+		if (!levelToLoad.empty() || !m_defaultZone.empty())
 		{
 			m_geom.reset();
 			m_showLevels = false;
 
-#if 0
-			if (levelToLoad != -1)
+			if (!levelToLoad.empty())
 			{
-				strncpy(meshName, files.files[levelToLoad], sizeof(meshName));
-				meshName[sizeof(meshName) - 1] = '\0';
-
-				TCHAR FullPath[MAX_PATH] = { 0 };
-				GetModuleFileName(NULL, FullPath, MAX_PATH);
-				PathRemoveFileSpec(FullPath);
-				PathAppend(FullPath, _T("Zones.ini"));
-				if (FILE* fp = fopen(FullPath, "rb"))
-				{
-					fseek(fp, 0, SEEK_END);
-					int bufSize = ftell(fp);
-					fseek(fp, 0, SEEK_SET);
-					char* buf = new char[bufSize];
-					if (buf) {
-						fread(buf, bufSize, 1, fp);
-						fclose(fp);
-						int index;
-						char* buffer = new char[256];
-						char* src = buf;
-						char* srcEnd = buf + bufSize;
-						char row[512];
-						char* charValue1 = new char[256];
-						while (src < srcEnd)
-						{
-							// Parse one row
-							row[0] = '\0';
-							src = parseRow(src, srcEnd, row, sizeof(row) / sizeof(char));
-							// Skip comments
-							if (row[0] == ';') continue;
-							if (index = contains(row, '='))
-							{
-								if (!strcmp(Mid(charValue1, row, 0, index), meshName))
-								{
-									strcpy(meshShortName, Mid(charValue1, row, index + 1, strlen(row)));
-								}
-							}
-						}
-						delete[] buf;
-					}
-					else
-						fclose(fp);
-				}
-				else {
-					printf("Zones.ini not found");
-				}
+				m_zoneShortname = levelToLoad;
 			}
 			else
-#endif
 			{
 				m_zoneShortname = m_defaultZone;
 				m_defaultZone.clear();
 			}
+
+			m_zoneLongname = m_eqConfig.GetLongNameForShortName(m_zoneShortname);
+
+			std::stringstream ss;
+			ss << m_zoneLongname << " (" << m_zoneShortname << ")";
+			m_zoneDisplayName = ss.str();
+			m_expansionExpanded.clear();
 
 			LoadGeometry();
 		}
@@ -683,7 +655,8 @@ void Interface::LoadGeometry()
 	Halt();
 
 	m_geom.reset(new InputGeom());
-	m_geom->loadMesh(m_context.get(), m_zoneShortname.c_str(), m_everquestPath.c_str());
+	m_geom->loadMesh(m_context.get(), m_zoneShortname.c_str(),
+		m_eqConfig.GetEverquestPath().c_str());
 
 	if (m_mesh && m_geom)
 	{
@@ -709,7 +682,7 @@ void Interface::Halt()
 
 		m_mesh.reset(new Sample_TileMesh());
 		m_mesh->setContext(m_context.get());
-		m_mesh->setOutputPath(m_outputPath.c_str());
+		m_mesh->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 
 		m_geom.reset(new InputGeom());
 	}

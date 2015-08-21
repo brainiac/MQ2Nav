@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "EQConfig.h"
 #include "Recast.h"
 #include "PerfTimer.h"
 
@@ -50,15 +51,7 @@ private:
 	void Halt();
 
 private:
-	// currently chosen path to everquest installation
-	std::string m_everquestPath;
-
-	// currently chosen path to the output folder. We will put navmeshes here
-	std::string m_outputPath;
-
-	// loaded maps, keyed by their expansion group. Data is loaded from Zones.ini
-	typedef std::pair<std::string /*shortName*/, std::string /*longName*/> ZoneNamePair;
-	std::multimap<std::string, ZoneNamePair> m_loadedMaps;
+	EQConfig m_eqConfig;
 
 	// short name of the currently loaded zone
 	std::string m_zoneShortname;
@@ -125,6 +118,10 @@ private:
 	int m_mx = 0, m_my = 0;
 	bool m_rotate = false;
 	bool m_done = false;
+
+	// maps display
+	std::map<std::string, bool> m_expansionExpanded;
+	std::string m_zoneDisplayName = "Choose Zone...";
 };
 
 
