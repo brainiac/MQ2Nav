@@ -24,21 +24,18 @@
 #include "Recast.h"
 #include "ChunkyTriMesh.h"
 
+#include <memory>
+#include <functional>
+
+template <typename T>
+using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
+
 class Sample_TileMesh : public Sample
 {
 protected:
-	bool m_keepInterResults;
 	bool m_buildAll;
 	float m_totalBuildTimeMs;
 
-	unsigned char* m_triareas;
-	rcHeightfield* m_solid;
-	rcCompactHeightfield* m_chf;
-	rcContourSet* m_cset;
-	rcPolyMesh* m_pmesh;
-	rcPolyMeshDetail* m_dmesh;
-	rcConfig m_cfg;	
-	
 	enum DrawMode
 	{
 		DRAWMODE_NAVMESH,
@@ -58,7 +55,7 @@ protected:
 		DRAWMODE_BOTH_CONTOURS,
 		DRAWMODE_CONTOURS,
 		DRAWMODE_POLYMESH,
-		DRAWMODE_POLYMESH_DETAIL,		
+		DRAWMODE_POLYMESH_DETAIL,
 		MAX_DRAWMODE
 	};
 		
@@ -77,8 +74,6 @@ protected:
 	char* m_outputPath;
 
 	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize);
-	
-	void cleanup();
 	
 	void saveAll(const char* path, const dtNavMesh* mesh);
 	dtNavMesh* loadAll(const char* path);

@@ -12,6 +12,7 @@
 #include <mutex>
 #include <string>
 #include <deque>
+#include <mutex>
 
 class BuildContext;
 class Sample_TileMesh;
@@ -153,4 +154,5 @@ private:
 	int32_t m_accTime[RC_MAX_TIMERS];
 
 	std::deque<std::string> m_logs;
+	mutable std::mutex m_mtx;
 };

@@ -691,6 +691,8 @@ BuildContext::~BuildContext()
 
 void BuildContext::doResetLog()
 {
+	std::unique_lock<std::mutex> lock(m_mtx);
+
 	m_logs.clear();
 }
 
@@ -699,6 +701,8 @@ void BuildContext::doLog(const rcLogCategory category,
 {
 	if (!length)
 		return;
+
+	std::unique_lock<std::mutex> lock(m_mtx);
 
 	// if the message buffer is full, drop an old message
 	if (m_logs.size() > MAX_LOG_MESSAGES)
@@ -715,6 +719,8 @@ void BuildContext::dumpLog(const char* format, ...)
 	vprintf(format, ap);
 	va_end(ap);
 	printf("\n");
+
+	std::unique_lock<std::mutex> lock(m_mtx);
 
 	// Print messages
 	const int TAB_STOPS[4] = { 28, 36, 44, 52 };
@@ -754,6 +760,8 @@ void BuildContext::dumpLog(const char* format, ...)
 
 const char* BuildContext::getLogText(int32_t index) const
 {
+	std::unique_lock<std::mutex> lock(m_mtx);
+
 	if (index >= 0 && index < (int32_t)m_logs.size())
 		return m_logs[index].c_str();
 
@@ -762,6 +770,8 @@ const char* BuildContext::getLogText(int32_t index) const
 
 int BuildContext::getLogCount() const
 {
+	std::unique_lock<std::mutex> lock(m_mtx);
+
 	return m_logs.size();
 }
 
