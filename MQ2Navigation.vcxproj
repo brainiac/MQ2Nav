@@ -45,7 +45,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <AdditionalIncludeDirectories>Pathfinding\Detour\Include;Interactions\DirectX\Include;Interactions\EQDraw\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\Detour\Include;Interactions\DirectX\Include;Interactions\EQDraw\Include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -58,20 +58,12 @@
     <None Include="..\Release\Zones.ini" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Pathfinding\Detour\Include\DetourCommon.h" />
-    <ClInclude Include="Pathfinding\Detour\Include\DetourNavMesh.h" />
-    <ClInclude Include="Pathfinding\Detour\Include\DetourNavMeshBuilder.h" />
-    <ClInclude Include="Pathfinding\Detour\Include\DetourNode.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
     <ClInclude Include="resource1.h" />
     <ClInclude Include="meshext.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Pathfinding\Detour\Source\DetourCommon.cpp" />
-    <ClCompile Include="Pathfinding\Detour\Source\DetourNavMesh.cpp" />
-    <ClCompile Include="Pathfinding\Detour\Source\DetourNavMeshBuilder.cpp" />
-    <ClCompile Include="Pathfinding\Detour\Source\DetourNode.cpp" />
     <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
     <ClCompile Include="meshext.c">
@@ -81,6 +73,11 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2Navigation1.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="dependencies\recast\Recast.vcxproj">
+      <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -18,6 +18,7 @@ extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
 
 
 #include "DetourNavMesh.h"
+#include "DetourNavMeshQuery.h"
 #include "DetourCommon.h"
 #include "EQDraw.h"
 #include "meshext.h"
@@ -374,7 +375,7 @@ void LookAt(FLOAT X,FLOAT Y,FLOAT Z) {
 			else
 				memfail++;
 		}
-		if(navmesh->addTile(data, tileHeader.dataSize, DT_TILE_FREE_DATA, tileHeader.tileRef))
+		if(navmesh->addTile(data, tileHeader.dataSize, DT_TILE_FREE_DATA, tileHeader.tileRef, 0))
 			passtile++;
 		else
 			failtile++;
@@ -475,7 +476,7 @@ void LookAt(FLOAT X,FLOAT Y,FLOAT Z) {
 			float startOffset[3] = { Me->X, Me->Z, Me->Y };
       float spos[3];
       float epos[3];
-      filter.includeFlags = 0x01; // walkable surfaces
+      filter.setIncludeFlags(0x01); // walkable surfacee
       if (dtPolyRef startRef = m_navMesh->findNearestPoly(startOffset,extents,&filter,spos))
          if(dtPolyRef endRef = m_navMesh->findNearestPoly(endOffset,extents,&filter,epos)) {
             dtPolyRef polys[MAX_POLYS];

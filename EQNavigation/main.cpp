@@ -77,7 +77,11 @@ int main(int argc, char* argv[])
 	eqLogRegister(std::make_shared<EQEmu::Log::LogStdOut>());
 	//eqLogRegister(std::make_shared<LogContext>(ctx));
 
-	Interface window;
+	std::string startingZone;
+	if (argc > 1)
+		startingZone = argv[1];
+
+	Interface window(startingZone);
 	return window.RunMainLoop();
 }
 

@@ -183,7 +183,7 @@ Sample_TileMesh::Sample_TileMesh() :
 	m_drawMode(DRAWMODE_NAVMESH),
 	m_maxTiles(0),
 	m_maxPolysPerTile(0),
-	m_tileSize(32),
+	m_tileSize(128),
 	m_tileCol(duRGBA(0,0,0,32)),
 	m_tileBuildTime(0),
 	m_tileMemUsage(0),

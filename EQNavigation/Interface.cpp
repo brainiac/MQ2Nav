@@ -521,7 +521,7 @@ void Interface::RenderInterface()
 		std::unique_lock<std::mutex> lock(m_renderMutex);
 
 		static int levelScroll = 0;
-		if (imguiBeginScrollArea("Choose Expansion",
+		if (imguiBeginScrollArea("Choose Map",
 			m_width - 10 - 300 - 10 - 350,
 			m_height - 10 - 800, 400, 800, &levelScroll))
 		{
