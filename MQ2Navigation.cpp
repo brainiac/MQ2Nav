@@ -496,18 +496,35 @@ int FindPath(double X, double Y, double Z, float* pPath)
 	float spos[3];
 	float epos[3];
 	filter.setIncludeFlags(0x01); // walkable surfacee
-	if (dtPolyRef startRef = m_navMesh->findNearestPoly(startOffset, extents, &filter, spos))
-		if (dtPolyRef endRef = m_navMesh->findNearestPoly(endOffset, extents, &filter, epos)) {
+
+	dtNavMeshQuery* m_navQuery;
+	m_navQuery = dtAllocNavMeshQuery();
+	m_navQuery->init(m_navMesh, 2048);
+
+	dtPolyRef startRef, endRef;
+	m_navQuery->findNearestPoly(startOffset, extents, &filter, &startRef, spos);
+	m_navQuery->findNearestPoly(endOffset, extents, &filter, &endRef, epos);
+
+	if (startRef)
+	{
+		if (endRef)
+		{
 			dtPolyRef polys[MAX_POLYS];
-			int numPolys = m_navMesh->findPath(startRef, endRef, spos, epos, &filter, polys, MAX_POLYS);
+			int numPolys = 0;
+
+			m_navQuery->findPath(startRef, endRef, spos, epos, &filter, polys, &numPolys, MAX_POLYS);
 			if (numPolys > 0)
-				numPoints = m_navMesh->findStraightPath(spos, epos, polys, numPolys,
-					pPath, NULL, NULL, MAX_POLYS);
+			{
+				m_navQuery->findStraightPath(spos, epos, polys, numPolys, pPath, 0, 0, &numPoints, MAX_POLYS, 0);
+			}
 		}
 		else
 			WriteChatf("[MQ2Navigation] No end reference");
+	}
 	else
 		WriteChatf("[MQ2Navigation] No start reference");
+
+	dtFreeNavMeshQuery(m_navQuery);
 
 	return numPoints;
 }
