@@ -92,8 +92,16 @@ void Sample::handleRender()
 	DebugDrawGL dd;
 		
 	// Draw mesh
-	duDebugDrawTriMesh(&dd, m_geom->getMeshLoader()->getVerts(), m_geom->getMeshLoader()->getVertCount(),
-					   m_geom->getMeshLoader()->getTris(), m_geom->getMeshLoader()->getNormals(), m_geom->getMeshLoader()->getTriCount(), 0, 1.0f);
+	duDebugDrawTriMesh(&dd,
+		m_geom->getMeshLoader()->getVerts(),
+		m_geom->getMeshLoader()->getVertCount(),
+		m_geom->getMeshLoader()->getTris(),
+		m_geom->getMeshLoader()->getNormals(),
+		m_geom->getMeshLoader()->getTriCount(),
+		0,   // flags
+		1.0f // tex scale
+	);
+
 	// Draw bounds
 	const float* bmin = m_geom->getMeshBoundsMin();
 	const float* bmax = m_geom->getMeshBoundsMax();

@@ -558,7 +558,6 @@ void Interface::RenderInterface()
 			}
 		}
 
-
 		if (!levelToLoad.empty() || !m_defaultZone.empty())
 		{
 			m_geom.reset();
@@ -676,17 +675,6 @@ void Interface::Halt()
 
 		handle = 0;
 	}
-
-	{
-		//std::unique_lock<std::mutex> lock(m_renderMutex);
-
-		m_mesh.reset(new Sample_TileMesh());
-		m_mesh->setContext(m_context.get());
-		m_mesh->setOutputPath(m_eqConfig.GetOutputPath().c_str());
-
-		m_geom.reset(new InputGeom());
-	}
-
 }
 
 //============================================================================
