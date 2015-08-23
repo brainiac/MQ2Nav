@@ -238,4 +238,11 @@ void EQConfig::LoadZones()
 			}
 		}
 	}
+
+	// move current data into the vector, if it exists
+	if (!currentSection.empty())
+	{
+		m_loadedMaps.emplace_back(
+			std::make_pair(std::move(currentSection), std::move(currentList)));
+	}
 }

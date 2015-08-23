@@ -50,7 +50,7 @@ class NavMeshTesterTool : public SampleTool
 
 	int m_straightPathOptions;
 	
-	static const int MAX_POLYS = 256;
+	static const int MAX_POLYS = 4196;
 	static const int MAX_SMOOTH = 2048;
 	
 	dtPolyRef m_startRef;
