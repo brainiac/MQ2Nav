@@ -31,7 +31,7 @@ Interface::Interface(const std::string& defaultZone)
 	, m_width(1600), m_height(900)
 	, m_progress(0.0)
 	, m_mouseOverMenu(false)
-	, m_showDebugMode(false)
+	, m_showDebugMode(true)
 	, m_showPreview(true)
 	, m_showLog(false)
 	, m_showTools(false)
@@ -398,7 +398,6 @@ void Interface::RenderInterface()
 	}
 
 	bool showMenu = true;
-	bool showDebugMode = false;
 
 	char buffer[240] = { 0, };
 
@@ -498,7 +497,7 @@ void Interface::RenderInterface()
 
 		imguiEndScrollArea();
 
-		if (showDebugMode)
+		if (m_showDebugMode)
 		{
 			int debugScroll = 0;
 
