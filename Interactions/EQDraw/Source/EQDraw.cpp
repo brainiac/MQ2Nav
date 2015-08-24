@@ -73,6 +73,11 @@ void CEQDraw::AdjustDoorCoords(PDOOR pDoor, EQVector3 &v3)
     v3.x = pDoor->X;
     v3.z = pDoor->Z;
 
+	if (!bDoorsLoaded)
+		bDoorsLoaded = LoadDoorAdjustments();
+	if (!bDoorsLoaded)
+		return;
+
     // it's not in the adjustment table? RETURN!
     if(!pDoorAdjustTable->pDoor[pDoor->ID]) return;
 
@@ -184,6 +189,8 @@ bool CEQDraw::LoadDoorAdjustments()
         return false;
     }
     PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
+	if (!pDoorTable)
+		return false;
     pDoorAdjustTable->numDoors = pDoorTable->NumEntries;
     for(DWORD i = 0; i < pDoorTable->NumEntries; i++)
     {
@@ -290,11 +297,10 @@ CEQDraw::CEQDraw()
 	g_view(),
 	g_world(),
 	g_vWorldLocation(),
-	bInitialized(false) {
-	if(!LoadDoorAdjustments()) {
-		WriteChatf("[MQ2Navigation] CEQDraw::LoadDoorAdjustments() failed.");
-		WriteChatf("[MQ2Navigation] Ensure DoorAdjustments.txt is in your release folder then reload MQ2Navigation.");
-	} 
+	bInitialized(false),
+	bDoorsLoaded(false)
+{
+	bDoorsLoaded = LoadDoorAdjustments();
 }
 
 CEQDraw::~CEQDraw() {

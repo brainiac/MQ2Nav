@@ -161,6 +161,7 @@ private:
 	D3DVIEWPORT9 g_viewPort;
 	D3DXMATRIX g_projection, g_view, g_world;
 	D3DXVECTOR3 g_vWorldLocation;
+	bool bDoorsLoaded;
 
 	bool bInitialized;
 public:
