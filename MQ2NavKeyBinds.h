@@ -1,17 +1,16 @@
-// MA2NavKeyBinds.h : Defines the entry point for the DLL application.
+//
+// MQ2NavKeyBinds.h
 //
 
-#ifndef __MQ2NAVKEYBINDS_H
-#define __MQ2NAVKEYBINDS_H
-
-#include "MQ2NavSettings.h"
+#pragma once
 
 #include "../MQ2Plugin.h"
+#include "MQ2NavSettings.h"
 
+#include <functional>
 
 namespace mq2nav {
 namespace keybinds {
-
 
 	static bool initialized_ = false;
 
@@ -48,16 +47,18 @@ namespace keybinds {
 		"Backward"             // 10
 	};
 
+	bool bDoMove = false;
 
+	std::function<void()> stopNavigation;
 
 	void KeybindPressed(int iKeyPressed, int iKeyDown) {
 		if (!util::ValidIngame(false)) return;
 
-
 		if (iKeyDown)
 		{
-			if (m_bDoMove && settings::instance().autobreak) {
-				Stop();
+			if (bDoMove && settings::instance().autobreak) {
+				if (stopNavigation)
+					stopNavigation();
 			}
 		}
 
@@ -145,8 +146,5 @@ namespace keybinds {
 		iRunWalk     = FindMappableCommand("run_walk");
 	}
 
-}
-} // namespace mq2nav {
-
-
-#endif
+} // namespace keybinds
+} // namespace mq2nav

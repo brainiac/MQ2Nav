@@ -1,38 +1,78 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="EQDraw">
-      <UniqueIdentifier>{d5a04592-71be-4c03-bd25-670263d91d3e}</UniqueIdentifier>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{886d9276-9e49-46b6-916d-1c686e0900c1}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="EQDraw\Source">
-      <UniqueIdentifier>{055687e7-7190-4ec4-9004-dd2aa5f54068}</UniqueIdentifier>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{029c2c0d-43f2-4dd8-80b7-928ae31df7c2}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="EQDraw\Include">
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{55570512-5592-4def-ab72-e27b303cbb0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\EQDraw">
       <UniqueIdentifier>{f8722e89-cafe-4dce-a80a-5d787cb77796}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\EQDraw">
+      <UniqueIdentifier>{3acbf2e7-77da-4598-9210-e737e0229b29}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Release\Zones.ini" />
-    <None Include="..\Release\DoorAdjustments.txt" />
+    <None Include="..\Release\DoorAdjustments.txt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\Release\Zones.ini">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h">
-      <Filter>EQDraw\Include</Filter>
+      <Filter>Header Files\EQDraw</Filter>
     </ClInclude>
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h">
-      <Filter>EQDraw\Include</Filter>
+      <Filter>Header Files\EQDraw</Filter>
     </ClInclude>
-    <ClInclude Include="resource1.h" />
-    <ClInclude Include="meshext.h" />
+    <ClInclude Include="meshext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MQ2Navigation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MQ2NavKeyBinds.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MQ2NavSettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MQ2NavUtil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MQ2NavWaypoints.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp">
-      <Filter>EQDraw\Source</Filter>
+    <ClCompile Include="MQ2Navigation.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MQ2Navigation.cpp" />
-    <ClCompile Include="meshext.c" />
+    <ClCompile Include="meshext.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp">
+      <Filter>Source Files\EQDraw</Filter>
+    </ClCompile>
+    <ClCompile Include="MQ2Navigation_Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="MQ2Navigation1.rc" />
+    <ResourceCompile Include="MQ2Navigation1.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

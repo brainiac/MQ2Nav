@@ -47,7 +47,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <AdditionalIncludeDirectories>dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\Detour\Include;Interactions\DirectX\Include;Interactions\EQDraw\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\Detour\Include;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -63,6 +63,11 @@
   <ItemGroup>
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
+    <ClInclude Include="MQ2Navigation.h" />
+    <ClInclude Include="MQ2NavKeyBinds.h" />
+    <ClInclude Include="MQ2NavSettings.h" />
+    <ClInclude Include="MQ2NavUtil.h" />
+    <ClInclude Include="MQ2NavWaypoints.h" />
     <ClInclude Include="resource1.h" />
     <ClInclude Include="meshext.h" />
   </ItemGroup>
@@ -73,6 +78,7 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
     </ClCompile>
+    <ClCompile Include="MQ2Navigation_Main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2Navigation1.rc" />
