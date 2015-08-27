@@ -5,9 +5,7 @@
 // are shown below. Remove the ones your plugin does not use.  Always use Initialize
 // and Shutdown for setup and cleanup, do NOT do it in DllMain.
 
-#ifndef __MQ2NAVWAYPOINTS_H
-#define __MQ2NAVWAYPOINTS_H
-
+#pragma once
 
 #include "../MQ2Plugin.h"
 #include "MQ2Navigation.h"
@@ -94,7 +92,7 @@ namespace waypoints {
 
 	void LoadWaypoints() {
 		PCHAR currentZone = GetShortZone(GetCharInfo()->zoneId);
-		WriteChatf("[MQ2Navigation] loading waypoints for zone: %s ...",currentZone);
+		WriteChatf(PLUGIN_MSG "loading waypoints for zone: %s ...",currentZone);
 		currentZoneData_.clear();
 
 		CHAR pchKeys[MAX_STRING*10]={0};
@@ -104,11 +102,11 @@ namespace waypoints {
 			PCHAR pKeys=pchKeys; 
 			while(pKeys[0]) {
 				GetPrivateProfileString(currentZone, pKeys, "", pchValue, MAX_STRING, INIFileName);
-				WriteChatf("[MQ2Navigation] found waypoint entry: %s -> %s", pKeys, pchValue);
+				WriteChatf(PLUGIN_MSG "found waypoint entry: %s -> %s", pKeys, pchValue);
 				if(0 != pchValue[0] && wp.readFromDescription(std::string(pchValue))) {
 					currentZoneData_[std::string(pKeys)] = wp;
 				} else {
-					WriteChatf("[MQ2Navigation] invalid waypoint entry: %s", pKeys);
+					WriteChatf(PLUGIN_MSG "invalid waypoint entry: %s", pKeys);
 				}
 				pKeys += strlen(pKeys)+1;
 			}
@@ -117,7 +115,7 @@ namespace waypoints {
 
 	void SaveWaypoints() {
 		PCHAR currentZone = GetShortZone(GetCharInfo()->zoneId);
-		WriteChatf("[MQ2Navigation] saving waypoints for zone: %s ...",currentZone);
+		WriteChatf(PLUGIN_MSG "saving waypoints for zone: %s ...",currentZone);
 		for (tZoneData::const_iterator it = currentZoneData_.begin(), end =currentZoneData_.end();
 			it != end; ++it) {
 			WritePrivateProfileString(currentZone,   it->first.c_str(), it->second.getDescription().c_str(),   INIFileName);
@@ -158,7 +156,4 @@ namespace waypoints {
 	}
 
 }
-} // namespace mq2nav {
-
-
-#endif
+} // namespace mq2nav

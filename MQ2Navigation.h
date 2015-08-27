@@ -6,17 +6,23 @@
 
 #include "MQ2Plugin.h"
 
+#include "DetourNavMeshQuery.h"
+
 #include <memory>
+#include <chrono>
+
+#define GLM_FORCE_RADIANS
+#include <glm.hpp>
 
 //----------------------------------------------------------------------------
 
 class dtNavMesh;
 class CEQDraw;
 class MQ2NavigationPlugin;
+class MQ2NavigatinType;
+class MQ2NavigationPath;
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
-
-extern bool initialized_;
 
 //----------------------------------------------------------------------------
 
@@ -47,8 +53,6 @@ private:
 
 class MQ2NavigationPlugin
 {
-	friend class MQ2NavigationType;
-
 public:
 	MQ2NavigationPlugin();
 	~MQ2NavigationPlugin();
@@ -81,51 +85,141 @@ public:
 
 	//----------------------------------------------------------------------------
 
+	bool IsActive() const { return m_isActive; }
+
+	inline bool CheckLoadMesh()
+	{
+		if (m_navMesh)
+			return true;
+
+		return LoadNavigationMesh();
+	}
+
+	// Load navigation mesh for the current zone
+	bool LoadNavigationMesh();
+
+	// Check if a point is pathable (given a coordinate string)
+	bool CanNavigateToPoint(PCHAR szLine);
+
+	// Check how far away a point is (given a coordinate string)
+	float GetNavigationPathLength(PCHAR szLine);
+
+	// Begin navigating to a point
+	void BeginNavigation(const glm::vec3& pos);
+
 private:
 	void Initialize();
 	void Shutdown();
 
 	//----------------------------------------------------------------------------
 
-	bool LoadNavigationMesh();
-	int FindPath(double x, double y, double z, float* pPath);
-	bool FindPath(double x, double y, double z);
-	bool GetDestination(PCHAR szLine, float* destination);
+	bool ParseDestination(PCHAR szLine, glm::vec3& destination);
 
-	float GetPathLength(PCHAR szLine);
-	float GetPathLength(double X, double Y, double Z);
+	float GetNavigationPathLength(const glm::vec3& pos);
 
 	void AttemptClick();
 	bool ClickNearestClosedDoor(float cDistance = 30);
 
 	void StuckCheck();
-	void LookAt(float x, float y, float z);
+
+	void LookAt(const glm::vec3& pos);
+
 	void AttemptMovement();
-	bool ValidEnd();
 	void Stop();
 
 private:
 	std::unique_ptr<MQ2NavigationType> m_navigationType;
 	std::unique_ptr<CEQDraw> m_pEQDraw;
 
-	// our nav mesh
+	// our nav mesh and active path
 	std::unique_ptr<dtNavMesh> m_navMesh;
+	std::unique_ptr<MQ2NavigationPath> m_activePath;
 
 	bool m_initialized = false;
 
-	// behaviors
-	bool m_bSpamClick = false;
-	bool m_bDoMove = false;
-
-	// current zone data
+	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;
 	PGROUNDITEM m_pEndingItem = nullptr;
 
-	// navigation
-	float m_destination[3];
-	float m_currentPath[MAX_POLYS * 3];
-	float m_candidatePath[MAX_POLYS * 3];
+	// navigation endpoint behaviors
+	bool m_bSpamClick = false;
 
+	// whether the current path is active or not
+	bool m_isActive = false;
+	glm::vec3 m_currentWaypoint;
+
+	typedef std::chrono::high_resolution_clock clock;
+
+	clock::time_point m_lastClick = clock::now();
+
+	clock::time_point m_stuckTimer = clock::now();
+	float m_stuckX = 0;
+	float m_stuckY = 0;
+
+	clock::time_point m_pathfindTimer = clock::now();
+};
+
+//============================================================================
+
+class MQ2NavigationPath
+{
+public:
+	MQ2NavigationPath(dtNavMesh* navMesh);
+	~MQ2NavigationPath();
+
+	//----------------------------------------------------------------------------
+	// constants
+
+	static const int MAX_POLYS = 4028;
+
+	//----------------------------------------------------------------------------
+
+	const glm::vec3& GetDestination() const { return m_destination; }
+
+	int GetPathSize() const { return m_currentPathSize; }
+	int GetPathIndex() const { return m_currentPathCursor; }
+
+	bool FindPath(const glm::vec3& pos);
+
+	void UpdatePath();
+
+	// Check if we are at the end if our path
+	bool IsAtEnd() const { return m_currentPathCursor >= m_currentPathSize; }
+
+	glm::vec3 GetNextPosition() const
+	{
+		return GetPosition(m_currentPathCursor);
+	}
+
+	inline const float* GetRawPosition(int index) const
+	{
+		assert(index < m_currentPathSize);
+		return &m_currentPath[index * 3];
+	}
+	inline glm::vec3 GetPosition(int index) const
+	{
+		const float* rawcoord = GetRawPosition(index);
+		return glm::vec3(rawcoord[0], rawcoord[1], rawcoord[2]);
+	}
+
+	void Increment() { ++m_currentPathCursor; }
+
+private:
+	void FindPathInternal(const glm::vec3& pos);
+
+	glm::vec3 m_destination;
+
+	float m_currentPath[MAX_POLYS * 3];
 	int m_currentPathCursor = 0;
 	int m_currentPathSize = 0;
+
+	// the plugin owns the mesh
+	dtNavMesh* m_navMesh;
+
+	// we own the query
+	std::unique_ptr<dtNavMeshQuery> m_query;
+
+	dtQueryFilter m_filter;
+
+	float m_extents[3] = { 50, 400, 50 }; // note: X, Z, Y
 };

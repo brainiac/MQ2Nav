@@ -18,7 +18,6 @@ inline bool ValidIngame(bool bCheckDead)
     if (GetGameState() != GAMESTATE_INGAME
         || !pLocalPlayer
         || !pChSpawn->SpawnID
-        || !initialized_
         || (bCheckDead && pChSpawn->RespawnTimer > 0))
     {
         return false;

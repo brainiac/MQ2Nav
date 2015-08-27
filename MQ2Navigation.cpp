@@ -12,10 +12,11 @@ extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
 
 
 #include "DetourNavMesh.h"
-#include "DetourNavMeshQuery.h"
 #include "DetourCommon.h"
 #include "EQDraw.h"
 #include "meshext.h"
+
+#define PLUGIN_MSG "\ag[MQ2Navigation]\ax "
 
 #include "MQ2NavUtil.h"
 #include "MQ2NavSettings.h"
@@ -27,23 +28,18 @@ extern void debug_log_proc(char *text, char *sourcefile, int sourceline);
 
 //============================================================================
 
-// reflects whether we're in game or not.
-bool initialized_ = false;
-
-#define PLUGIN_MSG "\ag[MQ2Navigation]\ax "
-
 // TODO: Put this in some shared location
 static const int NAVMESHSET_MAGIC = 'M' << 24 | 'S' << 16 | 'E' << 8 | 'T';
 static const int NAVMESHSET_VERSION = 1;
 
-static struct NavMeshSetHeader
+struct NavMeshSetHeader
 {
 	int magic;
 	int version;
 	int numTiles;
 	dtNavMeshParams params;
 };
-static struct NavMeshTileHeader
+struct NavMeshTileHeader
 {
 	dtTileRef tileRef;
 	int dataSize;
@@ -163,19 +159,19 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 	if (pMember) switch ((NavigationMembers)pMember->ID) {
 	case Active:
 		Dest.Type = pBoolType;
-		Dest.DWord = m_nav->m_bDoMove;
+		Dest.DWord = m_nav->IsActive();
 		return true;
 	case MeshLoaded:
 		Dest.Type = pBoolType;
-		Dest.DWord = m_nav->m_navMesh != NULL || m_nav->LoadNavigationMesh();
+		Dest.DWord = m_nav->CheckLoadMesh();
 		return true;
 	case PathExists:
 		Dest.Type = pBoolType;
-		Dest.DWord = (m_nav->GetPathLength(Index) >= 0.f) ? 1 : 0;
+		Dest.DWord = m_nav->CanNavigateToPoint(Index);
 		return true;
 	case PathLength:
 		Dest.Type = pFloatType;
-		Dest.Float = m_nav->GetPathLength(Index);
+		Dest.Float = m_nav->GetNavigationPathLength(Index);
 		return true;
 	}
 	Dest.Type = pStringType;
@@ -227,7 +223,8 @@ MQ2NavigationPlugin::~MQ2NavigationPlugin()
 
 void MQ2NavigationPlugin::OnPulse()
 {
-	if (mq2nav::util::ValidIngame(TRUE)) {
+	if (m_initialized && mq2nav::util::ValidIngame(TRUE))
+	{
 		AttemptMovement();
 		StuckCheck();
 		AttemptClick();
@@ -272,7 +269,6 @@ void MQ2NavigationPlugin::Initialize()
 	m_pEQDraw->Initialize();
 
 	m_initialized = true;
-	initialized_ = true;
 }
 
 void MQ2NavigationPlugin::Shutdown()
@@ -282,11 +278,10 @@ void MQ2NavigationPlugin::Shutdown()
 		mq2nav::keybinds::UndoKeybinds();
 		Stop();
 		m_initialized = false;
-		initialized_ = false;
 	}
 }
 
-//============================================================================
+//----------------------------------------------------------------------------
 
 BOOL MQ2NavigationPlugin::Data_Navigate(PCHAR szName, MQ2TYPEVAR& Dest)
 {
@@ -295,18 +290,100 @@ BOOL MQ2NavigationPlugin::Data_Navigate(PCHAR szName, MQ2TYPEVAR& Dest)
 	return true;
 }
 
-void MQ2NavigationPlugin::AttemptClick()
+void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 {
-	static clock_t clickGovernor = time(NULL);
+	m_pEndingDoor = nullptr;
+	m_pEndingItem = nullptr;
+	CHAR buffer[MAX_STRING] = { 0 };
+	int i = 0;
+	m_isActive = true;
 
-	if ((!m_bDoMove && !m_bSpamClick)
-		|| (clickGovernor + 0.5 > time(NULL))
-		|| (GetCharInfo2()->pInventoryArray && GetCharInfo2()->pInventoryArray->Inventory.Cursor))
+	//DebugSpewAlways("MQ2Navigation::NavigateCommand - start with arg: %s", szLine);
+	glm::vec3 destination;
+	bool haveDestination = ParseDestination(szLine, destination);
+
+	//DebugSpewAlways("MQ2Navigation::NavigateCommand - have destination: %d", haveDestination ? 1 : 0);
+
+	if (!haveDestination)
 	{
+		GetArg(buffer, szLine, 1);
+
+		if (!strcmp(buffer, "recordwaypoint") || !strcmp(buffer, "rwp")) {
+			GetArg(buffer, szLine, 2);
+			if (0 == *buffer) {
+				WriteChatf(PLUGIN_MSG "usage: /navigate recordwaypoint <waypoint name> <waypoint tag>");
+			}
+			else {
+				std::string waypointName(buffer);
+				GetArg(buffer, szLine, 3);
+				std::string waypointTag(buffer);
+				WriteChatf(PLUGIN_MSG "recording waypoint: '%s' with tag: %s", waypointName.c_str(), waypointTag.c_str());
+				if (mq2nav::waypoints::addWaypoint(waypointName, waypointTag)) {
+					WriteChatf(PLUGIN_MSG "overwrote previous waypoint: '%s'", waypointName.c_str());
+				}
+			}
+		}
+		else if (!strcmp(buffer, "help")) {
+			WriteChatf(PLUGIN_MSG "Usage: /navigate [save | load] [target] [X Y Z] [item [click] [once]] [door  [click] [once]] [waypoint <waypoint name>] [stop] [recordwaypoint <name> <tag> ]");
+		}
+		else if (!strcmp(buffer, "load")) {
+			mq2nav::settings::LoadSettings();
+		}
+		else if (!strcmp(buffer, "save")) {
+			mq2nav::settings::SaveSettings();
+		}
+		Stop();
 		return;
 	}
 
-	clickGovernor = time(NULL);
+	// we were given a destination. Check if we should click once at the end.
+	GetArg(buffer, szLine, 3);
+	m_bSpamClick = strcmp(buffer, "once");
+
+	BeginNavigation(destination);
+
+	if (m_isActive)
+		EzCommand("/squelch /stick off");
+
+	// TODO: Fixme
+	mq2nav::keybinds::bDoMove = m_isActive;
+	mq2nav::keybinds::stopNavigation = std::bind(&MQ2NavigationPlugin::Stop, this);
+}
+
+void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
+{
+	// first clear existing state
+	m_isActive = false;
+	m_activePath.reset();
+
+	if (!m_navMesh)
+		return;
+
+	m_activePath.reset(new MQ2NavigationPath(m_navMesh.get()));
+	m_activePath->FindPath(pos);
+
+	m_isActive = m_activePath->GetPathSize() > 0;
+}
+
+
+
+//============================================================================
+
+void MQ2NavigationPlugin::AttemptClick()
+{
+	if (!m_isActive && !m_bSpamClick)
+		return;
+
+	// don't execute if we've got an item on the cursor.
+	if (GetCharInfo2()->pInventoryArray && GetCharInfo2()->pInventoryArray->Inventory.Cursor)
+		return;
+
+	clock::time_point now = clock::now();
+
+	// only execute every 500 milliseconds
+	if (now < m_lastClick + std::chrono::milliseconds(500))
+		return;
+	m_lastClick = now;
 
 	if (m_pEndingDoor && GetDistance(m_pEndingDoor->X, m_pEndingDoor->Y) < 25)
 	{
@@ -347,54 +424,54 @@ bool MQ2NavigationPlugin::ClickNearestClosedDoor(float cDistance)
 
 void MQ2NavigationPlugin::StuckCheck()
 {
-	static time_t StuckMonitor = time(NULL);
-	static float StuckMonitorX = 0;
-	static float StuckMonitorY = 0;
+	clock::time_point now = clock::now();
 
-	time_t now = time(NULL);
-	if (StuckMonitor + 0.1 < now)
+	// check every 100 ms
+	if (now > m_stuckTimer + std::chrono::milliseconds(100))
 	{
-		StuckMonitor = now;
+		m_stuckTimer = now;
 		if (GetCharInfo())
 		{
 			if (GetCharInfo()->pSpawn->SpeedMultiplier != -10000
 				&& FindSpeed(GetCharInfo()->pSpawn)
-				&& (GetDistance(StuckMonitorX, StuckMonitorY) < FindSpeed(GetCharInfo()->pSpawn) / 600)
+				&& (GetDistance(m_stuckX, m_stuckY) < FindSpeed(GetCharInfo()->pSpawn) / 600)
 				&& !ClickNearestClosedDoor(25)
 				&& !GetCharInfo()->pSpawn->Levitate
 				&& !GetCharInfo()->pSpawn->UnderWater
 				&& !GetCharInfo()->Stunned
-				&& m_bDoMove)
+				&& m_isActive)
 			{
 				MQ2Globals::ExecuteCmd(FindMappableCommand("JUMP"), 1, 0);
 				MQ2Globals::ExecuteCmd(FindMappableCommand("JUMP"), 0, 0);
 			}
 
-			StuckMonitorX = GetCharInfo()->pSpawn->X;
-			StuckMonitorY = GetCharInfo()->pSpawn->Y;
+			m_stuckX = GetCharInfo()->pSpawn->X;
+			m_stuckY = GetCharInfo()->pSpawn->Y;
 		}
 	}
 }
 
-void MQ2NavigationPlugin::LookAt(float X, float Y, float Z)
+void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 {
-	gFaceAngle = (atan2(X - GetCharInfo()->pSpawn->X, Y - GetCharInfo()->pSpawn->Y)  * 256.0f / PI);
+	gFaceAngle = (atan2(pos.x - GetCharInfo()->pSpawn->X, pos.y - GetCharInfo()->pSpawn->Y)  * 256.0f / PI);
 	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
 	if (gFaceAngle<0.0f) gFaceAngle += 512.0f;
 
 	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)gFaceAngle;
+
+	// This is a sentinel value telling MQ2 to not adjust the face angle
 	gFaceAngle = 10000.0f;
 
 	if (GetCharInfo()->pSpawn->UnderWater == 5 || GetCharInfo()->pSpawn->FeetWet == 5)
 	{
-		FLOAT distance = (FLOAT)GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, X, Y);
-		GetCharInfo()->pSpawn->CameraAngle = (FLOAT)(atan2(Z - GetCharInfo()->pSpawn->Z, distance) * 256.0f / PI);
+		FLOAT distance = (FLOAT)GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, pos.x, pos.y);
+		GetCharInfo()->pSpawn->CameraAngle = (FLOAT)(atan2(pos.z - GetCharInfo()->pSpawn->Z, distance) * 256.0f / PI);
 	}
 	else if (GetCharInfo()->pSpawn->Levitate == 2)
 	{
-		if (Z < GetCharInfo()->pSpawn->Z - 5)
+		if (pos.z < GetCharInfo()->pSpawn->Z - 5)
 			GetCharInfo()->pSpawn->CameraAngle = -45.0f;
-		else if (Z > GetCharInfo()->pSpawn->Z + 5)
+		else if (pos.z > GetCharInfo()->pSpawn->Z + 5)
 			GetCharInfo()->pSpawn->CameraAngle = 45.0f;
 		else
 			GetCharInfo()->pSpawn->CameraAngle = 0.0f;
@@ -402,43 +479,87 @@ void MQ2NavigationPlugin::LookAt(float X, float Y, float Z)
 	else
 		GetCharInfo()->pSpawn->CameraAngle = 0.0f;
 
+	// this is a sentinel value telling MQ2 to not adjust the look angle
 	gLookAngle = 10000.0f;
 }
 
 void MQ2NavigationPlugin::AttemptMovement()
 {
-	static clock_t pathfindingTimer = clock();
+	if (m_isActive)
+	{
+		clock::time_point now = clock::now();
 
-	if (m_bDoMove && clock() - pathfindingTimer > PATHFINDING_DELAY_MS) {
-		m_bDoMove = FindPath(m_destination[0], m_destination[1], m_destination[2]);
-		pathfindingTimer = clock();
+		if (now - m_pathfindTimer > std::chrono::milliseconds(PATHFINDING_DELAY_MS))
+		{
+			// update path
+			m_activePath->UpdatePath();
+			m_isActive = m_activePath->GetPathSize() > 0;
+			mq2nav::keybinds::bDoMove = m_isActive;
+
+			m_pathfindTimer = now;
+		}
 	}
-	if (!m_bDoMove) return;
 
-	//WriteChatf("AttemptMovement - cursor = %d, size = %d, doMove = %d", m_currentPathCursor , m_currentPathSize, m_bDoMove ? 1 : 0);
-	if (m_currentPathCursor >= m_currentPathSize || ValidEnd()) {
+	// if no active path, then leave
+	if (!m_isActive) return;
+
+	//WriteChatf(PLUGIN_MSG "AttemptMovement - cursor = %d, size = %d, isActive = %d",
+	//	m_activePath->GetPathIndex() , m_activePath->GetPathSize(), m_isActive ? 1 : 0);
+	const glm::vec3& dest = m_activePath->GetDestination();
+	float distanceToTarget = GetDistance(dest.x, dest.z);
+	//PSPAWNINFO me = GetCharInfo()->pSpawn;
+	//WriteChatf(PLUGIN_MSG "Distance from target: %.2f. I am at: %.2f %.2f %.2f", distanceToTarget,
+	//	me->X, me->Y, me->Z);
+
+	if (m_activePath->IsAtEnd())
+	{
+		DebugSpewAlways("[MQ2Navigation] Reached destination at: %.2f %.2f %.2f",
+			dest.x, dest.z, dest.y);
+
+		if (PSPAWNINFO me = GetCharInfo()->pSpawn)
+		{
+			if (distanceToTarget < ENDPOINT_STOP_DISTANCE
+				&& !m_bSpamClick)
+			{
+				LookAt(dest);
+			}
+		}
+
 		Stop();
 	}
-	else if (m_currentPathSize)
+	else if (m_activePath->GetPathSize() > 0)
 	{
 		if (!GetCharInfo()->pSpawn->SpeedRun)
 			MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 1, 0);
 
-		if (GetDistance(m_currentPath[m_currentPathCursor * 3],
-			m_currentPath[m_currentPathCursor * 3 + 2]) < WAYPOINT_PROGRESSION_DISTANCE)
+		glm::vec3 nextPosition = m_activePath->GetNextPosition();
+
+		if (GetDistance(nextPosition.x, nextPosition.z) < WAYPOINT_PROGRESSION_DISTANCE)
 		{
-			m_currentPathCursor++;
+			m_activePath->Increment();
+
+			if (!m_activePath->IsAtEnd())
+			{
+				nextPosition = m_activePath->GetNextPosition();
+			}
 		}
 
-		LookAt(m_currentPath[m_currentPathCursor * 3],
-			m_currentPath[m_currentPathCursor * 3 + 2],
-			m_currentPath[m_currentPathCursor * 3 + 1] + 0.4f);
+		if (m_currentWaypoint != nextPosition)
+		{
+			m_currentWaypoint = nextPosition;
+			DebugSpewAlways("[MQ2Navigation] Moving Towards: %.2f %.2f %.2f", nextPosition.x, nextPosition.z, nextPosition.y);
+		}
+
+		glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
+		LookAt(eqPoint);
 	}
 }
 
 bool MQ2NavigationPlugin::LoadNavigationMesh()
 {
 	m_navMesh.reset();
+	m_activePath.reset();
+	m_isActive = false;
 
 	if (!GetCharInfo())
 		return false;
@@ -450,9 +571,6 @@ bool MQ2NavigationPlugin::LoadNavigationMesh()
 		return false;
 
 	bool UseRaw = false;
-
-	m_currentPathSize = 0;
-	m_currentPathCursor = 0;
 
 	//if (!GetCharInfo() || !m_pEQDraw->LoadDoorAdjustments()) return NULL;
 
@@ -473,7 +591,7 @@ bool MQ2NavigationPlugin::LoadNavigationMesh()
 
 	sprintf(outfile, "%s.bin", GetShortZone(ZoneID));
 	char* password = GetPassword();
-	WriteChatf("\arMQ2Navigation\ax::\atPreparing \ao%s\ax", rarfile);
+	WriteChatf(PLUGIN_MSG "Preparing \ao%s\ax", rarfile);
 	if (!urarlib_get(&outbuf, &outsize, outfile, rarfile, password)) {
 		if (outbuf)
 			free(outbuf);
@@ -483,13 +601,13 @@ bool MQ2NavigationPlugin::LoadNavigationMesh()
 		if (outbuf)
 			free(outbuf);
 		DebugSpewAlways("MQ2Navigation::Failed to load mesh file (%s).", GetShortZone(ZoneID));
-		WriteChatf("\arMQ2Navigation\ax::\ayFailed to load mesh file \ax(\am%s\ax).", GetShortZone(ZoneID));
+		WriteChatf(PLUGIN_MSG "\ayFailed to load mesh file \ax(\am%s\ax).", GetShortZone(ZoneID));
 		return false;
 	}
 
 	FILE *fp = NULL;
 	if (UseRaw) {
-		WriteChatf("\arMQ2Navigation\ax::\atNo .ncr mesh file, trying to use \ao%s \axinstead.", buffer);
+		WriteChatf(PLUGIN_MSG "No .ncr mesh file, trying to use \ao%s \axinstead.", buffer);
 		if (outbuf) {
 			free(outbuf);
 			outbuf = NULL;
@@ -502,13 +620,13 @@ bool MQ2NavigationPlugin::LoadNavigationMesh()
 		}
 		if (!fp) {
 			DebugSpewAlways("MQ2Navigation::Failed to load mesh file (%s).", GetShortZone(ZoneID));
-			WriteChatf("\arMQ2Navigation\ax::\ayFailed to load mesh file \ax(\am%s\ax).", GetShortZone(ZoneID));
+			WriteChatf(PLUGIN_MSG "\ayFailed to load mesh file \ax(\am%s\ax).", GetShortZone(ZoneID));
 			return false;
 		}
 	}
 
 	// file is decompressed & decrypted in memory now (or uncompressed one loaded), let's use it
-	WriteChatf("\arMQ2Navigation\ax::\agComplete.");
+	WriteChatf(PLUGIN_MSG "\agComplete.");
 	int memfail = 0;
 	char *outptr;
 	NavMeshSetHeader header;
@@ -591,13 +709,13 @@ bool MQ2NavigationPlugin::LoadNavigationMesh()
 	char szTmp[MAX_STRING];
 	sprintf(szTmp, "Header info: numTiles=%d, readTiles=%d, failTiles=%d, memFail=%d.", header.numTiles, passtile, failtile, memfail);
 	debug_log(szTmp);
-	WriteChatf("\arMQ2Navigation\ax::\atTiles loaded\ax: %s%d\ax/%s%d", (header.numTiles && !failtile) ? "\ag" : "\ay", passtile, header.numTiles ? "\ag" : "\ay", header.numTiles);
+	WriteChatf(PLUGIN_MSG "\atTiles loaded\ax: %s%d\ax/%s%d", (header.numTiles && !failtile) ? "\ag" : "\ay", passtile, header.numTiles ? "\ag" : "\ay", header.numTiles);
 
 	m_navMesh = std::move(navMesh);
 	return true;
 }
 
-bool MQ2NavigationPlugin::GetDestination(PCHAR szLine, float* destination)
+bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 {
 	bool result = true;
 	CHAR buffer[MAX_STRING] = { 0 };
@@ -607,16 +725,16 @@ bool MQ2NavigationPlugin::GetDestination(PCHAR szLine, float* destination)
 	{
 		PSPAWNINFO target = (PSPAWNINFO)pTarget;
 		//WriteChatf("[MQ2Navigation] locating target: %s", target->Name);
-		destination[0] = target->X;
-		destination[1] = target->Y;
-		destination[2] = target->Z;
+		destination.x = target->X;
+		destination.y = target->Y;
+		destination.z = target->Z;
 	}
 	else if (!strcmp(buffer, "door") && pDoorTarget)
 	{
 		//WriteChatf("[MQ2Navigation] locating door target: %s", pDoorTarget->Name);
-		destination[0] = pDoorTarget->X;
-		destination[1] = pDoorTarget->Y;
-		destination[2] = pDoorTarget->Z;
+		destination.x = pDoorTarget->X;
+		destination.y = pDoorTarget->Y;
+		destination.z = pDoorTarget->Z;
 		GetArg(buffer, szLine, 2);
 
 		//TODO: move this somewhere else
@@ -626,9 +744,9 @@ bool MQ2NavigationPlugin::GetDestination(PCHAR szLine, float* destination)
 	else if (!strcmp(buffer, "item") && pGroundTarget)
 	{
 		//WriteChatf("[MQ2Navigation] locating item target: %s", pGroundTarget->Name);
-		destination[0] = pGroundTarget->X;
-		destination[1] = pGroundTarget->Y;
-		destination[2] = pGroundTarget->Z;
+		destination.x = pGroundTarget->X;
+		destination.y = pGroundTarget->Y;
+		destination.z = pGroundTarget->Z;
 		GetArg(buffer, szLine, 2);
 
 		//TODO: move this somewhere else
@@ -640,40 +758,41 @@ bool MQ2NavigationPlugin::GetDestination(PCHAR szLine, float* destination)
 		GetArg(buffer, szLine, 2);
 
 		if (0 == *buffer) {
-			WriteChatf("[MQ2Navigation] usage: /navigate waypoint <waypoint name>");
+			WriteChatf(PLUGIN_MSG "usage: /navigate waypoint <waypoint name>");
 			result = false;
 		}
 		else
 		{
-			WriteChatf("[MQ2Navigation] locating  waypoint: %s", buffer);
+			WriteChatf(PLUGIN_MSG "locating  waypoint: %s", buffer);
 			std::pair<bool, mq2nav::waypoints::Waypoint> findWP = mq2nav::waypoints::getWaypoint(std::string(buffer));
 			if (findWP.first) {
-				destination[0] = findWP.second.location.v.X;
-				destination[1] = findWP.second.location.v.Y;
-				destination[2] = findWP.second.location.v.Z;
+				destination.x = findWP.second.location.v.X;
+				destination.y = findWP.second.location.v.Y;
+				destination.z = findWP.second.location.v.Z;
 			}
 			else {
-				WriteChatf("[MQ2Navigation] waypoint not found!");
+				WriteChatf(PLUGIN_MSG "waypoint not found!");
 				result = false;
 			}
 		}
 	}
 	else
 	{
-		float tmpDestination[3] = { 0, 0, 0 };
+		glm::vec3 tmpDestination(0, 0, 0);
+		
 		//DebugSpewAlways("line: %s", szLine);
-		int i = 1;
-		for (; i < 4; ++i) {
-			char* item = GetArg(buffer, szLine, i);
+		int i = 0;
+		for (; i < 3; ++i) {
+			char* item = GetArg(buffer, szLine, i + 1);
 			if (NULL == item)
 				break;
 			if (!IsInt(item))
 				break;
-			tmpDestination[i - 1] = atof(item);
+			tmpDestination[i] = atof(item);
 		}
-		if (4 == i) {
+		if (i == 3) {
 			//WriteChatf("[MQ2Navigation] locating loc: %.1f, %.1f, %.1f", tmpDestination[0], tmpDestination[1], tmpDestination[2]);
-			memcpy(destination, tmpDestination, sizeof(tmpDestination));
+			destination = tmpDestination;
 		}
 		else {
 			result = false;
@@ -682,30 +801,148 @@ bool MQ2NavigationPlugin::GetDestination(PCHAR szLine, float* destination)
 	return result;
 }
 
-int MQ2NavigationPlugin::FindPath(double X, double Y, double Z, float* pPath)
+float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
 {
-	if (NULL == m_navMesh)
-		return 0;
-	PSPAWNINFO Me = GetCharInfo()->pSpawn;
-	if (NULL == Me)
-		return 0;
+	float result = -1.f;
 
-	int numPoints = 0;
-	static dtQueryFilter filter;
-	static float extents[3] = { 50, 400, 50 }; // Note: X, Z, Y
-	float endOffset[3] = { X, Z, Y };
-	float startOffset[3] = { Me->X, Me->Z, Me->Y };
+	MQ2NavigationPath path(m_navMesh.get());
+	path.FindPath(pos);
+
+	//WriteChatf("MQ2Navigation::GetPathLength - num points: %d", numPoints);
+	int numPoints = path.GetPathSize();
+	if (numPoints > 0)
+	{
+		result = 0;
+
+		for (int i = 0; i < numPoints - 1; ++i)
+		{
+			const float* first = path.GetRawPosition(i);
+			const float* second = path.GetRawPosition(i + 1);
+
+			float segment = dtVdist(first, second);
+			result += segment;
+			//WriteChatf("MQ2Navigation::GetPathLength - segment #%d length: %f - total: %f", i, segment, result);
+		}
+	}
+	return result;
+}
+
+float MQ2NavigationPlugin::GetNavigationPathLength(PCHAR szLine)
+{
+	float result = -1.f;
+	glm::vec3 destination;
+
+	if (ParseDestination(szLine, destination)) {
+		result = GetNavigationPathLength(destination);
+	}
+	return result;
+}
+
+bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
+{
+	glm::vec3 destination;
+	bool result = false;
+
+	if (ParseDestination(szLine, destination)) {
+		MQ2NavigationPath path(m_navMesh.get());
+		path.FindPath(destination);
+		result = path.GetPathSize() > 0;
+	}
+
+	return result;
+}
+
+void MQ2NavigationPlugin::Stop()
+{
+	if (m_isActive)
+		WriteChatf(PLUGIN_MSG "Stopping");
+	MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+
+	m_activePath.reset();
+	m_isActive = false;
+
+	mq2nav::keybinds::bDoMove = m_isActive;
+	mq2nav::keybinds::stopNavigation = nullptr;
+}
+#pragma endregion
+
+//============================================================================
+
+#pragma region MQ2NavigationPath
+MQ2NavigationPath::MQ2NavigationPath(dtNavMesh* navMesh)
+	: m_navMesh(navMesh)
+{
+	m_filter.setIncludeFlags(0x01); // walkable surface
+}
+
+MQ2NavigationPath::~MQ2NavigationPath()
+{
+}
+
+//----------------------------------------------------------------------------
+
+bool MQ2NavigationPath::FindPath(const glm::vec3& pos)
+{
+	if (nullptr != m_navMesh)
+	{
+		// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
+		FindPathInternal(pos);
+
+		if (m_currentPathSize > 0)
+		{
+			// DebugSpewAlways("FindPath - cursor = %d, size = %d", m_currentPathCursor , m_currentPathSize);
+			// WriteChatf("FindPath - cursor = %d, size = %d", m_currentPathCursor , m_currentPathSize);
+			return true;
+		}
+	}
+
+	//else {
+	//	LoadNavigationMesh();
+	//	return true;
+	//}
+	return false;
+}
+
+void MQ2NavigationPath::FindPathInternal(const glm::vec3& pos)
+{
+	if (nullptr == m_navMesh)
+		return;
+
+	m_currentPathCursor = 0;
+	m_currentPathSize = 0;
+	m_destination = pos;
+
+	m_query.reset(new dtNavMeshQuery);
+	m_query->init(m_navMesh, 2048);
+
+	UpdatePath();
+}
+
+void MQ2NavigationPath::UpdatePath()
+{
+	if (m_navMesh == nullptr)
+		return;
+	PSPAWNINFO me = GetCharInfo()->pSpawn;
+	if (me == nullptr)
+		return;
+	if (m_query == nullptr)
+		return;
+
+	PSPAWNINFO Me = GetCharInfo()->pSpawn;
+	if (nullptr == Me)
+		return;
+
+	float startOffset[3] = { me->X, me->Z, me->Y };
+	float endOffset[3] = { m_destination.x, m_destination.z, m_destination.y };
 	float spos[3];
 	float epos[3];
-	filter.setIncludeFlags(0x01); // walkable surfacee
 
-	dtNavMeshQuery* navQuery;
-	navQuery = dtAllocNavMeshQuery();
-	navQuery->init(m_navMesh.get(), 2048);
+	m_currentPathCursor = 0;
+	m_currentPathSize = 0;
 
 	dtPolyRef startRef, endRef;
-	navQuery->findNearestPoly(startOffset, extents, &filter, &startRef, spos);
-	navQuery->findNearestPoly(endOffset, extents, &filter, &endRef, epos);
+	m_query->findNearestPoly(startOffset, m_extents, &m_filter, &startRef, spos);
+	m_query->findNearestPoly(endOffset, m_extents, &m_filter, &endRef, epos);
 
 	if (startRef)
 	{
@@ -714,147 +951,19 @@ int MQ2NavigationPlugin::FindPath(double X, double Y, double Z, float* pPath)
 			dtPolyRef polys[MAX_POLYS];
 			int numPolys = 0;
 
-			navQuery->findPath(startRef, endRef, spos, epos, &filter, polys, &numPolys, MAX_POLYS);
+			m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
 			if (numPolys > 0)
 			{
-				navQuery->findStraightPath(spos, epos, polys, numPolys, pPath, 0, 0, &numPoints, MAX_POLYS, 0);
+				m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath,
+					0, 0, &m_currentPathSize, MAX_POLYS, 0);
+
 			}
 		}
 		else
-			WriteChatf("[MQ2Navigation] No end reference");
+			WriteChatf(PLUGIN_MSG "No end reference");
 	}
 	else
-		WriteChatf("[MQ2Navigation] No start reference");
-
-	dtFreeNavMeshQuery(navQuery);
-
-	return numPoints;
+		WriteChatf(PLUGIN_MSG "No start reference");
 }
 
-
-float MQ2NavigationPlugin::GetPathLength(double X, double Y, double Z)
-{
-	float result = -1.f;
-	int numPoints = FindPath(X, Y, Z, m_candidatePath);
-	//WriteChatf("MQ2Navigation::GetPathLength - num points: %d", numPoints);
-	if (numPoints > 0) {
-		result = 0.f;
-		for (int i = 0; i < numPoints - 1; ++i) {
-			float segment = dtVdist((m_candidatePath + 3 * i), (m_candidatePath + 3 * (i + 1)));
-			result += segment;
-			//WriteChatf("MQ2Navigation::GetPathLength - segment #%d length: %f - total: %f", i, segment, result);
-		}
-	}
-	return result;
-}
-
-float MQ2NavigationPlugin::GetPathLength(PCHAR szLine)
-{
-	float result = -1.f;
-	float destination[3];
-	if (GetDestination(szLine, destination)) {
-		result = GetPathLength(destination[0], destination[1], destination[2]);
-	}
-	return result;
-}
-
-bool MQ2NavigationPlugin::FindPath(double X, double Y, double Z)
-{
-	if (NULL != m_navMesh) {
-		//WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
-		int numPoints = FindPath(X, Y, Z, m_currentPath);
-		if (numPoints > 0) {
-			m_currentPathSize = numPoints;
-			m_currentPathCursor = 0;
-			//DebugSpewAlways("FindPath - cursor = %d, size = %d", m_currentPathCursor , m_currentPathSize );
-			//WriteChatf("FindPath - cursor = %d, size = %d", m_currentPathCursor , m_currentPathSize );
-			return true;
-		}
-	}
-	else {
-		LoadNavigationMesh();
-		return true;
-	}
-	return false;
-}
-
-void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
-{
-	m_pEndingDoor = NULL;
-	m_pEndingItem = NULL;
-	CHAR buffer[MAX_STRING] = { 0 };
-	int i = 0;
-	m_bDoMove = true;
-
-	//DebugSpewAlways("MQ2Navigation::NavigateCommand - start with arg: %s", szLine);
-	bool haveDestination = GetDestination(szLine, m_destination);
-	//DebugSpewAlways("MQ2Navigation::NavigateCommand - have destination: %d", haveDestination ? 1 : 0);
-	if (!haveDestination) {
-		GetArg(buffer, szLine, 1);
-		if (!strcmp(buffer, "recordwaypoint") || !strcmp(buffer, "rwp")) {
-			GetArg(buffer, szLine, 2);
-			if (0 == *buffer) {
-				WriteChatf("[MQ2Navigation] usage: /navigate recordwaypoint <waypoint name> <waypoint tag>");
-			}
-			else {
-				std::string waypointName(buffer);
-				GetArg(buffer, szLine, 3);
-				std::string waypointTag(buffer);
-				WriteChatf("[MQ2Navigation] recording waypoint: '%s' with tag: %s", waypointName.c_str(), waypointTag.c_str());
-				if (mq2nav::waypoints::addWaypoint(waypointName, waypointTag)) {
-					WriteChatf("[MQ2Navigation] overwrote previous waypoint: '%s'", waypointName.c_str());
-				}
-			}
-		}
-		else if (!strcmp(buffer, "help")) {
-			WriteChatf("[MQ2Navigation] Usage: /navigate [save | load] [target] [X Y Z] [item [click] [once]] [door  [click] [once]] [waypoint <waypoint name>] [stop] [recordwaypoint <name> <tag> ]");
-		}
-		else if (!strcmp(buffer, "load")) {
-			mq2nav::settings::LoadSettings();
-		}
-		else if (!strcmp(buffer, "save")) {
-			mq2nav::settings::SaveSettings();
-		}
-		Stop();
-		return;
-	}
-	GetArg(buffer, szLine, 3);
-	m_bSpamClick = strcmp(buffer, "once");
-
-	if (m_bDoMove = FindPath(m_destination[0], m_destination[1], m_destination[2]))
-		EzCommand("/squelch /stick off");
-
-	// TODO: Fixme
-	mq2nav::keybinds::bDoMove = m_bDoMove;
-	mq2nav::keybinds::stopNavigation = std::bind(&MQ2NavigationPlugin::Stop, this);
-}
-
-bool MQ2NavigationPlugin::ValidEnd()
-{
-	if (m_currentPathCursor >= m_currentPathSize)
-	{
-		if (EQData::_SPAWNINFO* Me = GetCharInfo()->pSpawn)
-		{
-			if (GetDistance(m_destination[0], m_destination[1]) < ENDPOINT_STOP_DISTANCE) {
-				if (!m_bSpamClick)
-					LookAt(m_destination[0], m_destination[1], m_destination[2]);
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-void MQ2NavigationPlugin::Stop()
-{
-	WriteChatf("[MQ2Navigation] Stopping");
-	MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
-	m_currentPathSize = 0;
-
-	// TODO: Fixme
-	m_bDoMove = false;
-	mq2nav::keybinds::bDoMove = m_bDoMove;
-	mq2nav::keybinds::stopNavigation = nullptr;
-
-}
 #pragma endregion

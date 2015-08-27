@@ -178,6 +178,7 @@ void Sample::handleCommonSettings()
 	imguiLabel("Region");
 	imguiSlider("Min Region Size", &m_regionMinSize, 0.0f, 150.0f, 1.0f);
 	imguiSlider("Merged Region Size", &m_regionMergeSize, 0.0f, 150.0f, 1.0f);
+#endif
 
 	imguiSeparator();
 	imguiLabel("Partitioning");
@@ -188,6 +189,7 @@ void Sample::handleCommonSettings()
 	if (imguiCheck("Layers", m_partitionType == SAMPLE_PARTITION_LAYERS))
 		m_partitionType = SAMPLE_PARTITION_LAYERS;
 	
+#if 0
 	imguiSeparator();
 	imguiLabel("Polygonization");
 	imguiSlider("Max Edge Length", &m_edgeMaxLen, 0.0f, 50.0f, 1.0f);
