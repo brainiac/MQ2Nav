@@ -7,6 +7,7 @@
 #include "MQ2Plugin.h"
 
 #include "DetourNavMeshQuery.h"
+#include "DetourPathCorridor.h"
 
 #include <memory>
 #include <chrono>
@@ -172,6 +173,10 @@ public:
 
 	static const int MAX_POLYS = 4028;
 
+	static const int MAX_NODES = 2048;
+
+	static const int MAX_PATH_SIZE = 2048;
+
 	//----------------------------------------------------------------------------
 
 	const glm::vec3& GetDestination() const { return m_destination; }
@@ -184,13 +189,12 @@ public:
 	void UpdatePath();
 
 	// Check if we are at the end if our path
-	bool IsAtEnd() const { return m_currentPathCursor >= m_currentPathSize; }
+	inline bool IsAtEnd() const { return m_currentPathCursor >= m_currentPathSize; }
 
-	glm::vec3 GetNextPosition() const
+	inline glm::vec3 GetNextPosition() const
 	{
 		return GetPosition(m_currentPathCursor);
 	}
-
 	inline const float* GetRawPosition(int index) const
 	{
 		assert(index < m_currentPathSize);
@@ -202,7 +206,7 @@ public:
 		return glm::vec3(rawcoord[0], rawcoord[1], rawcoord[2]);
 	}
 
-	void Increment() { ++m_currentPathCursor; }
+	inline void Increment() { ++m_currentPathCursor; }
 
 private:
 	void FindPathInternal(const glm::vec3& pos);
@@ -210,6 +214,8 @@ private:
 	glm::vec3 m_destination;
 
 	float m_currentPath[MAX_POLYS * 3];
+	unsigned char m_cornerFlags[MAX_POLYS];
+
 	int m_currentPathCursor = 0;
 	int m_currentPathSize = 0;
 
@@ -218,6 +224,7 @@ private:
 
 	// we own the query
 	std::unique_ptr<dtNavMeshQuery> m_query;
+	std::unique_ptr<dtPathCorridor> m_corridor;
 
 	dtQueryFilter m_filter;
 

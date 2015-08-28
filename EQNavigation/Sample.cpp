@@ -171,7 +171,7 @@ void Sample::handleCommonSettings()
 	imguiSlider("Height", &m_agentHeight, 0.1f, 5.0f, 0.1f);
 	imguiSlider("Radius", &m_agentRadius, 0.0f, 5.0f, 0.1f);
 	imguiSlider("Max Climb", &m_agentMaxClimb, 0.1f, 5.0f, 0.1f);
-	imguiSlider("Max Slope", &m_agentMaxSlope, 0.0f, 90.0f, 1.0f);
+	imguiSlider("Max Slope", &m_agentMaxSlope, 0.0f, 100.0f, 1.0f);
 	
 #if 0
 	imguiSeparator();

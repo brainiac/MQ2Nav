@@ -491,6 +491,8 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 		if (now - m_pathfindTimer > std::chrono::milliseconds(PATHFINDING_DELAY_MS))
 		{
+			WriteChatf(PLUGIN_MSG "Recomputing Path...");
+
 			// update path
 			m_activePath->UpdatePath();
 			m_isActive = m_activePath->GetPathSize() > 0;
@@ -540,6 +542,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 			if (!m_activePath->IsAtEnd())
 			{
+				m_activePath->UpdatePath();
 				nextPosition = m_activePath->GetNextPosition();
 			}
 		}
@@ -891,15 +894,9 @@ bool MQ2NavigationPath::FindPath(const glm::vec3& pos)
 		if (m_currentPathSize > 0)
 		{
 			// DebugSpewAlways("FindPath - cursor = %d, size = %d", m_currentPathCursor , m_currentPathSize);
-			// WriteChatf("FindPath - cursor = %d, size = %d", m_currentPathCursor , m_currentPathSize);
 			return true;
 		}
 	}
-
-	//else {
-	//	LoadNavigationMesh();
-	//	return true;
-	//}
 	return false;
 }
 
@@ -922,14 +919,11 @@ void MQ2NavigationPath::UpdatePath()
 {
 	if (m_navMesh == nullptr)
 		return;
-	PSPAWNINFO me = GetCharInfo()->pSpawn;
-	if (me == nullptr)
-		return;
 	if (m_query == nullptr)
 		return;
 
-	PSPAWNINFO Me = GetCharInfo()->pSpawn;
-	if (nullptr == Me)
+	PSPAWNINFO me = GetCharInfo()->pSpawn;
+	if (me == nullptr)
 		return;
 
 	float startOffset[3] = { me->X, me->Z, me->Y };
@@ -942,28 +936,54 @@ void MQ2NavigationPath::UpdatePath()
 
 	dtPolyRef startRef, endRef;
 	m_query->findNearestPoly(startOffset, m_extents, &m_filter, &startRef, spos);
-	m_query->findNearestPoly(endOffset, m_extents, &m_filter, &endRef, epos);
 
-	if (startRef)
+	if (!startRef)
 	{
-		if (endRef)
+		WriteChatf(PLUGIN_MSG "No start reference");
+		return;
+	}
+
+	dtPolyRef polys[MAX_POLYS];
+	int numPolys = 0;
+
+	if (!m_corridor)
+	{
+		// initialize planning
+		m_corridor.reset(new dtPathCorridor);
+		m_corridor->init(MAX_PATH_SIZE);
+
+		m_corridor->reset(startRef, startOffset);
+
+		m_query->findNearestPoly(endOffset, m_extents, &m_filter, &endRef, epos);
+
+		if (!endRef)
 		{
-			dtPolyRef polys[MAX_POLYS];
-			int numPolys = 0;
-
-			m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
-			if (numPolys > 0)
-			{
-				m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath,
-					0, 0, &m_currentPathSize, MAX_POLYS, 0);
-
-			}
-		}
-		else
 			WriteChatf(PLUGIN_MSG "No end reference");
+			return;
+		}
+
+		m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
+
+		m_corridor->setCorridor(endOffset, polys, numPolys);
 	}
 	else
-		WriteChatf(PLUGIN_MSG "No start reference");
+	{
+		// this is an update
+		m_corridor->movePosition(startOffset, m_query.get(), &m_filter);
+	}
+
+	m_corridor->optimizePathTopology(m_query.get(), &m_filter);
+
+	m_currentPathSize = m_corridor->findCorners(m_currentPath,
+		m_cornerFlags, polys, 10, m_query.get(), &m_filter);
+
+	//if (numPolys > 0)
+	//{
+	//	m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath,
+	//		0, 0, &m_currentPathSize, MAX_POLYS, 0);
+
+	//}
 }
+
 
 #pragma endregion
