@@ -171,6 +171,7 @@ bool CEQDraw::LoadDoorAdjustments()
     if(!pDoorAdjustTable)
     {
         pDoorAdjustTable = new DoorAdjustTable;
+		ZeroMemory(pDoorAdjustTable->pDoor, sizeof(pDoorAdjustTable->pDoor));
         pDoorAdjustTable->numDoors = 0;
 	}
     DoorAdjustFile.clear();

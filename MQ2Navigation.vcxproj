@@ -47,9 +47,10 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <AdditionalIncludeDirectories>dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\Detour\Include;dependencies\glm\glm;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\Detour\Include;dependencies\glm\glm;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4018;4244</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>Interactions\DirectX\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -61,9 +62,17 @@
     <None Include="..\Release\Zones.ini" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dependencies\imgui\imconfig.h" />
+    <ClInclude Include="dependencies\imgui\imgui.h" />
+    <ClInclude Include="dependencies\imgui\stb_image.h" />
+    <ClInclude Include="dependencies\imgui\stb_rect_pack.h" />
+    <ClInclude Include="dependencies\imgui\stb_textedit.h" />
+    <ClInclude Include="dependencies\imgui\stb_truetype.h" />
+    <ClInclude Include="imgui_impl_dx9.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
     <ClInclude Include="MQ2Navigation.h" />
+    <ClInclude Include="MQ2Navigation_Render.h" />
     <ClInclude Include="MQ2NavKeyBinds.h" />
     <ClInclude Include="MQ2NavSettings.h" />
     <ClInclude Include="MQ2NavUtil.h" />
@@ -72,6 +81,9 @@
     <ClInclude Include="meshext.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dependencies\imgui\imgui.cpp" />
+    <ClCompile Include="dependencies\imgui\imgui_draw.cpp" />
+    <ClCompile Include="imgui_impl_dx9.cpp" />
     <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
     <ClCompile Include="meshext.c">
@@ -79,6 +91,7 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
     </ClCompile>
     <ClCompile Include="MQ2Navigation_Main.cpp" />
+    <ClCompile Include="MQ2Navigation_Render.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2Navigation1.rc" />
@@ -87,6 +100,9 @@
     <ProjectReference Include="dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="dependencies\glm\util\glm.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -11,7 +11,6 @@
 // Windows Header Files:
 #include <windows.h>
 
-#define _USE_MATH_DEFINES
 #include <math.h>
 
 // C RunTime Header Files

@@ -129,6 +129,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)DetourTileCache\Include;$(ProjectDir)Detour\Include;$(ProjectDir)DetourCrowd\Include;$(ProjectDir)DebugUtils\Include;$(ProjectDir)Recast\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

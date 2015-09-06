@@ -5,7 +5,9 @@
 // are shown below. Remove the ones your plugin does not use.  Always use Initialize
 // and Shutdown for setup and cleanup, do NOT do it in DllMain.
 
-#include "../MQ2Plugin.h"
+#include "MQ2Navigation.h"
+#include "MQ2Navigation_Render.h"
+
 
 extern bool _DEBUG_LOG;                            /* generate debug messages      */
 extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
@@ -22,6 +24,8 @@ extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
 #include "MQ2NavSettings.h"
 #include "MQ2NavKeyBinds.h"
 #include "MQ2NavWaypoints.h"
+
+#include <set>
 
 #define debug_log(a); debug_log_proc(a, __FILE__, __LINE__);
 extern void debug_log_proc(char *text, char *sourcefile, int sourceline);
@@ -45,7 +49,7 @@ struct NavMeshTileHeader
 	int dataSize;
 };
 
-//----------------------------------------------------------------------------
+//============================================================================
 
 static bool IsInt(char* buffer)
 {
@@ -251,6 +255,9 @@ void MQ2NavigationPlugin::SetGameState(DWORD GameState)
 		LoadNavigationMesh();
 		mq2nav::waypoints::LoadWaypoints();
 	}
+	else {
+		Shutdown();
+	}
 }
 
 void MQ2NavigationPlugin::Initialize()
@@ -268,6 +275,7 @@ void MQ2NavigationPlugin::Initialize()
 
 	m_pEQDraw->Initialize();
 
+	g_render.reset(new MQ2NavigationRender());
 	m_initialized = true;
 }
 
@@ -277,6 +285,8 @@ void MQ2NavigationPlugin::Shutdown()
 	{
 		mq2nav::keybinds::UndoKeybinds();
 		Stop();
+
+		g_render.reset();
 		m_initialized = false;
 	}
 }
@@ -354,14 +364,16 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 {
 	// first clear existing state
 	m_isActive = false;
+	g_render->ClearNavigationPath();
 	m_activePath.reset();
 
 	if (!m_navMesh)
 		return;
 
 	m_activePath.reset(new MQ2NavigationPath(m_navMesh.get()));
-	m_activePath->FindPath(pos);
+	g_render->SetNavigationPath(m_activePath.get());
 
+	m_activePath->FindPath(pos);
 	m_isActive = m_activePath->GetPathSize() > 0;
 }
 
@@ -561,6 +573,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 bool MQ2NavigationPlugin::LoadNavigationMesh()
 {
 	m_navMesh.reset();
+	g_render->ClearNavigationPath();
 	m_activePath.reset();
 	m_isActive = false;
 
@@ -858,9 +871,12 @@ bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
 void MQ2NavigationPlugin::Stop()
 {
 	if (m_isActive)
+	{
 		WriteChatf(PLUGIN_MSG "Stopping");
-	MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+		MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+	}
 
+	g_render->ClearNavigationPath();
 	m_activePath.reset();
 	m_isActive = false;
 
@@ -910,7 +926,7 @@ void MQ2NavigationPath::FindPathInternal(const glm::vec3& pos)
 	m_destination = pos;
 
 	m_query.reset(new dtNavMeshQuery);
-	m_query->init(m_navMesh, 2048);
+	m_query->init(m_navMesh, 10000 /* MAX_NODES */);
 
 	UpdatePath();
 }
@@ -962,7 +978,15 @@ void MQ2NavigationPath::UpdatePath()
 			return;
 		}
 
-		m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
+		dtStatus status = m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
+		if (status & DT_OUT_OF_NODES)
+			DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: out of nodes",
+				startOffset[0], startOffset[1], startOffset[2],
+				endOffset[0], endOffset[1], endOffset[2]);
+		if (status & DT_PARTIAL_RESULT)
+			DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
+				startOffset[0], startOffset[1], startOffset[2],
+				endOffset[0], endOffset[1], endOffset[2]);
 
 		m_corridor->setCorridor(endOffset, polys, numPolys);
 	}
@@ -981,7 +1005,6 @@ void MQ2NavigationPath::UpdatePath()
 	//{
 	//	m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath,
 	//		0, 0, &m_currentPathSize, MAX_POLYS, 0);
-
 	//}
 }
 

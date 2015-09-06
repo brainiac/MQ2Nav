@@ -15,26 +15,26 @@
 #include <map>
 #include <tuple>
 
-#define GLM_FORCE_RADIANS
 #include <glm.hpp>
 
 class MapGeometryLoader
 {
 public:
-	MapGeometryLoader();
+	MapGeometryLoader(const std::string& zoneShortName, const std::string& everquest_path);
 	~MapGeometryLoader();
 
-	bool load(const char* filename, const char* everquest_path);
+	bool load();
+
+	inline const std::string& getFileName() const { return m_zoneName; }
 
 	inline const float* getVerts() const { return m_verts; }
 	inline const float* getNormals() const { return m_normals; }
 	inline const int* getTris() const { return m_tris; }
 	inline int getVertCount() const { return m_vertCount; }
 	inline int getTriCount() const { return m_triCount; }
-	inline const char* getFileName() const { return m_filename; }
 
 private:
-	bool Build(std::string zone_name);
+	bool Build();
 
 	void TraverseBone(std::shared_ptr<EQEmu::S3D::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
 
@@ -61,8 +61,8 @@ private:
 	std::vector<glm::vec3> non_collide_verts;
 	std::vector<uint32_t> non_collide_indices;
 
-	uint32_t current_collide_index;
-	uint32_t current_non_collide_index;
+	uint32_t current_collide_index = 0;
+	uint32_t current_non_collide_index = 0;
 
 	std::map<std::tuple<float, float, float>, uint32_t> collide_vert_to_index;
 	std::map<std::tuple<float, float, float>, uint32_t> non_collide_vert_to_index;
@@ -73,18 +73,23 @@ private:
 	std::vector<std::shared_ptr<EQEmu::Placeable>> map_placeables;
 	std::vector<std::shared_ptr<EQEmu::PlaceableGroup>> map_group_placeables;
 
+	template <typename T>
+	void AddMapModel(const std::shared_ptr<EQEmu::Placeable>& obj,
+		T& model, uint32_t& counter);
+
 	//---------------------------------------------------------------------------
 	
 	void addVertex(float x, float y, float z);
 	void addTriangle(int a, int b, int c);
 
-	int vcap, tcap;
-	
-	char m_filename[260];
-	float m_scale;
-	float* m_verts;
-	int* m_tris;
-	float* m_normals;
-	int m_vertCount;
-	int m_triCount;
+	int vcap = 0, tcap = 0;
+	float m_scale = 1.0;
+	float* m_verts = 0;
+	int* m_tris = 0;
+	float* m_normals = 0;
+	int m_vertCount = 0;
+	int m_triCount = 0;
+
+	std::string m_zoneName;
+	std::string m_eqPath;
 };

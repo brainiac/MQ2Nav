@@ -3,7 +3,11 @@
 
 #include <string>
 #include <vector>
+
+#ifndef GLM_FORCE_RADIANS
 #define GLM_FORCE_RADIANS
+#endif
+
 #include <glm.hpp>
 
 namespace EQEmu

@@ -10,19 +10,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define _USE_MATH_DEFINES
 #include <math.h>
 
 
-MapGeometryLoader::MapGeometryLoader() :
-	m_scale(1.0f),
-	m_verts(0),
-	m_tris(0),
-	m_normals(0),
-	m_vertCount(0),
-	m_triCount(0),
-	vcap(0), tcap(0)
+MapGeometryLoader::MapGeometryLoader(const std::string& zoneShortName,
+	const std::string& everquest_path)
+	: m_zoneName(zoneShortName)
+	, m_eqPath(everquest_path)
 {
 }
 
@@ -69,21 +63,44 @@ void MapGeometryLoader::addTriangle(int a, int b, int c)
 	m_triCount++;
 }
 
-bool MapGeometryLoader::load(const char* zoneShortName, const char* everquest_path)
+template <typename T>
+void MapGeometryLoader::AddMapModel(const std::shared_ptr<EQEmu::Placeable>& obj,
+	T& model, uint32_t& counter)
 {
-	std::string filename = zoneShortName;
+	const auto& verts = model.GetVertices();
+	const auto& polys = model.GetPolygons();
 
-	// change the working directory to the everquest folder
-	char orig_directory[_MAX_PATH] = { 0 };
-	GetCurrentDirectoryA(_MAX_PATH, orig_directory);
+	for (const auto& poly : polys)
+	{
+		// 0x10 appeared on some non-collidable polygons
+		if (poly.flags == 0x10)
+			continue;
 
-	SetCurrentDirectoryA(everquest_path);
+		for (int i = 0; i < 3; i++)
+		{
+			glm::vec3 vert = verts[poly.verts[i]].pos;
+			RotateVertex(vert, obj->GetRotateX(), obj->GetRotateY(), obj->GetRotateZ());
+			ScaleVertex(vert, obj->GetScaleX(), obj->GetScaleY(), obj->GetScaleZ());
+			TranslateVertex(vert, obj->GetX(), obj->GetY(), obj->GetZ());
 
+			addVertex(vert.y, vert.z, vert.x);
+		}
+
+		addTriangle(counter, counter + 1, counter + 2);
+		counter += 3;
+	}
+}
+
+bool MapGeometryLoader::load()
+{
 	uint32_t counter = 0;
 
-	if (Build(filename))
+	if (!Build())
 	{
-#if 1
+		return false;
+	}
+	else
+	{
 		// load terrain geometry
 		if (terrain)
 		{
@@ -155,8 +172,6 @@ bool MapGeometryLoader::load(const char* zoneShortName, const char* everquest_pa
 				}
 			}
 		}
-#endif
-#if 1
 		for (uint32_t index = 0; index < collide_indices.size(); index += 3, counter += 3)
 		{
 			uint32_t vert_index1 = collide_indices[index];
@@ -173,7 +188,30 @@ bool MapGeometryLoader::load(const char* zoneShortName, const char* everquest_pa
 
 			addTriangle(counter, counter + 2, counter + 1);
 		}
-#endif
+
+		for (auto& obj : map_placeables)
+		{
+			const std::string& name = obj->GetFileName();
+
+			// check map models
+			auto modelIter = map_models.find(name);
+			if (modelIter != map_models.end())
+			{
+				const auto& model = modelIter->second;
+				AddMapModel<EQEmu::S3D::Geometry>(obj, *model, counter);
+
+				continue;
+			}
+
+			auto modelIter2 = map_eqg_models.find(name);
+			if (modelIter2 != map_eqg_models.end())
+			{
+				const auto& model = modelIter2->second;
+				AddMapModel<EQEmu::EQG::Geometry>(obj, *model, counter);
+
+				continue;
+			}
+		}
 
 		//const auto& non_collide_indices = map.GetNonCollideIndices();
 
@@ -193,11 +231,6 @@ bool MapGeometryLoader::load(const char* zoneShortName, const char* everquest_pa
 
 		//	addTriangle(counter, counter + 2, counter + 1, tcap);
 		//}
-	}
-	else
-	{
-		SetCurrentDirectoryA(orig_directory);
-		return false;
 	}
 	
 	//message = "Calculating Surface Normals...";
@@ -226,53 +259,51 @@ bool MapGeometryLoader::load(const char* zoneShortName, const char* everquest_pa
 			n[2] *= d;
 		}
 	}
-	
-	strncpy(m_filename, zoneShortName, sizeof(m_filename));
-	m_filename[sizeof(m_filename)-1] = '\0';
-	SetCurrentDirectoryA(orig_directory);
 
 	return true;
 }
 
 //============================================================================
 
-bool MapGeometryLoader::Build(std::string zone_name)
+bool MapGeometryLoader::Build()
 {
-	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a standard eqg.", zone_name.c_str());
+	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a standard eqg.", m_zoneName.c_str());
+
+	std::string filePath = m_eqPath + "\\" + m_zoneName;
 
 	EQEmu::EQGLoader eqg;
 	std::vector<std::shared_ptr<EQEmu::EQG::Geometry>> eqg_models;
 	std::vector<std::shared_ptr<EQEmu::Placeable>> eqg_placables;
 	std::vector<std::shared_ptr<EQEmu::EQG::Region>> eqg_regions;
 	std::vector<std::shared_ptr<EQEmu::Light>> eqg_lights;
-	if (eqg.Load(zone_name, eqg_models, eqg_placables, eqg_regions, eqg_lights))
+	if (eqg.Load(filePath, eqg_models, eqg_placables, eqg_regions, eqg_lights))
 	{
 		return CompileEQG(eqg_models, eqg_placables, eqg_regions, eqg_lights);
 	}
 
-	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a v4 eqg.", zone_name.c_str());
+	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a v4 eqg.", m_zoneName.c_str());
 	EQEmu::EQG4Loader eqg4;
-	if (eqg4.Load(zone_name, terrain))
+	if (eqg4.Load(filePath, terrain))
 	{
 		return CompileEQGv4();
 	}
 
-	eqLogMessage(LogTrace, "Attempting to load %s.s3d as a standard s3d.", zone_name.c_str());
+	eqLogMessage(LogTrace, "Attempting to load %s.s3d as a standard s3d.", m_zoneName.c_str());
 	EQEmu::S3DLoader s3d;
 	std::vector<EQEmu::S3D::WLDFragment> zone_frags;
 	std::vector<EQEmu::S3D::WLDFragment> zone_object_frags;
 	std::vector<EQEmu::S3D::WLDFragment> object_frags;
-	if (!s3d.ParseWLDFile(zone_name + ".s3d", zone_name + ".wld", zone_frags))
+	if (!s3d.ParseWLDFile(filePath + ".s3d", m_zoneName + ".wld", zone_frags))
 	{
 		return false;
 	}
 
-	if (!s3d.ParseWLDFile(zone_name + ".s3d", "objects.wld", zone_object_frags))
+	if (!s3d.ParseWLDFile(filePath + ".s3d", "objects.wld", zone_object_frags))
 	{
 		return false;
 	}
 
-	if (!s3d.ParseWLDFile(zone_name + "_obj.s3d", zone_name + "_obj.wld", object_frags))
+	if (!s3d.ParseWLDFile(filePath + "_obj.s3d", m_zoneName + "_obj.wld", object_frags))
 	{
 		return false;
 	}

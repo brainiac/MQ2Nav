@@ -128,6 +128,8 @@ private:
 	void AttemptMovement();
 	void Stop();
 
+	void UpdateNavigationDisplay();
+
 private:
 	std::unique_ptr<MQ2NavigationType> m_navigationType;
 	std::unique_ptr<CEQDraw> m_pEQDraw;
@@ -171,11 +173,11 @@ public:
 	//----------------------------------------------------------------------------
 	// constants
 
-	static const int MAX_POLYS = 4028;
+	static const int MAX_POLYS = 4028 * 4;
 
-	static const int MAX_NODES = 2048;
+	static const int MAX_NODES = 2048 * 4;
 
-	static const int MAX_PATH_SIZE = 2048;
+	static const int MAX_PATH_SIZE = 2048 * 4;
 
 	//----------------------------------------------------------------------------
 
@@ -207,6 +209,8 @@ public:
 	}
 
 	inline void Increment() { ++m_currentPathCursor; }
+
+	const float* GetCurrentPath() const { return &m_currentPath[0]; }
 
 private:
 	void FindPathInternal(const glm::vec3& pos);

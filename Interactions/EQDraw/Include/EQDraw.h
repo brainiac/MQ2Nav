@@ -168,6 +168,8 @@ public:
 	CEQDraw();
 	~CEQDraw();
 
+	IDirect3DDevice9* GetD3DDevice() { return pD3Ddevice; }
+
 	void Click(PDOOR pDoor);
 	void Click(PGROUNDITEM pItem);
     void Initialize();

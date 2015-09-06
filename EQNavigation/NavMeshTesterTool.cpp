@@ -168,7 +168,7 @@ static bool getSteerTarget(dtNavMeshQuery* navQuery, const float* startPos, cons
 						   float* outPoints = 0, int* outPointCount = 0)							 
 {
 	// Find steer target.
-	static const int MAX_STEER_POINTS = 3;
+	static const int MAX_STEER_POINTS = 64;
 	float steerPath[MAX_STEER_POINTS*3];
 	unsigned char steerPathFlags[MAX_STEER_POINTS];
 	dtPolyRef steerPathPolys[MAX_STEER_POINTS];

@@ -16,7 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -166,7 +165,7 @@ void ConvexVolumeTool::handleClick(const float* /*s*/, const float* p, bool shif
 		const ConvexVolume* vols = geom->getConvexVolumes();
 		for (int i = 0; i < geom->getConvexVolumeCount(); ++i)
 		{
-			if (pointInPoly(vols[i].nverts, vols[i].verts, p) &&
+			if (pointInPoly(vols[i].nverts, &vols[i].verts[0][0], p) &&
 							p[1] >= vols[i].hmin && p[1] <= vols[i].hmax)
 			{
 				nearestIndex = i;

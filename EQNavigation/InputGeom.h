@@ -1,31 +1,14 @@
-//
-// Copyright (c) 2009-2010 Mikko Mononen memon@inside.org
-//
-// This software is provided 'as-is', without any express or implied
-// warranty.  In no event will the authors be held liable for any damages
-// arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-// 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgment in the product documentation would be
-//    appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be
-//    misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
-//
 
-#ifndef INPUTGEOM_H
-#define INPUTGEOM_H
+#pragma once
 
 #include "ChunkyTriMesh.h"
 #include "MapGeometryLoader.h"
 
 static const int MAX_CONVEXVOL_PTS = 12;
+
 struct ConvexVolume
 {
-	float verts[MAX_CONVEXVOL_PTS*3];
+	glm::vec3 verts[MAX_CONVEXVOL_PTS];
 	float hmin, hmax;
 	int nverts;
 	int area;
@@ -33,41 +16,18 @@ struct ConvexVolume
 
 class InputGeom
 {
-	rcChunkyTriMesh* m_chunkyMesh;
-	MapGeometryLoader* m_loader;
-	float m_meshBMin[3], m_meshBMax[3];
-	
-	/// @name Off-Mesh connections.
-	///@{
-	static const int MAX_OFFMESH_CONNECTIONS = 256;
-	float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
-	float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
-	unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
-	unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
-	unsigned short m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];
-	unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
-	int m_offMeshConCount;
-	///@}
-
-	/// @name Convex Volumes.
-	///@{
-	static const int MAX_VOLUMES = 256;
-	ConvexVolume m_volumes[MAX_VOLUMES];
-	int m_volumeCount;
-	///@}
-	
 public:
-	InputGeom();
+	InputGeom(const std::string& zoneShortName, const std::string& eqPath);
 	~InputGeom();
 	
-	bool loadMesh(class rcContext* ctx, const char* filepath, const char* everquest_path);
+	bool loadMesh(class rcContext* ctx);
 
 	/// Method to return static mesh data.
-	inline const MapGeometryLoader* getMeshLoader() const { return m_loader; }
-	inline const float* getMeshBoundsMin() const { return m_meshBMin; }
-	inline const float* getMeshBoundsMax() const { return m_meshBMax; }
-	inline const rcChunkyTriMesh* getChunkyMesh() const { return m_chunkyMesh; }
-	bool raycastMesh(float* src, float* dst, float& tmin);
+	inline const glm::vec3& getMeshBoundsMin() const { return m_meshBMin; }
+	inline const glm::vec3& getMeshBoundsMax() const { return m_meshBMax; }
+
+	inline const MapGeometryLoader* getMeshLoader() const { return m_loader.get(); }
+	inline const rcChunkyTriMesh* getChunkyMesh() const { return m_chunkyMesh.get(); }
 
 	/// @name Off-Mesh connections.
 	///@{
@@ -93,6 +53,40 @@ public:
 	void deleteConvexVolume(int i);
 	void drawConvexVolumes(struct duDebugDraw* dd, bool hilight = false);
 	///@}
-};
 
-#endif // INPUTGEOM_H
+	/// Utilities
+	bool raycastMesh(float* src, float* dst, float& tmin);
+
+private:
+	std::string m_eqPath;
+	std::string m_zoneShortName;
+
+	std::unique_ptr<rcChunkyTriMesh> m_chunkyMesh;
+	std::unique_ptr<MapGeometryLoader> m_loader;
+
+	// bounds
+	glm::vec3 m_meshBMin, m_meshBMax;
+
+#pragma region Off-Mesh connections
+	/// @name Off-Mesh connections.
+	///@{
+	static const int MAX_OFFMESH_CONNECTIONS = 256;
+	float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS * 3 * 2];
+	float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
+	unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
+	unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
+	unsigned short m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];
+	unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
+	int m_offMeshConCount = 0;
+	///@}
+#pragma endregion
+
+#pragma region Convex Volumes
+	/// @name Convex Volumes.
+	///@{
+	static const int MAX_VOLUMES = 256;
+	ConvexVolume m_volumes[MAX_VOLUMES];
+	int m_volumeCount = 0;
+	///@}
+#pragma endregion
+};

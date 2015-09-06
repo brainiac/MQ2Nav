@@ -16,7 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
 #include "Sample.h"
@@ -103,8 +102,8 @@ void Sample::handleRender()
 	);
 
 	// Draw bounds
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	glm::vec3 bmin = m_geom->getMeshBoundsMin();
+	glm::vec3 bmax = m_geom->getMeshBoundsMax();
 	duDebugDrawBoxWire(&dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
 }
 
@@ -120,22 +119,22 @@ void Sample::handleMeshChanged(InputGeom* geom)
 const float* Sample::getBoundsMin()
 {
 	if (!m_geom) return 0;
-	return m_geom->getMeshBoundsMin();
+	return &m_geom->getMeshBoundsMin()[0];
 }
 
 const float* Sample::getBoundsMax()
 {
 	if (!m_geom) return 0;
-	return m_geom->getMeshBoundsMax();
+	return &m_geom->getMeshBoundsMax()[0];
 }
 
 void Sample::resetCommonSettings()
 {
 	m_cellSize = 0.3f;
 	m_cellHeight = 0.2f;
-	m_agentHeight = 2.0f;
-	m_agentRadius = 0.6f;
-	m_agentMaxClimb = 2.0f;
+	m_agentHeight = 6.9f;
+	m_agentRadius = 2.0f;
+	m_agentMaxClimb = 6.2f;
 	m_agentMaxSlope = 70.0f;
 	m_regionMinSize = 8;
 	m_regionMergeSize = 20;
@@ -156,10 +155,10 @@ void Sample::handleCommonSettings()
 	
 	if (m_geom)
 	{
-		const float* bmin = m_geom->getMeshBoundsMin();
-		const float* bmax = m_geom->getMeshBoundsMax();
+		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 		int gw = 0, gh = 0;
-		rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
+		rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
 		char text[64];
 		snprintf(text, 64, "Voxels  %d x %d", gw, gh);
 		imguiValue(text);
@@ -168,9 +167,9 @@ void Sample::handleCommonSettings()
 	
 	imguiSeparator();
 	imguiLabel("Agent");
-	imguiSlider("Height", &m_agentHeight, 0.1f, 5.0f, 0.1f);
-	imguiSlider("Radius", &m_agentRadius, 0.0f, 5.0f, 0.1f);
-	imguiSlider("Max Climb", &m_agentMaxClimb, 0.1f, 5.0f, 0.1f);
+	imguiSlider("Height", &m_agentHeight, 0.1f, 10.0f, 0.1f);
+	imguiSlider("Radius", &m_agentRadius, 0.0f, 10.0f, 0.1f);
+	imguiSlider("Max Climb", &m_agentMaxClimb, 0.1f, 10.0f, 0.1f);
 	imguiSlider("Max Slope", &m_agentMaxSlope, 0.0f, 100.0f, 1.0f);
 	
 #if 0
@@ -180,6 +179,7 @@ void Sample::handleCommonSettings()
 	imguiSlider("Merged Region Size", &m_regionMergeSize, 0.0f, 150.0f, 1.0f);
 #endif
 
+#if 0
 	imguiSeparator();
 	imguiLabel("Partitioning");
 	if (imguiCheck("Watershed", m_partitionType == SAMPLE_PARTITION_WATERSHED))
@@ -188,7 +188,7 @@ void Sample::handleCommonSettings()
 		m_partitionType = SAMPLE_PARTITION_MONOTONE;
 	if (imguiCheck("Layers", m_partitionType == SAMPLE_PARTITION_LAYERS))
 		m_partitionType = SAMPLE_PARTITION_LAYERS;
-	
+#endif
 #if 0
 	imguiSeparator();
 	imguiLabel("Polygonization");
@@ -201,7 +201,7 @@ void Sample::handleCommonSettings()
 	imguiSlider("Sample Distance", &m_detailSampleDist, 0.0f, 16.0f, 1.0f);
 	imguiSlider("Max Sample Error", &m_detailSampleMaxError, 0.0f, 16.0f, 1.0f);
 #endif
-	
+
 	imguiSeparator();
 }
 

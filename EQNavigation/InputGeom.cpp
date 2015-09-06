@@ -1,33 +1,18 @@
-//
-// Copyright (c) 2009-2010 Mikko Mononen memon@inside.org
-//
-// This software is provided 'as-is', without any express or implied
-// warranty.  In no event will the authors be held liable for any damages
-// arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-// 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgment in the product documentation would be
-//    appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be
-//    misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
-//
 
-#define _USE_MATH_DEFINES
+#include "InputGeom.h"
+#include "MapGeometryLoader.h"
+
+#include "ChunkyTriMesh.h"
+#include "DebugDraw.h"
+#include "DetourNavMesh.h"
+#include "Recast.h"
+#include "RecastDebugDraw.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include "Recast.h"
-#include "InputGeom.h"
-#include "ChunkyTriMesh.h"
-#include "MapGeometryLoader.h"
-#include "DebugDraw.h"
-#include "RecastDebugDraw.h"
-#include "DetourNavMesh.h"
+
 
 static bool intersectSegmentTriangle(const float* sp, const float* sq,
 									 const float* a, const float* b, const float* c,
@@ -104,64 +89,52 @@ static char* parseRow(char* buf, char* bufEnd, char* row, int len)
 
 
 
-InputGeom::InputGeom() :
-	m_chunkyMesh(0),
-	m_loader(0),
-	m_offMeshConCount(0),
-	m_volumeCount(0)
+InputGeom::InputGeom(const std::string& zoneShortName, const std::string& eqPath)
+	: m_zoneShortName(zoneShortName)
+	, m_eqPath(eqPath)
 {
 }
 
 InputGeom::~InputGeom()
 {
-	delete m_chunkyMesh;
-	delete m_loader;
 }
 
-bool InputGeom::loadMesh(rcContext* ctx, const char* filepath, const char* everquest_path)
+bool InputGeom::loadMesh(rcContext* ctx)
 {
-	if (m_loader)
-	{
-		delete m_chunkyMesh;
-		m_chunkyMesh = 0;
-		delete m_loader;
-		m_loader = 0;
-	}
+	m_chunkyMesh.reset();
 	m_offMeshConCount = 0;
 	m_volumeCount = 0;
 	
-	m_loader = new MapGeometryLoader;
-	if (!m_loader)
+	m_loader.reset(new MapGeometryLoader(m_zoneShortName, m_eqPath));
+	if (!m_loader->load())
 	{
-		ctx->log(RC_LOG_ERROR, "loadMesh: Out of memory 'm_mesh'.");
-		return false;
-	}
-	if (!m_loader->load(filepath, everquest_path))
-	{
-		ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not load '%s'", filepath);
+		ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not load '%s'",
+			m_zoneShortName.c_str());
 		return false;
 	}
 
-	rcCalcBounds(m_loader->getVerts(), m_loader->getVertCount(), m_meshBMin, m_meshBMax);
+	rcCalcBounds(m_loader->getVerts(), m_loader->getVertCount(),
+		&m_meshBMin[0], &m_meshBMax[0]);
 
-	m_chunkyMesh = new rcChunkyTriMesh;
-	if (!m_chunkyMesh)
-	{
-		ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Out of memory 'm_chunkyMesh'.");
-		return false;
-	}
-	if (!rcCreateChunkyTriMesh(m_loader->getVerts(), m_loader->getTris(), m_loader->getTriCount(), 256, m_chunkyMesh))
+	// Construct the partitioned triangle mesh
+	m_chunkyMesh.reset(new rcChunkyTriMesh);
+	if (!rcCreateChunkyTriMesh(
+		m_loader->getVerts(),        // verts
+		m_loader->getTris(),         // tris
+		m_loader->getTriCount(),     // ntris
+		256,                         // trisPerChunk
+		m_chunkyMesh.get()))         // [out] chunkyMesh
 	{
 		ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Failed to build chunky mesh.");
 		return false;
-	}		
+	}
 
 	return true;
 }
 
+#pragma region Utilities
 static bool isectSegAABB(const float* sp, const float* sq,
-						 const float* amin, const float* amax,
-						 float& tmin, float& tmax)
+	const float* amin, const float* amax, float& tmin, float& tmax)
 {
 	static const float EPS = 1e-6f;
 	
@@ -194,7 +167,6 @@ static bool isectSegAABB(const float* sp, const float* sq,
 	return true;
 }
 
-
 bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 {
 	float dir[3];
@@ -202,7 +174,7 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 
 	// Prune hit ray.
 	float btmin, btmax;
-	if (!isectSegAABB(src, dst, m_meshBMin, m_meshBMax, btmin, btmax))
+	if (!isectSegAABB(src, dst, &m_meshBMin[0], &m_meshBMax[0], btmin, btmax))
 		return false;
 	float p[2], q[2];
 	p[0] = src[0] + (dst[0]-src[0])*btmin;
@@ -211,7 +183,7 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 	q[1] = src[2] + (dst[2]-src[2])*btmax;
 	
 	int cid[512];
-	const int ncid = rcGetChunksOverlappingSegment(m_chunkyMesh, p, q, cid, 512);
+	const int ncid = rcGetChunksOverlappingSegment(m_chunkyMesh.get(), p, q, cid, 512);
 	if (!ncid)
 		return false;
 	
@@ -228,10 +200,11 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 		for (int j = 0; j < ntris*3; j += 3)
 		{
 			float t = 1;
-			if (intersectSegmentTriangle(src, dst,
-										 &verts[tris[j]*3],
-										 &verts[tris[j+1]*3],
-										 &verts[tris[j+2]*3], t))
+			if (intersectSegmentTriangle(
+				src, dst,
+				&verts[tris[j]*3],
+				&verts[tris[j+1]*3],
+				&verts[tris[j+2]*3], t))
 			{
 				if (t < tmin)
 					tmin = t;
@@ -242,9 +215,11 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 	
 	return hit;
 }
+#pragma endregion
 
+#pragma region Off-Mesh connections
 void InputGeom::addOffMeshConnection(const float* spos, const float* epos, const float rad,
-									 unsigned char bidir, unsigned char area, unsigned short flags)
+	unsigned char bidir, unsigned char area, unsigned short flags)
 {
 	if (m_offMeshConCount >= MAX_OFFMESH_CONNECTIONS) return;
 	float* v = &m_offMeshConVerts[m_offMeshConCount*3*2];
@@ -301,9 +276,11 @@ void InputGeom::drawOffMeshConnections(duDebugDraw* dd, bool hilight)
 
 	dd->depthMask(true);
 }
+#pragma endregion
 
+#pragma region Convex Volumes
 void InputGeom::addConvexVolume(const float* verts, const int nverts,
-								const float minh, const float maxh, unsigned char area)
+	const float minh, const float maxh, unsigned char area)
 {
 	if (m_volumeCount >= MAX_VOLUMES) return;
 	ConvexVolume* vol = &m_volumes[m_volumeCount++];
@@ -333,10 +310,10 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 		unsigned int col = duIntToCol(vol->area, 32);
 		for (int j = 0, k = vol->nverts-1; j < vol->nverts; k = j++)
 		{
-			const float* va = &vol->verts[k*3];
-			const float* vb = &vol->verts[j*3];
+			const float* va = &vol->verts[k][0];
+			const float* vb = &vol->verts[j][0];
 
-			dd->vertex(vol->verts[0],vol->hmax,vol->verts[2], col);
+			dd->vertex(vol->verts[0][0],vol->hmax,vol->verts[2][0], col);
 			dd->vertex(vb[0],vol->hmax,vb[2], col);
 			dd->vertex(va[0],vol->hmax,va[2], col);
 			
@@ -359,8 +336,8 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 		unsigned int col = duIntToCol(vol->area, 220);
 		for (int j = 0, k = vol->nverts-1; j < vol->nverts; k = j++)
 		{
-			const float* va = &vol->verts[k*3];
-			const float* vb = &vol->verts[j*3];
+			const float* va = &vol->verts[k][0];
+			const float* vb = &vol->verts[j][0];
 			dd->vertex(va[0],vol->hmin,va[2], duDarkenCol(col));
 			dd->vertex(vb[0],vol->hmin,vb[2], duDarkenCol(col));
 			dd->vertex(va[0],vol->hmax,va[2], col);
@@ -378,13 +355,13 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 		unsigned int col = duDarkenCol(duIntToCol(vol->area, 255));
 		for (int j = 0; j < vol->nverts; ++j)
 		{
-			dd->vertex(vol->verts[j*3+0],vol->verts[j*3+1]+0.1f,vol->verts[j*3+2], col);
-			dd->vertex(vol->verts[j*3+0],vol->hmin,vol->verts[j*3+2], col);
-			dd->vertex(vol->verts[j*3+0],vol->hmax,vol->verts[j*3+2], col);
+			dd->vertex(vol->verts[j].x, vol->verts[j].y + 0.1f, vol->verts[j].z, col);
+			dd->vertex(vol->verts[j].x, vol->hmin, vol->verts[j].z, col);
+			dd->vertex(vol->verts[j].x, vol->hmax, vol->verts[j].z, col);
 		}
 	}
 	dd->end();
-	
-	
+
 	dd->depthMask(true);
 }
+#pragma endregion

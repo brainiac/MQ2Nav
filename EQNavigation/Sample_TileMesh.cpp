@@ -16,7 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -204,8 +203,6 @@ Sample_TileMesh::~Sample_TileMesh()
 	delete[] m_outputPath;
 }
 
-
-
 static const int NAVMESHSET_MAGIC = 'M'<<24 | 'S'<<16 | 'E'<<8 | 'T'; //'MSET';
 static const int NAVMESHSET_VERSION = 1;
 
@@ -339,11 +336,11 @@ void Sample_TileMesh::handleSettings()
 	
 	if (m_geom)
 	{
-		const float* bmin = m_geom->getMeshBoundsMin();
-		const float* bmax = m_geom->getMeshBoundsMax();
+		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 		char text[64];
 		int gw = 0, gh = 0;
-		rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
+		rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
 		const int ts = (int)m_tileSize;
 		const int tw = (gw + ts-1) / ts;
 		const int th = (gh + ts-1) / ts;
@@ -372,7 +369,7 @@ void Sample_TileMesh::handleSettings()
 			char* buffer = new char[240];
 			if (imguiButton("Save"))
 			{
-				sprintf(buffer,"%s\\MQ2Navigation\\%s.bin", m_outputPath, m_geom->getMeshLoader()->getFileName());
+				sprintf(buffer,"%s\\MQ2Navigation\\%s.bin", m_outputPath, m_geom->getMeshLoader()->getFileName().c_str());
 				saveAll(buffer, m_navMesh);
 			}
 			imguiSeparator();
@@ -533,13 +530,13 @@ void Sample_TileMesh::handleRender()
 	glDepthMask(GL_FALSE);
 	
 	// Draw bounds
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+	const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 	duDebugDrawBoxWire(&dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
 	
 	// Tiling grid.
 	int gw = 0, gh = 0;
-	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
+	rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
 	const int tw = (gw + (int)m_tileSize-1) / (int)m_tileSize;
 	const int th = (gh + (int)m_tileSize-1) / (int)m_tileSize;
 	const float s = m_tileSize*m_cellSize;
@@ -694,7 +691,7 @@ bool Sample_TileMesh::handleBuild()
 	}
 
 	dtNavMeshParams params;
-	rcVcopy(params.orig, m_geom->getMeshBoundsMin());
+	rcVcopy(params.orig, &m_geom->getMeshBoundsMin()[0]);
 	params.tileWidth = m_tileSize*m_cellSize;
 	params.tileHeight = m_tileSize*m_cellSize;
 	params.maxTiles = m_maxTiles;
@@ -709,7 +706,7 @@ bool Sample_TileMesh::handleBuild()
 		return false;
 	}
 	
-	status = m_navQuery->init(m_navMesh, 2048);
+	status = m_navQuery->init(m_navMesh, MAX_NODES);
 	if (dtStatusFailed(status))
 	{
 		m_ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not init Detour navmesh query");
@@ -731,8 +728,8 @@ void Sample_TileMesh::buildTile(const float* pos)
 	if (!m_geom) return;
 	if (!m_navMesh) return;
 		
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+	const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 	
 	const float ts = m_tileSize*m_cellSize;
 	const int tx = (int)((pos[0] - bmin[0]) / ts);
@@ -772,7 +769,7 @@ void Sample_TileMesh::getTilePos(const float* pos, int& tx, int& ty)
 {
 	if (!m_geom) return;
 	
-	const float* bmin = m_geom->getMeshBoundsMin();
+	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
 	
 	const float ts = m_tileSize*m_cellSize;
 	tx = (int)((pos[0] - bmin[0]) / ts);
@@ -784,8 +781,8 @@ void Sample_TileMesh::removeTile(const float* pos)
 	if (!m_geom) return;
 	if (!m_navMesh) return;
 	
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+	const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 
 	const float ts = m_tileSize*m_cellSize;
 	const int tx = (int)((pos[0] - bmin[0]) / ts);
@@ -809,10 +806,10 @@ void Sample_TileMesh::buildAllTiles()
 	if (!m_geom) return;
 	if (!m_navMesh) return;
 	
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+	const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 	int gw = 0, gh = 0;
-	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
+	rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
 	const int ts = (int)m_tileSize;
 	const int tw = (gw + ts-1) / ts;
 	const int th = (gh + ts-1) / ts;
@@ -827,9 +824,7 @@ void Sample_TileMesh::buildAllTiles()
 	// Start the build process.
 	m_ctx->startTimer(RC_TIMER_TEMP);
 
-	// serialize all of the iterations
 	Concurrency::parallel_for(0, (th * tw), [&](int i)
-	//for (int i = 0; i < (th * tw); ++i)
 	{
 		int y = i / tw;
 		int x = i % tw;
@@ -842,10 +837,10 @@ void Sample_TileMesh::buildAllTiles()
 		m_tileBmin[1] = bmin[1];
 		m_tileBmin[2] = bmin[2] + y*tcs;
 
-		m_tileBmax[0] = bmin[0] + (x+1)*tcs;
+		m_tileBmax[0] = bmin[0] + (x + 1)*tcs;
 		m_tileBmax[1] = bmax[1];
-		m_tileBmax[2] = bmin[2] + (y+1)*tcs;
-			
+		m_tileBmax[2] = bmin[2] + (y + 1)*tcs;
+
 		int dataSize = 0;
 		unsigned char* data = buildTileMesh(x, y, m_tileBmin, m_tileBmax, dataSize);
 		if (data)
@@ -854,15 +849,25 @@ void Sample_TileMesh::buildAllTiles()
 			std::unique_lock<std::mutex> lock(mtx);
 
 			// Remove any previous data (navmesh owns and deletes the data).
-			m_navMesh->removeTile(m_navMesh->getTileRefAt(x,y,0),0,0);
+			m_navMesh->removeTile(m_navMesh->getTileRefAt(x, y, 0), 0, 0);
 			// Let the navmesh own the data.
-			dtStatus status = m_navMesh->addTile(data,dataSize,DT_TILE_FREE_DATA,0,0);
+			dtStatus status = m_navMesh->addTile(data, dataSize, DT_TILE_FREE_DATA, 0, 0);
 			if (dtStatusFailed(status))
+			{
+				printf("Failed! %d\n", status);
 				dtFree(data);
+			}
+			else
+			{
+				printf("Completed! %dx%d\n", x, y);
+			}
 		}
-	}
-	);
-	
+		else
+		{
+			printf("Error!!! %dx%d\n", x, y);
+		}
+	});
+
 	// Start the build process.
 	m_ctx->stopTimer(RC_TIMER_TEMP);
 
@@ -872,19 +877,92 @@ void Sample_TileMesh::buildAllTiles()
 
 void Sample_TileMesh::removeAllTiles()
 {
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+	const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 	int gw = 0, gh = 0;
-	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
+	rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
 	const int ts = (int)m_tileSize;
 	const int tw = (gw + ts-1) / ts;
 	const int th = (gh + ts-1) / ts;
 	
 	for (int y = 0; y < th; ++y)
+	{
 		for (int x = 0; x < tw; ++x)
-			m_navMesh->removeTile(m_navMesh->getTileRefAt(x,y,0),0,0);
+			m_navMesh->removeTile(m_navMesh->getTileRefAt(x, y, 0), 0, 0);
+	}
 }
 
+deleted_unique_ptr<rcCompactHeightfield> Sample_TileMesh::rasterizeGeometry(rcConfig& cfg)
+{
+	// Allocate voxel heightfield where we rasterize our input data to.
+	deleted_unique_ptr<rcHeightfield> solid(rcAllocHeightfield(),
+		[](rcHeightfield* hf) { rcFreeHeightField(hf); });
+
+	if (!rcCreateHeightfield(m_ctx, *solid, cfg.width, cfg.height, cfg.bmin, cfg.bmax, cfg.cs, cfg.ch))
+	{
+		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not create solid heightfield.");
+		return 0;
+	}
+
+	const float* verts = m_geom->getMeshLoader()->getVerts();
+	const int nverts = m_geom->getMeshLoader()->getVertCount();
+	const int ntris = m_geom->getMeshLoader()->getTriCount();
+	const rcChunkyTriMesh* chunkyMesh = m_geom->getChunkyMesh();
+
+	// Allocate array that can hold triangle flags.
+	// If you have multiple meshes you need to process, allocate
+	// and array which can hold the max number of triangles you need to process.
+
+	std::unique_ptr<unsigned char[]> triareas(new unsigned char[chunkyMesh->maxTrisPerChunk]);
+
+	float tbmin[2], tbmax[2];
+	tbmin[0] = cfg.bmin[0];
+	tbmin[1] = cfg.bmin[2];
+	tbmax[0] = cfg.bmax[0];
+	tbmax[1] = cfg.bmax[2];
+	int cid[512];// TODO: Make grow when returning too many items.
+	const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
+	if (!ncid)
+		return 0;
+
+	m_tileTriCount = 0;
+
+	for (int i = 0; i < ncid; ++i)
+	{
+		const rcChunkyTriMeshNode& node = chunkyMesh->nodes[cid[i]];
+		const int* ctris = &chunkyMesh->tris[node.i * 3];
+		const int nctris = node.n;
+
+		m_tileTriCount += nctris;
+
+		memset(triareas.get(), 0, nctris*sizeof(unsigned char));
+		rcMarkWalkableTriangles(m_ctx, cfg.walkableSlopeAngle,
+			verts, nverts, ctris, nctris, triareas.get());
+
+		rcRasterizeTriangles(m_ctx, verts, nverts, ctris, triareas.get(), nctris, *solid, cfg.walkableClimb);
+	}
+
+	// Once all geometry is rasterized, we do initial pass of filtering to
+	// remove unwanted overhangs caused by the conservative rasterization
+	// as well as filter spans where the character cannot possibly stand.
+	rcFilterLowHangingWalkableObstacles(m_ctx, cfg.walkableClimb, *solid);
+	rcFilterLedgeSpans(m_ctx, cfg.walkableHeight, cfg.walkableClimb, *solid);
+	rcFilterWalkableLowHeightSpans(m_ctx, cfg.walkableHeight, *solid);
+
+	// Compact the heightfield so that it is faster to handle from now on.
+	// This will result more cache coherent data as well as the neighbours
+	// between walkable cells will be calculated.
+	deleted_unique_ptr<rcCompactHeightfield> chf(rcAllocCompactHeightfield(),
+		[](rcCompactHeightfield* hf) { rcFreeCompactHeightfield(hf); });
+
+	if (!rcBuildCompactHeightfield(m_ctx, cfg.walkableHeight, cfg.walkableClimb, *solid, *chf))
+	{
+		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not build compact data.");
+		return 0;
+	}
+
+	return std::move(chf);
+}
 
 unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize)
 {
@@ -896,12 +974,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	
 	m_tileMemUsage = 0;
 	m_tileBuildTime = 0;
-	
-	const float* verts = m_geom->getMeshLoader()->getVerts();
-	const int nverts = m_geom->getMeshLoader()->getVertCount();
-	const int ntris = m_geom->getMeshLoader()->getTriCount();
-	const rcChunkyTriMesh* chunkyMesh = m_geom->getChunkyMesh();
-		
+
 	// Init build configuration from GUI
 	rcConfig cfg;
 
@@ -963,69 +1036,10 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	m_ctx->log(RC_LOG_PROGRESS, " - %d x %d cells", m_cfg.width, m_cfg.height);
 	m_ctx->log(RC_LOG_PROGRESS, " - %.1fK verts, %.1fK tris", nverts/1000.0f, ntris/1000.0f);
 #endif
-	
-	// Allocate voxel heightfield where we rasterize our input data to.
-	deleted_unique_ptr<rcHeightfield> solid(rcAllocHeightfield(), [](rcHeightfield* hf) { rcFreeHeightField(hf); });
 
-	if (!rcCreateHeightfield(m_ctx, *solid, cfg.width, cfg.height, cfg.bmin, cfg.bmax, cfg.cs, cfg.ch))
-	{
-		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not create solid heightfield.");
+	deleted_unique_ptr<rcCompactHeightfield> chf = rasterizeGeometry(cfg);
+	if (!chf)
 		return 0;
-	}
-	
-	// Allocate array that can hold triangle flags.
-	// If you have multiple meshes you need to process, allocate
-	// and array which can hold the max number of triangles you need to process.
-	unsigned char* triareas = new unsigned char[chunkyMesh->maxTrisPerChunk];
-	
-	float tbmin[2], tbmax[2];
-	tbmin[0] = cfg.bmin[0];
-	tbmin[1] = cfg.bmin[2];
-	tbmax[0] = cfg.bmax[0];
-	tbmax[1] = cfg.bmax[2];
-	int cid[512];// TODO: Make grow when returning too many items.
-	const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
-	if (!ncid)
-		return 0;
-	
-	m_tileTriCount = 0;
-	
-	for (int i = 0; i < ncid; ++i)
-	{
-		const rcChunkyTriMeshNode& node = chunkyMesh->nodes[cid[i]];
-		const int* ctris = &chunkyMesh->tris[node.i*3];
-		const int nctris = node.n;
-		
-		m_tileTriCount += nctris;
-		
-		memset(triareas, 0, nctris*sizeof(unsigned char));
-		rcMarkWalkableTriangles(m_ctx, cfg.walkableSlopeAngle,
-								verts, nverts, ctris, nctris, triareas);
-		
-		rcRasterizeTriangles(m_ctx, verts, nverts, ctris, triareas, nctris, *solid, cfg.walkableClimb);
-	}
-	
-	delete [] triareas;
-	triareas = 0;
-	
-	// Once all geometry is rasterized, we do initial pass of filtering to
-	// remove unwanted overhangs caused by the conservative rasterization
-	// as well as filter spans where the character cannot possibly stand.
-	rcFilterLowHangingWalkableObstacles(m_ctx, cfg.walkableClimb, *solid);
-	rcFilterLedgeSpans(m_ctx, cfg.walkableHeight, cfg.walkableClimb, *solid);
-	rcFilterWalkableLowHeightSpans(m_ctx, cfg.walkableHeight, *solid);
-	
-	// Compact the heightfield so that it is faster to handle from now on.
-	// This will result more cache coherent data as well as the neighbours
-	// between walkable cells will be calculated.
-	deleted_unique_ptr<rcCompactHeightfield> chf(rcAllocCompactHeightfield(), [](rcCompactHeightfield* hf) { rcFreeCompactHeightfield(hf); });
-	if (!rcBuildCompactHeightfield(m_ctx, cfg.walkableHeight, cfg.walkableClimb, *solid, *chf))
-	{
-		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not build compact data.");
-		return 0;
-	}
-	
-	solid.reset();
 
 	// Erode the walkable area by agent radius.
 	if (!rcErodeWalkableArea(m_ctx, cfg.walkableRadius, *chf))
@@ -1037,7 +1051,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	// (Optional) Mark areas.
 	const ConvexVolume* vols = m_geom->getConvexVolumes();
 	for (int i  = 0; i < m_geom->getConvexVolumeCount(); ++i)
-		rcMarkConvexPolyArea(m_ctx, vols[i].verts, vols[i].nverts, vols[i].hmin, vols[i].hmax, (unsigned char)vols[i].area, *chf);
+		rcMarkConvexPolyArea(m_ctx, &vols[i].verts[0][0], vols[i].nverts, vols[i].hmin, vols[i].hmax, (unsigned char)vols[i].area, *chf);
 	
 	
 	// Partition the heightfield so that we can use simple algorithm later to triangulate the walkable areas.

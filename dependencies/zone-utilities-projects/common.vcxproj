@@ -129,6 +129,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)..\glm\glm;$(ProjectDir)..\zlib\include;$(ProjectDir)..\zone-utilities\log</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <DisableSpecificWarnings>4018</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

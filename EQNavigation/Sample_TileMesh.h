@@ -36,6 +36,8 @@ protected:
 	bool m_buildAll;
 	float m_totalBuildTimeMs;
 
+	const int MAX_NODES = 1024 * 1024;
+
 	enum DrawMode
 	{
 		DRAWMODE_NAVMESH,
@@ -98,6 +100,8 @@ public:
 	void removeAllTiles();
 
 	void setOutputPath(const char* output_path);
+
+	deleted_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg);
 };
 
 

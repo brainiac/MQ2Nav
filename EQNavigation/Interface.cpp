@@ -239,8 +239,8 @@ int Interface::RunMainLoop()
 		// Camera Reset
 		if (m_geom && m_resetCamera)
 		{
-			const float* bmin = m_geom->getMeshBoundsMin();
-			const float* bmax = m_geom->getMeshBoundsMax();
+			const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+			const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 			// Reset camera and fog to match the mesh bounds.
 			m_camr = sqrtf(rcSqr(bmax[0] - bmin[0]) +
 				rcSqr(bmax[1] - bmin[1]) +
@@ -652,9 +652,8 @@ void Interface::LoadGeometry()
 {
 	Halt();
 
-	m_geom.reset(new InputGeom());
-	m_geom->loadMesh(m_context.get(), m_zoneShortname.c_str(),
-		m_eqConfig.GetEverquestPath().c_str());
+	m_geom.reset(new InputGeom(m_zoneShortname, m_eqConfig.GetEverquestPath()));
+	m_geom->loadMesh(m_context.get());
 
 	if (m_mesh && m_geom)
 	{
