@@ -72,6 +72,7 @@
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
     <ClInclude Include="MQ2Navigation.h" />
+    <ClInclude Include="MQ2Nav_MeshLoader.h" />
     <ClInclude Include="MQ2Nav_Render.h" />
     <ClInclude Include="MQ2Nav_KeyBinds.h" />
     <ClInclude Include="MQ2Nav_Settings.h" />

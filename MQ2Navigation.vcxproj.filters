@@ -85,6 +85,9 @@
     <ClInclude Include="MQ2Nav_Render.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MQ2Nav_MeshLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="meshext.c">

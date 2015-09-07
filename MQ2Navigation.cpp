@@ -12,8 +12,8 @@ extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
 #include "DetourNavMesh.h"
 #include "DetourCommon.h"
 #include "EQDraw.h"
-#include "meshext.h"
 
+#include "MQ2Nav_MeshLoader.h"
 #include "MQ2Nav_Util.h"
 #include "MQ2Nav_Settings.h"
 #include "MQ2Nav_KeyBinds.h"
@@ -26,112 +26,12 @@ extern void debug_log_proc(char *text, char *sourcefile, int sourceline);
 
 //============================================================================
 
-// TODO: Put this in some shared location
-static const int NAVMESHSET_MAGIC = 'M' << 24 | 'S' << 16 | 'E' << 8 | 'T';
-static const int NAVMESHSET_VERSION = 1;
-
-struct NavMeshSetHeader
-{
-	int magic;
-	int version;
-	int numTiles;
-	dtNavMeshParams params;
-};
-struct NavMeshTileHeader
-{
-	dtTileRef tileRef;
-	int dataSize;
-};
-
-//============================================================================
-
 static bool IsInt(char* buffer)
 {
 	if (!*buffer) return false;
 	for (int i = 0; i < strlen(buffer); i++)
 		if (!(isdigit(buffer[i]) || buffer[i] == '.' || (buffer[i] == '-' && i == 0))) return false;
 	return true;
-}
-
-#define MAXPASSLEN 40
-static char libpass[MAXPASSLEN + 1];
-
-static char* GetPassword()
-{
-	int libpasslen;
-	strcpy(libpass, "1111111111111111111111111111111111111111");
-	int ff;
-	libpasslen = 20;
-	for (ff = 0; ff < MAXPASSLEN; ff++) {
-		switch (ff) {
-		case 0:
-			libpass[ff] = 'A' - 1;
-			break;
-		case 1:
-			libpass[ff] = 'A' - 1;
-			break;
-		case 2:
-			libpass[ff] = 'v' - 1;
-			break;
-		case 3:
-			libpass[ff] = '9' - 1;
-			break;
-		case 4:
-			libpass[ff] = '2' - 1;
-			break;
-		case 5:
-			libpass[ff] = '1' - 1;
-			break;
-		case 6:
-			libpass[ff] = '.' - 1;
-			break;
-		case 7:
-			libpass[ff] = 'b' - 1;
-			break;
-		case 8:
-			libpass[ff] = 'Z' - 1;
-			break;
-		case 9:
-			libpass[ff] = '8' - 1;
-			break;
-		case 10:
-			libpass[ff] = '0' - 1;
-			break;
-		case 11:
-			libpass[ff] = 'x' - 1;
-			break;
-		case 12:
-			libpass[ff] = 't' - 1;
-			break;
-		case 13:
-			libpass[ff] = 'r' - 1;
-			break;
-		case 14:
-			libpass[ff] = 'M' - 1;
-			break;
-		case 15:
-			libpass[ff] = 'M' - 1;
-			break;
-		case 16:
-			libpass[ff] = 'B' - 1;
-			break;
-		case 17:
-			libpass[ff] = ',' - 1;
-			break;
-		case 18:
-			libpass[ff] = '5' - 1;
-			break;
-		case 19:
-			libpass[ff] = '!' - 1;
-			break;
-		default:
-			libpass[ff] = 0;
-			break;
-		}
-	}
-	for (ff = 0; ff < strlen(libpass); ff++)
-		libpass[ff] = libpass[ff] + 1;
-	return libpass;
 }
 
 //============================================================================
@@ -161,7 +61,7 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 		return true;
 	case MeshLoaded:
 		Dest.Type = pBoolType;
-		Dest.DWord = m_nav->CheckLoadMesh();
+		Dest.DWord = m_nav->IsMeshLoaded();
 		return true;
 	case PathExists:
 		Dest.Type = pBoolType;
@@ -203,6 +103,7 @@ static BOOL NavigateData(PCHAR szName, MQ2TYPEVAR& Dest)
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
   : m_navigationType(new MQ2NavigationType(this))
+  , m_meshLoader(new MeshLoader(this))
   , m_pEQDraw(new CEQDraw)
 {
 	AddCommand("/navigate", NavigateCommand);
@@ -221,7 +122,7 @@ MQ2NavigationPlugin::~MQ2NavigationPlugin()
 
 void MQ2NavigationPlugin::OnPulse()
 {
-	if (m_initialized && mq2nav::util::ValidIngame(TRUE))
+	if (m_initialized && mq2nav::ValidIngame(TRUE))
 	{
 		AttemptMovement();
 		StuckCheck();
@@ -231,7 +132,6 @@ void MQ2NavigationPlugin::OnPulse()
 
 void MQ2NavigationPlugin::OnBeginZone()
 {
-	m_navMesh = NULL;
 	mq2nav::LoadWaypoints();
 }
 
@@ -239,17 +139,23 @@ void MQ2NavigationPlugin::OnEndZone()
 {
 	pDoorTarget = NULL;
 	pGroundTarget = NULL;
-	m_navMesh = NULL;
 }
 
 void MQ2NavigationPlugin::SetGameState(DWORD GameState)
 {
 	if (GameState == GAMESTATE_INGAME) {
 		Initialize();
-		LoadNavigationMesh();
 		mq2nav::LoadWaypoints();
+
+		m_meshLoader->SetZoneId(GetCharInfo()->zoneId);
 	}
 	else {
+		// don't unload the mesh until we finish zoning. We might zone
+		// into the same zone (succor), so no use unload the mesh until
+		// after loading completes.
+		if (GameState != GAMESTATE_ZONING) {
+			m_meshLoader->Reset();
+		}
 		Shutdown();
 	}
 }
@@ -300,7 +206,6 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 	m_pEndingItem = nullptr;
 	CHAR buffer[MAX_STRING] = { 0 };
 	int i = 0;
-	m_isActive = true;
 
 	//DebugSpewAlways("MQ2Navigation::NavigateCommand - start with arg: %s", szLine);
 	glm::vec3 destination;
@@ -312,7 +217,11 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 	{
 		GetArg(buffer, szLine, 1);
 
-		if (!strcmp(buffer, "recordwaypoint") || !strcmp(buffer, "rwp")) {
+		// reload nav mesh
+		if (!strcmp(buffer, "reload")) {
+			m_meshLoader->LoadNavMesh();
+		}
+		else if (!strcmp(buffer, "recordwaypoint") || !strcmp(buffer, "rwp")) {
 			GetArg(buffer, szLine, 2);
 			if (0 == *buffer) {
 				WriteChatf(PLUGIN_MSG "usage: /navigate recordwaypoint <waypoint name> <waypoint tag>");
@@ -361,16 +270,23 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 	g_render->ClearNavigationPath();
 	m_activePath.reset();
 
-	if (!m_navMesh)
+	if (!m_meshLoader->IsNavMeshLoaded())
+	{
+		WriteChatf(PLUGIN_MSG "\arCannot navigate - No mesh file loaded.");
 		return;
+	}
 
-	m_activePath.reset(new MQ2NavigationPath(m_navMesh.get()));
+	m_activePath.reset(new MQ2NavigationPath(m_meshLoader->GetNavMesh()));
 	g_render->SetNavigationPath(m_activePath.get());
 
 	m_activePath->FindPath(pos);
 	m_isActive = m_activePath->GetPathSize() > 0;
 }
 
+bool MQ2NavigationPlugin::IsMeshLoaded() const
+{
+	return m_meshLoader->IsNavMeshLoaded();
+}
 
 
 //============================================================================
@@ -564,167 +480,6 @@ void MQ2NavigationPlugin::AttemptMovement()
 	}
 }
 
-bool MQ2NavigationPlugin::LoadNavigationMesh()
-{
-	m_navMesh.reset();
-	g_render->ClearNavigationPath();
-	m_activePath.reset();
-	m_isActive = false;
-
-	if (!GetCharInfo())
-		return false;
-
-	int ZoneID = GetCharInfo()->zoneId;
-	if (ZoneID > MAX_ZONES)
-		ZoneID &= 0x7FFF;
-	if (ZoneID <= 0 || ZoneID >= MAX_ZONES)
-		return false;
-
-	bool UseRaw = false;
-
-	//if (!GetCharInfo() || !m_pEQDraw->LoadDoorAdjustments()) return NULL;
-
-	// Look for the .bin file and use it if it exists (overrides the .ncr file)
-	char buffer[MAX_PATH];
-	sprintf(buffer, "%s\\MQ2Navigation\\%s.bin", gszINIPath, GetShortZone(GetCharInfo()->zoneId));
-	for (int i = 0; i < MAX_PATH; ++i)
-		if (buffer[i] == '\\') buffer[i] = '/';
-
-	// open & unrar file in mem here, then set the NavMesh to use that)
-	char *outbuf = NULL;
-	unsigned long outsize;
-	char outfile[MAX_PATH];
-	char rarfile[MAX_PATH];
-	sprintf(rarfile, "%s\\MQ2Navigation\\%s.ncr", gszINIPath, GetShortZone(ZoneID));
-	for (int j = 0; j < MAX_PATH; ++j)
-		if (rarfile[j] == '/') rarfile[j] = '\\';
-
-	sprintf(outfile, "%s.bin", GetShortZone(ZoneID));
-	char* password = GetPassword();
-	WriteChatf(PLUGIN_MSG "Preparing \ao%s\ax", rarfile);
-	if (!urarlib_get(&outbuf, &outsize, outfile, rarfile, password)) {
-		if (outbuf)
-			free(outbuf);
-		UseRaw = true;
-	}
-	if (!UseRaw && !outsize) {
-		if (outbuf)
-			free(outbuf);
-		DebugSpewAlways("MQ2Navigation::Failed to load mesh file (%s).", GetShortZone(ZoneID));
-		WriteChatf(PLUGIN_MSG "\ayFailed to load mesh file \ax(\am%s\ax).", GetShortZone(ZoneID));
-		return false;
-	}
-
-	FILE *fp = NULL;
-	if (UseRaw) {
-		WriteChatf(PLUGIN_MSG "No .ncr mesh file, trying to use \ao%s \axinstead.", buffer);
-		if (outbuf) {
-			free(outbuf);
-			outbuf = NULL;
-		}
-		fp = fopen(buffer, "rb");
-		if (!fp) {
-			for (int k = 0; k < MAX_PATH; ++k)
-				if (buffer[k] == '/') buffer[k] = '\\';
-			fp = fopen(buffer, "rb");
-		}
-		if (!fp) {
-			DebugSpewAlways("MQ2Navigation::Failed to load mesh file (%s).", GetShortZone(ZoneID));
-			WriteChatf(PLUGIN_MSG "\ayFailed to load mesh file \ax(\am%s\ax).", GetShortZone(ZoneID));
-			return false;
-		}
-	}
-
-	// file is decompressed & decrypted in memory now (or uncompressed one loaded), let's use it
-	WriteChatf(PLUGIN_MSG "\agComplete.");
-	int memfail = 0;
-	char *outptr;
-	NavMeshSetHeader header;
-	if (UseRaw)
-		fread(&header, sizeof(NavMeshSetHeader), 1, fp);
-	else {
-		outptr = &outbuf[0];
-		if (memmove(&header, outptr, sizeof(NavMeshSetHeader)))
-			outptr = outptr + sizeof(NavMeshSetHeader);
-		else
-			memfail++;
-	}
-	if (header.magic != NAVMESHSET_MAGIC) {
-		debug_log("Header.magic bad!");
-		if (fp)
-			fclose(fp);
-		if (outbuf)
-			free(outbuf);
-		return false;
-	}
-	if (header.version != NAVMESHSET_VERSION) {
-		debug_log("Header.version bad!");
-		if (fp)
-			fclose(fp);
-		if (outbuf)
-			free(outbuf);
-		return false;
-	}
-
-	std::unique_ptr<dtNavMesh> navMesh(new dtNavMesh);
-	if (!navMesh || !navMesh->init(&header.params))
-	{
-		debug_log("Header.params bad!");
-		if (fp)
-			fclose(fp);
-		if (outbuf)
-			free(outbuf);
-		return false;
-	}
-	// Read tiles.
-	int passtile = 0, failtile = 0;
-	debug_log("LoadNavigationMesh() - filling tiles");
-	for (int i = 0; i < header.numTiles; ++i) {
-		if (0 == (i % 100)) {
-			DebugSpewAlways("LoadNavigationMesh() - tile #%d", i);
-		}
-
-		NavMeshTileHeader tileHeader;
-		if (UseRaw)
-			fread(&tileHeader, sizeof(tileHeader), 1, fp);
-		else {
-			if (memmove(&tileHeader, outptr, sizeof(tileHeader)))
-				outptr = outptr + sizeof(tileHeader);
-			else
-				memfail++;
-		}
-		if (!tileHeader.tileRef || !tileHeader.dataSize)
-			break;
-		unsigned char* data = new unsigned char[tileHeader.dataSize];
-		if (!data)
-			break;
-		memset(data, 0, tileHeader.dataSize);
-		if (UseRaw)
-			fread(data, tileHeader.dataSize, 1, fp);
-		else {
-			if (memmove(data, outptr, tileHeader.dataSize))
-				outptr = outptr + tileHeader.dataSize;
-			else
-				memfail++;
-		}
-		if (navMesh->addTile(data, tileHeader.dataSize, DT_TILE_FREE_DATA, tileHeader.tileRef, 0))
-			passtile++;
-		else
-			failtile++;
-	}
-	if (fp)
-		fclose(fp);
-	if (outbuf)
-		free(outbuf);
-	char szTmp[MAX_STRING];
-	sprintf(szTmp, "Header info: numTiles=%d, readTiles=%d, failTiles=%d, memFail=%d.", header.numTiles, passtile, failtile, memfail);
-	debug_log(szTmp);
-	WriteChatf(PLUGIN_MSG "\atTiles loaded\ax: %s%d\ax/%s%d", (header.numTiles && !failtile) ? "\ag" : "\ay", passtile, header.numTiles ? "\ag" : "\ay", header.numTiles);
-
-	m_navMesh = std::move(navMesh);
-	return true;
-}
-
 bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 {
 	bool result = true;
@@ -817,7 +572,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
 {
 	float result = -1.f;
 
-	MQ2NavigationPath path(m_navMesh.get());
+	MQ2NavigationPath path(m_meshLoader->GetNavMesh());
 	path.FindPath(pos);
 
 	//WriteChatf("MQ2Navigation::GetPathLength - num points: %d", numPoints);
@@ -856,7 +611,7 @@ bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
 	bool result = false;
 
 	if (ParseDestination(szLine, destination)) {
-		MQ2NavigationPath path(m_navMesh.get());
+		MQ2NavigationPath path(m_meshLoader->GetNavMesh());
 		path.FindPath(destination);
 		result = path.GetPathSize() > 0;
 	}
@@ -868,13 +623,16 @@ void MQ2NavigationPlugin::Stop()
 {
 	if (m_isActive)
 	{
-		WriteChatf(PLUGIN_MSG "Stopping");
+		WriteChatf(PLUGIN_MSG "Stopping navigation");
 		MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
 	}
 
 	g_render->ClearNavigationPath();
 	m_activePath.reset();
 	m_isActive = false;
+
+	m_pEndingDoor = nullptr;
+	m_pEndingItem = nullptr;
 
 	mq2nav::keybinds::bDoMove = m_isActive;
 	mq2nav::keybinds::stopNavigation = nullptr;

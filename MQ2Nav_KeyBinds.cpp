@@ -52,7 +52,7 @@ bool bDoMove = false;
 std::function<void()> stopNavigation;
 
 void KeybindPressed(int iKeyPressed, int iKeyDown) {
-	if (!util::ValidIngame(false)) return;
+	if (!ValidIngame(false)) return;
 
 	if (iKeyDown)
 	{

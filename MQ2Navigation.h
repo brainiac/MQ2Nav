@@ -24,6 +24,7 @@ class CEQDraw;
 class MQ2NavigationPlugin;
 class MQ2NavigatinType;
 class MQ2NavigationPath;
+class MeshLoader;
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
 
@@ -89,14 +90,7 @@ public:
 	//----------------------------------------------------------------------------
 
 	bool IsActive() const { return m_isActive; }
-
-	inline bool CheckLoadMesh()
-	{
-		if (m_navMesh)
-			return true;
-
-		return LoadNavigationMesh();
-	}
+	bool IsMeshLoaded() const;
 
 	// Load navigation mesh for the current zone
 	bool LoadNavigationMesh();
@@ -137,7 +131,7 @@ private:
 	std::unique_ptr<CEQDraw> m_pEQDraw;
 
 	// our nav mesh and active path
-	std::unique_ptr<dtNavMesh> m_navMesh;
+	std::unique_ptr<MeshLoader> m_meshLoader;
 	std::unique_ptr<MQ2NavigationPath> m_activePath;
 
 	bool m_initialized = false;
