@@ -106,8 +106,6 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
   , m_meshLoader(new MeshLoader(this))
   , m_pEQDraw(new CEQDraw)
 {
-	m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
-
 	AddCommand("/navigate", NavigateCommand);
 	AddMQ2Data("Navigation", NavigateData);
 
@@ -178,9 +176,11 @@ void MQ2NavigationPlugin::Initialize()
 	mq2nav::keybinds::DoKeybinds();
 	DebugSpewAlways("MQ2Navigation::InitializePlugin:all good");
 
+	m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
 	m_pEQDraw->Initialize();
 
 	g_render.reset(new MQ2NavigationRender());
+	m_render = g_render;
 	m_initialized = true;
 }
 
@@ -192,6 +192,7 @@ void MQ2NavigationPlugin::Shutdown()
 		Stop();
 
 		g_render.reset();
+		m_render.reset();
 		m_initialized = false;
 	}
 }
@@ -278,7 +279,7 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 {
 	// first clear existing state
 	m_isActive = false;
-	g_render->ClearNavigationPath();
+	m_render->ClearNavigationPath();
 	m_activePath.reset();
 
 	if (!m_meshLoader->IsNavMeshLoaded())
@@ -288,7 +289,7 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 	}
 
 	m_activePath.reset(new MQ2NavigationPath(m_meshLoader->GetNavMesh()));
-	g_render->SetNavigationPath(m_activePath.get());
+	m_render->SetNavigationPath(m_activePath.get());
 
 	m_activePath->FindPath(pos);
 	m_isActive = m_activePath->GetPathSize() > 0;
@@ -638,7 +639,7 @@ void MQ2NavigationPlugin::Stop()
 		MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
 	}
 
-	g_render->ClearNavigationPath();
+	m_render->ClearNavigationPath();
 	m_activePath.reset();
 	m_isActive = false;
 

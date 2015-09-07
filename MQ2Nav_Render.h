@@ -45,6 +45,8 @@ private:
 	bool m_hooksInstalled = false;
 	std::vector<DWORD> m_installedHooks;
 
+	HMODULE m_dx9Module = 0;
+
 private:
 	IDirect3DDevice9* m_pDevice = nullptr;
 
@@ -84,4 +86,4 @@ private:
 	IDirect3DVertexBuffer9* m_pLines = nullptr;
 };
 
-extern std::unique_ptr<MQ2NavigationRender> g_render;
+extern std::shared_ptr<MQ2NavigationRender> g_render;

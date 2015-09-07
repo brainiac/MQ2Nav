@@ -73,7 +73,7 @@ DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::EndScene_Trampoline());
 
 //----------------------------------------------------------------------------
 
-std::unique_ptr<MQ2NavigationRender> g_render;
+std::shared_ptr<MQ2NavigationRender> g_render;
 
 static IDirect3DDevice9* GetDeviceFromEverquest()
 {
@@ -85,6 +85,9 @@ static IDirect3DDevice9* GetDeviceFromEverquest()
 
 MQ2NavigationRender::MQ2NavigationRender()
 {
+	// This is so that we don't lose the dll before we've unloaded detours
+	m_dx9Module = LoadLibraryA("EQGraphicsDX9.dll");
+
 	Initialize();
 }
 
@@ -92,6 +95,8 @@ MQ2NavigationRender::~MQ2NavigationRender()
 {
 	Cleanup();
 	RemoveHooks();
+
+	FreeLibrary(m_dx9Module);
 }
 
 void MQ2NavigationRender::InstallHooks()

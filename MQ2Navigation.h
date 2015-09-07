@@ -24,6 +24,7 @@ class CEQDraw;
 class MQ2NavigationPlugin;
 class MQ2NavigatinType;
 class MQ2NavigationPath;
+class MQ2NavigationRender;
 class MeshLoader;
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
@@ -129,6 +130,7 @@ private:
 private:
 	std::unique_ptr<MQ2NavigationType> m_navigationType;
 	std::unique_ptr<CEQDraw> m_pEQDraw;
+	std::shared_ptr<MQ2NavigationRender> m_render;
 
 	// our nav mesh and active path
 	std::unique_ptr<MeshLoader> m_meshLoader;
