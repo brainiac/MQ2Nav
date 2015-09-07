@@ -139,17 +139,18 @@ bool MeshLoader::LoadNavMesh()
 		LoadResult result = LoadZoneMeshData(data, dataLen);
 		if (result == SUCCESS)
 		{
-			WriteChatf(PLUGIN_MSG "\agSuccessfully loaded mesh for \am%s", m_zoneShortName.c_str());
+			WriteChatf(PLUGIN_MSG "\agSuccessfully loaded mesh for \am%s\ax (%s)", m_zoneShortName.c_str(),
+				load_filename.c_str());
 			m_loadedDataFile = load_filename;
 			return true;
 		}
 		if (result == CORRUPT)
 		{
-			WriteChatf(PLUGIN_MSG "\ayFailed to load mesh file, the file is corrupt (%s)", load_filename.c_str());
+			WriteChatf(PLUGIN_MSG "\arFailed to load mesh file, the file is corrupt (%s)", load_filename.c_str());
 		}
 		else if (result == VERSION_MISMATCH)
 		{
-			WriteChatf(PLUGIN_MSG "\ayCouldn't load mesh file due to version mismatch (%s)", load_filename.c_str());
+			WriteChatf(PLUGIN_MSG "\arCouldn't load mesh file due to version mismatch (%s)", load_filename.c_str());
 		}
 
 		return false;
