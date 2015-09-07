@@ -1,13 +1,9 @@
-// MQ2Navigation.cpp : Defines the entry point for the DLL application.
+//
+// MQ2Navigation.cpp
 //
 
-// PLUGIN_API is only to be used for callbacks.  All existing callbacks at this time
-// are shown below. Remove the ones your plugin does not use.  Always use Initialize
-// and Shutdown for setup and cleanup, do NOT do it in DllMain.
-
 #include "MQ2Navigation.h"
-#include "MQ2Navigation_Render.h"
-
+#include "MQ2Nav_Render.h"
 
 extern bool _DEBUG_LOG;                            /* generate debug messages      */
 extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
@@ -18,12 +14,10 @@ extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
 #include "EQDraw.h"
 #include "meshext.h"
 
-#define PLUGIN_MSG "\ag[MQ2Navigation]\ax "
-
-#include "MQ2NavUtil.h"
-#include "MQ2NavSettings.h"
-#include "MQ2NavKeyBinds.h"
-#include "MQ2NavWaypoints.h"
+#include "MQ2Nav_Util.h"
+#include "MQ2Nav_Settings.h"
+#include "MQ2Nav_KeyBinds.h"
+#include "MQ2Nav_Waypoints.h"
 
 #include <set>
 
@@ -238,7 +232,7 @@ void MQ2NavigationPlugin::OnPulse()
 void MQ2NavigationPlugin::OnBeginZone()
 {
 	m_navMesh = NULL;
-	mq2nav::waypoints::LoadWaypoints();
+	mq2nav::LoadWaypoints();
 }
 
 void MQ2NavigationPlugin::OnEndZone()
@@ -253,7 +247,7 @@ void MQ2NavigationPlugin::SetGameState(DWORD GameState)
 	if (GameState == GAMESTATE_INGAME) {
 		Initialize();
 		LoadNavigationMesh();
-		mq2nav::waypoints::LoadWaypoints();
+		mq2nav::LoadWaypoints();
 	}
 	else {
 		Shutdown();
@@ -266,7 +260,7 @@ void MQ2NavigationPlugin::Initialize()
 		return;
 
 	DebugSpewAlways("MQ2Navigation::InitializePlugin:LoadSettings");
-	mq2nav::settings::LoadSettings();
+	mq2nav::LoadSettings();
 	DebugSpewAlways("MQ2Navigation::InitializePlugin:FindKeys");
 	mq2nav::keybinds::FindKeys();
 	DebugSpewAlways("MQ2Navigation::InitializePlugin:DoKeybinds");
@@ -328,7 +322,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 				GetArg(buffer, szLine, 3);
 				std::string waypointTag(buffer);
 				WriteChatf(PLUGIN_MSG "recording waypoint: '%s' with tag: %s", waypointName.c_str(), waypointTag.c_str());
-				if (mq2nav::waypoints::addWaypoint(waypointName, waypointTag)) {
+				if (mq2nav::AddWaypoint(waypointName, waypointTag)) {
 					WriteChatf(PLUGIN_MSG "overwrote previous waypoint: '%s'", waypointName.c_str());
 				}
 			}
@@ -337,10 +331,10 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 			WriteChatf(PLUGIN_MSG "Usage: /navigate [save | load] [target] [X Y Z] [item [click] [once]] [door  [click] [once]] [waypoint <waypoint name>] [stop] [recordwaypoint <name> <tag> ]");
 		}
 		else if (!strcmp(buffer, "load")) {
-			mq2nav::settings::LoadSettings();
+			mq2nav::LoadSettings();
 		}
 		else if (!strcmp(buffer, "save")) {
-			mq2nav::settings::SaveSettings();
+			mq2nav::SaveSettings();
 		}
 		Stop();
 		return;
@@ -780,11 +774,13 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		else
 		{
 			WriteChatf(PLUGIN_MSG "locating  waypoint: %s", buffer);
-			std::pair<bool, mq2nav::waypoints::Waypoint> findWP = mq2nav::waypoints::getWaypoint(std::string(buffer));
-			if (findWP.first) {
-				destination.x = findWP.second.location.v.X;
-				destination.y = findWP.second.location.v.Y;
-				destination.z = findWP.second.location.v.Z;
+
+			mq2nav::Waypoint wp;
+			if (mq2nav::GetWaypoint(std::string(buffer), wp))
+			{
+				destination.x = wp.location.x;
+				destination.y = wp.location.y;
+				destination.z = wp.location.z;
 			}
 			else {
 				WriteChatf(PLUGIN_MSG "waypoint not found!");

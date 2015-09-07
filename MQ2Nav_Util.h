@@ -1,9 +1,9 @@
-// MQ2NavSettings.h
+//
+// MQ2Nav_Util.h
 //
 
 #pragma once
 
-#include "../MQ2Plugin.h"
 #include "MQ2Navigation.h"
 
 namespace mq2nav {

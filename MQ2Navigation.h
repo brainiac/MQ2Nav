@@ -15,6 +15,8 @@
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
 
+#define PLUGIN_MSG "\ag[MQ2Navigation]\ax "
+
 //----------------------------------------------------------------------------
 
 class dtNavMesh;

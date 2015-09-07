@@ -47,7 +47,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\Detour\Include;dependencies\glm\glm;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4018;4244</DisableSpecificWarnings>
@@ -72,11 +72,11 @@
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
     <ClInclude Include="MQ2Navigation.h" />
-    <ClInclude Include="MQ2Navigation_Render.h" />
-    <ClInclude Include="MQ2NavKeyBinds.h" />
-    <ClInclude Include="MQ2NavSettings.h" />
-    <ClInclude Include="MQ2NavUtil.h" />
-    <ClInclude Include="MQ2NavWaypoints.h" />
+    <ClInclude Include="MQ2Nav_Render.h" />
+    <ClInclude Include="MQ2Nav_KeyBinds.h" />
+    <ClInclude Include="MQ2Nav_Settings.h" />
+    <ClInclude Include="MQ2Nav_Util.h" />
+    <ClInclude Include="MQ2Nav_Waypoints.h" />
     <ClInclude Include="resource1.h" />
     <ClInclude Include="meshext.h" />
   </ItemGroup>
@@ -90,8 +90,12 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
     </ClCompile>
-    <ClCompile Include="MQ2Navigation_Main.cpp" />
-    <ClCompile Include="MQ2Navigation_Render.cpp" />
+    <ClCompile Include="MQ2Nav_KeyBinds.cpp" />
+    <ClCompile Include="MQ2Nav_Main.cpp" />
+    <ClCompile Include="MQ2Nav_Render.cpp" />
+    <ClCompile Include="MQ2Nav_MeshLoader.cpp" />
+    <ClCompile Include="MQ2Nav_Settings.cpp" />
+    <ClCompile Include="MQ2Nav_Waypoints.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2Navigation1.rc" />

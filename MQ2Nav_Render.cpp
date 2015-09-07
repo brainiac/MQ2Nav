@@ -1,5 +1,8 @@
+//
+// MQ2Nav_Render.cpp
+//
 
-#include "MQ2Navigation_Render.h"
+#include "MQ2Nav_Render.h"
 #include "MQ2Navigation.h"
 
 #include "EQDraw.h"

@@ -132,17 +132,23 @@ void Sample::resetCommonSettings()
 {
 	m_cellSize = 0.3f;
 	m_cellHeight = 0.2f;
+
 	m_agentHeight = 6.9f;
 	m_agentRadius = 2.0f;
-	m_agentMaxClimb = 6.2f;
-	m_agentMaxSlope = 70.0f;
+	m_agentMaxClimb = 6.0f;
+	m_agentMaxSlope = 75.0f;
+
 	m_regionMinSize = 8;
 	m_regionMergeSize = 20;
+
 	m_edgeMaxLen = 12.0f;
 	m_edgeMaxError = 1.3f;
-	m_vertsPerPoly = 6.0f;
+
 	m_detailSampleDist = 6.0f;
 	m_detailSampleMaxError = 1.0f;
+
+	m_vertsPerPoly = 6.0f;
+
 	m_partitionType = SAMPLE_PARTITION_WATERSHED;
 }
 
