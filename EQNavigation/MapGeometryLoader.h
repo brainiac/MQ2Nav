@@ -51,10 +51,6 @@ private:
 
 	void AddFace(glm::vec3& v1, glm::vec3& v2, glm::vec3& v3, bool collidable);
 
-	void RotateVertex(glm::vec3& v, float rx, float ry, float rz);
-	void ScaleVertex(glm::vec3& v, float sx, float sy, float sz);
-	void TranslateVertex(glm::vec3& v, float tx, float ty, float tz);
-
 	std::vector<glm::vec3> collide_verts;
 	std::vector<uint32_t> collide_indices;
 
@@ -73,9 +69,25 @@ private:
 	std::vector<std::shared_ptr<EQEmu::Placeable>> map_placeables;
 	std::vector<std::shared_ptr<EQEmu::PlaceableGroup>> map_group_placeables;
 
-	template <typename T>
-	void AddMapModel(const std::shared_ptr<EQEmu::Placeable>& obj,
-		T& model, uint32_t& counter);
+	struct ModelEntry
+	{
+	public:
+		struct Poly
+		{
+			union {
+				struct {
+					uint32_t v1, v2, v3;
+				};
+				uint32_t v[3];
+			};
+			uint8_t vis;
+		};
+		std::vector<glm::vec3> verts;
+		std::vector<Poly> polys;
+	};
+	std::map<std::string, std::shared_ptr<ModelEntry>> m_models;
+
+
 
 	//---------------------------------------------------------------------------
 	

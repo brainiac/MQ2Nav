@@ -13,6 +13,52 @@
 #include <math.h>
 
 
+static inline void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
+{
+	glm::vec3 nv = v;
+
+	nv.y = (cos(rx) * v.y) - (sin(rx) * v.z);
+	nv.z = (sin(rx) * v.y) + (cos(rx) * v.z);
+
+	v = nv;
+
+	nv.x = (cos(ry) * v.x) + (sin(ry) * v.z);
+	nv.z = -(sin(ry) * v.x) + (cos(ry) * v.z);
+
+	v = nv;
+
+	nv.x = (cos(rz) * v.x) - (sin(rz) * v.y);
+	nv.y = (sin(rz) * v.x) + (cos(rz) * v.y);
+
+	v = nv;
+}
+static inline void RotateVertex(glm::vec3& v, const glm::vec3& r)
+{
+	RotateVertex(v, r.x, r.y, r.z);
+}
+
+static inline void ScaleVertex(glm::vec3& v, float sx, float sy, float sz)
+{
+	v.x = v.x * sx;
+	v.y = v.y * sy;
+	v.z = v.z * sz;
+}
+static inline void ScaleVertex(glm::vec3& v, const glm::vec3& s)
+{
+	ScaleVertex(v, s.x, s.y, s.z);
+}
+
+static inline void TranslateVertex(glm::vec3& v, float tx, float ty, float tz)
+{
+	v.x = v.x + tx;
+	v.y = v.y + ty;
+	v.z = v.z + tz;
+}
+static inline void TranslateVertex(glm::vec3& v, const glm::vec3& t)
+{
+	TranslateVertex(v, t.x, t.y, t.z);
+}
+
 MapGeometryLoader::MapGeometryLoader(const std::string& zoneShortName,
 	const std::string& everquest_path)
 	: m_zoneName(zoneShortName)
@@ -63,33 +109,16 @@ void MapGeometryLoader::addTriangle(int a, int b, int c)
 	m_triCount++;
 }
 
-template <typename T>
-void MapGeometryLoader::AddMapModel(const std::shared_ptr<EQEmu::Placeable>& obj,
-	T& model, uint32_t& counter)
-{
-	const auto& verts = model.GetVertices();
-	const auto& polys = model.GetPolygons();
+auto GetTranslation = [](auto obj) -> glm::vec3 {
+	return glm::vec3(obj->GetX(), obj->GetY(), obj->GetZ());
+};
+auto GetScale = [](auto obj) -> glm::vec3 {
+	return glm::vec3(obj->GetScaleX(), obj->GetScaleY(), obj->GetScaleZ());
+};
+auto GetRotation = [](auto obj) -> glm::vec3 {
+	return glm::vec3(obj->GetRotateX(), obj->GetRotateY(), obj->GetRotateZ());
+};
 
-	for (const auto& poly : polys)
-	{
-		// 0x10 appeared on some non-collidable polygons
-		if (poly.flags == 0x10)
-			continue;
-
-		for (int i = 0; i < 3; i++)
-		{
-			glm::vec3 vert = verts[poly.verts[i]].pos;
-			RotateVertex(vert, obj->GetRotateX(), obj->GetRotateY(), obj->GetRotateZ());
-			ScaleVertex(vert, obj->GetScaleX(), obj->GetScaleY(), obj->GetScaleZ());
-			TranslateVertex(vert, obj->GetX(), obj->GetY(), obj->GetZ());
-
-			addVertex(vert.y, vert.z, vert.x);
-		}
-
-		addTriangle(counter, counter + 1, counter + 2);
-		counter += 3;
-	}
-}
 
 bool MapGeometryLoader::load()
 {
@@ -172,6 +201,7 @@ bool MapGeometryLoader::load()
 				}
 			}
 		}
+
 		for (uint32_t index = 0; index < collide_indices.size(); index += 3, counter += 3)
 		{
 			uint32_t vert_index1 = collide_indices[index];
@@ -189,29 +219,140 @@ bool MapGeometryLoader::load()
 			addTriangle(counter, counter + 2, counter + 1);
 		}
 
-		for (auto& obj : map_placeables)
+		// Load models
+		for (auto iter : map_models)
+		{
+			std::string name = iter.first;
+			std::shared_ptr<EQEmu::S3D::Geometry> model = iter.second;
+
+			std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
+
+			for (const auto& vert : model->GetVertices())
+			{
+				entry->verts.push_back(vert.pos);
+			}
+
+			for (const auto& poly : model->GetPolygons())
+			{
+				entry->polys.emplace_back(
+					ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x10) == 0 });
+			}
+
+			m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
+		}
+		for (auto iter : map_eqg_models)
+		{
+			std::string name = iter.first;
+			std::shared_ptr<EQEmu::EQG::Geometry> model = iter.second;
+
+			std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
+
+			for (const auto& vert : model->GetVertices())
+			{
+				entry->verts.push_back(vert.pos);
+			}
+
+			for (const auto& poly : model->GetPolygons())
+			{
+				entry->polys.emplace_back(
+					ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x10) == 0 });
+			}
+
+			m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
+		}
+
+		auto AddTriangle = [&](const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
+		{
+			addVertex(v1.y, v1.z, v1.x);
+			addVertex(v2.y, v2.z, v2.x);
+			addVertex(v3.y, v3.z, v3.x);
+
+			addTriangle(counter, counter + 1, counter + 2);
+			counter += 3;
+		};
+
+		for (const auto& obj : map_placeables)
 		{
 			const std::string& name = obj->GetFileName();
 
-			// check map models
-			auto modelIter = map_models.find(name);
-			if (modelIter != map_models.end())
-			{
-				const auto& model = modelIter->second;
-				AddMapModel<EQEmu::S3D::Geometry>(obj, *model, counter);
-
+			auto modelIter = m_models.find(name);
+			if (modelIter == m_models.end())
 				continue;
-			}
 
-			auto modelIter2 = map_eqg_models.find(name);
-			if (modelIter2 != map_eqg_models.end())
+			const auto& model = modelIter->second;
+			for (const auto& poly : model->polys)
 			{
-				const auto& model = modelIter2->second;
-				AddMapModel<EQEmu::EQG::Geometry>(obj, *model, counter);
+				if (!poly.vis)
+					continue;
 
-				continue;
+				glm::vec3 v[3];
+				for (int i = 0; i < 3; i++)
+				{
+					v[i] = model->verts[poly.v[i]];
+
+					RotateVertex(v[i], GetRotation(obj));
+					ScaleVertex(v[i], GetScale(obj));
+					TranslateVertex(v[i], GetTranslation(obj));
+				}
+
+				AddTriangle(v[0], v[1], v[2]);
 			}
 		}
+
+#if 0
+		for (const auto& group : map_group_placeables)
+		{
+			for (const auto& obj : group->GetPlaceables())
+			{
+				const std::string& name = obj->GetFileName();
+
+				auto modelIter = m_models.find(name);
+				if (modelIter == m_models.end())
+					continue;
+
+				const auto& model = modelIter->second;
+				for (const auto& poly : model->polys)
+				{
+					if (!poly.vis)
+						continue;
+
+					glm::vec3 v_[3];
+					for (int i = 0; i < 3; i++)
+					{
+						glm::vec3& v = v_[i];
+						v = model->verts[poly.v[i]];
+
+						ScaleVertex(v, GetScale(obj));
+						TranslateVertex(v, GetTranslation(obj));
+
+						RotateVertex(v, group->GetRotationX(), 0, 0);
+						RotateVertex(v, 0, group->GetRotationY(), 0);
+
+						glm::vec3 correction = GetTranslation(obj);
+
+						RotateVertex(correction, group->GetRotationX(), 0, 0);
+
+						TranslateVertex(v, -correction.x, -correction.y, -correction.z);
+
+						RotateVertex(v, obj->GetRotateX(), 0, 0);
+						RotateVertex(v, 0, -obj->GetRotateY(), 0);
+						RotateVertex(v, 0, 0, obj->GetRotateZ());
+
+						TranslateVertex(v, correction.x, correction.y, correction.z);
+
+						RotateVertex(v, 0, 0, group->GetRotationZ());
+
+						ScaleVertex(v, GetScale(group));
+
+						TranslateVertex(v, group->GetTileX(), group->GetTileY(), group->GetTileZ());
+						TranslateVertex(v, GetTranslation(group));
+					}
+
+					AddTriangle(v_[0], v_[1], v_[2]);
+				}
+			}
+		}
+#endif
 
 		//const auto& non_collide_indices = map.GetNonCollideIndices();
 
@@ -921,38 +1062,4 @@ void MapGeometryLoader::AddFace(glm::vec3& v1, glm::vec3& v2, glm::vec3& v3, boo
 			collide_indices.push_back(t_idx);
 		}
 	}
-}
-
-void MapGeometryLoader::RotateVertex(glm::vec3& v, float rx, float ry, float rz)
-{
-	glm::vec3 nv = v;
-
-	nv.y = (cos(rx) * v.y) - (sin(rx) * v.z);
-	nv.z = (sin(rx) * v.y) + (cos(rx) * v.z);
-
-	v = nv;
-
-	nv.x = (cos(ry) * v.x) + (sin(ry) * v.z);
-	nv.z = -(sin(ry) * v.x) + (cos(ry) * v.z);
-
-	v = nv;
-
-	nv.x = (cos(rz) * v.x) - (sin(rz) * v.y);
-	nv.y = (sin(rz) * v.x) + (cos(rz) * v.y);
-
-	v = nv;
-}
-
-void MapGeometryLoader::ScaleVertex(glm::vec3& v, float sx, float sy, float sz)
-{
-	v.x = v.x * sx;
-	v.y = v.y * sy;
-	v.z = v.z * sz;
-}
-
-void MapGeometryLoader::TranslateVertex(glm::vec3& v, float tx, float ty, float tz)
-{
-	v.x = v.x + tx;
-	v.y = v.y + ty;
-	v.z = v.z + tz;
 }
