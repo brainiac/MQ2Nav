@@ -13,6 +13,8 @@
 #include "DetourNavMesh.h"
 #include "DetourCommon.h"
 
+#include <ctime>
+
 static const int MAXPASSLEN = 40;
 static char libpass[MAXPASSLEN + 1];
 
@@ -106,6 +108,12 @@ static std::pair<std::shared_ptr<char>, DWORD> ReadRarFile(const std::string& fi
 	return std::make_pair(std::shared_ptr<char>(outbuf, free), outsize);
 }
 
+std::string MeshLoader::GetMeshDirectory() const
+{
+	// the root path is where we look for all of our mesh files
+	return std::string(gszINIPath) + "\\MQ2Navigation";
+}
+
 bool MeshLoader::LoadNavMesh()
 {
 	// At this point, we expect the zone short name to be set, so we know
@@ -118,7 +126,7 @@ bool MeshLoader::LoadNavMesh()
 		return false;
 
 	// the root path is where we look for all of our mesh files
-	std::string root_path = std::string(gszINIPath) + "\\MQ2Navigation\\";
+	std::string root_path = GetMeshDirectory() + "\\";
 
 	// The mesh filename
 	std::string mesh_filename = m_zoneShortName + ".bin";
@@ -142,6 +150,16 @@ bool MeshLoader::LoadNavMesh()
 			WriteChatf(PLUGIN_MSG "\agSuccessfully loaded mesh for \am%s\ax (%s)", m_zoneShortName.c_str(),
 				load_filename.c_str());
 			m_loadedDataFile = load_filename;
+
+			// Get filetime
+			HANDLE hFile = CreateFile(m_loadedDataFile.c_str(), GENERIC_READ, FILE_SHARE_READ,
+				NULL, OPEN_EXISTING, 0, NULL);
+			if (hFile != INVALID_HANDLE_VALUE)
+			{
+				GetFileTime(hFile, NULL, NULL, &m_fileTime);
+			}
+			CloseHandle(hFile);
+
 			return true;
 		}
 		if (result == CORRUPT)
@@ -301,4 +319,47 @@ void MeshLoader::Reset()
 	m_zoneShortName.clear();
 	m_loadedDataFile.clear();
 	m_loadedTiles = 0;
+}
+
+void MeshLoader::Process()
+{
+	if (m_autoReload)
+	{
+		clock::time_point now = clock::now();
+		if (now - m_lastUpdate > std::chrono::seconds(1))
+		{
+			m_lastUpdate = now;
+
+			if (!m_loadedDataFile.empty())
+			{
+				// Get the current filetime
+				FILETIME currentFileTime;
+
+				HANDLE hFile = CreateFile(m_loadedDataFile.c_str(), GENERIC_READ, FILE_SHARE_READ,
+					NULL, OPEN_EXISTING, 0, NULL);
+				if (hFile != INVALID_HANDLE_VALUE)
+				{
+					GetFileTime(hFile, NULL, NULL, &currentFileTime);
+
+					// Reload file *if* it is 5 seconds old AND newer than existing
+					if (CompareFileTime(&currentFileTime, &m_fileTime))
+					{
+						DebugSpewAlways("Current file time is newer than old file time, refreshing");
+						LoadNavMesh();
+					}
+				}
+				CloseHandle(hFile);
+			}
+		}
+	}
+}
+
+//----------------------------------------------------------------------------
+
+void MeshLoader::SetAutoReload(bool autoReload)
+{
+	if (m_autoReload != autoReload)
+	{
+		m_autoReload = autoReload;
+	}
 }

@@ -10,14 +10,15 @@ namespace mq2nav
 {
 	struct SettingsData
 	{
-		bool autobreak = 0;
+		bool autobreak = false;;
+		bool autoreload = false;
 	};
 	SettingsData& GetSettings();
 
 	// Load settings from the .ini file
-	void LoadSettings();
+	void LoadSettings(bool showMessage = true);
 
 	// Save settings to the .ini file
-	void SaveSettings();
+	void SaveSettings(bool showMessage = true);
 
 } // namespace mq2nav

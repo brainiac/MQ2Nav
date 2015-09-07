@@ -15,9 +15,12 @@ SettingsData& GetSettings()
 	return g_settings;
 }
 
-void LoadSettings()
+void LoadSettings(bool showMessage/* = true*/)
 {
-	WriteChatf(PLUGIN_MSG "Loading settings...");
+	if (showMessage)
+	{
+		WriteChatf(PLUGIN_MSG "Loading settings...");
+	}
 
 	char szTemp[MAX_STRING] = { 0 };
 	char szTempF[MAX_STRING] = { 0 };
@@ -43,6 +46,11 @@ void LoadSettings()
 		szTemp, MAX_STRING, INIFileName);
 	g_settings.autobreak = (!strnicmp(szTemp, "on", 3));
 
+	GetPrivateProfileString("Defaults", "AutoReload",
+		g_settings.autoreload ? "on" : "off",
+		szTemp, MAX_STRING, INIFileName);
+	g_settings.autoreload = (!strnicmp(szTemp, "on", 3));
+
 #if 0
 	GetPrivateProfileString("Defaults", "AutoSave",
 		SET->AutoSave    ? "on" : "off",
@@ -50,13 +58,18 @@ void LoadSettings()
 #endif
 }
 
-void SaveSettings()
+void SaveSettings(bool showMessage/* = true*/)
 {
-	WriteChatf(PLUGIN_MSG "Saving settings...");
+	if (showMessage)
+	{
+		WriteChatf(PLUGIN_MSG "Saving settings...");
+	}
+
 	char szTemp[MAX_STRING] = { 0 };
 
 	// default settings
 	WritePrivateProfileString("Defaults", "AutoBreak", g_settings.autobreak ? "on" : "off", INIFileName);
+	WritePrivateProfileString("Defaults", "AutoReload", g_settings.autoreload ? "on" : "off", INIFileName);
 
 #if 0
 	WritePrivateProfileString("Defaults",   "AllowMove",              ftoa(SET->AllowMove,      szTemp),     INIFileName);

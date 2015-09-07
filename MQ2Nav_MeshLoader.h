@@ -6,6 +6,7 @@
 
 #include "MQ2Plugin.h"
 
+#include <chrono>
 #include <string>
 #include <memory>
 
@@ -19,6 +20,9 @@ public:
 		: m_plugin(plugin)
 	{}
 
+	// called from OnPulse, will do actions on specific intervals
+	void Process();
+
 	// update the current zone. This will trigger a reload of the navmesh file if
 	// the zone has changed, if autoload is enabled
 	void SetZoneId(DWORD zoneId);
@@ -28,6 +32,11 @@ public:
 	// is true.
 	void SetAutoLoad(bool autoLoad);
 	bool GetAutoLoad() const { return m_autoLoad; }
+
+	// turns autoreload on or off. A navmesh will be reloaded when the file changes
+	// if this is true.
+	void SetAutoReload(bool autoReload);
+	bool GetAutoReload() const { return m_autoReload; }
 
 	// returns if a navmesh is currently loaded or not.
 	bool IsNavMeshLoaded() const { return m_mesh != nullptr; }
@@ -50,6 +59,8 @@ private:
 
 	LoadResult LoadZoneMeshData(const std::shared_ptr<char>& data, DWORD length);
 
+	std::string GetMeshDirectory() const;
+
 private:
 	MQ2NavigationPlugin* m_plugin;
 	std::unique_ptr<dtNavMesh> m_mesh;
@@ -60,4 +71,11 @@ private:
 	bool m_autoLoad = true;
 	std::string m_loadedDataFile;
 	int m_loadedTiles = 0;
+
+	// auto reloading
+	bool m_autoReload = true;
+	FILETIME m_fileTime = { 0, 0 };
+
+	typedef std::chrono::high_resolution_clock clock;
+	clock::time_point m_lastUpdate = clock::now();
 };

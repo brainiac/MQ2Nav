@@ -106,6 +106,8 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
   , m_meshLoader(new MeshLoader(this))
   , m_pEQDraw(new CEQDraw)
 {
+	m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
+
 	AddCommand("/navigate", NavigateCommand);
 	AddMQ2Data("Navigation", NavigateData);
 
@@ -122,6 +124,9 @@ MQ2NavigationPlugin::~MQ2NavigationPlugin()
 
 void MQ2NavigationPlugin::OnPulse()
 {
+	if (m_meshLoader)
+		m_meshLoader->Process();
+
 	if (m_initialized && mq2nav::ValidIngame(TRUE))
 	{
 		AttemptMovement();
@@ -237,13 +242,19 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 			}
 		}
 		else if (!strcmp(buffer, "help")) {
-			WriteChatf(PLUGIN_MSG "Usage: /navigate [save | load] [target] [X Y Z] [item [click] [once]] [door  [click] [once]] [waypoint <waypoint name>] [stop] [recordwaypoint <name> <tag> ]");
+			WriteChatf(PLUGIN_MSG "Usage: /navigate [save | load | reload] [target] [X Y Z] [item [click] [once]] [door  [click] [once]] [waypoint <waypoint name>] [stop] [recordwaypoint <name> <tag> ]");
 		}
 		else if (!strcmp(buffer, "load")) {
 			mq2nav::LoadSettings();
 		}
 		else if (!strcmp(buffer, "save")) {
 			mq2nav::SaveSettings();
+		}
+		else if (!strcmp(buffer, "autoreload")) {
+			mq2nav::GetSettings().autoreload = !mq2nav::GetSettings().autoreload;
+			m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
+			WriteChatf(PLUGIN_MSG "Autoreload is now %s", mq2nav::GetSettings().autoreload ? "\agon\ax" : "\aroff\ax");
+			mq2nav::SaveSettings(false);
 		}
 		Stop();
 		return;
