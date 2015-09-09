@@ -144,4 +144,7 @@
       <Filter>Resource Files</Filter>
     </Natvis>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
 </Project>

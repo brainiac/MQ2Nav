@@ -26,6 +26,7 @@
     <None Include="..\Release\Zones.ini">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h">
