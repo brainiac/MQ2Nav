@@ -170,7 +170,7 @@ public:
 		// Tool help
 		const int h = view[3];
 
-		ImGui::RenderTextCentered(280, -(h - 40), ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
 			"LMB: Rebuild hit tile.  Shift+LMB: Clear hit tile.");
 	}
 };

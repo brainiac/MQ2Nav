@@ -1052,28 +1052,28 @@ void CrowdTool::handleRenderOverlay(double* proj, double* model, int* view)
 	
 	if (m_mode == TOOLMODE_CREATE)
 	{
-		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -ty, ImVec4(255, 255, 255, 192),
 			"LMB: add agent.  Shift+LMB: remove agent.");
 	}
 	else if (m_mode == TOOLMODE_MOVE_TARGET)
 	{
-		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -ty, ImVec4(255, 255, 255, 192),
 			"LMB: set move target.  Shift+LMB: adjust set velocity.");
 		ty -= 20;
-		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -ty, ImVec4(255, 255, 255, 192),
 			"Setting velocity will move the agents without pathfinder.");
 	}
 	else if (m_mode == TOOLMODE_SELECT)
 	{
-		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192), "LMB: select agent.");
+		ImGui::RenderTextRight(-330, -ty, ImVec4(255, 255, 255, 192), "LMB: select agent.");
 	}
 
 	ty -= 20;
-	ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192), "SPACE: Run/Pause simulation.  1: Step simulation.");
+	ImGui::RenderTextRight(-330, -ty, ImVec4(255, 255, 255, 192), "SPACE: Run/Pause simulation.  1: Step simulation.");
 	ty -= 20;
 
 	if (m_state && m_state->isRunning())
-		ImGui::RenderText(280, -ty, ImVec4(255, 32, 16, 255), "- RUNNING -");
+		ImGui::RenderTextRight(-330, -ty, ImVec4(255, 32, 16, 255), "- RUNNING -");
 	else 
-		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 128), "- PAUSED -");
+		ImGui::RenderTextRight(-330, -ty, ImVec4(255, 255, 255, 128), "- PAUSED -");
 }

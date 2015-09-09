@@ -54,6 +54,9 @@ Interface::~Interface()
 	DestroyWindow();
 }
 
+unsigned int GetDroidSansCompressedSize();
+const unsigned int* GetDroidSansCompressedData();
+
 bool Interface::InitializeWindow()
 {
 	// Init SDL
@@ -88,7 +91,8 @@ bool Interface::InitializeWindow()
 	ImGui_ImplSdl_Init(m_window);
 
 	ImGuiIO& io = ImGui::GetIO();
-	io.Fonts->AddFontFromFileTTF("DroidSans.ttf", 16);
+	io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
+		GetDroidSansCompressedSize(), 16);
 
 	glEnable(GL_CULL_FACE);
 
@@ -559,6 +563,7 @@ void Interface::RenderInterface()
 		ImGuiListClipper clipper(m_context->getLogCount(), ImGui::GetTextLineHeightWithSpacing());
 		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) // display only visible items
 			ImGui::Text(m_context->getLogText(i));
+		clipper.End();
 
 		// auto scroll if at bottom of window
 		float scrollY = ImGui::GetScrollY();
@@ -566,7 +571,7 @@ void Interface::RenderInterface()
 
 		if (m_lastScrollPosition == m_lastScrollPositionMax
 			&& m_lastScrollPosition != scrollYMax
-			|| m_lastScrollPosition == 0)
+			/*|| m_lastScrollPosition == 0*/) // find a way to clamp when starting empty
 		{
 			m_lastScrollPositionMax = scrollYMax;
 			ImGui::SetScrollY(scrollYMax);

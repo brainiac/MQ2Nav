@@ -12,4 +12,8 @@ namespace ImGui
 	void RenderTextCentered(const ImVec2& pos, const ImVec4& color, const char* fmt, ...);
 
 	void RenderTextCentered(int x, int y, const ImVec4& color, const char* fmt, ...);
+
+	void RenderTextRight(const ImVec2& pos, const ImVec4& color, const char* fmt, ...);
+
+	void RenderTextRight(int x, int y, const ImVec4& color, const char* fmt, ...);
 }

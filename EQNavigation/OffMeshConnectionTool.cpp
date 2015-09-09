@@ -154,19 +154,19 @@ void OffMeshConnectionTool::handleRenderOverlay(double* proj, double* model, int
 	if (m_hitPosSet && gluProject((GLdouble)m_hitPos[0], (GLdouble)m_hitPos[1], (GLdouble)m_hitPos[2],
 								model, proj, view, &x, &y, &z))
 	{
-		ImGui::RenderTextCentered((int)x, -((int)y - 25), ImVec4(0, 0, 0, 220), "Start");
+		ImGui::RenderText((int)x + 5, -((int)y - 5), ImVec4(0, 0, 0, 220), "Start");
 	}
 	
 	// Tool help
 	const int h = view[3];
 	if (!m_hitPosSet)
 	{
-		ImGui::RenderText(280, -(h - 40), ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
 			"LMB: Create new connection.  SHIFT+LMB: Delete existing connection, click close to start or end point.");
 	}
 	else
 	{
-		ImGui::RenderText(280, -(h - 40), ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
 			"LMB: Set connection end point and finish.");
 	}
 }

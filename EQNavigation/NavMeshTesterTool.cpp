@@ -1388,18 +1388,18 @@ void NavMeshTesterTool::handleRenderOverlay(double* proj, double* model, int* vi
 	if (m_sposSet && gluProject((GLdouble)m_spos[0], (GLdouble)m_spos[1], (GLdouble)m_spos[2],
 								model, proj, view, &x, &y, &z))
 	{
-		ImGui::RenderTextCentered((int)x, -((int)y - 25), ImVec4(0, 0, 0, 220), "Start");
+		ImGui::RenderTextCentered((int)x + 5, -((int)y - 5), ImVec4(0, 0, 0, 220), "Start");
 	}
 	if (m_eposSet && gluProject((GLdouble)m_epos[0], (GLdouble)m_epos[1], (GLdouble)m_epos[2],
 								model, proj, view, &x, &y, &z))
 	{
-		ImGui::RenderTextCentered((int)x, -((int)y - 25), ImVec4(0, 0, 0, 220), "End");
+		ImGui::RenderTextCentered((int)x + 5, -((int)y - 5), ImVec4(0, 0, 0, 220), "End");
 	}
 	
 	// Tool help
 	const int h = view[3];
 
-	ImGui::RenderText(280, -(h - 40), ImVec4(255, 255, 255, 192),
+	ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
 		"LMB+SHIFT: Set start location  LMB: Set end location");
 }
 
