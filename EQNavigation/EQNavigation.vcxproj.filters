@@ -15,12 +15,6 @@
     <Filter Include="Header Files\RecastDemo">
       <UniqueIdentifier>{beb58481-6fba-47a6-8ccc-174aae444615}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Imgui">
-      <UniqueIdentifier>{b475874c-6d76-45ab-8326-07b217d776cf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Imgui">
-      <UniqueIdentifier>{d2682598-a992-4d3c-8cf8-562cf2f9a333}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\RecastDemo">
       <UniqueIdentifier>{95c14b6e-c7c4-40fe-9ad9-a6ca97ec36e4}</UniqueIdentifier>
     </Filter>
@@ -39,12 +33,6 @@
     </ClCompile>
     <ClCompile Include="Interface.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="imguiRenderGL.cpp">
-      <Filter>Source Files\Imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui.cpp">
-      <Filter>Source Files\Imgui</Filter>
     </ClCompile>
     <ClCompile Include="ChunkyTriMesh.cpp">
       <Filter>Source Files\RecastDemo</Filter>
@@ -82,9 +70,6 @@
     <ClCompile Include="SampleInterfaces.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
-    <ClCompile Include="TestCase.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
     <ClCompile Include="ValueHistory.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
@@ -94,6 +79,9 @@
     <ClCompile Include="EQConfig.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="imgui_impl_sdl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -101,12 +89,6 @@
     </ClInclude>
     <ClInclude Include="MapGeometryLoader.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui.h">
-      <Filter>Header Files\Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="imguiRenderGL.h">
-      <Filter>Header Files\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="ChunkyTriMesh.h">
       <Filter>Header Files\RecastDemo</Filter>
@@ -144,9 +126,6 @@
     <ClInclude Include="SampleInterfaces.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
-    <ClInclude Include="TestCase.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
     <ClInclude Include="ValueHistory.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
@@ -154,6 +133,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EQConfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_impl_sdl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

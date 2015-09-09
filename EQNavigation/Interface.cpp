@@ -3,18 +3,24 @@
 #include "pch.h"
 #include "Interface.h"
 
-#include "imgui.h"
-#include "imguiRenderGL.h"
 
 #include "RecastDebugDraw.h"
 #include "InputGeom.h"
 #include "Sample_TileMesh.h"
 #include "Sample_Debug.h"
 
+#include <imgui/imgui.h>
+#include "imgui_impl_sdl.h"
+
+#include <gl/GLU.h>
+
 #include <stdarg.h>
 #include <stdio.h>
 
 #include <sstream>
+
+#pragma warning(push)
+#pragma warning(disable: 4244)
 
 //============================================================================
 
@@ -25,7 +31,6 @@ static const int32_t MAX_LOG_MESSAGES = 1000;
 Interface::Interface(const std::string& defaultZone)
 	: m_context(new BuildContext())
 	, m_mesh(new Sample_TileMesh)
-	, m_screen(nullptr)
 	, m_resetCamera(true)
 	, m_defaultZone(defaultZone)
 	, m_width(1600), m_height(900)
@@ -36,8 +41,6 @@ Interface::Interface(const std::string& defaultZone)
 	, m_showLog(false)
 	, m_showTools(false)
 	, m_showLevels(!defaultZone.empty())
-	, m_showSample(true)
-	, m_showTestCases(false)
 {
 
 	m_mesh->setContext(m_context.get());
@@ -60,50 +63,32 @@ bool Interface::InitializeWindow()
 		return false;
 	}
 
-	// Center window
-	char env[] = "SDL_VIDEO_CENTERED=1";
-	_putenv(env);
-
 	// Init OpenGL
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
 //#ifndef WIN32
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 //#endif
+	
+	SDL_Rect vr;
+	SDL_GetDisplayBounds(0, &vr);
 
-	const SDL_VideoInfo* vi = SDL_GetVideoInfo();
+	m_width = vr.w - 200;
+	m_height = vr.h - 200;
 
-	m_width = vi->current_w - 200;
-	m_height = vi->current_h - 200;
-	m_screen = SDL_SetVideoMode(m_width, m_height, 0, SDL_OPENGL | SDL_RESIZABLE);
+	m_window = SDL_CreateWindow("EQ Navigation", 100, 100, m_width, m_height,
+		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+	m_glContext = SDL_GL_CreateContext(m_window);
 
-	if (!m_screen)
-	{
-		printf("Could not initialise SDL opengl\n");
-		return false;
-	}
+	ImGui_ImplSdl_Init(m_window);
 
-	SDL_SysWMinfo i;
-	SDL_VERSION(&i.version);
-	if (SDL_GetWMInfo(&i))
-	{
-		HWND hwnd = i.window;
-		SetWindowPos(hwnd, HWND_TOP, 0, 0, m_width, m_height, NULL);
-	}
-
-	SDL_WM_SetCaption("EQ Navigation", 0);
-
-	if (!imguiRenderGLInit("DroidSans.ttf"))
-	{
-		printf("Could not init GUI renderer. Likely missing the 'DroidSans.tff' file.\n");
-		return false;
-	}
+	ImGuiIO& io = ImGui::GetIO();
+	io.Fonts->AddFontFromFileTTF("DroidSans.ttf", 16);
 
 	glEnable(GL_CULL_FACE);
 
@@ -124,13 +109,10 @@ bool Interface::InitializeWindow()
 
 void Interface::DestroyWindow()
 {
-	imguiRenderGLDestroy();
+	ImGui_ImplSdl_Shutdown();
 
-	if (m_screen)
-	{
-		SDL_FreeSurface(m_screen);
-		m_screen = nullptr;
-	}
+	SDL_GL_DeleteContext(m_glContext);
+	SDL_DestroyWindow(m_window);
 
 	SDL_Quit();
 }
@@ -145,6 +127,8 @@ int Interface::RunMainLoop()
 		// Handle input events.
 		HandleEvents();
 
+		ImGui_ImplSdl_NewFrame(m_window);
+
 		Uint32 time = SDL_GetTicks();
 		float dt = (time - m_lastTime) / 1000.0f;
 		m_lastTime = time;
@@ -152,7 +136,8 @@ int Interface::RunMainLoop()
 		m_time += dt;
 		m_timeDelta = dt;
 
-		// Update and render
+		RenderInterface();
+
 		glViewport(0, 0, m_width, m_height);
 		glClearColor(0.3f, 0.3f, 0.32f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -192,11 +177,11 @@ int Interface::RunMainLoop()
 			m_raye[2] = (float)z;
 
 			// Handle keyboard movement.
-			Uint8* keystate = SDL_GetKeyState(NULL);
-			m_moveW = rcClamp(m_moveW + dt * 4 * (keystate[SDLK_w] ? 1 : -1), 0.0f, 1.0f);
-			m_moveS = rcClamp(m_moveS + dt * 4 * (keystate[SDLK_s] ? 1 : -1), 0.0f, 1.0f);
-			m_moveA = rcClamp(m_moveA + dt * 4 * (keystate[SDLK_a] ? 1 : -1), 0.0f, 1.0f);
-			m_moveD = rcClamp(m_moveD + dt * 4 * (keystate[SDLK_d] ? 1 : -1), 0.0f, 1.0f);
+			const Uint8* keystate = SDL_GetKeyboardState(NULL);
+			m_moveW = rcClamp(m_moveW + dt * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
+			m_moveS = rcClamp(m_moveS + dt * 4 * (keystate[SDL_SCANCODE_S] ? 1 : -1), 0.0f, 1.0f);
+			m_moveA = rcClamp(m_moveA + dt * 4 * (keystate[SDL_SCANCODE_A] ? 1 : -1), 0.0f, 1.0f);
+			m_moveD = rcClamp(m_moveD + dt * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
 
 			float keybSpeed = 30.0f;
 			if (SDL_GetModState() & KMOD_SHIFT)
@@ -220,22 +205,6 @@ int Interface::RunMainLoop()
 			glDisable(GL_FOG);
 		}
 
-		// Render GUI
-		glDisable(GL_DEPTH_TEST);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		gluOrtho2D(0, m_width, 0, m_height);
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-
-		m_mouseOverMenu = false;
-
-		imguiBeginFrame(m_mx, m_my, m_mbuttons, m_mscroll);
-
-		RenderInterface();
-
-		imguiRenderGLDraw();
-
 		// Camera Reset
 		if (m_geom && m_resetCamera)
 		{
@@ -257,9 +226,10 @@ int Interface::RunMainLoop()
 
 			m_resetCamera = false;
 		}
-
 		glEnable(GL_DEPTH_TEST);
-		SDL_GL_SwapBuffers();
+
+		ImGui::Render();
+		SDL_GL_SwapWindow(m_window);
 	}
 
 	Halt();
@@ -270,27 +240,33 @@ int Interface::RunMainLoop()
 
 void Interface::HandleEvents()
 {
-	m_mscroll = 0;
-	m_mbuttons = 0;
-
 	SDL_Event event;
 	while (SDL_PollEvent(&event))
 	{
+		ImGui_ImplSdl_ProcessEvent(&event);
+
 		switch (event.type)
 		{
-		case SDL_VIDEORESIZE:
-			m_width = event.resize.w;
-			m_height = event.resize.h;
+		case SDL_WINDOWEVENT:
+			if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+			{
+				m_width = event.window.data1;
+				m_height = event.window.data2;
+			}
 			break;
 
+
 		case SDL_KEYDOWN:
+			if (ImGui::GetIO().WantCaptureKeyboard)
+				break;
+
 			// Handle any key presses here.
-			if (event.key.keysym.sym == SDLK_ESCAPE)
+			if (event.key.keysym.sym == SDL_SCANCODE_ESCAPE)
 			{
 				//HaltBuild();
 				m_done = true;
 			}
-			else if (event.key.keysym.sym == SDLK_TAB)
+			else if (event.key.keysym.sym == SDL_SCANCODE_TAB)
 			{
 				// TODO: Reacquire paths
 				//DefineDirectories(true);
@@ -298,6 +274,9 @@ void Interface::HandleEvents()
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
+			if (ImGui::GetIO().WantCaptureMouse)
+				break;
+
 			// Handle mouse clicks here.
 			if (!m_mouseOverMenu)
 			{
@@ -348,13 +327,12 @@ void Interface::HandleEvents()
 					}
 				}
 			}
-			if (event.button.button == SDL_BUTTON_WHEELUP)
-				m_mscroll--;
-			if (event.button.button == SDL_BUTTON_WHEELDOWN)
-				m_mscroll++;
 			break;
 
 		case SDL_MOUSEBUTTONUP:
+			if (ImGui::GetIO().WantCaptureMouse)
+				break;
+
 			// Handle mouse clicks here.
 			if (event.button.button == SDL_BUTTON_RIGHT)
 			{
@@ -363,6 +341,9 @@ void Interface::HandleEvents()
 			break;
 
 		case SDL_MOUSEMOTION:
+			if (ImGui::GetIO().WantCaptureMouse)
+				break;
+
 			m_mx = event.motion.x;
 			m_my = m_height - 1 - event.motion.y;
 			if (m_rotate)
@@ -383,11 +364,6 @@ void Interface::HandleEvents()
 			break;
 		}
 	}
-
-	if (SDL_GetMouseState(0, 0) & SDL_BUTTON_LMASK)
-		m_mbuttons |= IMGUI_MBUT_LEFT;
-	if (SDL_GetMouseState(0, 0) & SDL_BUTTON_RMASK)
-		m_mbuttons |= IMGUI_MBUT_RIGHT;
 }
 
 void Interface::RenderInterface()
@@ -410,59 +386,68 @@ void Interface::RenderInterface()
 			"LMB+SHIFT: Place End   "
 			"TAB: Redefine EQ & MQ2 Directories";
 
-		imguiDrawText(m_width / 2, m_height - 20, IMGUI_ALIGN_CENTER, msg, imguiRGBA(255, 255, 255, 128));
+		ImGui::RenderTextCentered(ImVec2(m_width / 2, 20),
+			ImColor(255, 255, 255, 128), "%s", msg);
 	}
 
 	if (!m_activityMessage.empty())
 	{
-		sprintf(buffer, m_activityMessage.c_str(), m_progress);
-
-		imguiDrawText(m_width / 2, m_height / 2, IMGUI_ALIGN_CENTER, buffer, imguiRGBA(255, 255, 255, 128));
+		ImGui::RenderTextCentered(ImVec2(m_width / 2, m_height / 2),
+			ImColor(255, 255, 255, 128), m_activityMessage.c_str(), m_progress);
 	}
+
+	const int WindowWidth = 300;
+	std::string levelToLoad;
 
 	if (showMenu)
 	{
 		int propDiv = m_showDebugMode ? (int)(m_height*0.6f) : m_height;
-		int propScroll = 0;
+		int height = propDiv - 20;
 
-		if (imguiBeginScrollArea("Properties",
-			m_width - 250 - 10, 10 + m_height - propDiv, 250, propDiv - 20, &propScroll))
-		{
-			m_mouseOverMenu = true;
-		}
+		ImGui::SetNextWindowPos(ImVec2(10, 10));
+		ImGui::SetNextWindowSize(ImVec2(WindowWidth, propDiv - 20));
+		ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
-		if (imguiCheck("Show Log", m_showLog))
-			m_showLog = !m_showLog;
-		if (imguiCheck("Show Tools", m_showTools))
-			m_showTools = !m_showTools;
-		if (imguiCheck("Show Preview", m_showPreview))
-			m_showPreview = !m_showPreview;
-#if 0
-		if (imguiCheck("Show Debug Mode", m_showDebugMode))
-			m_showDebugMode = !m_showDebugMode;
-#endif
+		ImGui::Checkbox("Show Log", &m_showLog);
+		ImGui::Checkbox("Show Tools", &m_showTools);
+		ImGui::Checkbox("Show Preview", &m_showPreview);
+		ImGui::Checkbox("Show Debug Mode", &m_showDebugMode);
 
-		imguiSeparator();
+		ImGui::Separator();
 
 		if (m_mesh)
 		{
-			imguiSeparator();
-			imguiLabel("Zone Mesh");
+			ImGui::Separator();
+			ImGui::Text("Zone Mesh");
 
-			if (imguiButton(m_zoneDisplayName.c_str()))
+			if (ImGui::Button(m_zoneDisplayName.c_str()))
+				ImGui::OpenPopup("Choose Zone");
+			if (ImGui::BeginPopup("Choose Zone"))
 			{
-				if (m_showLevels)
-				{
-					m_showLevels = false;
-				}
-				else
-				{
-					m_showSample = false;
-					m_showTestCases = false;
-					m_showLevels = true;
-				}
-			}
 
+				const auto& mapList = m_eqConfig.GetMapList();
+				for (const auto& mapIter : mapList)
+				{
+					const std::string& expansionName = mapIter.first;
+
+					if (ImGui::BeginMenu(expansionName.c_str()))
+					{
+						for (const auto& zonePair : mapIter.second)
+						{
+							std::stringstream ss;
+							ss << zonePair.first << " (" << zonePair.second << ")";
+
+							bool selected = false;
+							if (ImGui::MenuItem(ss.str().c_str()))
+								levelToLoad = zonePair.second;
+						}
+
+						ImGui::EndMenu();
+					}
+				}
+
+				ImGui::EndPopup();
+			}
 			//if (m_geom)
 			//{
 			//	char text[64];
@@ -479,141 +464,125 @@ void Interface::RenderInterface()
 		{
 			if (/*message*/ false)
 			{
-				imguiSeparator();
+				ImGui::Separator();
 
-				if (imguiButton("Halt Action"))
+				if (ImGui::Button("Halt Action"))
 					Halt();
 			}
 			else
 			{
 				m_mesh->handleSettings();
 
-				if (imguiButton("Build"))
+				if (ImGui::Button("Build"))
 					StartBuild();
 
-				imguiSeparator();
+				ImGui::Separator();
 			}
 		}
 
-		imguiEndScrollArea();
+		ImGui::End();
 
 		if (m_showDebugMode)
 		{
 			int debugScroll = 0;
 
-			if (imguiBeginScrollArea("Debug Mode",
-				m_width - 250 - 10, 10,
-				250, m_height - propDiv - 10, &debugScroll))
-			{
-				m_mouseOverMenu = true;
-			}
+			int height = m_height - propDiv - 10;
+
+			ImGui::SetNextWindowPos(ImVec2(10, m_height - height - 10));
+			ImGui::SetNextWindowSize(ImVec2(WindowWidth, height));
+
+			ImGui::Begin("Debug Mode", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
 			if (m_mesh)
+			{
 				m_mesh->handleDebugMode();
+			}
 
-			imguiEndScrollArea();
+			ImGui::End();
 		}
 	}
 
 	// Level selection dialog.
-	if (m_showLevels)
+	if (!levelToLoad.empty() || !m_defaultZone.empty())
 	{
 		std::unique_lock<std::mutex> lock(m_renderMutex);
+		m_geom.reset();
+		m_showLevels = false;
 
-		static int levelScroll = 0;
-		if (imguiBeginScrollArea("Choose Map",
-			m_width - 10 - 300 - 10 - 350,
-			m_height - 10 - 800, 400, 800, &levelScroll))
+		if (!levelToLoad.empty())
 		{
-			m_mouseOverMenu = true;
+			m_zoneShortname = levelToLoad;
+		}
+		else
+		{
+			m_zoneShortname = m_defaultZone;
+			m_defaultZone.clear();
 		}
 
-		std::string levelToLoad;
+		m_zoneLongname = m_eqConfig.GetLongNameForShortName(m_zoneShortname);
 
-		const auto& mapList = m_eqConfig.GetMapList();
-		for (const auto& mapIter : mapList)
-		{
-			const std::string& expansionName = mapIter.first;
-			bool expanded = m_expansionExpanded[expansionName];
+		std::stringstream ss;
+		ss << m_zoneLongname << " (" << m_zoneShortname << ")";
+		m_zoneDisplayName = ss.str();
+		m_expansionExpanded.clear();
 
-			if (imguiCollapse(expansionName.c_str(), 0, expanded))
-				m_expansionExpanded[expansionName] = !expanded;
+		LoadGeometry();
+	}
 
-			if (m_expansionExpanded[expansionName])
-			{
-				imguiIndent();
 
-				for (const auto& zonePair : mapIter.second)
-				{
-					std::stringstream ss;
-					ss << zonePair.first << " (" << zonePair.second << ")";
+	// Tools
+	if (m_showTools && showMenu && m_geom && m_mesh)
+	{
+		int toolsXPos = m_width - 300 - 10;
 
-					if (imguiItem(ss.str().c_str()))
-						levelToLoad = zonePair.second;
+		ImGui::SetNextWindowPos(ImVec2(toolsXPos, 10));
+		ImGui::SetNextWindowSize(ImVec2(300, 600));
 
-				}
+		ImGui::Begin("Tools", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
-				imguiUnindent();
-			}
-		}
+		m_mesh->handleTools();
 
-		if (!levelToLoad.empty() || !m_defaultZone.empty())
-		{
-			m_geom.reset();
-			m_showLevels = false;
-
-			if (!levelToLoad.empty())
-			{
-				m_zoneShortname = levelToLoad;
-			}
-			else
-			{
-				m_zoneShortname = m_defaultZone;
-				m_defaultZone.clear();
-			}
-
-			m_zoneLongname = m_eqConfig.GetLongNameForShortName(m_zoneShortname);
-
-			std::stringstream ss;
-			ss << m_zoneLongname << " (" << m_zoneShortname << ")";
-			m_zoneDisplayName = ss.str();
-			m_expansionExpanded.clear();
-
-			LoadGeometry();
-		}
-		imguiEndScrollArea();
+		ImGui::End();
 	}
 
 	// Log
 	if (m_showLog && showMenu)
 	{
-		int logScroll = 0;
+		int logXPos = 10 + 10 + 300;
 
-		if (imguiBeginScrollArea("Log", 10, 10, m_width - 300, 200, &logScroll))
-			m_mouseOverMenu = true;
+		ImGui::SetNextWindowPos(ImVec2(logXPos, m_height - 200 - 10), ImGuiSetCond_Once);
+		ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiSetCond_Once);
+	
+		ImGui::Begin("Log");
+		ImGui::BeginChild("log contents");
 
-		for (int i = 0; i < m_context->getLogCount(); ++i)
+		ImGuiListClipper clipper(m_context->getLogCount(), ImGui::GetTextLineHeightWithSpacing());
+		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) // display only visible items
+			ImGui::Text(m_context->getLogText(i));
+
+		// auto scroll if at bottom of window
+		float scrollY = ImGui::GetScrollY();
+		float scrollYMax = ImGui::GetScrollMaxY();
+
+		if (m_lastScrollPosition == m_lastScrollPositionMax
+			&& m_lastScrollPosition != scrollYMax
+			|| m_lastScrollPosition == 0)
 		{
-			imguiLabel(m_context->getLogText(i));
+			m_lastScrollPositionMax = scrollYMax;
+			ImGui::SetScrollY(scrollYMax);
+		}
+		else if (m_lastScrollPositionMax != scrollYMax)
+		{
+			m_lastScrollPositionMax = scrollYMax;
 		}
 
-		imguiEndScrollArea();
+		m_lastScrollPosition = scrollY;
+
+		ImGui::End();
+		ImGui::End();
 	}
 
-	// Tools
-	if (!m_showTestCases && m_showTools && showMenu && m_geom && m_mesh)
-	{
-		int toolsScroll = 0;
 
-		if (imguiBeginScrollArea("Tools", 10, m_height - 10 - 350, 200, 350, &toolsScroll))
-			m_mouseOverMenu = true;
-
-		m_mesh->handleTools();
-
-		imguiEndScrollArea();
-	}
-
-	imguiEndFrame();
 }
 
 //----------------------------------------------------------------------------
@@ -801,3 +770,5 @@ int BuildContext::doGetAccumulatedTime(const rcTimerLabel label) const
 {
 	return m_accTime[label];
 }
+
+#pragma warning(pop)

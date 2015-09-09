@@ -125,27 +125,28 @@ void ConvexVolumeTool::reset()
 
 void ConvexVolumeTool::handleMenu()
 {
-	imguiSlider("Shape Height", &m_boxHeight, 0.1f, 20.0f, 0.1f);
-	imguiSlider("Shape Descent", &m_boxDescent, 0.1f, 20.0f, 0.1f);
-	imguiSlider("Poly Offset", &m_polyOffset, 0.0f, 10.0f, 0.1f);
+	ImGui::SliderFloat("Shape Height", &m_boxHeight, 0.1f, 20.0f);
+	ImGui::SliderFloat("Shape Descent", &m_boxDescent, 0.1f, 20.0f);
+	ImGui::SliderFloat("Poly Offset", &m_polyOffset, 0.0f, 10.0f);
 
-	imguiSeparator();
+	ImGui::Separator();
 
-	imguiLabel("Area Type");
-	imguiIndent();
-	if (imguiCheck("Grass", m_areaType == SAMPLE_POLYAREA_GRASS))
+	ImGui::Text("Area Type");
+
+	ImGui::Indent();
+	if (ImGui::RadioButton("Grass", m_areaType == SAMPLE_POLYAREA_GRASS))
 		m_areaType = SAMPLE_POLYAREA_GRASS;
-	if (imguiCheck("Road", m_areaType == SAMPLE_POLYAREA_ROAD))
+	if (ImGui::RadioButton("Road", m_areaType == SAMPLE_POLYAREA_ROAD))
 		m_areaType = SAMPLE_POLYAREA_ROAD;
-	if (imguiCheck("Water", m_areaType == SAMPLE_POLYAREA_WATER))
+	if (ImGui::RadioButton("Water", m_areaType == SAMPLE_POLYAREA_WATER))
 		m_areaType = SAMPLE_POLYAREA_WATER;
-	if (imguiCheck("Door", m_areaType == SAMPLE_POLYAREA_DOOR))
+	if (ImGui::RadioButton("Door", m_areaType == SAMPLE_POLYAREA_DOOR))
 		m_areaType = SAMPLE_POLYAREA_DOOR;
-	imguiUnindent();
+	ImGui::Unindent();
 
-	imguiSeparator();
+	ImGui::Separator();
 
-	if (imguiButton("Clear Shape"))
+	if (ImGui::Button("Clear Shape"))
 	{
 		m_npts = 0;
 		m_nhull = 0;
@@ -285,12 +286,14 @@ void ConvexVolumeTool::handleRenderOverlay(double* /*proj*/, double* /*model*/, 
 	const int h = view[3];
 	if (!m_npts)
 	{
-		imguiDrawText(280, h-40, IMGUI_ALIGN_LEFT, "LMB: Create new shape.  SHIFT+LMB: Delete existing shape (click inside a shape).", imguiRGBA(255,255,255,192));	
+		ImGui::RenderText(280, -(h - 40), ImVec4(255, 255, 255, 192),
+			"LMB: Create new shape.  SHIFT+LMB: Delete existing shape (click inside a shape).");
 	}
 	else
 	{
-		imguiDrawText(280, h-40, IMGUI_ALIGN_LEFT, "Click LMB to add new points. Click on the red point to finish the shape.", imguiRGBA(255,255,255,192));	
-		imguiDrawText(280, h-60, IMGUI_ALIGN_LEFT, "The shape will be convex hull of all added points.", imguiRGBA(255,255,255,192));	
+		ImGui::RenderText(280, -(h - 40), ImVec4(255, 255, 255, 192),
+			"Click LMB to add new points. Click on the red point to finish the shape.");
+		ImGui::RenderText(280, -(h - 60), ImVec4(255, 255, 255, 192),
+			"The shape will be convex hull of all added points.");
 	}
-	
 }

@@ -18,9 +18,8 @@
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="CrowdTool.cpp" />
     <ClCompile Include="EQConfig.cpp" />
+    <ClCompile Include="imgui_impl_sdl.cpp" />
     <ClCompile Include="Interface.cpp" />
-    <ClCompile Include="imgui.cpp" />
-    <ClCompile Include="imguiRenderGL.cpp" />
     <ClCompile Include="InputGeom.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
@@ -35,7 +34,6 @@
     <ClCompile Include="SampleInterfaces.cpp" />
     <ClCompile Include="Sample_Debug.cpp" />
     <ClCompile Include="Sample_TileMesh.cpp" />
-    <ClCompile Include="TestCase.cpp" />
     <ClCompile Include="ValueHistory.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -43,8 +41,7 @@
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="CrowdTool.h" />
     <ClInclude Include="EQConfig.h" />
-    <ClInclude Include="imgui.h" />
-    <ClInclude Include="imguiRenderGL.h" />
+    <ClInclude Include="imgui_impl_sdl.h" />
     <ClInclude Include="InputGeom.h" />
     <ClInclude Include="Interface.h" />
     <ClInclude Include="MapGeometryLoader.h" />
@@ -57,7 +54,6 @@
     <ClInclude Include="SampleInterfaces.h" />
     <ClInclude Include="Sample_Debug.h" />
     <ClInclude Include="Sample_TileMesh.h" />
-    <ClInclude Include="TestCase.h" />
     <ClInclude Include="ValueHistory.h" />
   </ItemGroup>
   <ItemGroup>
@@ -66,6 +62,12 @@
     </ProjectReference>
     <ProjectReference Include="..\dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\sdl\VisualC\SDLmain\SDLmain_VS2013.vcxproj">
+      <Project>{da956fd3-e142-46f2-9dd5-c78bebb56b7a}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\sdl\VisualC\SDL\SDL_VS2013.vcxproj">
+      <Project>{81ce8daf-ebb2-4761-8e45-b71abcca8c68}</Project>
     </ProjectReference>
     <ProjectReference Include="..\dependencies\zone-utilities-projects\common.vcxproj">
       <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
@@ -123,9 +125,9 @@
       <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>SDL.lib;shlwapi.lib;openGL32.lib;glu32.lib;zlib1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shlwapi.lib;openGL32.lib;glu32.lib;zlib1.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)..\dependencies\sdl\lib;$(ProjectDir)..\dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
@@ -147,12 +149,12 @@
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(ProjectDir)..\dependencies\sdl\lib;$(ProjectDir)..\dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL.lib;shlwapi.lib;openGL32.lib;glu32.lib;zlib1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shlwapi.lib;openGL32.lib;glu32.lib;zlib1.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

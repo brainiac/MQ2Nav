@@ -62,12 +62,6 @@
     <None Include="..\Release\Zones.ini" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="dependencies\imgui\imconfig.h" />
-    <ClInclude Include="dependencies\imgui\imgui.h" />
-    <ClInclude Include="dependencies\imgui\stb_image.h" />
-    <ClInclude Include="dependencies\imgui\stb_rect_pack.h" />
-    <ClInclude Include="dependencies\imgui\stb_textedit.h" />
-    <ClInclude Include="dependencies\imgui\stb_truetype.h" />
     <ClInclude Include="imgui_impl_dx9.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
@@ -82,8 +76,6 @@
     <ClInclude Include="meshext.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dependencies\imgui\imgui.cpp" />
-    <ClCompile Include="dependencies\imgui\imgui_draw.cpp" />
     <ClCompile Include="imgui_impl_dx9.cpp" />
     <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
@@ -102,6 +94,9 @@
     <ResourceCompile Include="MQ2Navigation1.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="dependencies\imgui\imgui.vcxproj">
+      <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
+    </ProjectReference>
     <ProjectReference Include="dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
     </ProjectReference>

@@ -6,6 +6,8 @@
 #include "Recast.h"
 #include "PerfTimer.h"
 
+#include <SDL.h>
+
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -73,9 +75,6 @@ private:
 	// The input geometry (??)
 	std::unique_ptr<InputGeom> m_geom;
 
-	// The main window surface
-	SDL_Surface* m_screen;
-
 	// default zone to load, if any
 	std::string m_defaultZone;
 
@@ -91,7 +90,6 @@ private:
 	bool m_showLog;
 	bool m_showLevels;
 	bool m_showSample;
-	bool m_showTestCases;
 
 	GLdouble m_proj[16];
 	GLdouble m_model[16];
@@ -114,15 +112,20 @@ private:
 	float m_mpos[3] = { 0,0,0 };
 
 	// events
-	int m_mscroll = 0;
-	uint8_t m_mbuttons = 0;
 	int m_mx = 0, m_my = 0;
 	bool m_rotate = false;
 	bool m_done = false;
 
+	// log window
+	float m_lastScrollPosition = 1.0, m_lastScrollPositionMax = 1.0;
+
 	// maps display
 	std::map<std::string, bool> m_expansionExpanded;
 	std::string m_zoneDisplayName = "Choose Zone...";
+
+	// The main window surface
+	SDL_Window* m_window = nullptr;
+	SDL_GLContext m_glContext = 0;
 };
 
 

@@ -16,13 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <float.h>
-#include "SDL.h"
-#include "SDL_opengl.h"
-#include "imgui.h"
 #include "CrowdTool.h"
 #include "InputGeom.h"
 #include "Sample.h"
@@ -33,9 +26,15 @@
 #include "DetourNode.h"
 #include "SampleInterfaces.h"
 
-#ifdef WIN32
-#	define snprintf _snprintf
-#endif
+#include "SDL.h"
+#include "SDL_opengl.h"
+#include "imgui.h"
+#include <gl/GLU.h>
+
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <float.h>
 
 
 static bool isectSegAABB(const float* sp, const float* sq,
@@ -97,20 +96,17 @@ CrowdToolState::CrowdToolState() :
 	m_targetRef(0),
 	m_run(true)
 {
-	m_toolParams.m_expandSelectedDebugDraw = true;
 	m_toolParams.m_showCorners = false;
 	m_toolParams.m_showCollisionSegments = false;
 	m_toolParams.m_showPath = false;
 	m_toolParams.m_showVO = false;
 	m_toolParams.m_showOpt = false;
 	m_toolParams.m_showNeis = false;
-	m_toolParams.m_expandDebugDraw = false;
 	m_toolParams.m_showLabels = false;
 	m_toolParams.m_showGrid = false;
 	m_toolParams.m_showNodes = false;
 	m_toolParams.m_showPerfGraph = false;
 	m_toolParams.m_showDetailAll = false;
-	m_toolParams.m_expandOptions = true;
 	m_toolParams.m_anticipateTurns = true;
 	m_toolParams.m_optimizeVis = true;
 	m_toolParams.m_optimizeTopo = true;
@@ -524,10 +520,8 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 	if (m_targetRef && gluProject((GLdouble)m_targetPos[0], (GLdouble)m_targetPos[1], (GLdouble)m_targetPos[2],
 								  model, proj, view, &x, &y, &z))
 	{
-		imguiDrawText((int)x, (int)(y+25), IMGUI_ALIGN_CENTER, "TARGET", imguiRGBA(0,0,0,220));
+		ImGui::RenderTextCentered((int)x, -((int)y + 25), ImVec4(0, 0, 0, 220), "TARGET");
 	}
-	
-	char label[32];
 	
 	if (m_toolParams.m_showNodes)
 	{
@@ -550,8 +544,8 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 									   model, proj, view, &x, &y, &z))
 						{
 							const float heuristic = node->total;// - node->cost;
-							snprintf(label, 32, "%.2f", heuristic);
-							imguiDrawText((int)x, (int)y+15, IMGUI_ALIGN_CENTER, label, imguiRGBA(0,0,0,220));
+
+							ImGui::RenderTextCentered((int)x, -((int)y + 15), ImVec4(0, 0, 0, 220), "%.2f", heuristic);
 						}
 					}
 				}
@@ -573,8 +567,7 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 				if (gluProject((GLdouble)pos[0], (GLdouble)pos[1]+h, (GLdouble)pos[2],
 							   model, proj, view, &x, &y, &z))
 				{
-					snprintf(label, 32, "%d", i);
-					imguiDrawText((int)x, (int)y+15, IMGUI_ALIGN_CENTER, label, imguiRGBA(0,0,0,220));
+					ImGui::RenderTextCentered((int)x, -((int)y + 15), ImVec4(0, 0, 0, 220), "%d", i);
 				}
 			}			
 		}
@@ -602,16 +595,14 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 						if (gluProject((GLdouble)nei->npos[0], (GLdouble)nei->npos[1]+radius, (GLdouble)nei->npos[2],
 									   model, proj, view, &x, &y, &z))
 						{
-							snprintf(label, 32, "%.3f", ag->neis[j].dist);
-							imguiDrawText((int)x, (int)y+15, IMGUI_ALIGN_CENTER, label, imguiRGBA(255,255,255,220));
+							ImGui::RenderText((int)x, -((int)y + 15), ImVec4(255, 255, 255, 220), ".3f", ag->neis[j].dist);
 						}
 					}
 				}
 			}
 		}
 	}
-	
-	
+
 	if (m_toolParams.m_showPerfGraph)
 	{
 		GraphParams gp;
@@ -895,98 +886,74 @@ void CrowdTool::handleMenu()
 		return;
 	CrowdToolParams* params = m_state->getToolParams();
 
-	if (imguiCheck("Create Agents", m_mode == TOOLMODE_CREATE))
+	if (ImGui::RadioButton("Create Agents", m_mode == TOOLMODE_CREATE))
 		m_mode = TOOLMODE_CREATE;
-	if (imguiCheck("Move Target", m_mode == TOOLMODE_MOVE_TARGET))
+	if (ImGui::RadioButton("Move Target", m_mode == TOOLMODE_MOVE_TARGET))
 		m_mode = TOOLMODE_MOVE_TARGET;
-	if (imguiCheck("Select Agent", m_mode == TOOLMODE_SELECT))
+	if (ImGui::RadioButton("Select Agent", m_mode == TOOLMODE_SELECT))
 		m_mode = TOOLMODE_SELECT;
-	if (imguiCheck("Toggle Polys", m_mode == TOOLMODE_TOGGLE_POLYS))
+	if (ImGui::RadioButton("Toggle Polys", m_mode == TOOLMODE_TOGGLE_POLYS))
 		m_mode = TOOLMODE_TOGGLE_POLYS;
 	
-	imguiSeparatorLine();
-		
-	if (imguiCollapse("Options", 0, params->m_expandOptions))
-		params->m_expandOptions = !params->m_expandOptions;
-	
-	if (params->m_expandOptions)
+	ImGui::Separator();
+
+
+	if (ImGui::TreeNode("Options"))
 	{
-		imguiIndent();
-		if (imguiCheck("Optimize Visibility", params->m_optimizeVis))
-		{
-			params->m_optimizeVis = !params->m_optimizeVis;
-			m_state->updateAgentParams();
-		}
-		if (imguiCheck("Optimize Topology", params->m_optimizeTopo))
-		{
-			params->m_optimizeTopo = !params->m_optimizeTopo;
-			m_state->updateAgentParams();
-		}
-		if (imguiCheck("Anticipate Turns", params->m_anticipateTurns))
-		{
-			params->m_anticipateTurns = !params->m_anticipateTurns;
-			m_state->updateAgentParams();
-		}
-		if (imguiCheck("Obstacle Avoidance", params->m_obstacleAvoidance))
-		{
-			params->m_obstacleAvoidance = !params->m_obstacleAvoidance;
-			m_state->updateAgentParams();
-		}
-		if (imguiSlider("Avoidance Quality", &params->m_obstacleAvoidanceType, 0.0f, 3.0f, 1.0f))
+		if (ImGui::Checkbox("Optimize Visibility", &params->m_optimizeVis))
 		{
 			m_state->updateAgentParams();
 		}
-		if (imguiCheck("Separation", params->m_separation))
+		if (ImGui::Checkbox("Optimize Topology", &params->m_optimizeTopo))
+		{
+			m_state->updateAgentParams();
+		}
+		if (ImGui::Checkbox("Anticipate Turns", &params->m_anticipateTurns))
+		{
+			m_state->updateAgentParams();
+		}
+		if (ImGui::Checkbox("Obstacle Avoidance", &params->m_obstacleAvoidance))
+		{
+			m_state->updateAgentParams();
+		}
+		if (ImGui::SliderFloat("Avoidance Quality", &params->m_obstacleAvoidanceType, 0.0f, 3.0f))
+		{
+			m_state->updateAgentParams();
+		}
+		if (ImGui::Checkbox("Separation", &params->m_separation))
 		{
 			params->m_separation = !params->m_separation;
 			m_state->updateAgentParams();
 		}
-		if (imguiSlider("Separation Weight", &params->m_separationWeight, 0.0f, 20.0f, 0.01f))
+		if (ImGui::SliderFloat("Separation Weight", &params->m_separationWeight, 0.0f, 20.0f))
 		{
 			m_state->updateAgentParams();
 		}
 		
-		imguiUnindent();
+		ImGui::TreePop();
 	}
 
-	if (imguiCollapse("Selected Debug Draw", 0, params->m_expandSelectedDebugDraw))
-		params->m_expandSelectedDebugDraw = !params->m_expandSelectedDebugDraw;
-		
-	if (params->m_expandSelectedDebugDraw)
+	if (ImGui::TreeNode("Selected Debug Draw"))
 	{
-		imguiIndent();
-		if (imguiCheck("Show Corners", params->m_showCorners))
-			params->m_showCorners = !params->m_showCorners;
-		if (imguiCheck("Show Collision Segs", params->m_showCollisionSegments))
-			params->m_showCollisionSegments = !params->m_showCollisionSegments;
-		if (imguiCheck("Show Path", params->m_showPath))
-			params->m_showPath = !params->m_showPath;
-		if (imguiCheck("Show VO", params->m_showVO))
-			params->m_showVO = !params->m_showVO;
-		if (imguiCheck("Show Path Optimization", params->m_showOpt))
-			params->m_showOpt = !params->m_showOpt;
-		if (imguiCheck("Show Neighbours", params->m_showNeis))
-			params->m_showNeis = !params->m_showNeis;
-		imguiUnindent();
+		ImGui::Checkbox("Show Corners", &params->m_showCorners);
+		ImGui::Checkbox("Show Collision Segs", &params->m_showCollisionSegments);
+		ImGui::Checkbox("Show Path", &params->m_showPath);
+		ImGui::Checkbox("Show VO", &params->m_showVO);
+		ImGui::Checkbox("Show Path Optimization", &params->m_showOpt);
+		ImGui::Checkbox("Show Neighbours", &params->m_showNeis);
+
+		ImGui::TreePop();
 	}
 		
-	if (imguiCollapse("Debug Draw", 0, params->m_expandDebugDraw))
-		params->m_expandDebugDraw = !params->m_expandDebugDraw;
-	
-	if (params->m_expandDebugDraw)
+	if (ImGui::TreeNode("Debug Draw"))
 	{
-		imguiIndent();
-		if (imguiCheck("Show Labels", params->m_showLabels))
-			params->m_showLabels = !params->m_showLabels;
-		if (imguiCheck("Show Prox Grid", params->m_showGrid))
-			params->m_showGrid = !params->m_showGrid;
-		if (imguiCheck("Show Nodes", params->m_showNodes))
-			params->m_showNodes = !params->m_showNodes;
-		if (imguiCheck("Show Perf Graph", params->m_showPerfGraph))
-			params->m_showPerfGraph = !params->m_showPerfGraph;
-		if (imguiCheck("Show Detail All", params->m_showDetailAll))
-			params->m_showDetailAll = !params->m_showDetailAll;
-		imguiUnindent();
+		ImGui::Checkbox("Show Labels", &params->m_showLabels);
+		ImGui::Checkbox("Show Prox Grid", &params->m_showGrid);
+		ImGui::Checkbox("Show Nodes", &params->m_showNodes);
+		ImGui::Checkbox("Show Perf Graph", &params->m_showPerfGraph);
+		ImGui::Checkbox("Show Detail All", &params->m_showDetailAll);
+
+		ImGui::TreePop();
 	}
 }
 
@@ -1085,24 +1052,28 @@ void CrowdTool::handleRenderOverlay(double* proj, double* model, int* view)
 	
 	if (m_mode == TOOLMODE_CREATE)
 	{
-		imguiDrawText(280, ty, IMGUI_ALIGN_LEFT, "LMB: add agent.  Shift+LMB: remove agent.", imguiRGBA(255,255,255,192));	
+		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192),
+			"LMB: add agent.  Shift+LMB: remove agent.");
 	}
 	else if (m_mode == TOOLMODE_MOVE_TARGET)
 	{
-		imguiDrawText(280, ty, IMGUI_ALIGN_LEFT, "LMB: set move target.  Shift+LMB: adjust set velocity.", imguiRGBA(255,255,255,192));	
+		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192),
+			"LMB: set move target.  Shift+LMB: adjust set velocity.");
 		ty -= 20;
-		imguiDrawText(280, ty, IMGUI_ALIGN_LEFT, "Setting velocity will move the agents without pathfinder.", imguiRGBA(255,255,255,192));	
+		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192),
+			"Setting velocity will move the agents without pathfinder.");
 	}
 	else if (m_mode == TOOLMODE_SELECT)
 	{
-		imguiDrawText(280, ty, IMGUI_ALIGN_LEFT, "LMB: select agent.", imguiRGBA(255,255,255,192));	
+		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192), "LMB: select agent.");
 	}
+
 	ty -= 20;
-	imguiDrawText(280, ty, IMGUI_ALIGN_LEFT, "SPACE: Run/Pause simulation.  1: Step simulation.", imguiRGBA(255,255,255,192));	
+	ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 192), "SPACE: Run/Pause simulation.  1: Step simulation.");
 	ty -= 20;
 
 	if (m_state && m_state->isRunning())
-		imguiDrawText(280, ty, IMGUI_ALIGN_LEFT, "- RUNNING -", imguiRGBA(255,32,16,255));	
+		ImGui::RenderText(280, -ty, ImVec4(255, 32, 16, 255), "- RUNNING -");
 	else 
-		imguiDrawText(280, ty, IMGUI_ALIGN_LEFT, "- PAUSED -", imguiRGBA(255,255,255,128));	
+		ImGui::RenderText(280, -ty, ImVec4(255, 255, 255, 128), "- PAUSED -");
 }

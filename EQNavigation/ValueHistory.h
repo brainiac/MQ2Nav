@@ -1,5 +1,5 @@
-#ifndef VALUEHISTORY_H
-#define VALUEHISTORY_H
+
+#pragma once
 
 class ValueHistory
 {
@@ -46,6 +46,3 @@ void drawGraphBackground(const GraphParams* p);
 
 void drawGraph(const GraphParams* p, const ValueHistory* graph,
 			   int idx, const char* label, const unsigned int col);
-
-
-#endif // VALUEHISTORY_H

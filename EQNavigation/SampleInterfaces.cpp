@@ -1,7 +1,4 @@
-#define _USE_MATH_DEFINES
-#include <math.h>
-#include <stdio.h>
-#include <stdarg.h>
+
 #include "SampleInterfaces.h"
 #include "Recast.h"
 #include "RecastDebugDraw.h"
@@ -10,9 +7,9 @@
 #include "SDL.h"
 #include "SDL_opengl.h"
 
-#ifdef WIN32
-#	define snprintf _snprintf
-#endif
+#include <math.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

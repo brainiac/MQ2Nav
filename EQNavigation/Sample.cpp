@@ -171,12 +171,12 @@ void Sample::handleCommonSettings()
 	}
 #endif
 	
-	imguiSeparator();
-	imguiLabel("Agent");
-	imguiSlider("Height", &m_agentHeight, 0.1f, 10.0f, 0.1f);
-	imguiSlider("Radius", &m_agentRadius, 0.0f, 10.0f, 0.1f);
-	imguiSlider("Max Climb", &m_agentMaxClimb, 0.1f, 10.0f, 0.1f);
-	imguiSlider("Max Slope", &m_agentMaxSlope, 0.0f, 100.0f, 1.0f);
+	ImGui::Separator();
+	ImGui::Text("Agent");
+	ImGui::SliderFloat("Height", &m_agentHeight, 0.1f, 10.0f);
+	ImGui::SliderFloat("Radius", &m_agentRadius, 0.0f, 10.0f);
+	ImGui::SliderFloat("Max Climb", &m_agentMaxClimb, 0.1f, 10.0f);
+	ImGui::SliderFloat("Max Slope", &m_agentMaxSlope, 0.0f, 100.0f);
 	
 #if 0
 	imguiSeparator();
@@ -208,7 +208,7 @@ void Sample::handleCommonSettings()
 	imguiSlider("Max Sample Error", &m_detailSampleMaxError, 0.0f, 16.0f, 1.0f);
 #endif
 
-	imguiSeparator();
+	ImGui::Separator();
 }
 
 void Sample::handleClick(const float* s, const float* p, bool shift)
