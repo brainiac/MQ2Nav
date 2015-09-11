@@ -26,27 +26,27 @@
 
 static const int32_t MAX_LOG_MESSAGES = 1000;
 
+static bool IsKeyboardBlocked() {
+	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantCaptureMouse;
+}
+
 //============================================================================
 
 Interface::Interface(const std::string& defaultZone)
 	: m_context(new BuildContext())
 	, m_mesh(new Sample_TileMesh)
 	, m_resetCamera(true)
-	, m_defaultZone(defaultZone)
 	, m_width(1600), m_height(900)
 	, m_progress(0.0)
-	, m_mouseOverMenu(false)
-	, m_showDebugMode(true)
 	, m_showPreview(true)
 	, m_showLog(false)
-	, m_showTools(false)
-	, m_showLevels(!defaultZone.empty())
+	, m_nextZoneToLoad(defaultZone)
 {
-
 	m_mesh->setContext(m_context.get());
 	m_mesh->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 
 	InitializeWindow();
+	SetTheme(m_currentTheme, true);
 }
 
 Interface::~Interface()
@@ -168,8 +168,6 @@ int Interface::RunMainLoop()
 
 		if (m_showPreview && m_mesh)
 		{
-			std::lock_guard<std::mutex> lock(m_renderMutex);
-
 			gluUnProject(m_mx, m_my, 0.0f, m_model, m_proj, m_view, &x, &y, &z);
 			m_rays[0] = (float)x;
 			m_rays[1] = (float)y;
@@ -181,28 +179,41 @@ int Interface::RunMainLoop()
 			m_raye[2] = (float)z;
 
 			// Handle keyboard movement.
-			const Uint8* keystate = SDL_GetKeyboardState(NULL);
-			m_moveW = rcClamp(m_moveW + dt * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
-			m_moveS = rcClamp(m_moveS + dt * 4 * (keystate[SDL_SCANCODE_S] ? 1 : -1), 0.0f, 1.0f);
-			m_moveA = rcClamp(m_moveA + dt * 4 * (keystate[SDL_SCANCODE_A] ? 1 : -1), 0.0f, 1.0f);
-			m_moveD = rcClamp(m_moveD + dt * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
+			if (!IsKeyboardBlocked())
+			{
+				const Uint8* keystate = SDL_GetKeyboardState(NULL);
+				m_moveW = rcClamp(m_moveW + dt * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
+				m_moveS = rcClamp(m_moveS + dt * 4 * (keystate[SDL_SCANCODE_S] ? 1 : -1), 0.0f, 1.0f);
+				m_moveA = rcClamp(m_moveA + dt * 4 * (keystate[SDL_SCANCODE_A] ? 1 : -1), 0.0f, 1.0f);
+				m_moveD = rcClamp(m_moveD + dt * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
+				m_moveUp = rcClamp(m_moveUp + dt * 4 * (keystate[SDL_SCANCODE_SPACE] ? 1 : -1), 0.0f, 1.0f);
+				m_moveDown = rcClamp(m_moveDown + dt * 4 * (keystate[SDL_SCANCODE_C] ? 1 : -1), 0.0f, 1.0f);
 
-			float keybSpeed = 30.0f;
-			if (SDL_GetModState() & KMOD_SHIFT)
-				keybSpeed *= 10.0f;
-			if (SDL_GetModState() & KMOD_ALT)
-				keybSpeed *= 10.0f;
+				float keybSpeed = 250.0f;
+				if (SDL_GetModState() & KMOD_SHIFT)
+					keybSpeed *= 10.0f;
 
-			float movex = (m_moveD - m_moveA) * keybSpeed * dt;
-			float movey = (m_moveS - m_moveW) * keybSpeed * dt;
+				float movex = (m_moveD - m_moveA) * keybSpeed * dt;
+				float movey = (m_moveS - m_moveW) * keybSpeed * dt;
+				float movez = (m_moveUp - m_moveDown) * keybSpeed * dt;
 
-			m_camx += movex * (float)m_model[0];
-			m_camy += movex * (float)m_model[4];
-			m_camz += movex * (float)m_model[8];
+				//  0  1  2  3
+				//  4  5  6  7
+				//  8  9 10 11
+				// 12 13 14 15
 
-			m_camx += movey * (float)m_model[2];
-			m_camy += movey * (float)m_model[6];
-			m_camz += movey * (float)m_model[10];
+				m_camx += movex * (float)m_model[0];
+				m_camy += movex * (float)m_model[4];
+				m_camz += movex * (float)m_model[8];
+
+				m_camx += movey * (float)m_model[2];
+				m_camy += movey * (float)m_model[6];
+				m_camz += movey * (float)m_model[10];
+
+				m_camy += movez;
+			}
+
+			std::lock_guard<std::mutex> lock(m_renderMutex);
 
 			glEnable(GL_FOG);
 			m_mesh->handleRender();
@@ -234,6 +245,15 @@ int Interface::RunMainLoop()
 
 		ImGui::Render();
 		SDL_GL_SwapWindow(m_window);
+
+		// Do additional work here after rendering
+
+		// Load a zone if a zone load was requested
+		if (!m_nextZoneToLoad.empty())
+		{
+			LoadGeometry(m_nextZoneToLoad);
+			m_nextZoneToLoad.clear();
+		}
 	}
 
 	Halt();
@@ -259,21 +279,36 @@ void Interface::HandleEvents()
 			}
 			break;
 
-
 		case SDL_KEYDOWN:
-			if (ImGui::GetIO().WantCaptureKeyboard)
+			if (IsKeyboardBlocked())
 				break;
 
 			// Handle any key presses here.
-			if (event.key.keysym.sym == SDL_SCANCODE_ESCAPE)
+			if (event.key.keysym.sym == SDLK_ESCAPE)
 			{
 				//HaltBuild();
-				m_done = true;
+				//m_done = true;
 			}
-			else if (event.key.keysym.sym == SDL_SCANCODE_TAB)
+			else if (event.key.keysym.sym == SDLK_TAB)
 			{
 				// TODO: Reacquire paths
 				//DefineDirectories(true);
+			}
+			else if (event.key.keysym.mod & KMOD_CTRL)
+			{
+				if (event.key.keysym.sym == SDLK_l)
+				{
+					m_showZonePickerDialog = true;
+				}
+				else if (event.key.keysym.sym == SDLK_t)
+				{
+					m_showTools = !m_showTools;
+				}
+			}
+			else if (event.key.keysym.sym == SDLK_F4
+				&& (event.key.keysym.mod & KMOD_ALT))
+			{
+				m_done = true;
 			}
 			break;
 
@@ -282,51 +317,50 @@ void Interface::HandleEvents()
 				break;
 
 			// Handle mouse clicks here.
-			if (!m_mouseOverMenu)
+			if (event.button.button == SDL_BUTTON_RIGHT)
 			{
-				if (event.button.button == SDL_BUTTON_RIGHT)
-				{
-					// Rotate view
-					m_rotate = true;
-					m_origx = m_mx;
-					m_origy = m_my;
-					m_origrx = m_rx;
-					m_origry = m_ry;
-				}
-				else if (event.button.button == SDL_BUTTON_LEFT)
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+
+				// Rotate view
+				m_rotate = true;
+				m_origx = m_mx;
+				m_origy = m_my;
+				m_origrx = m_rx;
+				m_origry = m_ry;
+			}
+			else if (event.button.button == SDL_BUTTON_LEFT)
+			{
+				// Hit test mesh.
+				if (m_geom && m_mesh)
 				{
 					// Hit test mesh.
-					if (m_geom && m_mesh)
+					float t;
+					if (m_geom->raycastMesh(m_rays, m_raye, t))
 					{
-						// Hit test mesh.
-						float t;
-						if (m_geom->raycastMesh(m_rays, m_raye, t))
+						if (SDL_GetModState() & KMOD_CTRL)
 						{
-							if (SDL_GetModState() & KMOD_CTRL)
-							{
-								m_mposSet = true;
-								m_mpos[0] = m_rays[0] + (m_raye[0] - m_rays[0])*t;
-								m_mpos[1] = m_rays[1] + (m_raye[1] - m_rays[1])*t;
-								m_mpos[2] = m_rays[2] + (m_raye[2] - m_rays[2])*t;
-							}
-							else
-							{
-								float pos[3];
-								pos[0] = m_rays[0] + (m_raye[0] - m_rays[0])*t;
-								pos[1] = m_rays[1] + (m_raye[1] - m_rays[1])*t;
-								pos[2] = m_rays[2] + (m_raye[2] - m_rays[2])*t;
-								bool shift = (SDL_GetModState() & KMOD_SHIFT) ? true : false;
-
-								//if (!message)
-								m_mesh->handleClick(m_rays, pos, shift);
-							}
+							m_mposSet = true;
+							m_mpos[0] = m_rays[0] + (m_raye[0] - m_rays[0])*t;
+							m_mpos[1] = m_rays[1] + (m_raye[1] - m_rays[1])*t;
+							m_mpos[2] = m_rays[2] + (m_raye[2] - m_rays[2])*t;
 						}
 						else
 						{
-							if (SDL_GetModState() & KMOD_CTRL)
-							{
-								m_mposSet = false;
-							}
+							float pos[3];
+							pos[0] = m_rays[0] + (m_raye[0] - m_rays[0])*t;
+							pos[1] = m_rays[1] + (m_raye[1] - m_rays[1])*t;
+							pos[2] = m_rays[2] + (m_raye[2] - m_rays[2])*t;
+							bool shift = (SDL_GetModState() & KMOD_SHIFT) ? true : false;
+
+							//if (!message)
+							m_mesh->handleClick(m_rays, pos, shift);
+						}
+					}
+					else
+					{
+						if (SDL_GetModState() & KMOD_CTRL)
+						{
+							m_mposSet = false;
 						}
 					}
 				}
@@ -340,6 +374,7 @@ void Interface::HandleEvents()
 			// Handle mouse clicks here.
 			if (event.button.button == SDL_BUTTON_RIGHT)
 			{
+				SDL_SetRelativeMouseMode(SDL_FALSE);
 				m_rotate = false;
 			}
 			break;
@@ -401,23 +436,75 @@ void Interface::RenderInterface()
 	}
 
 	const int WindowWidth = 300;
-	std::string levelToLoad;
 
 	if (showMenu)
 	{
-		int propDiv = m_showDebugMode ? (int)(m_height*0.6f) : m_height;
-		int height = propDiv - 20;
+		if (ImGui::BeginMainMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::MenuItem("Load Zone", "Ctrl+L")) {
+					m_showZonePickerDialog = true;
+				}
 
-		ImGui::SetNextWindowPos(ImVec2(10, 10));
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("Open Mesh", "Ctrl+O")) {
+					ImGui::OpenPopup("Open Mesh");
+				}
+
+				if (ImGui::MenuItem("Save Mesh", "Ctrl+S")) {
+					ImGui::OpenPopup("Save Mesh");
+				}
+
+				ImGui::Separator();
+				if (ImGui::MenuItem("Quit", "Alt+F4"))
+					m_done = true;
+
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("View"))
+			{
+				if (ImGui::MenuItem("Show Log", 0, m_showLog))
+					m_showLog = !m_showLog;
+				if (ImGui::MenuItem("Show Preview", 0, m_showPreview))
+					m_showPreview = !m_showPreview;
+				if (ImGui::MenuItem("Show Tools", "Ctrl+T", m_showTools))
+					m_showTools = !m_showTools;
+
+				ImGui::Separator();
+
+				if (ImGui::BeginMenu("Theme"))
+				{
+					if (ImGui::MenuItem("Default", 0, m_currentTheme == DefaultTheme))
+						SetTheme(DefaultTheme);
+					if (ImGui::MenuItem("Light", 0, m_currentTheme == LightTheme))
+						SetTheme(LightTheme);
+					if (ImGui::MenuItem("DarkTheme1", 0, m_currentTheme == DarkTheme1))
+						SetTheme(DarkTheme1);
+					if (ImGui::MenuItem("DarkTheme2", 0, m_currentTheme == DarkTheme2))
+						SetTheme(DarkTheme2);
+					if (ImGui::MenuItem("DarkTheme3", 0, m_currentTheme == DarkTheme3))
+						SetTheme(DarkTheme3);
+
+					ImGui::EndMenu();
+				}
+
+				ImGui::EndMenu();
+			}
+
+			ImGui::EndMainMenuBar();
+		}
+
+		ShowZonePickerDialog();
+
+		int propDiv = m_height;
+		int height = propDiv - 50;
+
+		ImGui::SetNextWindowPos(ImVec2(10, 40));
 		ImGui::SetNextWindowSize(ImVec2(WindowWidth, propDiv - 20));
 		ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-
-		ImGui::Checkbox("Show Log", &m_showLog);
-		ImGui::Checkbox("Show Tools", &m_showTools);
-		ImGui::Checkbox("Show Preview", &m_showPreview);
-		ImGui::Checkbox("Show Debug Mode", &m_showDebugMode);
-
-		ImGui::Separator();
 
 		if (m_mesh)
 		{
@@ -425,33 +512,8 @@ void Interface::RenderInterface()
 			ImGui::Text("Zone Mesh");
 
 			if (ImGui::Button(m_zoneDisplayName.c_str()))
-				ImGui::OpenPopup("Choose Zone");
-			if (ImGui::BeginPopup("Choose Zone"))
-			{
+				m_showZonePickerDialog = true;
 
-				const auto& mapList = m_eqConfig.GetMapList();
-				for (const auto& mapIter : mapList)
-				{
-					const std::string& expansionName = mapIter.first;
-
-					if (ImGui::BeginMenu(expansionName.c_str()))
-					{
-						for (const auto& zonePair : mapIter.second)
-						{
-							std::stringstream ss;
-							ss << zonePair.first << " (" << zonePair.second << ")";
-
-							bool selected = false;
-							if (ImGui::MenuItem(ss.str().c_str()))
-								levelToLoad = zonePair.second;
-						}
-
-						ImGui::EndMenu();
-					}
-				}
-
-				ImGui::EndPopup();
-			}
 			//if (m_geom)
 			//{
 			//	char text[64];
@@ -462,7 +524,6 @@ void Interface::RenderInterface()
 			//}
 			//imguiSeparator();
 		}
-
 
 		if (m_geom && m_mesh)
 		{
@@ -479,73 +540,27 @@ void Interface::RenderInterface()
 
 				if (ImGui::Button("Build"))
 					StartBuild();
+			}
+		}
 
-				ImGui::Separator();
+		if (m_mesh)
+		{
+			if (ImGui::CollapsingHeader("Debug"))
+			{
+				m_mesh->handleDebugMode();
 			}
 		}
 
 		ImGui::End();
-
-		if (m_showDebugMode)
-		{
-			int debugScroll = 0;
-
-			int height = m_height - propDiv - 10;
-
-			ImGui::SetNextWindowPos(ImVec2(10, m_height - height - 10));
-			ImGui::SetNextWindowSize(ImVec2(WindowWidth, height));
-
-			ImGui::Begin("Debug Mode", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-
-			if (m_mesh)
-			{
-				m_mesh->handleDebugMode();
-			}
-
-			ImGui::End();
-		}
 	}
 
-	// Level selection dialog.
-	if (!levelToLoad.empty() || !m_defaultZone.empty())
+	if (m_geom && m_mesh && m_showTools)
 	{
-		std::unique_lock<std::mutex> lock(m_renderMutex);
-		m_geom.reset();
-		m_showLevels = false;
-
-		if (!levelToLoad.empty())
-		{
-			m_zoneShortname = levelToLoad;
-		}
-		else
-		{
-			m_zoneShortname = m_defaultZone;
-			m_defaultZone.clear();
-		}
-
-		m_zoneLongname = m_eqConfig.GetLongNameForShortName(m_zoneShortname);
-
-		std::stringstream ss;
-		ss << m_zoneLongname << " (" << m_zoneShortname << ")";
-		m_zoneDisplayName = ss.str();
-		m_expansionExpanded.clear();
-
-		LoadGeometry();
-	}
-
-
-	// Tools
-	if (m_showTools && showMenu && m_geom && m_mesh)
-	{
-		int toolsXPos = m_width - 300 - 10;
-
-		ImGui::SetNextWindowPos(ImVec2(toolsXPos, 10));
+		ImGui::SetNextWindowPos(ImVec2(m_width - 300 - 10, 10));
 		ImGui::SetNextWindowSize(ImVec2(300, 600));
 
 		ImGui::Begin("Tools", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-
 		m_mesh->handleTools();
-
 		ImGui::End();
 	}
 
@@ -591,9 +606,102 @@ void Interface::RenderInterface()
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-void Interface::LoadZoneList()
+void Interface::ShowZonePickerDialog()
 {
+	if (m_showZonePickerDialog)
+		ImGui::OpenPopup("Open Zone");
+	m_showZonePickerDialog = false;
+
+	ImGui::SetNextWindowSize(ImVec2(400, 575), ImGuiSetCond_Once);
+	if (ImGui::BeginPopupModal("Open Zone"))
+	{
+		ImGui::Text("Select a zone or type to filter by name");
+
+		bool selectSingle = false;
+		static char buf[64] = "";
+		ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth());
+		if (ImGui::InputText("", buf, 64, ImGuiInputTextFlags_EnterReturnsTrue))
+			selectSingle = true;
+		ImGui::PopItemWidth();
+
+		std::string text(buf);
+		bool closePopup = false;
+
+		ImGui::BeginChild("ZoneList", ImVec2(ImGui::GetWindowContentRegionWidth(),
+			ImGui::GetWindowHeight() - 115), false);
+
+		if (text.empty())
+		{
+			// if there is no filter we will display the tree of zones
+			const auto& mapList = m_eqConfig.GetMapList();
+			for (const auto& mapIter : mapList)
+			{
+				const std::string& expansionName = mapIter.first;
+
+				if (ImGui::TreeNode(expansionName.c_str()))
+				{
+					for (const auto& zonePair : mapIter.second)
+					{
+						std::stringstream ss;
+						ss << zonePair.first << " (" << zonePair.second << ")";
+						std::string zoneName = ss.str();
+
+						bool selected = false;
+						if (ImGui::Selectable(zoneName.c_str())) {
+							LoadGeometry(zonePair.second.c_str());
+							closePopup = true;
+							break;
+						}
+					}
+
+					ImGui::TreePop();
+				}
+			}
+		}
+		else
+		{
+			const auto& mapList = m_eqConfig.GetAllMaps();
+			bool count = 0;
+			std::string lastZone;
+
+			for (const auto& mapIter : mapList)
+			{
+				const std::string& shortName = mapIter.first;
+				const std::string& longName = mapIter.second;
+
+				if (shortName.find(text) != std::string::npos
+					|| longName.find(text) != std::string::npos)
+				{
+					std::string displayName = longName + " (" + shortName + ")";
+					lastZone = shortName;
+					bool selected = false;
+					ImGui::Selectable(longName.c_str(), &selected); ImGui::SameLine(300); ImGui::Selectable(shortName.c_str());
+					if (selected) {
+						m_nextZoneToLoad = shortName.c_str();
+						closePopup = true;
+						break;
+					}
+				}
+				count++;
+			}
+
+			if (count == 1 && selectSingle) {
+				m_nextZoneToLoad = lastZone;
+				closePopup = true;
+			}
+		}
+
+		ImGui::EndChild();
+
+		ImGui::PushItemWidth(250);
+		if (ImGui::Button("Cancel") || closePopup)
+			ImGui::CloseCurrentPopup();
+		ImGui::PopItemWidth();
+
+		ImGui::EndPopup();
+	}
 }
+
 
 // the shitty zone. Fix this up
 HANDLE handle = 0;
@@ -620,8 +728,19 @@ void Interface::StartBuild()
 	handle = CreateThread(NULL, 0, BuildThread, this, 0, NULL);
 }
 
-void Interface::LoadGeometry()
+void Interface::LoadGeometry(const std::string& zoneShortName)
 {
+	std::unique_lock<std::mutex> lock(m_renderMutex);
+	m_geom.reset();
+
+	m_zoneShortname = zoneShortName;
+	m_zoneLongname = m_eqConfig.GetLongNameForShortName(m_zoneShortname);
+
+	std::stringstream ss;
+	ss << m_zoneLongname << " (" << m_zoneShortname << ")";
+	m_zoneDisplayName = ss.str();
+	m_expansionExpanded.clear();
+
 	Halt();
 
 	m_geom.reset(new InputGeom(m_zoneShortname, m_eqConfig.GetEverquestPath()));
@@ -629,6 +748,12 @@ void Interface::LoadGeometry()
 
 	if (m_mesh && m_geom)
 	{
+		// Update the window title
+		std::stringstream ss;
+		ss << "EQ Navigation (" << m_zoneLongname << ")";
+		std::string windowTitle = ss.str();
+		SDL_SetWindowTitle(m_window, windowTitle.c_str());
+
 		m_mesh->handleMeshChanged(m_geom.get());
 		m_resetCamera = true;
 	}
@@ -645,6 +770,213 @@ void Interface::Halt()
 
 		handle = 0;
 	}
+}
+
+void Interface::SetTheme(Theme theme, bool force)
+{
+	if (m_currentTheme == theme && !force)
+		return;
+	m_currentTheme = theme;
+
+	#pragma region Themes
+	auto& style = ImGui::GetStyle();
+	if (theme == DefaultTheme)
+	{
+		style = ImGuiStyle();
+		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.00f, 0.00f, 0.00f, 0.45f);
+	}
+	else if (theme == LightTheme)
+	{
+		style.Colors[ImGuiCol_Text] = ImVec4(0.31f, 0.25f, 0.24f, 1.00f);
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.94f, 0.94f, 0.94f, 1.00f);
+		style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(0.68f, 0.68f, 0.68f, 0.00f);
+		style.Colors[ImGuiCol_Border] = ImVec4(0.70f, 0.70f, 0.70f, 0.19f);
+		style.Colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+		style.Colors[ImGuiCol_FrameBg] = ImVec4(0.62f, 0.70f, 0.72f, 0.56f);
+		style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.95f, 0.33f, 0.14f, 0.47f);
+		style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.97f, 0.31f, 0.13f, 0.81f);
+		style.Colors[ImGuiCol_TitleBg] = ImVec4(0.42f, 0.75f, 1.00f, 0.53f);
+		style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.40f, 0.65f, 0.80f, 0.20f);
+		style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.40f, 0.62f, 0.80f, 0.15f);
+		style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.39f, 0.64f, 0.80f, 0.30f);
+		style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.28f, 0.67f, 0.80f, 0.59f);
+		style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.25f, 0.48f, 0.53f, 0.67f);
+		style.Colors[ImGuiCol_ComboBg] = ImVec4(0.89f, 0.98f, 1.00f, 0.99f);
+		style.Colors[ImGuiCol_CheckMark] = ImVec4(0.38f, 0.37f, 0.37f, 0.91f);
+		style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.31f, 0.47f, 0.99f, 1.00f);
+		style.Colors[ImGuiCol_Button] = ImVec4(1.00f, 0.79f, 0.18f, 0.78f);
+		style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.42f, 0.82f, 1.00f, 0.81f);
+		style.Colors[ImGuiCol_ButtonActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.86f);
+		style.Colors[ImGuiCol_Header] = ImVec4(0.73f, 0.80f, 0.86f, 0.45f);
+		style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.75f, 0.88f, 0.94f, 0.80f);
+		style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.46f, 0.84f, 0.90f, 1.00f);
+		style.Colors[ImGuiCol_CloseButton] = ImVec4(0.41f, 0.75f, 0.98f, 0.50f);
+		style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(1.00f, 0.47f, 0.41f, 0.60f);
+		style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(1.00f, 0.16f, 0.00f, 1.00f);
+		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(1.00f, 0.99f, 0.54f, 0.43f);
+		style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.82f, 0.92f, 1.00f, 0.90f);
+		style.Alpha = 1.0f;
+		style.WindowFillAlphaDefault = 1.0f;
+		style.FrameRounding = 4;
+	}
+	else if (theme == DarkTheme1)
+	{
+		style.Colors[ImGuiCol_Text] = ImVec4(0.86f, 0.93f, 0.89f, 0.61f);
+		style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.86f, 0.93f, 0.89f, 0.28f);
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.14f, 0.17f, 1.00f);
+		style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(0.20f, 0.22f, 0.27f, 0.58f);
+		style.Colors[ImGuiCol_Border] = ImVec4(0.31f, 0.31f, 1.00f, 0.00f);
+		style.Colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+		style.Colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.22f, 0.27f, 1.00f);
+		style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.92f, 0.18f, 0.29f, 0.78f);
+		style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_TitleBg] = ImVec4(0.20f, 0.22f, 0.27f, 1.00f);
+		style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.20f, 0.22f, 0.27f, 0.75f);
+		style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.20f, 0.22f, 0.27f, 0.47f);
+		style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.20f, 0.22f, 0.27f, 1.00f);
+		style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.47f, 0.77f, 0.83f, 0.21f);
+		style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.92f, 0.18f, 0.29f, 0.78f);
+		style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_ComboBg] = ImVec4(0.20f, 0.22f, 0.27f, 1.00f);
+		style.Colors[ImGuiCol_CheckMark] = ImVec4(0.71f, 0.22f, 0.27f, 1.00f);
+		style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.47f, 0.77f, 0.83f, 0.14f);
+		style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_Button] = ImVec4(0.47f, 0.77f, 0.83f, 0.14f);
+		style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.92f, 0.18f, 0.29f, 0.86f);
+		style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_Header] = ImVec4(0.92f, 0.18f, 0.29f, 0.76f);
+		style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.92f, 0.18f, 0.29f, 0.86f);
+		style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_Column] = ImVec4(0.47f, 0.77f, 0.83f, 0.32f);
+		style.Colors[ImGuiCol_ColumnHovered] = ImVec4(0.92f, 0.18f, 0.29f, 0.78f);
+		style.Colors[ImGuiCol_ColumnActive] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_ResizeGrip] = ImVec4(0.47f, 0.77f, 0.83f, 0.04f);
+		style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.92f, 0.18f, 0.29f, 0.78f);
+		style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_CloseButton] = ImVec4(0.86f, 0.93f, 0.89f, 0.16f);
+		style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(0.86f, 0.93f, 0.89f, 0.39f);
+		style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(0.86f, 0.93f, 0.89f, 1.00f);
+		style.Colors[ImGuiCol_PlotLines] = ImVec4(0.86f, 0.93f, 0.89f, 0.63f);
+		style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.86f, 0.93f, 0.89f, 0.63f);
+		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.92f, 0.18f, 0.29f, 0.43f);
+		style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.47f, 0.77f, 0.83f, 0.72f);
+		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.22f, 0.27f, 0.73f);
+		style.WindowMinSize = ImVec2(160, 20);
+		style.FramePadding = ImVec2(4, 2);
+		style.ItemSpacing = ImVec2(6, 2);
+		style.ItemInnerSpacing = ImVec2(6, 4);
+		style.Alpha = 0.95f;
+		style.WindowFillAlphaDefault = 1.0f;
+		style.WindowRounding = 4.0f;
+		style.FrameRounding = 2.0f;
+		style.IndentSpacing = 6.0f;
+		style.ItemInnerSpacing = ImVec2(2, 4);
+		style.ColumnsMinSpacing = 50.0f;
+		style.GrabMinSize = 14.0f;
+		style.GrabRounding = 16.0f;
+		style.ScrollbarRounding = 16.0f;
+	}
+	else if (theme == DarkTheme2)
+	{
+		style.Colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 0.86f, 0.50f);
+		style.Colors[ImGuiCol_TextDisabled] = ImVec4(1.00f, 1.00f, 0.86f, 0.22f);
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.18f, 0.18f, 0.18f, 1.00f);
+		style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+		style.Colors[ImGuiCol_Border] = ImVec4(0.31f, 0.31f, 1.00f, 0.00f);
+		style.Colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+		style.Colors[ImGuiCol_FrameBg] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
+		style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+		style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.36f, 0.36f, 0.36f, 1.00f);
+		style.Colors[ImGuiCol_TitleBg] = ImVec4(0.23f, 0.23f, 0.23f, 1.00f);
+		style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
+		style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
+		style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.97f, 0.48f, 0.32f, 1.00f);
+		style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
+		style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.33f, 0.33f, 0.33f, 1.00f);
+		style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.26f, 0.26f, 0.26f, 1.00f);
+		style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.36f, 0.36f, 0.36f, 1.00f);
+		style.Colors[ImGuiCol_ComboBg] = ImVec4(0.29f, 0.29f, 0.29f, 1.00f);
+		style.Colors[ImGuiCol_CheckMark] = ImVec4(0.22f, 0.22f, 0.22f, 0.50f);
+		style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.23f, 0.23f, 0.23f, 1.00f);
+		style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
+		style.Colors[ImGuiCol_Button] = ImVec4(0.32f, 0.32f, 0.32f, 1.00f);
+		style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.45f, 0.45f, 0.45f, 1.00f);
+		style.Colors[ImGuiCol_ButtonActive] = ImVec4(1.00f, 1.00f, 0.62f, 1.00f);
+		style.Colors[ImGuiCol_Header] = ImVec4(0.34f, 0.34f, 0.34f, 1.00f);
+		style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
+		style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+		style.Colors[ImGuiCol_Column] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
+		style.Colors[ImGuiCol_ColumnHovered] = ImVec4(0.56f, 0.56f, 0.56f, 1.00f);
+		style.Colors[ImGuiCol_ColumnActive] = ImVec4(0.68f, 0.68f, 0.68f, 1.00f);
+		style.Colors[ImGuiCol_ResizeGrip] = ImVec4(0.38f, 0.38f, 0.38f, 1.00f);
+		style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.49f, 0.49f, 0.49f, 1.00f);
+		style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(0.65f, 0.65f, 0.65f, 1.00f);
+		style.Colors[ImGuiCol_CloseButton] = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
+		style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+		style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(0.49f, 0.49f, 0.49f, 1.00f);
+		style.Colors[ImGuiCol_PlotLines] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+		style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.71f, 0.71f, 0.71f, 1.00f);
+		style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.49f, 0.49f, 0.49f, 1.00f);
+		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.35f, 0.35f, 0.35f, 1.00f);
+		style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.16f, 0.16f, 0.16f, 0.72f);
+		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.20f, 0.20f, 0.65f);
+		style.WindowPadding = ImVec2(20, 10);
+		style.WindowMinSize = ImVec2(160, 20);
+		style.FramePadding = ImVec2(4, 4);
+		style.ItemSpacing = ImVec2(8, 4);
+		style.ItemInnerSpacing = ImVec2(6, 4);
+		style.Alpha = 0.95f;
+		style.WindowFillAlphaDefault = 0.95f;
+		style.WindowRounding = 2.0f;
+		style.FrameRounding = 2.0f;
+		style.IndentSpacing = 6;
+		style.ColumnsMinSpacing = 50;
+	}
+	else if (theme == DarkTheme3)
+	{
+		style.Colors[ImGuiCol_Text] = ImVec4(0.72f, 0.79f, 1.00f, 1.00f);
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.96f);
+		style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.09f);
+		style.Colors[ImGuiCol_Border] = ImVec4(1.00f, 1.00f, 1.00f, 0.35f);
+		style.Colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.47f);
+		style.Colors[ImGuiCol_FrameBg] = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+		style.Colors[ImGuiCol_TitleBg] = ImVec4(0.24f, 0.26f, 0.47f, 1.00f);
+		style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.40f, 0.73f, 0.71f, 0.71f);
+		style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.15f, 0.15f, 0.30f, 1.00f);
+		style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.40f, 0.40f, 0.80f, 1.00f);
+		style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.49f, 0.49f, 0.62f, 0.91f);
+		style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.54f, 0.53f, 0.61f, 0.91f);
+		style.Colors[ImGuiCol_ComboBg] = ImVec4(0.20f, 0.20f, 0.20f, 0.99f);
+		style.Colors[ImGuiCol_CheckMark] = ImVec4(0.41f, 0.90f, 0.78f, 0.76f);
+		style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.70f, 0.91f, 1.00f, 0.32f);
+		style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.50f, 0.80f, 0.61f, 1.00f);
+		style.Colors[ImGuiCol_Button] = ImVec4(0.24f, 0.29f, 0.64f, 0.96f);
+		style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.17f, 0.18f, 0.67f, 1.00f);
+		style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.16f, 0.21f, 0.57f, 1.00f);
+		style.Colors[ImGuiCol_Header] = ImVec4(0.22f, 0.25f, 0.31f, 1.00f);
+		style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.45f, 0.45f, 0.90f, 0.80f);
+		style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.37f, 0.37f, 0.87f, 0.80f);
+		style.Colors[ImGuiCol_Column] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+		style.Colors[ImGuiCol_ColumnHovered] = ImVec4(0.60f, 0.40f, 0.40f, 1.00f);
+		style.Colors[ImGuiCol_ColumnActive] = ImVec4(0.80f, 0.50f, 0.50f, 1.00f);
+		style.Colors[ImGuiCol_ResizeGrip] = ImVec4(1.00f, 1.00f, 1.00f, 0.43f);
+		style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(1.00f, 1.00f, 1.00f, 0.60f);
+		style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.90f);
+		style.Colors[ImGuiCol_CloseButton] = ImVec4(0.50f, 0.50f, 0.90f, 0.50f);
+		style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(0.70f, 0.70f, 0.90f, 0.60f);
+		style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+		style.Colors[ImGuiCol_PlotLines] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+		style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+		style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.00f, 0.00f, 1.00f, 0.55f);
+		style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.05f, 0.05f, 0.10f, 0.90f);
+	}
+	#pragma endregion
 }
 
 //============================================================================

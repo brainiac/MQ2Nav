@@ -32,6 +32,10 @@ public:
 	// run the main event loop. This doesn't return until the program is ready to exit.
 	// Return code is the result to exit with
 	int RunMainLoop();
+
+	//------------------------------------------------------------------------
+
+	void ShowZonePickerDialog();
 	
 private:
 	bool InitializeWindow();
@@ -41,17 +45,17 @@ private:
 
 	void HandleEvents();
 
-	// Load the list of maps.
-	void LoadZoneList();
-
-
 	void StartBuild();
 	static DWORD WINAPI BuildThread(LPVOID lpParam);
 	void BuildThreadImpl();
 
-	void LoadGeometry();
+	// Load a zone's geometry given its shortname.
+	void LoadGeometry(const std::string& zoneShortName);
 
 	void Halt();
+
+	enum Theme { DefaultTheme, LightTheme, DarkTheme1, DarkTheme2, DarkTheme3 };
+	void SetTheme(Theme theme, bool force = false);
 
 private:
 	EQConfig m_eqConfig;
@@ -75,21 +79,18 @@ private:
 	// The input geometry (??)
 	std::unique_ptr<InputGeom> m_geom;
 
-	// default zone to load, if any
-	std::string m_defaultZone;
+	// The current theme
+	Theme m_currentTheme = DefaultTheme;
 
 	// rendering properties
 	bool m_resetCamera;
 	int m_width, m_height;
 	float m_progress;
 	std::string m_activityMessage;
-	bool m_mouseOverMenu;
-	bool m_showDebugMode;
 	bool m_showPreview;
-	bool m_showTools;
 	bool m_showLog;
-	bool m_showLevels;
 	bool m_showSample;
+	bool m_showTools = false;
 
 	GLdouble m_proj[16];
 	GLdouble m_model[16];
@@ -101,6 +102,7 @@ private:
 	float m_rx = 45;
 	float m_ry = -45;
 	float m_moveW = 0, m_moveS = 0, m_moveA = 0, m_moveD = 0;
+	float m_moveUp = 0, m_moveDown = 0;
 	float m_camx = 0, m_camy = 0, m_camz = 0, m_camr = 10;
 
 	uint32_t m_lastTime = 0;
@@ -122,6 +124,10 @@ private:
 	// maps display
 	std::map<std::string, bool> m_expansionExpanded;
 	std::string m_zoneDisplayName = "Choose Zone...";
+	bool m_showZonePickerDialog = false;
+
+	// zone to load on next pass
+	std::string m_nextZoneToLoad;
 
 	// The main window surface
 	SDL_Window* m_window = nullptr;
