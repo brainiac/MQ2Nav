@@ -219,6 +219,11 @@ struct NavMeshTileHeader
 	int dataSize;
 };
 
+void Sample_TileMesh::SaveMesh(const std::string& outputPath)
+{
+	saveAll(outputPath.c_str(), m_navMesh);
+}
+
 void Sample_TileMesh::saveAll(const char* path, const dtNavMesh* mesh)
 {
 	if (!mesh) return;
@@ -256,6 +261,20 @@ void Sample_TileMesh::saveAll(const char* path, const dtNavMesh* mesh)
 	}
 
 	fclose(fp);
+}
+
+bool Sample_TileMesh::LoadMesh(const std::string& outputPath)
+{
+	dtNavMesh* mesh = loadAll(outputPath.c_str());
+	if (mesh)
+	{
+		if (m_navMesh)
+			dtFreeNavMesh(m_navMesh);
+		m_navMesh = mesh;
+		return true;
+	}
+
+	return false;
 }
 
 dtNavMesh* Sample_TileMesh::loadAll(const char* path)
@@ -321,6 +340,15 @@ dtNavMesh* Sample_TileMesh::loadAll(const char* path)
 	return mesh;
 }
 
+void Sample_TileMesh::ResetMesh()
+{
+	if (m_navMesh)
+	{
+		dtFreeNavMesh(m_navMesh);
+		m_navMesh = 0;
+	}
+}
+
 void Sample_TileMesh::handleSettings()
 {
 	Sample::handleCommonSettings();
@@ -362,14 +390,6 @@ void Sample_TileMesh::handleSettings()
 #endif
 		if (m_navMesh)
 		{
-			ImGui::Separator();
-			if (ImGui::Button("Save"))
-			{
-				char buffer[240];
-				sprintf_s(buffer,"%s\\MQ2Navigation\\%s.bin", m_outputPath, m_geom->getMeshLoader()->getFileName().c_str());
-				saveAll(buffer, m_navMesh);
-			}
-
 			ImGui::Separator();
 
 			ImGui::Text("Build Time: %.1fms", m_totalBuildTimeMs);

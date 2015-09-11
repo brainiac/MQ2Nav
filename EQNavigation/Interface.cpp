@@ -220,27 +220,13 @@ int Interface::RunMainLoop()
 			glDisable(GL_FOG);
 		}
 
-		// Camera Reset
-		if (m_geom && m_resetCamera)
+		// Perform the camera reset if requested
+		if (m_resetCamera)
 		{
-			const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-			const glm::vec3& bmax = m_geom->getMeshBoundsMax();
-			// Reset camera and fog to match the mesh bounds.
-			m_camr = sqrtf(rcSqr(bmax[0] - bmin[0]) +
-				rcSqr(bmax[1] - bmin[1]) +
-				rcSqr(bmax[2] - bmin[2])) / 2;
-			m_camx = (bmax[0] + bmin[0]) / 2 + m_camr;
-			m_camy = (bmax[1] + bmin[1]) / 2 + m_camr;
-			m_camz = (bmax[2] + bmin[2]) / 2 + m_camr;
-			m_camr *= 3;
-			m_rx = 45;
-			m_ry = -45;
-
-			glFogf(GL_FOG_START, m_camr * 0.2f);
-			glFogf(GL_FOG_END, m_camr * 1.25f);
-
+			ResetCamera();
 			m_resetCamera = false;
 		}
+
 		glEnable(GL_DEPTH_TEST);
 
 		ImGui::Render();
@@ -296,13 +282,22 @@ void Interface::HandleEvents()
 			}
 			else if (event.key.keysym.mod & KMOD_CTRL)
 			{
-				if (event.key.keysym.sym == SDLK_l)
+				switch (event.key.keysym.sym)
 				{
+				case SDLK_l:
 					m_showZonePickerDialog = true;
-				}
-				else if (event.key.keysym.sym == SDLK_t)
-				{
+					break;
+				case SDLK_o:
+					OpenMesh();
+					break;
+				case SDLK_s:
+					SaveMesh();
+					break;
+				case SDLK_t:
 					m_showTools = !m_showTools;
+					break;
+				default:
+					break;
 				}
 			}
 			else if (event.key.keysym.sym == SDLK_F4
@@ -422,8 +417,7 @@ void Interface::RenderInterface()
 		static const char msg[] = "Hotkey List -> W/S/A/D: Move  "
 			"RMB: Rotate   "
 			"LMB: Place Start   "
-			"LMB+SHIFT: Place End   "
-			"TAB: Redefine EQ & MQ2 Directories";
+			"LMB+SHIFT: Place End   ";
 
 		ImGui::RenderTextCentered(ImVec2(m_width / 2, 20),
 			ImColor(255, 255, 255, 128), "%s", msg);
@@ -435,32 +429,39 @@ void Interface::RenderInterface()
 			ImColor(255, 255, 255, 128), m_activityMessage.c_str(), m_progress);
 	}
 
-	const int WindowWidth = 300;
-
 	if (showMenu)
 	{
+		m_showFailedToOpenDialog = false;
+
 		if (ImGui::BeginMainMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
 			{
-				if (ImGui::MenuItem("Load Zone", "Ctrl+L")) {
+				if (ImGui::MenuItem("Load Zone", "Ctrl+L"))
 					m_showZonePickerDialog = true;
+
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("Open Mesh", "Ctrl+O", nullptr,
+					m_mesh != nullptr))
+				{
+					OpenMesh();
+				}
+				if (ImGui::MenuItem("Save Mesh", "Ctrl+S", nullptr,
+					m_mesh != nullptr && m_mesh->getNavMesh() != nullptr))
+				{
+					SaveMesh();
+				}
+				if (ImGui::MenuItem("Reset Mesh", "", nullptr,
+					m_mesh != nullptr && m_mesh->getNavMesh() != nullptr))
+				{
+					m_mesh->ResetMesh();
 				}
 
 				ImGui::Separator();
 
-				if (ImGui::MenuItem("Open Mesh", "Ctrl+O")) {
-					ImGui::OpenPopup("Open Mesh");
-				}
-
-				if (ImGui::MenuItem("Save Mesh", "Ctrl+S")) {
-					ImGui::OpenPopup("Save Mesh");
-				}
-
-				ImGui::Separator();
 				if (ImGui::MenuItem("Quit", "Alt+F4"))
 					m_done = true;
-
 				ImGui::EndMenu();
 			}
 
@@ -487,23 +488,29 @@ void Interface::RenderInterface()
 						SetTheme(DarkTheme2);
 					if (ImGui::MenuItem("DarkTheme3", 0, m_currentTheme == DarkTheme3))
 						SetTheme(DarkTheme3);
-
 					ImGui::EndMenu();
 				}
-
 				ImGui::EndMenu();
 			}
-
 			ImGui::EndMainMenuBar();
+		}
+
+		if (m_showFailedToOpenDialog)
+			ImGui::OpenPopup("Failed To Open");
+		if (ImGui::BeginPopupModal("Failed To Open"))
+		{
+			ImGui::Text("Failed to open mesh.");
+			if (ImGui::Button("Close"))
+				ImGui::CloseCurrentPopup();
+
+			ImGui::EndPopup();
 		}
 
 		ShowZonePickerDialog();
 
-		int propDiv = m_height;
-		int height = propDiv - 50;
-
+		// start the properties dialog
 		ImGui::SetNextWindowPos(ImVec2(10, 40));
-		ImGui::SetNextWindowSize(ImVec2(WindowWidth, propDiv - 20));
+		ImGui::SetNextWindowSize(ImVec2(300, m_height - 20));
 		ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
 		if (m_mesh)
@@ -606,6 +613,22 @@ void Interface::RenderInterface()
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
+void Interface::OpenMesh()
+{
+	std::string meshFilename = GetMeshFilename();
+	if (!m_mesh->LoadMesh(meshFilename))
+	{
+		m_showFailedToOpenDialog = true;
+	}
+}
+
+void Interface::SaveMesh()
+{
+	std::string meshFilename = GetMeshFilename();
+
+	m_mesh->SaveMesh(meshFilename);
+}
+
 void Interface::ShowZonePickerDialog()
 {
 	if (m_showZonePickerDialog)
@@ -702,6 +725,37 @@ void Interface::ShowZonePickerDialog()
 	}
 }
 
+void Interface::ResetCamera()
+{
+	// Camera Reset
+	if (m_geom)
+	{
+		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+
+		// Reset camera and fog to match the mesh bounds.
+		m_camr = sqrtf(rcSqr(bmax[0] - bmin[0]) +
+			rcSqr(bmax[1] - bmin[1]) +
+			rcSqr(bmax[2] - bmin[2])) / 2;
+		m_camx = (bmax[0] + bmin[0]) / 2 + m_camr;
+		m_camy = (bmax[1] + bmin[1]) / 2 + m_camr;
+		m_camz = (bmax[2] + bmin[2]) / 2 + m_camr;
+		m_camr *= 3;
+		m_rx = 45;
+		m_ry = -45;
+
+		glFogf(GL_FOG_START, m_camr * 0.2f);
+		glFogf(GL_FOG_END, m_camr * 1.25f);
+	}
+}
+
+std::string Interface::GetMeshFilename()
+{
+	std::stringstream ss;
+	ss << m_eqConfig.GetOutputPath() << "\\MQ2Navigation\\" << m_zoneShortname << ".bin";
+
+	return ss.str();
+}
 
 // the shitty zone. Fix this up
 HANDLE handle = 0;

@@ -76,13 +76,18 @@ protected:
 	char* m_outputPath;
 
 	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize);
-	
+
 	void saveAll(const char* path, const dtNavMesh* mesh);
 	dtNavMesh* loadAll(const char* path);
 	
 public:
 	Sample_TileMesh();
 	virtual ~Sample_TileMesh();
+
+	void SaveMesh(const std::string& outputPath);
+	bool LoadMesh(const std::string& outputPath);
+
+	void ResetMesh();
 	
 	virtual void handleSettings();
 	virtual void handleTools();

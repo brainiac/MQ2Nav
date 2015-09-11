@@ -51,11 +51,20 @@ private:
 
 	// Load a zone's geometry given its shortname.
 	void LoadGeometry(const std::string& zoneShortName);
-
 	void Halt();
+
+	// Reset the camera to the starting point
+	void ResetCamera();
+
+	// Get the filename of the mesh that would be used to save/open based on current zone
+	std::string GetMeshFilename();
 
 	enum Theme { DefaultTheme, LightTheme, DarkTheme1, DarkTheme2, DarkTheme3 };
 	void SetTheme(Theme theme, bool force = false);
+
+	// Menu Item Handling
+	void OpenMesh();
+	void SaveMesh();
 
 private:
 	EQConfig m_eqConfig;
@@ -91,7 +100,7 @@ private:
 	bool m_showLog;
 	bool m_showSample;
 	bool m_showTools = false;
-
+	bool m_showFailedToOpenDialog = false;
 	GLdouble m_proj[16];
 	GLdouble m_model[16];
 	GLint m_view[4];
