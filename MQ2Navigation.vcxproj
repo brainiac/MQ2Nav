@@ -63,6 +63,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FindPattern.h" />
     <ClInclude Include="imgui_impl_dx9.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
@@ -77,6 +78,7 @@
     <ClInclude Include="meshext.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FindPattern.cpp" />
     <ClCompile Include="imgui_impl_dx9.cpp" />
     <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />

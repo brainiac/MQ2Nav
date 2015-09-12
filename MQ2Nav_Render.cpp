@@ -7,25 +7,44 @@
 
 #include "EQDraw.h"
 #include "EQGraphics.h"
+#include "FindPattern.h"
 #include "imgui_impl_dx9.h"
-
 
 #include <cassert>
 
 //============================================================================
 
-// TODO: Provide a fingerprint for pattern recognition
-#define ZoneRender_InjectionOffset_x                        0x10072EB0
-
-DWORD EQGraphicsBaseAddress = (DWORD)GetModuleHandle("EQGraphicsDX9.dll");
-
-#define INITIALIZE_EQGRAPHICS_OFFSET(var) DWORD var = (((DWORD)var##_x - 0x10000000) + EQGraphicsBaseAddress)
-
-INITIALIZE_EQGRAPHICS_OFFSET(ZoneRender_InjectionOffset);
-
 void MQ2Navigation_PerformRender();
 void MQ2Navigation_ReleaseResources();
 void MQ2Navigation_PerformRenderUI();
+
+//============================================================================
+
+// This doesn't change during the execution of the program. This can be loaded
+// at static initialization time because of this.
+DWORD EQGraphicsBaseAddress = (DWORD)GetModuleHandle("EQGraphicsDX9.dll");
+
+// This macro is used for statically building offsets. If using dynamic offset generation
+// with the pattern matching, don't use the macro.
+#define INITIALIZE_EQGRAPHICS_OFFSET(var) DWORD var = (((DWORD)var##_x - 0x10000000) + EQGraphicsBaseAddress)
+
+// RenderFlames_sub_10072EB0 in EQGraphicsDX9.dll ~ 2015-08-20
+#define ZoneRender_InjectionOffset_x                        0x10072EB0
+INITIALIZE_EQGRAPHICS_OFFSET(ZoneRender_InjectionOffset);
+
+const char* ZoneRender_InjectionMask = "xxxxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxx";
+const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x8b\xf1\x57\x8d\x46\x14\x50\x83\xcf\xff\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x4e\x5c\x51\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x96\x80\x00\x00\x00\x52\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x46\x38\x50\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x5f\x33\xc0\x5e\xc3";
+
+static inline DWORD FixEQGraphicsOffset(DWORD nOffset)
+{
+	return (nOffset - 0x10000000) + EQGraphicsBaseAddress;
+}
+
+void GetOffsets()
+{
+	ZoneRender_InjectionOffset = FindPattern(FixEQGraphicsOffset(0x10000000), 0x100000,
+		ZoneRender_InjectionPattern, ZoneRender_InjectionMask);
+}
 
 class RenderHooks
 {
@@ -104,12 +123,23 @@ void MQ2NavigationRender::InstallHooks()
 	if (m_hooksInstalled)
 		return;
 
+	// make sure that the offsets are up to date before we try to make our hooks
+	GetOffsets();
+
 #define InstallDetour(offset, detour, trampoline) \
 	AddDetourf((DWORD)offset, detour, trampoline); \
 	m_installedHooks.push_back((DWORD)offset);
 
-	InstallDetour(ZoneRender_InjectionOffset, &RenderHooks::ZoneRender_Injection_Detour,
-		&RenderHooks::ZoneRender_Injection_Trampoline);
+	if (ZoneRender_InjectionOffset != 0)
+	{
+		InstallDetour(ZoneRender_InjectionOffset, &RenderHooks::ZoneRender_Injection_Detour,
+			&RenderHooks::ZoneRender_Injection_Trampoline);
+	}
+	else
+	{
+		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
+	}
+
 
 	// Add hooks on IDirect3DDevice9 virtual functions
 	DWORD* d3dDevice_vftable = *(DWORD**)m_pDevice;
@@ -182,7 +212,9 @@ Vertex g_cubeVertices[] =
 	{ -1.0f,-1.0f, 1.0f, -1.0f, 0.0f, 0.0f,  0.0f,1.0f, }
 };
 
-
+// These are defined in imgui
+unsigned int GetDroidSansCompressedSize();
+const unsigned int* GetDroidSansCompressedData();
 
 void MQ2NavigationRender::Initialize()
 {
@@ -196,6 +228,10 @@ void MQ2NavigationRender::Initialize()
 
 	HWND eqhwnd = *(HWND*)EQADDR_HWND;
 	ImGui_ImplDX9_Init(eqhwnd, m_pDevice);
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
+		GetDroidSansCompressedSize(), 16);
 
 	D3DXMatrixIdentity(&m_worldMatrix);
 	D3DXMatrixIdentity(&m_viewMatrix);
