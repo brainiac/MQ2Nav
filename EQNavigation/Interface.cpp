@@ -27,7 +27,8 @@
 static const int32_t MAX_LOG_MESSAGES = 1000;
 
 static bool IsKeyboardBlocked() {
-	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantCaptureMouse;
+	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput
+		|| ImGui::GetIO().IsModal;
 }
 
 //============================================================================
@@ -44,6 +45,13 @@ Interface::Interface(const std::string& defaultZone)
 {
 	m_mesh->setContext(m_context.get());
 	m_mesh->setOutputPath(m_eqConfig.GetOutputPath().c_str());
+
+	// Construct the path to the ini file
+	CHAR fullPath[MAX_PATH] = { 0 };
+	GetModuleFileNameA(NULL, fullPath, MAX_PATH);
+	PathRemoveFileSpecA(fullPath);
+	PathAppendA(fullPath, "EQNavigation_UI.ini");
+	m_iniFile = fullPath;
 
 	InitializeWindow();
 	SetTheme(m_currentTheme, true);
@@ -91,6 +99,7 @@ bool Interface::InitializeWindow()
 	ImGui_ImplSdl_Init(m_window);
 
 	ImGuiIO& io = ImGui::GetIO();
+	io.IniFilename = m_iniFile.c_str();
 	io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
 		GetDroidSansCompressedSize(), 16);
 
@@ -506,59 +515,61 @@ void Interface::RenderInterface()
 			ImGui::EndPopup();
 		}
 
-		ShowZonePickerDialog();
-
 		// start the properties dialog
 		ImGui::SetNextWindowPos(ImVec2(10, 40));
 		ImGui::SetNextWindowSize(ImVec2(300, m_height - 20));
-		ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-
-		if (m_mesh)
+		if (ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 		{
+			ImGui::LabelText("Zone", m_zoneDisplayName.c_str());
+
 			ImGui::Separator();
-			ImGui::Text("Zone Mesh");
 
-			if (ImGui::Button(m_zoneDisplayName.c_str()))
-				m_showZonePickerDialog = true;
-
-			//if (m_geom)
-			//{
-			//	char text[64];
-			//	snprintf(text, 64, "Verts: %.1fk  Tris: %.1fk",
-			//	geom->getMesh()->getVertCount()/1000.0f,
-			//	geom->getMesh()->getTriCount()/1000.0f);
-			//	imguiValue(text);
-			//}
-			//imguiSeparator();
-		}
-
-		if (m_geom && m_mesh)
-		{
-			if (/*message*/ false)
+			if (m_geom)
 			{
+				ImGui::LabelText("Verts", "%.1fk", m_geom->getMeshLoader()->getVertCount() / 1000.0f);
+				ImGui::LabelText("Tris", "%.1fk", m_geom->getMeshLoader()->getTriCount() / 1000.0f);
 				ImGui::Separator();
-
-				if (ImGui::Button("Halt Action"))
-					Halt();
 			}
-			else
+
+			float camPos[3] = { m_camz, m_camx, m_camy };
+			if (ImGui::InputFloat3("Position", camPos, -2))
 			{
-				m_mesh->handleSettings();
-
-				if (ImGui::Button("Build"))
-					StartBuild();
+				m_camx = camPos[1];
+				m_camy = camPos[2];
+				m_camz = camPos[0];
 			}
-		}
 
-		if (m_mesh)
-		{
-			if (ImGui::CollapsingHeader("Debug"))
+			if (m_geom && m_mesh)
 			{
-				m_mesh->handleDebugMode();
-			}
-		}
+				if (/*message*/ false)
+				{
+					ImGui::Separator();
 
-		ImGui::End();
+					if (ImGui::Button("Halt Action"))
+						Halt();
+				}
+				else
+				{
+					m_mesh->handleSettings();
+
+					if (ImGui::Button("Build"))
+						StartBuild();
+				}
+			}
+
+			if (m_mesh)
+			{
+				if (ImGui::CollapsingHeader("Debug"))
+				{
+					m_mesh->handleDebugMode();
+				}
+			}
+
+			ImGui::End();
+		}
+		
+
+		ShowZonePickerDialog();
 	}
 
 	if (m_geom && m_mesh && m_showTools)

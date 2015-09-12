@@ -1886,10 +1886,12 @@ void ImGui::NewFrame()
         g.ModalWindowDarkeningRatio = ImMin(g.ModalWindowDarkeningRatio + g.IO.DeltaTime * 6.0f, 1.0f);
         if (g.HoveredRootWindow != modal_window)
             g.HoveredRootWindow = g.HoveredWindow = NULL;
+        g.IO.IsModal = true;
     }
     else
     {
         g.ModalWindowDarkeningRatio = 0.0f;
+        g.IO.IsModal = false;
     }
 
     // Are we using inputs? Tell user so they can capture/discard the inputs away from the rest of their application.

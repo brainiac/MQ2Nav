@@ -112,7 +112,8 @@ private:
 	float m_ry = -45;
 	float m_moveW = 0, m_moveS = 0, m_moveA = 0, m_moveD = 0;
 	float m_moveUp = 0, m_moveDown = 0;
-	float m_camx = 0, m_camy = 0, m_camz = 0, m_camr = 10;
+	float m_camx = 0, m_camy = 0, m_camz = 0;
+	float m_camr = 10;
 
 	uint32_t m_lastTime = 0;
 	float m_time = 0;
@@ -132,7 +133,7 @@ private:
 
 	// maps display
 	std::map<std::string, bool> m_expansionExpanded;
-	std::string m_zoneDisplayName = "Choose Zone...";
+	std::string m_zoneDisplayName = "<none>";
 	bool m_showZonePickerDialog = false;
 
 	// zone to load on next pass
@@ -141,6 +142,8 @@ private:
 	// The main window surface
 	SDL_Window* m_window = nullptr;
 	SDL_GLContext m_glContext = 0;
+
+	std::string m_iniFile;
 };
 
 

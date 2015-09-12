@@ -742,6 +742,7 @@ struct ImGuiIO
     int         MetricsRenderVertices;      // Vertices output during last call to Render()
     int         MetricsRenderIndices;       // Indices output during last call to Render() = number of triangles * 3
     int         MetricsActiveWindows;       // Number of visible windows (exclude child windows)
+	bool        IsModal;                    // A modal dialog is open (blocking input)
 
     //------------------------------------------------------------------
     // [Internal] ImGui will maintain those fields for you

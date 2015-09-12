@@ -371,7 +371,7 @@ void Sample_TileMesh::handleSettings()
 		const int tw = (gw + ts-1) / ts;
 		const int th = (gh + ts-1) / ts;
 
-		ImGui::Text("Tiles  %d x %d", tw, th);
+		ImGui::LabelText("Tiles", "%d x %d", tw, th);
 
 		// Max tiles and max polys affect how the tile IDs are caculated.
 		// There are 22 bits available for identifying a tile and a polygon.
@@ -381,8 +381,6 @@ void Sample_TileMesh::handleSettings()
 		m_maxTiles = 1 << tileBits;
 		m_maxPolysPerTile = 1 << polyBits;
 #if 0
-		snprintf(text, 64, "Tiles  %d x %d", tw, th);
-		imguiValue(text);
 		snprintf(text, 64, "Max Tiles  %d", m_maxTiles);
 		imguiValue(text);
 		snprintf(text, 64, "Max Polys  %d", m_maxPolysPerTile);

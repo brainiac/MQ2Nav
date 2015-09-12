@@ -154,29 +154,30 @@ void Sample::resetCommonSettings()
 
 void Sample::handleCommonSettings()
 {
-#if 0
-	imguiLabel("Rasterization");
-	imguiSlider("Cell Size", &m_cellSize, 0.1f, 1.0f, 0.01f);
-	imguiSlider("Cell Height", &m_cellHeight, 0.1f, 1.0f, 0.01f);
-	
-	if (m_geom)
+	if (ImGui::CollapsingHeader("Rasterization", 0, true, true))
 	{
-		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
-		int gw = 0, gh = 0;
-		rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
-		char text[64];
-		snprintf(text, 64, "Voxels  %d x %d", gw, gh);
-		imguiValue(text);
+		ImGui::SliderFloat("Cell Size", &m_cellSize, 0.1f, 1.0f);
+		ImGui::SliderFloat("Cell Height", &m_cellHeight, 0.1f, 1.0f);
+
+		if (m_geom)
+		{
+			const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+			const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+			int gw = 0, gh = 0;
+			rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
+
+			ImGui::LabelText("Voxels", "%d x %d", gw, gh);
+		}
 	}
-#endif
-	
-	ImGui::Separator();
-	ImGui::Text("Agent");
-	ImGui::SliderFloat("Height", &m_agentHeight, 0.1f, 10.0f);
-	ImGui::SliderFloat("Radius", &m_agentRadius, 0.0f, 10.0f);
-	ImGui::SliderFloat("Max Climb", &m_agentMaxClimb, 0.1f, 10.0f);
-	ImGui::SliderFloat("Max Slope", &m_agentMaxSlope, 0.0f, 100.0f);
+
+	if (ImGui::CollapsingHeader("Agent", 0, true, true))
+	{
+		ImGui::DragFloat("Height", &m_agentHeight, 0.1f, 0.1f, 10.0f);
+		ImGui::DragFloat("Radius", &m_agentRadius, 0.1f, 0.0f, 10.0f);
+		ImGui::DragFloat("Max Climb", &m_agentMaxClimb, 0.1f, 0.1f, 10.0f);
+		ImGui::DragFloat("Max Slope", &m_agentMaxSlope, 0.1f, 0.0f, 100.0f);
+	}
+
 	
 #if 0
 	imguiSeparator();
