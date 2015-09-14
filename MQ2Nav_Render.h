@@ -7,6 +7,7 @@
 #include <d3dx9.h>
 #include <imgui.h>
 
+#include <chrono>
 #include <memory>
 #include <vector>
 
@@ -37,6 +38,8 @@ public:
 protected:
 	void Render();
 	void UpdateUI();
+
+	void DoMouse();
 
 private:
 	void InstallHooks();
@@ -84,6 +87,10 @@ private:
 	MQ2NavigationPath* m_navPath = nullptr;
 
 	IDirect3DVertexBuffer9* m_pLines = nullptr;
+
+	// fps counter
+	std::vector<float> m_renderFrameRateHistory;
+	std::chrono::system_clock::time_point m_prevHistoryPoint;
 };
 
 extern std::shared_ptr<MQ2NavigationRender> g_render;

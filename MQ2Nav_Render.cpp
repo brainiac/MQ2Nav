@@ -3,6 +3,7 @@
 //
 
 #include "MQ2Nav_Render.h"
+#include "MQ2Nav_Input.h"
 #include "MQ2Navigation.h"
 
 #include "EQDraw.h"
@@ -34,16 +35,18 @@ INITIALIZE_EQGRAPHICS_OFFSET(ZoneRender_InjectionOffset);
 
 const char* ZoneRender_InjectionMask = "xxxxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxx";
 const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x8b\xf1\x57\x8d\x46\x14\x50\x83\xcf\xff\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x4e\x5c\x51\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x96\x80\x00\x00\x00\x52\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x46\x38\x50\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x5f\x33\xc0\x5e\xc3";
-
 static inline DWORD FixEQGraphicsOffset(DWORD nOffset)
 {
 	return (nOffset - 0x10000000) + EQGraphicsBaseAddress;
 }
 
-void GetOffsets()
+bool GetOffsets()
 {
-	ZoneRender_InjectionOffset = FindPattern(FixEQGraphicsOffset(0x10000000), 0x100000,
-		ZoneRender_InjectionPattern, ZoneRender_InjectionMask);
+	if ((ZoneRender_InjectionOffset = FindPattern(FixEQGraphicsOffset(0x10000000), 0x100000,
+		ZoneRender_InjectionPattern, ZoneRender_InjectionMask)) == 0)
+		return false;
+
+	return true;
 }
 
 class RenderHooks
@@ -90,6 +93,7 @@ DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::Reset_Trampoline(D3DPRESENT_PARAMET
 DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::BeginScene_Trampoline());
 DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::EndScene_Trampoline());
 
+
 //----------------------------------------------------------------------------
 
 std::shared_ptr<MQ2NavigationRender> g_render;
@@ -124,22 +128,20 @@ void MQ2NavigationRender::InstallHooks()
 		return;
 
 	// make sure that the offsets are up to date before we try to make our hooks
-	GetOffsets();
+	if (!GetOffsets())
+	{
+		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
+		return;
+	}
+
+	InstallInputHooks();
 
 #define InstallDetour(offset, detour, trampoline) \
 	AddDetourf((DWORD)offset, detour, trampoline); \
 	m_installedHooks.push_back((DWORD)offset);
 
-	if (ZoneRender_InjectionOffset != 0)
-	{
-		InstallDetour(ZoneRender_InjectionOffset, &RenderHooks::ZoneRender_Injection_Detour,
-			&RenderHooks::ZoneRender_Injection_Trampoline);
-	}
-	else
-	{
-		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
-	}
-
+	InstallDetour(ZoneRender_InjectionOffset, &RenderHooks::ZoneRender_Injection_Detour,
+		&RenderHooks::ZoneRender_Injection_Trampoline);
 
 	// Add hooks on IDirect3DDevice9 virtual functions
 	DWORD* d3dDevice_vftable = *(DWORD**)m_pDevice;
@@ -160,57 +162,12 @@ void MQ2NavigationRender::RemoveHooks()
 
 	m_installedHooks.clear();
 	m_hooksInstalled = false;
+
+	RemoveInputHooks();
 }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-
-struct Vertex
-{
-	float x, y, z;
-	float nx, ny, nz;
-	float tu, tv;
-
-	enum FVF
-	{
-		FVF_Flags = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1
-	};
-};
-
-Vertex g_cubeVertices[] =
-{
-	//     x     y     z      nx    ny    nz     tu   tv    
-	// Front Face
-	{ -1.0f, 1.0f,-1.0f,  0.0f, 0.0f,-1.0f,  0.0f,0.0f, },
-	{ 1.0f, 1.0f,-1.0f,  0.0f, 0.0f,-1.0f,  1.0f,0.0f, },
-	{ -1.0f,-1.0f,-1.0f,  0.0f, 0.0f,-1.0f,  0.0f,1.0f, },
-	{ 1.0f,-1.0f,-1.0f,  0.0f, 0.0f,-1.0f,  1.0f,1.0f, },
-	// Back Face
-	{ -1.0f, 1.0f, 1.0f,  0.0f, 0.0f, 1.0f,  1.0f,0.0f, },
-	{ -1.0f,-1.0f, 1.0f,  0.0f, 0.0f, 1.0f,  1.0f,1.0f, },
-	{ 1.0f, 1.0f, 1.0f,  0.0f, 0.0f, 1.0f,  0.0f,0.0f, },
-	{ 1.0f,-1.0f, 1.0f,  0.0f, 0.0f, 1.0f,  0.0f,1.0f, },
-	// Top Face
-	{ -1.0f, 1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  0.0f,0.0f, },
-	{ 1.0f, 1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  1.0f,0.0f, },
-	{ -1.0f, 1.0f,-1.0f,  0.0f, 1.0f, 0.0f,  0.0f,1.0f, },
-	{ 1.0f, 1.0f,-1.0f,  0.0f, 1.0f, 0.0f,  1.0f,1.0f, },
-	// Bottom Face
-	{ -1.0f,-1.0f, 1.0f,  0.0f,-1.0f, 0.0f,  0.0f,1.0f, },
-	{ -1.0f,-1.0f,-1.0f,  0.0f,-1.0f, 0.0f,  0.0f,0.0f, },
-	{ 1.0f,-1.0f, 1.0f,  0.0f,-1.0f, 0.0f,  1.0f,1.0f, },
-	{ 1.0f,-1.0f,-1.0f,  0.0f,-1.0f, 0.0f,  1.0f,0.0f, },
-	// Right Face
-	{ 1.0f, 1.0f,-1.0f,  1.0f, 0.0f, 0.0f,  0.0f,0.0f, },
-	{ 1.0f, 1.0f, 1.0f,  1.0f, 0.0f, 0.0f,  1.0f,0.0f, },
-	{ 1.0f,-1.0f,-1.0f,  1.0f, 0.0f, 0.0f,  0.0f,1.0f, },
-	{ 1.0f,-1.0f, 1.0f,  1.0f, 0.0f, 0.0f,  1.0f,1.0f, },
-	// Left Face
-	{ -1.0f, 1.0f,-1.0f, -1.0f, 0.0f, 0.0f,  1.0f,0.0f, },
-	{ -1.0f,-1.0f,-1.0f, -1.0f, 0.0f, 0.0f,  1.0f,1.0f, },
-	{ -1.0f, 1.0f, 1.0f, -1.0f, 0.0f, 0.0f,  0.0f,0.0f, },
-	{ -1.0f,-1.0f, 1.0f, -1.0f, 0.0f, 0.0f,  0.0f,1.0f, }
-};
 
 // These are defined in imgui
 unsigned int GetDroidSansCompressedSize();
@@ -230,8 +187,11 @@ void MQ2NavigationRender::Initialize()
 	ImGui_ImplDX9_Init(eqhwnd, m_pDevice);
 
 	ImGuiIO& io = ImGui::GetIO();
-	io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
-		GetDroidSansCompressedSize(), 16);
+	//io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
+	//	GetDroidSansCompressedSize(), 16);
+
+	m_prevHistoryPoint = std::chrono::system_clock::now();
+	m_renderFrameRateHistory.clear();
 
 	D3DXMatrixIdentity(&m_worldMatrix);
 	D3DXMatrixIdentity(&m_viewMatrix);
@@ -314,53 +274,6 @@ void MQ2NavigationRender::PerformRender()
 
 void MQ2NavigationRender::Render()
 {
-#if 0
-	//m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	//m_pDevice->SetMaterial(&m_alphaMaterial);
-
-	// Use material's alpha
-	//m_pDevice->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_MATERIAL);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-
-	m_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
-	m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-
-	// Use alpha for transparency
-	//m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	//m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-
-	D3DXMATRIX matrix;
-	D3DXMatrixIdentity(&matrix);
-	//D3DXMatrixTranslation(&matrix, 200, -115, -150);
-		
-	PSPAWNINFO me = GetCharInfo()->pSpawn;
-	if (me)
-	{
-		// convert to radians
-		D3DXMATRIX rotation;
-		D3DXMatrixRotationZ(&rotation, (float)me->Heading / 256.0 * PI);
-
-		D3DXMatrixTranslation(&matrix, me->Y, me->X, me->Z);
-		matrix = rotation * matrix;
-	}
-
-	m_pDevice->SetTransform(D3DTS_WORLD, &matrix);
-
-	m_pDevice->SetTexture(0, m_pTexture);
-	m_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(Vertex));
-	m_pDevice->SetFVF(Vertex::FVF_Flags);
-
-	m_pDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
-	m_pDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 4, 2);
-	m_pDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 8, 2);
-	m_pDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 12, 2);
-	m_pDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 16, 2);
-	m_pDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 20, 2);
-
-	//m_pDevice->SetTransform(D3DTS_WORLD, &m_worldMatrix);
-#endif
-
 	UpdateNavigationPath();
 
 	if (m_pLines)
@@ -401,29 +314,46 @@ void MQ2NavigationRender::UpdateUI()
 
 	ImGui_ImplDX9_NewFrame();
 
+	auto now = std::chrono::system_clock::now();
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(now - m_prevHistoryPoint).count() >= 100)
+	{
+		if (m_renderFrameRateHistory.size() > 1200) {
+			m_renderFrameRateHistory.erase(m_renderFrameRateHistory.begin(), m_renderFrameRateHistory.begin() + 200);
+		}
+		m_renderFrameRateHistory.push_back(ImGui::GetIO().Framerate);
+		m_prevHistoryPoint = now;
+	}
+
 	// 1. Show a simple window
 	// Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
+	ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiSetCond_Once);
+	ImGui::Begin("Debug");
 	{
-		//static float f = 0.0f;
-		//ImGui::Text("Hello, world!");
-		//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-		//ImGui::ColorEdit3("clear color", (float*)&clear_col);
-		//if (ImGui::Button("Test Window")) show_test_window ^= 1;
-		//if (ImGui::Button("Another Window")) show_another_window ^= 1;
+		if (m_renderFrameRateHistory.size() > 0)
+		{
+			ImGui::PlotLines("", &m_renderFrameRateHistory[0], (int)m_renderFrameRateHistory.size(), 0, nullptr, 0.0);
+		}
 
-		//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::LabelText("FPS", "%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 		PSPAWNINFO me = GetCharInfo()->pSpawn;
 		if (me)
 		{
 			float rotation = (float)me->Heading / 256.0 * PI;
-			//ImGui::Text("Position: %.2f %.2f %.2f  Heading: %.2f", me->X, me->Y, me->Z, rotation);
+			ImGui::LabelText("Position", "%.2f %.2f %.2f", me->X, me->Y, me->Z);
+			ImGui::LabelText("Heading", "%.2f", rotation);
 		}
+
+		RenderInputUI();
 
 		//DrawMatrix(m_worldMatrix, "World Matrix");
 		//DrawMatrix(m_viewMatrix, "View Matrix");
 		//DrawMatrix(m_projMatrix, "Projection Matrix");
 	}
+	ImGui::End();
+
+	ImGui::Render();
 }
 
 void MQ2NavigationRender::PerformRenderUI()
@@ -435,8 +365,6 @@ void MQ2NavigationRender::PerformRenderUI()
 		m_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
 
 		UpdateUI();
-
-		ImGui::Render();
 
 		stateBlock->Apply();
 		stateBlock->Release();
@@ -493,7 +421,7 @@ void MQ2NavigationRender::UpdateNavigationPath()
 	{
 		result = m_pDevice->CreateVertexBuffer((m_navpathLen + 1) * sizeof(LineVertex),
 			D3DUSAGE_WRITEONLY,
-			Vertex::FVF_Flags,
+			LineVertex::FVF_Flags,
 			D3DPOOL_DEFAULT,
 			&m_pLines,
 			NULL);
@@ -533,9 +461,9 @@ void MQ2Navigation_PerformRender()
 
 void MQ2Navigation_PerformRenderUI()
 {
-	D3DPERF_BeginEvent(D3DCOLOR_XRGB(128, 128, 128), L"CustomRenderUI");
+	//D3DPERF_BeginEvent(D3DCOLOR_XRGB(128, 128, 128), L"CustomRenderUI");
 	g_render->PerformRenderUI();
-	D3DPERF_EndEvent();
+	//D3DPERF_EndEvent();
 }
 
 void MQ2Navigation_ReleaseResources()
