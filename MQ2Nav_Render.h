@@ -14,6 +14,7 @@
 class CEQDraw;
 class MQ2NavigationPath;
 
+
 class MQ2NavigationRender
 {
 	const float HEIGHT_OFFSET = 2.0;

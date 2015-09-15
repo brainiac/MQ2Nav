@@ -273,10 +273,12 @@ void ImGui_ImplDX9_InvalidateDeviceObjects()
     }
 }
 
-void ImGui_ImplDX9_NewFrame()
+bool ImGui_ImplDX9_NewFrame()
 {
     if (!g_pVB)
         ImGui_ImplDX9_CreateDeviceObjects();
+    if (!g_pVB)
+        return false;
 
     ImGuiIO& io = ImGui::GetIO();
 
@@ -302,4 +304,5 @@ void ImGui_ImplDX9_NewFrame()
 
     // Start the frame
     ImGui::NewFrame();
+	return true;
 }

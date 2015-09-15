@@ -5,6 +5,7 @@
 #include "MQ2Nav_Input.h"
 #include "MQ2Navigation.h"
 #include "FindPattern.h"
+#include "imgui_impl_dx9.h"
 
 #include <imgui.h>
 
@@ -14,12 +15,17 @@
 // Copied from MQ2Globals.cpp
 #define INITIALIZE_EQGAME_OFFSET(var) DWORD var = (((DWORD)var##_x - 0x400000) + baseAddress)
 
-#define __GetMouseDataRel_x                                   0x62Fe85
+#define __GetMouseDataRel_x                                     0x62Fe85
 INITIALIZE_EQGAME_OFFSET(__GetMouseDataRel);
 
-#define ProcessMouseEvent_x                                 0x56EDC0
-INITIALIZE_EQGAME_OFFSET(ProcessMouseEvent);
+#define __ProcessMouseEvent_x                                   0x56EDC0
+INITIALIZE_EQGAME_OFFSET(__ProcessMouseEvent);
 
+#define __ProcessKeyboardEvent_x                                0x632AE0
+INITIALIZE_EQGAME_OFFSET(__ProcessKeyboardEvent);
+
+#define __FlushDxKeyboard_x                                     0x62FAD0
+INITIALIZE_EQGAME_OFFSET(__FlushDxKeyboard);
 
 const char* GetMouseDataRel_Mask = "xx????x????xxxxxxxxxxxxxxxxxxxxxxxx????xx????xx????xxxxxxxxxxxxx?xxxxxx????x";
 const unsigned char* GetMouseDataRel_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x53\x33\xdb\x53\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\xc7\x44\x24\x10\x80\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x8b\x08\x6a\x14\x50\x8b\x41\x28\xff\xd0\x85\xc0\x79\x00\x8d\x43\x07\x5b\x81\xc4\x00\x00\x00\x00\xc3";
@@ -27,15 +33,22 @@ const unsigned char* GetMouseDataRel_Pattern = (const unsigned char*)"\x81\xec\x
 const char* ProcessMouseEvent_Mask = "xxxx????xxxxxxxxxxx????xxxxxxx?xxxx?xxxxx????xx????xxxx????xx????xx????xx????x?x????xxxxxxxxx????xxx?xx????xxxxxxxx?xxxxxxxxx????";
 const unsigned char* ProcessMouseEvent_Pattern = (const unsigned char*)"\x83\xec\x14\xa1\x00\x00\x00\x00\x8b\x80\xc8\x05\x00\x00\x53\x56\x33\xdb\xbe\x00\x00\x00\x00\x88\x5c\x24\x0b\x3b\xc6\x74\x00\x83\xf8\x01\x74\x00\x83\xf8\x05\x0f\x85\x00\x00\x00\x00\xff\x15\x00\x00\x00\x00\x3b\xc3\x0f\x84\x00\x00\x00\x00\x3b\x05\x00\x00\x00\x00\x0f\x85\x00\x00\x00\x00\x39\x1d\x00\x00\x00\x00\x74\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2\xa1\x00\x00\x00\x00\x3b\xc3\x74\x00\x8b\x0d\x00\x00\x00\x00\x83\xb9\xc8\x05\x00\x00\x05\x75\x00\x80\xb8\xae\x05\x00\x00\x66\x0f\x84\x00\x00\x00\x00";
 
+FUNCTION_AT_ADDRESS(int FlushDxKeyboard(), __FlushDxKeyboard);
+
+extern bool g_imguiReady;
+extern bool g_imguiRender;
+
 static bool GetOffsets()
 {
-	if ((__GetMouseDataRel = FindPattern(FixOffset(0x600000), 0x100000,
-		GetMouseDataRel_Pattern, GetMouseDataRel_Mask)) == 0)
-		return false;
+	//if ((__GetMouseDataRel = FindPattern(FixOffset(0x600000), 0x100000,
+	//	GetMouseDataRel_Pattern, GetMouseDataRel_Mask)) == 0)
+	//	return false;
 
-	if ((ProcessMouseEvent = FindPattern(FixOffset(0x500000), 0x100000,
+	if ((__ProcessMouseEvent = FindPattern(FixOffset(0x500000), 0x100000,
 		ProcessMouseEvent_Pattern, ProcessMouseEvent_Mask)) == 0)
 		return false;
+
+	// TODO: KeyboardEvent
 
 	return true;
 }
@@ -48,8 +61,6 @@ DIMOUSESTATE m_dims;
 POINT MouseLocation;
 bool MouseBlocked = false; // blocked if EQ is dragging mouse
 
-// GetMouseDataRel populates
-FUNCTION_AT_ADDRESS(void GetMouseDataRel(), __GetMouseDataRel);
 
 struct MouseStateData {
 	DWORD x;
@@ -57,7 +68,7 @@ struct MouseStateData {
 	DWORD Scroll;
 	DWORD relX;
 	DWORD relY;
-	DWORD Extra;
+	DWORD InWindow;
 };
 MouseStateData* MouseState = (MouseStateData*)EQADDR_DIMOUSECOPY;
 DIMOUSESTATE* DIMouseState = (DIMOUSESTATE*)EQADDR_DIMOUSECHECK;
@@ -75,7 +86,6 @@ struct MOUSEINFO2 {
 	DWORD Scroll;
 };
 MOUSEINFO2* MouseInfo = (MOUSEINFO2*)EQADDR_MOUSE;
-ImGuiIO tempIO;
 
 bool GetMouseLocation(POINT& point)
 {
@@ -123,6 +133,8 @@ inline bool IsMouseBlocked()
 		if (clicks->Click[i] || clicks->Confirm[i])
 			return true;
 	}
+	if (MouseState->Scroll != 0)
+		return true;
 
 	return false;
 }
@@ -162,41 +174,56 @@ void ProcessMouseEvent_Detour()
 
 	MouseBlocked = false;
 
-	// TEMP: This might be really wierd, but lets try processing the data
-	// from the last frame.
-	//g_pMouse->Acquire();
-
-	// __Mouse ->
-	// DI8__MOUSE__COPY
-
 	ImGuiIO& io = ImGui::GetIO();
 	io.MousePos.x = MouseLocation.x;
 	io.MousePos.y = MouseLocation.y;
 
 	if (!io.WantCaptureMouse)
 	{
+		// If mouse capture leaves, release all buttons
+		memset(io.MouseDown, 0, sizeof(io.MouseDown));
+		io.MouseWheel = 0;
+
 		ProcessMouseEvent_Trampoline();
 	}
 	else
 	{
 		// need to reset relative movement variables
-		MouseState->relX = 0;
-		MouseState->relY = 0;
-		//MouseState->Scroll = 0;
-		MouseState->Extra = 0;
-
-		DIMouseState->lX = 0;
-		DIMouseState->lY = 0;
-		//DIMouseState->lZ = 0;
-
-		//MouseInfo->Scroll = 0;
-
-		io.MouseDown[0] = tempIO.MouseDown[0];
-		io.MouseDown[1] = tempIO.MouseDown[1];
-		io.MouseWheel = tempIO.MouseWheel;
-		memcpy(io.KeysDown, tempIO.KeysDown, sizeof(tempIO.KeysDown));
-		memcpy(io.InputCharacters, tempIO.InputCharacters, sizeof(tempIO.InputCharacters));
+		MouseState->InWindow = 0;
 	}
+}
+
+DETOUR_TRAMPOLINE_EMPTY(unsigned int ProcessKeyboardEvent_Trampoline());
+unsigned int ProcessKeyboardEvent_Detour()
+{
+	int result = 0;
+	// only process the keyboard events if we are the foreground window.
+	HWND foregroundWindow = GetForegroundWindow();
+	HWND eqHWnd = *(HWND*)EQADDR_HWND;
+	if (foregroundWindow != eqHWnd)
+	{
+		ProcessKeyboardEvent_Trampoline();
+		result = 1;
+	}
+	else
+	{
+		ImGuiIO& io = ImGui::GetIO();
+
+		if (!io.WantCaptureKeyboard)
+		{
+			result = ProcessKeyboardEvent_Trampoline();
+		}
+		else
+		{
+			FlushDxKeyboard();
+		}
+	}
+
+	// This event occurs after the mouse event. Could probably put this in process events
+	g_imguiReady = ImGui_ImplDX9_NewFrame();
+	g_imguiRender = true;
+
+	return result;
 }
 
 DWORD WndProcAddress = 0;
@@ -204,39 +231,53 @@ DWORD WndProcAddress = 0;
 DETOUR_TRAMPOLINE_EMPTY(LRESULT __stdcall WndProc_Trampoline(HWND, UINT, WPARAM, LPARAM));
 LRESULT __stdcall WndProc_Detour(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	ImGuiIO& io = ImGui::GetIO();
+	
 	switch (msg)
 	{
 	case WM_LBUTTONDOWN:
-		tempIO.MouseDown[0] = true;
+		io.MouseDown[0] = true;
 		break;
 	case WM_LBUTTONUP:
-		tempIO.MouseDown[0] = false;
+		io.MouseDown[0] = false;
 		break;
 	case WM_RBUTTONDOWN:
-		tempIO.MouseDown[1] = true;
+		io.MouseDown[1] = true;
 		break;
 	case WM_RBUTTONUP:
-		tempIO.MouseDown[1] = false;
+		io.MouseDown[1] = false;
 		break;
 	case WM_MOUSEWHEEL:
-		tempIO.MouseWheel += GET_WHEEL_DELTA_WPARAM(wParam) > 0 ? +1.0f : -1.0f;
+		io.MouseWheel += GET_WHEEL_DELTA_WPARAM(wParam) > 0 ? +1.0f : -1.0f;
 		break;
 	case WM_MOUSEMOVE:
-		tempIO.MousePos.x = (signed short)(lParam);
-		tempIO.MousePos.y = (signed short)(lParam >> 16);
+		io.MousePos.x = (signed short)(lParam);
+		io.MousePos.y = (signed short)(lParam >> 16);
 		break;
 	case WM_KEYDOWN:
 		if (wParam < 256)
-			tempIO.KeysDown[wParam] = 1;
+			io.KeysDown[wParam] = 1;
+		{
+			BYTE keyState[256];
+			if (GetKeyboardState(keyState) == TRUE)
+			{
+				WORD character = 0;
+				if (ToAscii(wParam, (lParam & 0x01FF0000) > 16, keyState, &character, 0) == 1)
+				{
+					io.AddInputCharacter(character);
+				}
+			}
+		}
+
 		break;
 	case WM_KEYUP:
 		if (wParam < 256)
-			tempIO.KeysDown[wParam] = 0;
+			io.KeysDown[wParam] = 0;
 		break;
 	case WM_CHAR:
 		// You can also use ToAscii()+GetKeyboardState() to retrieve characters.
 		if (wParam > 0 && wParam < 0x10000)
-			tempIO.AddInputCharacter((unsigned short)wParam);
+			io.AddInputCharacter((unsigned short)wParam);
 		break;
 	}
 
@@ -245,7 +286,8 @@ LRESULT __stdcall WndProc_Detour(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 void InstallInputHooks()
 {
-	EzDetour(ProcessMouseEvent, ProcessMouseEvent_Detour, ProcessMouseEvent_Trampoline);
+	EzDetour(__ProcessMouseEvent, ProcessMouseEvent_Detour, ProcessMouseEvent_Trampoline);
+	EzDetour(__ProcessKeyboardEvent, ProcessKeyboardEvent_Detour, ProcessKeyboardEvent_Trampoline);
 
 	// Hook the wndproc
 	HWND eqHWnd = *(HWND*)EQADDR_HWND;
@@ -257,13 +299,12 @@ void InstallInputHooks()
 void RemoveInputHooks()
 {
 	RemoveDetour(WndProcAddress);
-	RemoveDetour(ProcessMouseEvent);
+	RemoveDetour(__ProcessKeyboardEvent);
+	RemoveDetour(__ProcessMouseEvent);
 }
 
 void RenderInputUI()
 {
-	ImGui::BeginChild("##Input");
-
 	if (ImGui::CollapsingHeader("Keyboard", "##keyboard", true, true))
 	{
 		ImGui::Text("Keyboard");
@@ -274,13 +315,10 @@ void RenderInputUI()
 		else
 			ImGui::TextColored(ImColor(255, 0, 0), "Not Captured");
 
-		ImGui::Text("Text Input");
-		ImGui::SameLine();
+		ImGui::LabelText("InputCharacters", "%S", ImGui::GetIO().InputCharacters);
 
-		if (ImGui::GetIO().WantTextInput)
-			ImGui::TextColored(ImColor(0, 255, 0), "Captured");
-		else
-			ImGui::TextColored(ImColor(255, 0, 0), "Not Captured");
+		static char testEdit[256];
+		ImGui::InputText("Test Edit", testEdit, 256);
 	}
 
 	if (ImGui::CollapsingHeader("Mouse", "##mouse", true, true))
@@ -332,7 +370,7 @@ void RenderInputUI()
 			ImGui::LabelText("Position", "(%d, %d)", MouseState->x, MouseState->y);
 			ImGui::LabelText("Scroll", "%d", MouseState->Scroll);
 			ImGui::LabelText("Relative", "%d, %d", MouseState->relX, MouseState->relY);
-			ImGui::LabelText("Extra", "%d", MouseState->Extra);
+			ImGui::LabelText("Extra", "%d", MouseState->InWindow);
 
 			ImGui::TreePop();
 		}
@@ -364,21 +402,4 @@ void RenderInputUI()
 			ImGui::TreePop();
 		}
 	}
-
-	ImGui::EndChild();
 }
-
-//
-//
-//void MQ2NavigationRender::DoMouse()
-//{
-//	IDirectInputDevice8A* device = *EQADDR_DIMOUSE;
-//	HRESULT err;
-//
-//	if ((err = device->Acquire()) != DI_OK)
-//		return;
-//
-//	if ((err = device->GetDeviceState(sizeof(DIMOUSESTATE), &m_dims) != DI_OK))
-//		return;
-//
-//}

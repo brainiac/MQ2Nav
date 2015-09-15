@@ -19,6 +19,9 @@ void MQ2Navigation_PerformRender();
 void MQ2Navigation_ReleaseResources();
 void MQ2Navigation_PerformRenderUI();
 
+bool g_imguiReady = false;
+bool g_imguiRender = false;
+
 //============================================================================
 
 // This doesn't change during the execution of the program. This can be loaded
@@ -309,16 +312,11 @@ static void DrawMatrix(D3DXMATRIX& matrix, const char* name)
 
 void MQ2NavigationRender::UpdateUI()
 {
-	if (!m_pDevice)
-		return;
-
-	ImGui_ImplDX9_NewFrame();
-
 	auto now = std::chrono::system_clock::now();
 	if (std::chrono::duration_cast<std::chrono::milliseconds>(now - m_prevHistoryPoint).count() >= 100)
 	{
-		if (m_renderFrameRateHistory.size() > 1200) {
-			m_renderFrameRateHistory.erase(m_renderFrameRateHistory.begin(), m_renderFrameRateHistory.begin() + 200);
+		if (m_renderFrameRateHistory.size() > 200) {
+			m_renderFrameRateHistory.erase(m_renderFrameRateHistory.begin(), m_renderFrameRateHistory.begin() + 20);
 		}
 		m_renderFrameRateHistory.push_back(ImGui::GetIO().Framerate);
 		m_prevHistoryPoint = now;
@@ -326,8 +324,8 @@ void MQ2NavigationRender::UpdateUI()
 
 	// 1. Show a simple window
 	// Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
-	ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_Once);
-	ImGui::SetNextWindowSize(ImVec2(400, 600), ImGuiSetCond_Once);
+	ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(325, 700), ImGuiSetCond_Once);
 	ImGui::Begin("Debug");
 	{
 		if (m_renderFrameRateHistory.size() > 0)
@@ -360,14 +358,23 @@ void MQ2NavigationRender::PerformRenderUI()
 {
 	if (m_pDevice)
 	{
-		IDirect3DStateBlock9* stateBlock = nullptr;
+		if (g_imguiReady)
+		{
+			IDirect3DStateBlock9* stateBlock = nullptr;
 
-		m_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
+			m_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
 
-		UpdateUI();
+			if (g_imguiRender)
+			{
+				UpdateUI();
+				g_imguiRender = false;
+			}
+			else
+				ImGui::Render();
 
-		stateBlock->Apply();
-		stateBlock->Release();
+			stateBlock->Apply();
+			stateBlock->Release();
+		}
 	}
 }
 

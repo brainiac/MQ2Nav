@@ -5,7 +5,7 @@ struct IDirect3DDevice9;
 
 bool        ImGui_ImplDX9_Init(void* hwnd, IDirect3DDevice9* device);
 void        ImGui_ImplDX9_Shutdown();
-void        ImGui_ImplDX9_NewFrame();
+bool        ImGui_ImplDX9_NewFrame();
 
 // Use if you want to reset your rendering device without losing ImGui state.
 void        ImGui_ImplDX9_InvalidateDeviceObjects();
