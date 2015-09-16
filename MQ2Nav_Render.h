@@ -14,6 +14,8 @@
 class CEQDraw;
 class MQ2NavigationPath;
 
+// helper for getting EQ's IDirect3DDevice9 pointer
+IDirect3DDevice9* GetDeviceFromEverquest();
 
 class MQ2NavigationRender
 {
@@ -26,35 +28,17 @@ public:
 	void Initialize();
 	void Cleanup();
 
-	void PerformRender();
-	void PerformRenderUI();
+	void RenderGeometry();
 
-	IDirect3DDevice9* GetDevice() const { return m_pDevice; }
+	void RenderOverlay();
 
 	// testing
 	void SetNavigationPath(MQ2NavigationPath* navPath);
 	void UpdateNavigationPath();
 	void ClearNavigationPath();
 
-protected:
-	void Render();
-	void UpdateUI();
-
-	void DoMouse();
-
 private:
-	void InstallHooks();
-	void RemoveHooks();
-
-	bool m_hooksInstalled = false;
-	std::vector<DWORD> m_installedHooks;
-
-	HMODULE m_dx9Module = 0;
-
-private:
-	IDirect3DDevice9* m_pDevice = nullptr;
-
-	DWORD* m_direct3D_vftable = 0;
+	bool m_deviceAcquired = false;
 
 	// demo purposes
 	IDirect3DVertexBuffer9* m_pVertexBuffer = nullptr;

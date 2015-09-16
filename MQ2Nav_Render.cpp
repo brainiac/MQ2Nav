@@ -3,11 +3,9 @@
 //
 
 #include "MQ2Nav_Render.h"
-#include "MQ2Nav_Input.h"
+#include "MQ2Nav_Hooks.h"
 #include "MQ2Navigation.h"
 
-#include "EQDraw.h"
-#include "EQGraphics.h"
 #include "FindPattern.h"
 #include "imgui_impl_dx9.h"
 
@@ -15,184 +13,28 @@
 
 //============================================================================
 
-void MQ2Navigation_PerformRender();
-void MQ2Navigation_ReleaseResources();
-void MQ2Navigation_PerformRenderUI();
-
-bool g_imguiReady = false;
-bool g_imguiRender = false;
-
-//============================================================================
-
-// This doesn't change during the execution of the program. This can be loaded
-// at static initialization time because of this.
-DWORD EQGraphicsBaseAddress = (DWORD)GetModuleHandle("EQGraphicsDX9.dll");
-
-// This macro is used for statically building offsets. If using dynamic offset generation
-// with the pattern matching, don't use the macro.
-#define INITIALIZE_EQGRAPHICS_OFFSET(var) DWORD var = (((DWORD)var##_x - 0x10000000) + EQGraphicsBaseAddress)
-
-// RenderFlames_sub_10072EB0 in EQGraphicsDX9.dll ~ 2015-08-20
-#define ZoneRender_InjectionOffset_x                        0x10072EB0
-INITIALIZE_EQGRAPHICS_OFFSET(ZoneRender_InjectionOffset);
-
-const char* ZoneRender_InjectionMask = "xxxxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxx";
-const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x8b\xf1\x57\x8d\x46\x14\x50\x83\xcf\xff\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x4e\x5c\x51\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x96\x80\x00\x00\x00\x52\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x46\x38\x50\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x5f\x33\xc0\x5e\xc3";
-static inline DWORD FixEQGraphicsOffset(DWORD nOffset)
-{
-	return (nOffset - 0x10000000) + EQGraphicsBaseAddress;
-}
-
-bool GetOffsets()
-{
-	if ((ZoneRender_InjectionOffset = FindPattern(FixEQGraphicsOffset(0x10000000), 0x100000,
-		ZoneRender_InjectionPattern, ZoneRender_InjectionMask)) == 0)
-		return false;
-
-	return true;
-}
-
-class RenderHooks
-{
-public:
-	//------------------------------------------------------------------------
-	// d3d9 hooks
-
-	// this is only valid during a d3d9 hook detour
-	IDirect3DDevice9* GetDevice() { return reinterpret_cast<IDirect3DDevice9*>(this); }
-
-	HRESULT WINAPI Reset_Trampoline(D3DPRESENT_PARAMETERS* pPresentationParameters);
-	HRESULT WINAPI Reset_Detour(D3DPRESENT_PARAMETERS* pPresentationParameters)
-	{
-		MQ2Navigation_ReleaseResources();
-		return Reset_Trampoline(pPresentationParameters);
-	}
-
-	HRESULT WINAPI BeginScene_Trampoline();
-	HRESULT WINAPI BeginScene_Detour()
-	{
-		return BeginScene_Trampoline();
-	}
-
-	HRESULT WINAPI EndScene_Trampoline();
-	HRESULT WINAPI EndScene_Detour()
-	{
-		MQ2Navigation_PerformRenderUI();
-		return EndScene_Trampoline();
-	}
-
-	//------------------------------------------------------------------------
-	// EQGraphicsDX9.dll hooks
-	void ZoneRender_Injection_Trampoline();
-	void ZoneRender_Injection_Detour()
-	{
-		MQ2Navigation_PerformRender();
-		ZoneRender_Injection_Trampoline();
-	}
-};
-
-DETOUR_TRAMPOLINE_EMPTY(void RenderHooks::ZoneRender_Injection_Trampoline());
-DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::Reset_Trampoline(D3DPRESENT_PARAMETERS* pPresentationParameters));
-DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::BeginScene_Trampoline());
-DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::EndScene_Trampoline());
-
+void RenderInputUI();
 
 //----------------------------------------------------------------------------
 
 std::shared_ptr<MQ2NavigationRender> g_render;
 
-static IDirect3DDevice9* GetDeviceFromEverquest()
-{
-	if (CRender* pRender = (CRender*)g_pDrawHandler) {
-		return  pRender->pDevice;
-	}
-	return nullptr;
-}
 
 MQ2NavigationRender::MQ2NavigationRender()
 {
-	// This is so that we don't lose the dll before we've unloaded detours
-	m_dx9Module = LoadLibraryA("EQGraphicsDX9.dll");
-
 	Initialize();
 }
 
 MQ2NavigationRender::~MQ2NavigationRender()
 {
 	Cleanup();
-	RemoveHooks();
-
-	FreeLibrary(m_dx9Module);
-}
-
-void MQ2NavigationRender::InstallHooks()
-{
-	if (m_hooksInstalled)
-		return;
-
-	// make sure that the offsets are up to date before we try to make our hooks
-	if (!GetOffsets())
-	{
-		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
-		return;
-	}
-
-	InstallInputHooks();
-
-#define InstallDetour(offset, detour, trampoline) \
-	AddDetourf((DWORD)offset, detour, trampoline); \
-	m_installedHooks.push_back((DWORD)offset);
-
-	InstallDetour(ZoneRender_InjectionOffset, &RenderHooks::ZoneRender_Injection_Detour,
-		&RenderHooks::ZoneRender_Injection_Trampoline);
-
-	// Add hooks on IDirect3DDevice9 virtual functions
-	DWORD* d3dDevice_vftable = *(DWORD**)m_pDevice;
-	InstallDetour(d3dDevice_vftable[0x10], &RenderHooks::Reset_Detour, &RenderHooks::Reset_Trampoline);
-	InstallDetour(d3dDevice_vftable[0x29], &RenderHooks::BeginScene_Detour, &RenderHooks::BeginScene_Trampoline);
-	InstallDetour(d3dDevice_vftable[0x2A], &RenderHooks::EndScene_Detour, &RenderHooks::EndScene_Trampoline)
-
-	m_hooksInstalled = true;
-#undef InstallDetour
-}
-
-void MQ2NavigationRender::RemoveHooks()
-{
-	for (DWORD addr : m_installedHooks)
-	{
-		RemoveDetour(addr);
-	}
-
-	m_installedHooks.clear();
-	m_hooksInstalled = false;
-
-	RemoveInputHooks();
 }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-
-// These are defined in imgui
-unsigned int GetDroidSansCompressedSize();
-const unsigned int* GetDroidSansCompressedData();
 
 void MQ2NavigationRender::Initialize()
 {
-	m_pDevice = GetDeviceFromEverquest();
-	if (!m_pDevice) return;
-	if (m_pDevice->TestCooperativeLevel() != D3D_OK) return;
-
-	m_pDevice->AddRef();
-
-	InstallHooks();
-
-	HWND eqhwnd = *(HWND*)EQADDR_HWND;
-	ImGui_ImplDX9_Init(eqhwnd, m_pDevice);
-
-	ImGuiIO& io = ImGui::GetIO();
-	//io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
-	//	GetDroidSansCompressedSize(), 16);
-
 	m_prevHistoryPoint = std::chrono::system_clock::now();
 	m_renderFrameRateHistory.clear();
 
@@ -207,6 +49,8 @@ void MQ2NavigationRender::Initialize()
 	m_navPathMaterial.Diffuse.a = 1.0f;
 
 	UpdateNavigationPath();
+
+	m_deviceAcquired = true;
 }
 
 void MQ2NavigationRender::Cleanup()
@@ -223,71 +67,26 @@ void MQ2NavigationRender::Cleanup()
 	}
 
 	ClearNavigationPath();
-
-	if (m_pDevice)
-	{
-		ImGui_ImplDX9_Shutdown();
-
-		m_pDevice->Release();
-		m_pDevice = nullptr;
-	}
 }
 
-void MQ2NavigationRender::PerformRender()
+void MQ2NavigationRender::RenderGeometry()
 {
-	// If we don't have a device, try to acquire it
-	if (!m_pDevice)
-	{
-		Initialize();
-	}
+	g_pDevice->GetTransform(D3DTS_WORLD, &m_worldMatrix);
+	g_pDevice->GetTransform(D3DTS_PROJECTION, &m_projMatrix);
+	g_pDevice->GetTransform(D3DTS_VIEW, &m_viewMatrix);
 
-	// If we have a device, we can attempt to render
-	if (m_pDevice)
-	{
-		// Check to see if the current device is valid to use before
-		// doing any rendering. If the device is not valid, then we
-		// will release everything and try again next frame.
-		HRESULT result = m_pDevice->TestCooperativeLevel();
-
-		if (result != D3D_OK)
-		{
-			// device was lost
-			Cleanup();
-			return;
-		}
-
-		D3DPERF_BeginEvent(D3DCOLOR_XRGB(128, 128, 128), L"CustomRender");
-
-		m_pDevice->GetTransform(D3DTS_WORLD, &m_worldMatrix);
-		m_pDevice->GetTransform(D3DTS_PROJECTION, &m_projMatrix);
-		m_pDevice->GetTransform(D3DTS_VIEW, &m_viewMatrix);
-
-		IDirect3DStateBlock9* stateBlock = nullptr;
-
-		m_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
-
-		Render();
-
-		stateBlock->Apply();
-		stateBlock->Release();
-
-		D3DPERF_EndEvent();
-	}
-}
-
-void MQ2NavigationRender::Render()
-{
 	UpdateNavigationPath();
 
 	if (m_pLines)
 	{
-		m_pDevice->SetMaterial(&m_navPathMaterial);
-		m_pDevice->SetStreamSource(0, m_pLines, 0, sizeof(LineVertex));
-		m_pDevice->SetFVF(LineVertex::FVF_Flags);
+		g_pDevice->SetMaterial(&m_navPathMaterial);
+		g_pDevice->SetStreamSource(0, m_pLines, 0, sizeof(LineVertex));
+		g_pDevice->SetFVF(LineVertex::FVF_Flags);
 
-		m_pDevice->DrawPrimitive(D3DPT_LINESTRIP, 0, m_navpathLen - 1);
+		g_pDevice->DrawPrimitive(D3DPT_LINESTRIP, 0, m_navpathLen - 1);
 	}
 }
+
 
 static void DrawMatrix(D3DXMATRIX& matrix, const char* name)
 {
@@ -310,7 +109,7 @@ static void DrawMatrix(D3DXMATRIX& matrix, const char* name)
 	}
 }
 
-void MQ2NavigationRender::UpdateUI()
+void MQ2NavigationRender::RenderOverlay()
 {
 	auto now = std::chrono::system_clock::now();
 	if (std::chrono::duration_cast<std::chrono::milliseconds>(now - m_prevHistoryPoint).count() >= 100)
@@ -350,32 +149,6 @@ void MQ2NavigationRender::UpdateUI()
 		//DrawMatrix(m_projMatrix, "Projection Matrix");
 	}
 	ImGui::End();
-
-	ImGui::Render();
-}
-
-void MQ2NavigationRender::PerformRenderUI()
-{
-	if (m_pDevice)
-	{
-		if (g_imguiReady)
-		{
-			IDirect3DStateBlock9* stateBlock = nullptr;
-
-			m_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
-
-			if (g_imguiRender)
-			{
-				UpdateUI();
-				g_imguiRender = false;
-			}
-			else
-				ImGui::Render();
-
-			stateBlock->Apply();
-			stateBlock->Release();
-		}
-	}
 }
 
 void MQ2NavigationRender::SetNavigationPath(MQ2NavigationPath* navPath)
@@ -426,7 +199,7 @@ void MQ2NavigationRender::UpdateNavigationPath()
 
 	if (m_pLines == nullptr )
 	{
-		result = m_pDevice->CreateVertexBuffer((m_navpathLen + 1) * sizeof(LineVertex),
+		result = g_pDevice->CreateVertexBuffer((m_navpathLen + 1) * sizeof(LineVertex),
 			D3DUSAGE_WRITEONLY,
 			LineVertex::FVF_Flags,
 			D3DPOOL_DEFAULT,
@@ -459,21 +232,92 @@ void MQ2NavigationRender::ClearNavigationPath()
 	}
 }
 
-void MQ2Navigation_PerformRender()
-{
-	D3DPERF_BeginEvent(D3DCOLOR_XRGB(128, 128, 128), L"CustomRender");
-	g_render->PerformRender();
-	D3DPERF_EndEvent();
-}
 
-void MQ2Navigation_PerformRenderUI()
+void RenderInputUI()
 {
-	//D3DPERF_BeginEvent(D3DCOLOR_XRGB(128, 128, 128), L"CustomRenderUI");
-	g_render->PerformRenderUI();
-	//D3DPERF_EndEvent();
-}
+	if (ImGui::CollapsingHeader("Keyboard", "##keyboard", true, true))
+	{
+		ImGui::Text("Keyboard");
+		ImGui::SameLine();
 
-void MQ2Navigation_ReleaseResources()
-{
-	g_render->Cleanup();
+		if (ImGui::GetIO().WantCaptureKeyboard)
+			ImGui::TextColored(ImColor(0, 255, 0), "Captured");
+		else
+			ImGui::TextColored(ImColor(255, 0, 0), "Not Captured");
+
+		ImGui::LabelText("InputCharacters", "%S", ImGui::GetIO().InputCharacters);
+
+		static char testEdit[256];
+		ImGui::InputText("Test Edit", testEdit, 256);
+	}
+
+	if (ImGui::CollapsingHeader("Mouse", "##mouse", true, true))
+	{
+		ImGui::Text("Position: (%d, %d)", MouseLocation, MouseLocation.y);
+
+		ImGui::Text("Mouse");
+		ImGui::SameLine();
+
+		if (ImGui::GetIO().WantCaptureMouse)
+			ImGui::TextColored(ImColor(0, 255, 0), "Captured");
+		else
+			ImGui::TextColored(ImColor(255, 0, 0), "Not Captured");
+
+		ImGui::Text("Mouse");
+		ImGui::SameLine();
+
+		if (!MouseBlocked)
+			ImGui::TextColored(ImColor(0, 255, 0), "Not Blocked");
+		else
+			ImGui::TextColored(ImColor(255, 0, 0), "Blocked");
+
+		// Clicks? Clicks!
+		PMOUSECLICK clicks = EQADDR_MOUSECLICK;
+
+		ImGui::SetNextTreeNodeOpened(true, ImGuiSetCond_Once);
+		if (ImGui::TreeNode("##clicks", "EQ Mouse Clicks"))
+		{
+			ImGui::Columns(3);
+
+			ImGui::Text("Button"); ImGui::NextColumn();
+			ImGui::Text("Click"); ImGui::NextColumn();
+			ImGui::Text("Confirm"); ImGui::NextColumn();
+
+			for (int i = 0; i < 5; i++)
+			{
+				ImGui::Text("%d", i); ImGui::NextColumn();
+				ImGui::Text("%d", clicks->Click[i]); ImGui::NextColumn();
+				ImGui::Text("%d", clicks->Confirm[i]); ImGui::NextColumn();
+			}
+
+			ImGui::Columns(1);
+			ImGui::TreePop();
+		}
+
+		ImGui::SetNextTreeNodeOpened(true, ImGuiSetCond_Once);
+		if (ImGui::TreeNode("##position", "EQ Mouse State"))
+		{
+			ImGui::LabelText("Position", "(%d, %d)", MouseState->x, MouseState->y);
+			ImGui::LabelText("Scroll", "%d", MouseState->Scroll);
+			ImGui::LabelText("Relative", "%d, %d", MouseState->relX, MouseState->relY);
+			ImGui::LabelText("Extra", "%d", MouseState->InWindow);
+
+			ImGui::TreePop();
+		}
+
+		ImGui::SetNextTreeNodeOpened(true, ImGuiSetCond_Once);
+		if (ImGui::TreeNode("##mouseinfo", "EQ Mouse Info"))
+		{
+			int pos[2] = { EQADDR_MOUSE->X, EQADDR_MOUSE->Y };
+			ImGui::InputInt2("Pos", pos);
+
+			int speed[2] = { EQADDR_MOUSE->SpeedX, EQADDR_MOUSE->SpeedY };
+			ImGui::InputInt2("Speed", speed);
+
+			int scroll = MouseInfo->Scroll;
+			ImGui::InputInt("Scroll", &scroll);
+
+			ImGui::TreePop();
+		}
+	}
 }

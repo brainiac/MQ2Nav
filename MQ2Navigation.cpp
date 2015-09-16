@@ -13,6 +13,7 @@ extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
 #include "DetourCommon.h"
 #include "EQDraw.h"
 
+#include "MQ2Nav_Hooks.h"
 #include "MQ2Nav_MeshLoader.h"
 #include "MQ2Nav_Util.h"
 #include "MQ2Nav_Settings.h"
@@ -168,6 +169,8 @@ void MQ2NavigationPlugin::Initialize()
 	if (m_initialized)
 		return;
 
+	InitializeHooks();
+
 	DebugSpewAlways("MQ2Navigation::InitializePlugin:LoadSettings");
 	mq2nav::LoadSettings();
 	DebugSpewAlways("MQ2Navigation::InitializePlugin:FindKeys");
@@ -193,6 +196,9 @@ void MQ2NavigationPlugin::Shutdown()
 
 		g_render.reset();
 		m_render.reset();
+
+		ShutdownHooks();
+
 		m_initialized = false;
 	}
 }

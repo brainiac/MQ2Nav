@@ -68,7 +68,7 @@
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
     <ClInclude Include="MQ2Navigation.h" />
-    <ClInclude Include="MQ2Nav_Input.h" />
+    <ClInclude Include="MQ2Nav_Hooks.h" />
     <ClInclude Include="MQ2Nav_MeshLoader.h" />
     <ClInclude Include="MQ2Nav_Render.h" />
     <ClInclude Include="MQ2Nav_KeyBinds.h" />
@@ -87,7 +87,7 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
     </ClCompile>
-    <ClCompile Include="MQ2Nav_Input.cpp" />
+    <ClCompile Include="MQ2Nav_Hooks.cpp" />
     <ClCompile Include="MQ2Nav_KeyBinds.cpp" />
     <ClCompile Include="MQ2Nav_Main.cpp" />
     <ClCompile Include="MQ2Nav_Render.cpp" />

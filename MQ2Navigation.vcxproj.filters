@@ -68,7 +68,7 @@
     <ClInclude Include="FindPattern.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MQ2Nav_Input.h">
+    <ClInclude Include="MQ2Nav_Hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -106,7 +106,7 @@
     <ClCompile Include="FindPattern.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MQ2Nav_Input.cpp">
+    <ClCompile Include="MQ2Nav_Hooks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
