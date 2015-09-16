@@ -468,6 +468,11 @@ struct ImGuiState
         FramerateSecPerFrameAccum = 0.0f;
         CaptureMouseNextFrame = CaptureKeyboardNextFrame = false;
     }
+
+    ~ImGuiState()
+    {
+        ImGui::Shutdown();
+    }
 };
 
 // Transient per-window data, reset at the beginning of the frame
