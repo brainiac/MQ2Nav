@@ -15,6 +15,9 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 
+#include <atomic>
+#include <thread>
+
 //============================================================================
 
 // This doesn't change during the execution of the program. This can be loaded
@@ -124,11 +127,8 @@ IDirect3DDevice9* g_pDevice = nullptr;
 // represents whether the device has been acquired and is good to use.
 bool g_deviceAcquired = false;
 
-// used to prevent reentrancy into the detour
-static bool s_inTestCooperativeLevelDetour = false;
-
-// used to prevent call to TestCooperativeLevel while within Reset
-static bool s_inResetDetour = false;
+// check if we are in the keyboard event handler during shutdown
+std::atomic_bool g_inKeyboardEventHandler = false;
 
 class RenderHooks
 {
@@ -151,26 +151,19 @@ public:
 		if (g_render)
 			g_render->Cleanup();
 
-		s_inResetDetour = true;
-		HRESULT result = Reset_Trampoline(pPresentationParameters);
-		s_inResetDetour = false;
-		return result;
+		return Reset_Trampoline(pPresentationParameters);
 	}
 
 	HRESULT WINAPI BeginScene_Trampoline();
 	HRESULT WINAPI BeginScene_Detour()
 	{
-		if (g_pDevice != GetDevice())
-			return BeginScene_Trampoline();
-
 		return BeginScene_Trampoline();
 	}
 
 	HRESULT WINAPI TestCooperativeLevel_Trampoline();
 	HRESULT WINAPI TestCooperativeLevel_Detour()
 	{
-		HRESULT result = TestCooperativeLevel_Trampoline();
-		return result;
+		return TestCooperativeLevel_Trampoline();
 	}
 
 	HRESULT WINAPI EndScene_Trampoline();
@@ -347,35 +340,24 @@ void ProcessMouseEvent_Detour()
 DETOUR_TRAMPOLINE_EMPTY(unsigned int ProcessKeyboardEvent_Trampoline());
 unsigned int ProcessKeyboardEvent_Detour()
 {
-	int result = 0;
-	// only process the keyboard events if we are the foreground window.
-	HWND foregroundWindow = GetForegroundWindow();
-	HWND eqHWnd = *(HWND*)EQADDR_HWND;
-	if (foregroundWindow != eqHWnd)
-	{
-		ProcessKeyboardEvent_Trampoline();
-		result = 1;
-	}
-	else
-	{
-		ImGuiIO& io = ImGui::GetIO();
-
-		if (!io.WantCaptureKeyboard)
-		{
-			result = ProcessKeyboardEvent_Trampoline();
-		}
-		else
-		{
-			FlushDxKeyboard();
-		}
-	}
-
 	// This event occurs after the mouse event. Could probably put this in process events
 	if (g_deviceAcquired)
 	{
 		g_imguiReady = ImGui_ImplDX9_NewFrame();
 		g_imguiRender = true;
 	}
+
+	ImGuiIO& io = ImGui::GetIO();
+
+	if (io.WantCaptureKeyboard)
+	{
+		FlushDxKeyboard();
+		return 0;
+	}
+
+	g_inKeyboardEventHandler = true;
+	unsigned int result = ProcessKeyboardEvent_Trampoline();
+	g_inKeyboardEventHandler = false;
 
 	return result;
 }
@@ -455,9 +437,13 @@ void InstallDetour(DWORD address, const T& detour, const T& trampoline, bool def
 	g_installedHooks[address] = deferred;
 }
 
+// A handle to our own module. We use this to avoid being released until we
+// have successfully removed the keyboard hook.
+HMODULE g_selfModule = 0;
+
 // These are defined in imgui
-unsigned int GetDroidSansCompressedSize();
-const unsigned int* GetDroidSansCompressedData();
+//unsigned int GetDroidSansCompressedSize();
+//const unsigned int* GetDroidSansCompressedData();
 
 bool InitializeHooks()
 {
@@ -471,6 +457,7 @@ bool InitializeHooks()
 	}
 
 	g_dx9Module = LoadLibraryA("EQGraphicsDX9.dll");
+	g_selfModule = LoadLibraryA("MQ2Navigation.dll");
 
 	// Grab the Direct3D9 device and add a reference to it
 	g_pDevice = GetDeviceFromEverquest();
@@ -522,36 +509,59 @@ bool InitializeHooks()
 	g_hooksInstalled = true;
 }
 
+static void RemoveDetours()
+{
+	for (auto iter = g_installedHooks.begin(); iter != g_installedHooks.end(); ++iter)
+	{
+		RemoveDetour(iter->first);
+	}
+	g_installedHooks.clear();
+}
+
 void ShutdownHooks()
 {
 	if (!g_hooksInstalled)
 		return;
 
-	// Remove all of the non-deferred hooks
-	for (auto iter = g_installedHooks.begin(); iter != g_installedHooks.end();)
-	{
-		if (iter->second)
-		{
-			++iter; // deferred
-		}
-		else
-		{
-			RemoveDetour(iter->first);
-			g_installedHooks.erase(iter++);
-		}
-	}
+	RemoveDetours();
+	g_hooksInstalled = false;
 
 	// Cleanup the ImGui overlay
 	ImGui_ImplDX9_Shutdown();
 
 	// Release our Direct3D device before freeing the dx9 library
-	g_pDevice->Release();
-	g_pDevice = nullptr;
+	if (g_pDevice)
+	{
+		g_pDevice->Release();
+		g_pDevice = nullptr;
+	}
 
 	FreeLibrary(g_dx9Module);
 
-	// todo: this needs to be part of whatever gets deferred
-	g_hooksInstalled = false;
+	if (!g_inKeyboardEventHandler)
+	{
+		FreeLibrary(g_selfModule);
+	}
+	else
+	{
+		// start a thread and wait for g_inKeyboardEventHandler to be false.
+		// then call FreeLibraryAndExitThread
+
+		std::thread cleanup([]()
+		{
+			while (g_inKeyboardEventHandler)
+			{
+				Sleep(100);
+			}
+
+			// Wait a little bit AFTER the flag is cleared to allow enough time
+			// to leave the hook function. 
+			Sleep(5);
+
+			FreeLibraryAndExitThread(g_selfModule, 0);
+		});
+		cleanup.detach();
+	}
 }
 
 //----------------------------------------------------------------------------
