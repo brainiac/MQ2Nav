@@ -17,6 +17,8 @@
 
 #include <atomic>
 #include <thread>
+#include <boost/algorithm/string.hpp>
+#include <winternl.h>
 
 //============================================================================
 
@@ -437,10 +439,6 @@ void InstallDetour(DWORD address, const T& detour, const T& trampoline, bool def
 	g_installedHooks[address] = deferred;
 }
 
-// A handle to our own module. We use this to avoid being released until we
-// have successfully removed the keyboard hook.
-HMODULE g_selfModule = 0;
-
 // These are defined in imgui
 //unsigned int GetDroidSansCompressedSize();
 //const unsigned int* GetDroidSansCompressedData();
@@ -456,8 +454,9 @@ bool InitializeHooks()
 		return false;
 	}
 
+	DebugSpewAlways("Initialize Hooks!");
+
 	g_dx9Module = LoadLibraryA("EQGraphicsDX9.dll");
-	g_selfModule = LoadLibraryA("MQ2Navigation.dll");
 
 	// Grab the Direct3D9 device and add a reference to it
 	g_pDevice = GetDeviceFromEverquest();
@@ -523,6 +522,8 @@ void ShutdownHooks()
 	if (!g_hooksInstalled)
 		return;
 
+	DebugSpewAlways("Shutdown Hooks!");
+
 	RemoveDetours();
 	g_hooksInstalled = false;
 
@@ -538,16 +539,17 @@ void ShutdownHooks()
 
 	FreeLibrary(g_dx9Module);
 
-	if (!g_inKeyboardEventHandler)
+	if (g_inKeyboardEventHandler)
 	{
-		FreeLibrary(g_selfModule);
-	}
-	else
-	{
+		DebugSpewAlways("Deferred Unload in keyboard event handler");
+
+		// A handle to our own module. We use this to avoid being released until we
+		// have successfully left the keyboard hook.
+		HMODULE selfModule = LoadLibraryA("MQ2Navigation.dll");
+
 		// start a thread and wait for g_inKeyboardEventHandler to be false.
 		// then call FreeLibraryAndExitThread
-
-		std::thread cleanup([]()
+		std::thread cleanup([selfModule]()
 		{
 			while (g_inKeyboardEventHandler)
 			{
@@ -558,7 +560,13 @@ void ShutdownHooks()
 			// to leave the hook function. 
 			Sleep(5);
 
-			FreeLibraryAndExitThread(g_selfModule, 0);
+			// I Spent 3 days trying to figure out why this was needed. The
+			// Reference count was always 1 after FreeLibraryAndExitThread, no
+			// idea why...
+			FreeLibrary(selfModule);
+
+			// Free the library and exit this thread.
+			FreeLibraryAndExitThread(selfModule, 0);
 		});
 		cleanup.detach();
 	}
