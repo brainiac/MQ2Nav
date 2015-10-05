@@ -3,12 +3,11 @@
 //
 
 #include "MQ2Nav_Hooks.h"
-#include "MQ2Nav_Render.h"
 #include "MQ2Navigation.h"
-
+#include "ImGuiRenderer.h"
+#include "RenderHandler.h"
 #include "EQGraphics.h"
 #include "FindPattern.h"
-#include "imgui_impl_dx9.h"
 
 #include <imgui.h>
 
@@ -117,12 +116,6 @@ IDirect3DDevice9* GetDeviceFromEverquest()
 
 //----------------------------------------------------------------------------
 
-// indicates whether imgui is ready to be used
-bool g_imguiReady = false;
-
-// indicate whether imgui should render a new frame
-bool g_imguiRender = false;
-
 // the global direct3d device that we are "borrowing"
 IDirect3DDevice9* g_pDevice = nullptr;
 
@@ -148,10 +141,10 @@ public:
 			return Reset_Trampoline(pPresentationParameters);
 
 		g_deviceAcquired = false;
-		g_imguiReady = false;
-		ImGui_ImplDX9_InvalidateDeviceObjects();
-		if (g_render)
-			g_render->Cleanup();
+		if (g_renderHandler)
+		{
+			g_renderHandler->InvalidateDeviceObjects();
+		}
 
 		return Reset_Trampoline(pPresentationParameters);
 	}
@@ -184,27 +177,24 @@ public:
 			if (result == D3D_OK)
 			{
 				g_deviceAcquired = true;
-				ImGui_ImplDX9_CreateDeviceObjects();
-				if (g_render)
-					g_render->Initialize();
+				if (g_renderHandler)
+				{
+					g_renderHandler->CreateDeviceObjects();
+				}
 			}
 		}
 
 		// Perform the render within a stateblock so we don't upset the
 		// rest of the rendering pipeline
-		if (g_imguiReady && g_deviceAcquired)
+		if (g_deviceAcquired)
 		{
 			IDirect3DStateBlock9* stateBlock = nullptr;
 			g_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
 
-			if (g_imguiRender)
+			if (g_renderHandler)
 			{
-				if (g_render)
-					g_render->RenderOverlay();
-				g_imguiRender = false;
+				g_renderHandler->PerformRender(Renderable::Render_UI);
 			}
-
-			ImGui::Render();
 
 			stateBlock->Apply();
 			stateBlock->Release();
@@ -225,8 +215,10 @@ public:
 			IDirect3DStateBlock9* stateBlock = nullptr;
 			g_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
 
-			if (g_render)
-				g_render->RenderGeometry();
+			if (g_renderHandler)
+			{
+				g_renderHandler->PerformRender(Renderable::Render_Geometry);
+			}
 
 			stateBlock->Apply();
 			stateBlock->Release();
@@ -289,15 +281,6 @@ inline bool IsMouseBlocked()
 DETOUR_TRAMPOLINE_EMPTY(void ProcessMouseEvent_Trampoline())
 void ProcessMouseEvent_Detour()
 {
-	// We need to collect enough information from directInput to determine
-	// if we will skip the ProcessMouseEvent call. This means we need to know:
-	// * the position of the mouse
-	// * the current state of the mouse buttons
-
-	// This is a partial implementation of ProcessMouseEvent to recreate enough state
-	// to determine the answers to these questions, feed it into ImGui, and then
-	// determine if ImGui wants the mouse.
-
 	// Get mouse position. Returns true if the mouse is within the window bounds
 	GetMouseLocation(MouseLocation);
 
@@ -345,8 +328,10 @@ unsigned int ProcessKeyboardEvent_Detour()
 	// This event occurs after the mouse event. Could probably put this in process events
 	if (g_deviceAcquired)
 	{
-		g_imguiReady = ImGui_ImplDX9_NewFrame();
-		g_imguiRender = true;
+		if (g_imguiRenderer)
+		{
+			g_imguiRenderer->BeginNewFrame();
+		}
 	}
 
 	ImGuiIO& io = ImGui::GetIO();
@@ -439,10 +424,6 @@ void InstallDetour(DWORD address, const T& detour, const T& trampoline, bool def
 	g_installedHooks[address] = deferred;
 }
 
-// These are defined in imgui
-//unsigned int GetDroidSansCompressedSize();
-//const unsigned int* GetDroidSansCompressedData();
-
 bool InitializeHooks()
 {
 	if (g_hooksInstalled)
@@ -453,8 +434,6 @@ bool InitializeHooks()
 		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
 		return false;
 	}
-
-	DebugSpewAlways("Initialize Hooks!");
 
 	g_dx9Module = LoadLibraryA("EQGraphicsDX9.dll");
 
@@ -496,15 +475,6 @@ bool InitializeHooks()
 		&RenderHooks::EndScene_Detour,
 		&RenderHooks::EndScene_Trampoline);
 
-	// Iniialize the ImGui overlay
-	HWND eqhwnd = *(HWND*)EQADDR_HWND;
-	ImGui_ImplDX9_Init(eqhwnd, g_pDevice);
-
-	// Initialize font
-	//ImGuiIO& io = ImGui::GetIO();
-	//io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
-	//	GetDroidSansCompressedSize(), 16);
-
 	g_hooksInstalled = true;
 }
 
@@ -522,13 +492,8 @@ void ShutdownHooks()
 	if (!g_hooksInstalled)
 		return;
 
-	DebugSpewAlways("Shutdown Hooks!");
-
 	RemoveDetours();
 	g_hooksInstalled = false;
-
-	// Cleanup the ImGui overlay
-	ImGui_ImplDX9_Shutdown();
 
 	// Release our Direct3D device before freeing the dx9 library
 	if (g_pDevice)
@@ -541,8 +506,6 @@ void ShutdownHooks()
 
 	if (g_inKeyboardEventHandler)
 	{
-		DebugSpewAlways("Deferred Unload in keyboard event handler");
-
 		// A handle to our own module. We use this to avoid being released until we
 		// have successfully left the keyboard hook.
 		HMODULE selfModule = LoadLibraryA("MQ2Navigation.dll");

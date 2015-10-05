@@ -242,7 +242,8 @@ bool ImGui_ImplDX9_CreateDeviceObjects()
     if (!g_pd3dDevice)
         return false;
 
-    if (g_pd3dDevice->CreateVertexBuffer(VERTEX_BUFFER_SIZE * sizeof(CUSTOMVERTEX), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_CUSTOMVERTEX, D3DPOOL_DEFAULT, &g_pVB, NULL) < 0)
+    if (g_pd3dDevice->CreateVertexBuffer(VERTEX_BUFFER_SIZE * sizeof(CUSTOMVERTEX),
+		D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_CUSTOMVERTEX, D3DPOOL_DEFAULT, &g_pVB, NULL) < 0)
         return false;
 
     if (g_pd3dDevice->CreateIndexBuffer(INDEX_BUFFER_SIZE * sizeof(ImDrawIdx), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &g_pIB, NULL) < 0)

@@ -1,8 +1,8 @@
 //
-// MQ2Nav_Waypoints.cpp
+// Waypoints.cpp
 //
 
-#include "MQ2Nav_Waypoints.h"
+#include "Waypoints.h"
 
 namespace mq2nav {
 

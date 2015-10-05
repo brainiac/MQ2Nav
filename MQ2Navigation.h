@@ -24,7 +24,7 @@ class CEQDraw;
 class MQ2NavigationPlugin;
 class MQ2NavigatinType;
 class MQ2NavigationPath;
-class MQ2NavigationRender;
+class RenderHandler;
 class MeshLoader;
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
@@ -86,7 +86,7 @@ public:
 	static const int ENDPOINT_STOP_DISTANCE = 15;
 
 	// how often to update the path (in milliseconds)
-	static const int PATHFINDING_DELAY_MS = 2000;
+	static const int PATHFINDING_DELAY_MS = 200;
 
 	//----------------------------------------------------------------------------
 
@@ -130,7 +130,7 @@ private:
 private:
 	std::unique_ptr<MQ2NavigationType> m_navigationType;
 	std::unique_ptr<CEQDraw> m_pEQDraw;
-	std::shared_ptr<MQ2NavigationRender> m_render;
+	std::shared_ptr<RenderHandler> m_render;
 
 	// our nav mesh and active path
 	std::unique_ptr<MeshLoader> m_meshLoader;
@@ -209,6 +209,9 @@ public:
 	inline void Increment() { ++m_currentPathCursor; }
 
 	const float* GetCurrentPath() const { return &m_currentPath[0]; }
+
+	dtNavMesh* GetNavMesh() const { return m_navMesh; }
+	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
 
 private:
 	void FindPathInternal(const glm::vec3& pos);

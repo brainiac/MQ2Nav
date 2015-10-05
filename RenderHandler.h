@@ -1,8 +1,11 @@
 //
-// MQ2Nav_Render.h
+// RenderHandler.h
 //
 
 #pragma once
+
+#include "Renderable.h"
+#include "Signal.h"
 
 #include <d3dx9.h>
 #include <imgui.h>
@@ -14,23 +17,26 @@
 class CEQDraw;
 class MQ2NavigationPath;
 
-// helper for getting EQ's IDirect3DDevice9 pointer
-IDirect3DDevice9* GetDeviceFromEverquest();
+class RenderHooks;
+//class RenderList;
 
-class MQ2NavigationRender
+class dtNavMesh;
+
+extern IDirect3DDevice9* g_pDevice;
+
+
+class RenderHandler
 {
 	const float HEIGHT_OFFSET = 2.0;
 
+	friend class RenderHooks;
+
 public:
-	MQ2NavigationRender();
-	~MQ2NavigationRender();
+	RenderHandler();
+	~RenderHandler();
 
-	void Initialize();
-	void Cleanup();
-
-	void RenderGeometry();
-
-	void RenderOverlay();
+	void AddRenderable(const std::shared_ptr<Renderable>& renderable);
+	void RemoveRenderable(const std::shared_ptr<Renderable>& renderable);
 
 	// testing
 	void SetNavigationPath(MQ2NavigationPath* navPath);
@@ -38,7 +44,19 @@ public:
 	void ClearNavigationPath();
 
 private:
-	bool m_deviceAcquired = false;
+
+	// Called by RenderHooks
+	void CreateDeviceObjects();
+	void InvalidateDeviceObjects();
+
+	void PerformRender(Renderable::RenderPhase phase);
+
+	void Render3D();
+
+private:
+	bool m_deviceAcquired = false; // implies that g_pDevice is valid to use
+
+	std::vector<std::shared_ptr<Renderable>> m_renderables;
 
 	// demo purposes
 	IDirect3DVertexBuffer9* m_pVertexBuffer = nullptr;
@@ -48,10 +66,9 @@ private:
 	D3DXMATRIX m_viewMatrix;
 	D3DXMATRIX m_projMatrix;
 
-	// ui states
-	bool show_test_window = true;
-	bool show_another_window = false;
-	ImVec4 clear_col = ImColor(114, 144, 154);
+	//std::unique_ptr<RenderList> m_renderList;
+
+	Signal<dtNavMesh*>::ScopedConnection m_navMeshConnection;
 
 	//----------------------------------------------------------------------------
 	// nav path rendering
@@ -72,10 +89,6 @@ private:
 	MQ2NavigationPath* m_navPath = nullptr;
 
 	IDirect3DVertexBuffer9* m_pLines = nullptr;
-
-	// fps counter
-	std::vector<float> m_renderFrameRateHistory;
-	std::chrono::system_clock::time_point m_prevHistoryPoint;
 };
 
-extern std::shared_ptr<MQ2NavigationRender> g_render;
+extern std::shared_ptr<RenderHandler> g_renderHandler;

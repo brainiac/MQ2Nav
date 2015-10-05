@@ -1,5 +1,5 @@
 //
-// MQ2Nav_Waypoints.h
+// Waypoints.h
 //
 
 #pragma once

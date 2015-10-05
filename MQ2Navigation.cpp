@@ -3,27 +3,19 @@
 //
 
 #include "MQ2Navigation.h"
-#include "MQ2Nav_Render.h"
-
-extern bool _DEBUG_LOG;                            /* generate debug messages      */
-extern char _DEBUG_LOG_FILE[260];                  /* log file path        */
-
-
+#include "RenderHandler.h"
+#include "ImGuiRenderer.h"
+#include "MQ2Nav_Hooks.h"
+#include "MeshLoader.h"
+#include "MQ2Nav_Util.h"
+#include "MQ2Nav_Settings.h"
+#include "MQ2Nav_KeyBinds.h"
+#include "Waypoints.h"
 #include "DetourNavMesh.h"
 #include "DetourCommon.h"
 #include "EQDraw.h"
 
-#include "MQ2Nav_Hooks.h"
-#include "MQ2Nav_MeshLoader.h"
-#include "MQ2Nav_Util.h"
-#include "MQ2Nav_Settings.h"
-#include "MQ2Nav_KeyBinds.h"
-#include "MQ2Nav_Waypoints.h"
-
 #include <set>
-
-#define debug_log(a); debug_log_proc(a, __FILE__, __LINE__);
-extern void debug_log_proc(char *text, char *sourcefile, int sourceline);
 
 //============================================================================
 
@@ -104,7 +96,7 @@ static BOOL NavigateData(PCHAR szName, MQ2TYPEVAR& Dest)
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
   : m_navigationType(new MQ2NavigationType(this))
-  , m_meshLoader(new MeshLoader(this))
+  , m_meshLoader(new MeshLoader())
   , m_pEQDraw(new CEQDraw)
 {
 	AddCommand("/navigate", NavigateCommand);
@@ -168,8 +160,14 @@ void MQ2NavigationPlugin::Initialize()
 {
 	if (m_initialized)
 		return;
+	if (!InitializeHooks())
+		return;
 
-	InitializeHooks();
+	g_renderHandler.reset(new RenderHandler());
+
+	HWND eqhwnd = *(HWND*)EQADDR_HWND;
+	g_imguiRenderer.reset(new ImGuiRenderer(eqhwnd, g_pDevice));
+	g_renderHandler->AddRenderable(g_imguiRenderer);
 
 	DebugSpewAlways("MQ2Navigation::InitializePlugin:LoadSettings");
 	mq2nav::LoadSettings();
@@ -182,8 +180,6 @@ void MQ2NavigationPlugin::Initialize()
 	m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
 	m_pEQDraw->Initialize();
 
-	g_render.reset(new MQ2NavigationRender());
-	m_render = g_render;
 	m_initialized = true;
 }
 
@@ -194,8 +190,9 @@ void MQ2NavigationPlugin::Shutdown()
 		mq2nav::keybinds::UndoKeybinds();
 		Stop();
 
-		g_render.reset();
-		m_render.reset();
+		g_renderHandler->RemoveRenderable(g_imguiRenderer);
+		g_imguiRenderer.reset();
+		g_renderHandler.reset();
 
 		ShutdownHooks();
 
@@ -277,7 +274,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		EzCommand("/squelch /stick off");
 
 	// TODO: Fixme
-	mq2nav::keybinds::bDoMove = m_isActive;
+	//mq2nav::keybinds::bDoMove = m_isActive;
 	mq2nav::keybinds::stopNavigation = std::bind(&MQ2NavigationPlugin::Stop, this);
 }
 
@@ -285,7 +282,7 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 {
 	// first clear existing state
 	m_isActive = false;
-	m_render->ClearNavigationPath();
+	g_renderHandler->ClearNavigationPath();
 	m_activePath.reset();
 
 	if (!m_meshLoader->IsNavMeshLoaded())
@@ -295,7 +292,7 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 	}
 
 	m_activePath.reset(new MQ2NavigationPath(m_meshLoader->GetNavMesh()));
-	m_render->SetNavigationPath(m_activePath.get());
+	g_renderHandler->SetNavigationPath(m_activePath.get());
 
 	m_activePath->FindPath(pos);
 	m_isActive = m_activePath->GetPathSize() > 0;
@@ -436,7 +433,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 			// update path
 			m_activePath->UpdatePath();
 			m_isActive = m_activePath->GetPathSize() > 0;
-			mq2nav::keybinds::bDoMove = m_isActive;
+			//mq2nav::keybinds::bDoMove = m_isActive;
 
 			m_pathfindTimer = now;
 		}
@@ -463,7 +460,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 			if (distanceToTarget < ENDPOINT_STOP_DISTANCE
 				&& !m_bSpamClick)
 			{
-				LookAt(dest);
+				//LookAt(dest);
 			}
 		}
 
@@ -471,8 +468,8 @@ void MQ2NavigationPlugin::AttemptMovement()
 	}
 	else if (m_activePath->GetPathSize() > 0)
 	{
-		if (!GetCharInfo()->pSpawn->SpeedRun)
-			MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 1, 0);
+		//if (!GetCharInfo()->pSpawn->SpeedRun)
+		//	MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 1, 0);
 
 		glm::vec3 nextPosition = m_activePath->GetNextPosition();
 
@@ -493,8 +490,8 @@ void MQ2NavigationPlugin::AttemptMovement()
 			DebugSpewAlways("[MQ2Navigation] Moving Towards: %.2f %.2f %.2f", nextPosition.x, nextPosition.z, nextPosition.y);
 		}
 
-		glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
-		LookAt(eqPoint);
+		//glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
+		//LookAt(eqPoint);
 	}
 }
 
@@ -641,18 +638,18 @@ void MQ2NavigationPlugin::Stop()
 {
 	if (m_isActive)
 	{
-		WriteChatf(PLUGIN_MSG "Stopping navigation");
-		MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+		//WriteChatf(PLUGIN_MSG "Stopping navigation");
+		//MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
 	}
 
-	m_render->ClearNavigationPath();
+	g_renderHandler->ClearNavigationPath();
 	m_activePath.reset();
 	m_isActive = false;
 
 	m_pEndingDoor = nullptr;
 	m_pEndingItem = nullptr;
 
-	mq2nav::keybinds::bDoMove = m_isActive;
+	//mq2nav::keybinds::bDoMove = m_isActive;
 	mq2nav::keybinds::stopNavigation = nullptr;
 }
 #pragma endregion
@@ -721,6 +718,7 @@ void MQ2NavigationPath::UpdatePath()
 
 	m_currentPathCursor = 0;
 	m_currentPathSize = 0;
+	return;
 
 	dtPolyRef startRef, endRef;
 	m_query->findNearestPoly(startOffset, m_extents, &m_filter, &startRef, spos);

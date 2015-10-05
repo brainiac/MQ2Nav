@@ -1,8 +1,8 @@
 //
-// MQ2Nav_MeshLoader.cpp
+// MeshLoader.cpp
 //
 
-#include "MQ2Nav_MeshLoader.h"
+#include "MeshLoader.h"
 #include "MQ2Nav_Util.h"
 #include "MQ2Navigation.h"
 
@@ -309,6 +309,7 @@ MeshLoader::LoadResult MeshLoader::LoadZoneMeshData(const std::shared_ptr<char>&
 	// these values shouldn't be set until we have a successful load
 	m_loadedTiles = passtile;
 	m_mesh = std::move(navMesh);
+	NavMeshChanged(m_mesh.get());
 
 	return SUCCESS;
 }

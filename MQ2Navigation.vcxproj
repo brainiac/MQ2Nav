@@ -47,7 +47,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4018;4244</DisableSpecificWarnings>
@@ -64,22 +64,26 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FindPattern.h" />
+    <ClInclude Include="ImGuiRenderer.h" />
     <ClInclude Include="imgui_impl_dx9.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
     <ClInclude Include="MQ2Navigation.h" />
     <ClInclude Include="MQ2Nav_Hooks.h" />
-    <ClInclude Include="MQ2Nav_MeshLoader.h" />
-    <ClInclude Include="MQ2Nav_Render.h" />
+    <ClInclude Include="MeshLoader.h" />
+    <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="MQ2Nav_KeyBinds.h" />
+    <ClInclude Include="Renderable.h" />
+    <ClInclude Include="RenderList.h" />
     <ClInclude Include="MQ2Nav_Settings.h" />
     <ClInclude Include="MQ2Nav_Util.h" />
-    <ClInclude Include="MQ2Nav_Waypoints.h" />
-    <ClInclude Include="resource1.h" />
+    <ClInclude Include="Waypoints.h" />
     <ClInclude Include="meshext.h" />
+    <ClInclude Include="Signal.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FindPattern.cpp" />
+    <ClCompile Include="ImGuiRenderer.cpp" />
     <ClCompile Include="imgui_impl_dx9.cpp" />
     <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
@@ -89,11 +93,12 @@
     </ClCompile>
     <ClCompile Include="MQ2Nav_Hooks.cpp" />
     <ClCompile Include="MQ2Nav_KeyBinds.cpp" />
-    <ClCompile Include="MQ2Nav_Main.cpp" />
-    <ClCompile Include="MQ2Nav_Render.cpp" />
-    <ClCompile Include="MQ2Nav_MeshLoader.cpp" />
+    <ClCompile Include="PluginMain.cpp" />
+    <ClCompile Include="RenderHandler.cpp" />
+    <ClCompile Include="MeshLoader.cpp" />
     <ClCompile Include="MQ2Nav_Settings.cpp" />
-    <ClCompile Include="MQ2Nav_Waypoints.cpp" />
+    <ClCompile Include="Waypoints.cpp" />
+    <ClCompile Include="RenderList.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2Navigation1.rc" />

@@ -1,3 +1,6 @@
+//
+// PluginMain.cpp
+//
 
 #include "MQ2Navigation.h"
 

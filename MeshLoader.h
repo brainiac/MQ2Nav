@@ -1,10 +1,11 @@
 //
-// MQ2Nav_MeshLoader.h
+// MeshLoader.h
 //
 
 #pragma once
 
 #include "MQ2Plugin.h"
+#include "Signal.h"
 
 #include <chrono>
 #include <string>
@@ -16,9 +17,7 @@ class MQ2NavigationPlugin;
 class MeshLoader
 {
 public:
-	MeshLoader(MQ2NavigationPlugin* plugin)
-		: m_plugin(plugin)
-	{}
+	MeshLoader() {}
 
 	// called from OnPulse, will do actions on specific intervals
 	void Process();
@@ -54,6 +53,8 @@ public:
 	// get the currently loaded navmesh
 	inline dtNavMesh* GetNavMesh() const { return m_mesh.get(); }
 
+	Signal<dtNavMesh*> NavMeshChanged;
+
 private:
 	enum LoadResult { SUCCESS, CORRUPT, VERSION_MISMATCH };
 
@@ -62,7 +63,6 @@ private:
 	std::string GetMeshDirectory() const;
 
 private:
-	MQ2NavigationPlugin* m_plugin;
 	std::unique_ptr<dtNavMesh> m_mesh;
 
 	std::string m_zoneShortName;

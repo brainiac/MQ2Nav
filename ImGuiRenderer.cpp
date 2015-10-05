@@ -1,92 +1,89 @@
 //
-// MQ2Nav_Render.cpp
+// ImGuiRenderer.cpp
 //
 
-#include "MQ2Nav_Render.h"
-#include "MQ2Nav_Hooks.h"
-#include "MQ2Navigation.h"
-
-#include "FindPattern.h"
+#include "ImGuiRenderer.h"
 #include "imgui_impl_dx9.h"
+#include "MQ2Navigation.h"
+#include "MQ2Nav_Hooks.h"
 
-#include <cassert>
-
-//============================================================================
-
-void RenderInputUI();
+#include <imgui.h>
 
 //----------------------------------------------------------------------------
 
-std::shared_ptr<MQ2NavigationRender> g_render;
+// These are defined in imgui
+//unsigned int GetDroidSansCompressedSize();
+//const unsigned int* GetDroidSansCompressedData();
 
+std::shared_ptr<ImGuiRenderer> g_imguiRenderer;
 
-MQ2NavigationRender::MQ2NavigationRender()
+ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
+	: m_pDevice(device)
 {
-	Initialize();
-}
+	// Iniialize the ImGui overlay
+	ImGui_ImplDX9_Init(eqhwnd, device);
 
-MQ2NavigationRender::~MQ2NavigationRender()
-{
-	Cleanup();
-}
+	m_pDevice->AddRef();
 
-//----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
-
-void MQ2NavigationRender::Initialize()
-{
 	m_prevHistoryPoint = std::chrono::system_clock::now();
 	m_renderFrameRateHistory.clear();
 
-	D3DXMatrixIdentity(&m_worldMatrix);
-	D3DXMatrixIdentity(&m_viewMatrix);
-	D3DXMatrixIdentity(&m_projMatrix);
-
-	ZeroMemory(&m_navPathMaterial, sizeof(D3DMATERIAL9));
-	m_navPathMaterial.Diffuse.r = 1.0f;
-	m_navPathMaterial.Diffuse.g = 1.0f;
-	m_navPathMaterial.Diffuse.b = 1.0f;
-	m_navPathMaterial.Diffuse.a = 1.0f;
-
-	UpdateNavigationPath();
-
-	m_deviceAcquired = true;
+	// Initialize font
+	//ImGuiIO& io = ImGui::GetIO();
+	//io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
+	//	GetDroidSansCompressedSize(), 16);
 }
 
-void MQ2NavigationRender::Cleanup()
+ImGuiRenderer::~ImGuiRenderer()
 {
-	if (m_pVertexBuffer)
-	{
-		m_pVertexBuffer->Release();
-		m_pVertexBuffer = nullptr;
-	}
-	if (m_pTexture)
-	{
-		m_pTexture->Release();
-		m_pTexture = nullptr;
-	}
+	InvalidateDeviceObjects();
 
-	ClearNavigationPath();
+	// Cleanup the ImGui overlay
+	ImGui_ImplDX9_Shutdown();
+
+	m_pDevice->Release();
+	m_pDevice = nullptr;
 }
 
-void MQ2NavigationRender::RenderGeometry()
+void ImGuiRenderer::InvalidateDeviceObjects()
 {
-	g_pDevice->GetTransform(D3DTS_WORLD, &m_worldMatrix);
-	g_pDevice->GetTransform(D3DTS_PROJECTION, &m_projMatrix);
-	g_pDevice->GetTransform(D3DTS_VIEW, &m_viewMatrix);
+	m_imguiReady = false;
 
-	UpdateNavigationPath();
+	ImGui_ImplDX9_InvalidateDeviceObjects();
+}
 
-	if (m_pLines)
+bool ImGuiRenderer::CreateDeviceObjects()
+{
+	return ImGui_ImplDX9_CreateDeviceObjects();
+}
+
+void ImGuiRenderer::Render(RenderPhase phase)
+{
+	if (phase != Render_UI)
+		return;
+
+	if (m_imguiReady)
 	{
-		g_pDevice->SetMaterial(&m_navPathMaterial);
-		g_pDevice->SetStreamSource(0, m_pLines, 0, sizeof(LineVertex));
-		g_pDevice->SetFVF(LineVertex::FVF_Flags);
+		if (m_imguiRender)
+		{
+			DrawUI();
 
-		g_pDevice->DrawPrimitive(D3DPT_LINESTRIP, 0, m_navpathLen - 1);
+			m_imguiRender = false;
+		}
+
+		ImGui::Render();
 	}
 }
 
+void ImGuiRenderer::BeginNewFrame()
+{
+	m_imguiReady = ImGui_ImplDX9_NewFrame();
+	m_imguiRender = true;
+}
+
+//----------------------------------------------------------------------------
+
+void RenderInputUI();
 
 static void DrawMatrix(D3DXMATRIX& matrix, const char* name)
 {
@@ -109,8 +106,10 @@ static void DrawMatrix(D3DXMATRIX& matrix, const char* name)
 	}
 }
 
-void MQ2NavigationRender::RenderOverlay()
+void ImGuiRenderer::DrawUI()
 {
+	//return;
+
 	auto now = std::chrono::system_clock::now();
 	if (std::chrono::duration_cast<std::chrono::milliseconds>(now - m_prevHistoryPoint).count() >= 100)
 	{
@@ -149,87 +148,6 @@ void MQ2NavigationRender::RenderOverlay()
 		//DrawMatrix(m_projMatrix, "Projection Matrix");
 	}
 	ImGui::End();
-}
-
-void MQ2NavigationRender::SetNavigationPath(MQ2NavigationPath* navPath)
-{
-	ClearNavigationPath();
-
-	m_navPath = navPath;
-
-	UpdateNavigationPath();
-}
-
-void MQ2NavigationRender::UpdateNavigationPath()
-{
-	if (m_navPath == nullptr)
-		return;
-
-	int newLength = m_navPath->GetPathSize() + 1;
-	const float* navPathPoints = m_navPath->GetCurrentPath();
-
-	if (newLength != m_navpathLen)
-	{
-		// changed length, need to create new buffer?
-		m_navpathLen = newLength;
-
-		if (m_pLines)
-		{
-			m_pLines->Release();
-			m_pLines = nullptr;
-		}
-
-		// nothing to render if there is no path
-		if (m_navpathLen == 1)
-			return;
-	}
-
-	PSPAWNINFO me = GetCharInfo()->pSpawn;
-
-	LineVertex* vertices = new LineVertex[m_navpathLen];
-	vertices[0] = { me->Y, me->X, me->Z + HEIGHT_OFFSET };
-	for (int i = 0; i < m_navpathLen - 1; i++)
-	{
-		vertices[i + 1].x = navPathPoints[(i * 3) + 2];
-		vertices[i + 1].y = navPathPoints[(i * 3) + 0];
-		vertices[i + 1].z = navPathPoints[(i * 3) + 1] + HEIGHT_OFFSET;
-	}
-
-	HRESULT result = D3D_OK;
-
-	if (m_pLines == nullptr )
-	{
-		result = g_pDevice->CreateVertexBuffer((m_navpathLen + 1) * sizeof(LineVertex),
-			D3DUSAGE_WRITEONLY,
-			LineVertex::FVF_Flags,
-			D3DPOOL_DEFAULT,
-			&m_pLines,
-			NULL);
-	}
-
-	if (result == D3D_OK)
-	{
-		void* pVertices = NULL;
-
-		// lock v_buffer and load the vertices into it
-		m_pLines->Lock(0, m_navpathLen * sizeof(LineVertex), (void**)&pVertices, 0);
-		memcpy(pVertices, vertices, m_navpathLen * sizeof(LineVertex));
-		m_pLines->Unlock();
-	}
-
-	delete[] vertices;
-}
-
-void MQ2NavigationRender::ClearNavigationPath()
-{
-	m_navpathLen = 0;
-	m_navPath = nullptr;
-
-	if (m_pLines)
-	{
-		m_pLines->Release();
-		m_pLines = 0;
-	}
 }
 
 
