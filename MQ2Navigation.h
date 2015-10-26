@@ -105,9 +105,14 @@ public:
 	// Begin navigating to a point
 	void BeginNavigation(const glm::vec3& pos);
 
+	MeshLoader* GetMeshLoader() const { return m_meshLoader.get(); }
+
 private:
 	void Initialize();
 	void Shutdown();
+
+	void StopZone();
+	void LoadZone(int zoneId);
 
 	//----------------------------------------------------------------------------
 
@@ -137,6 +142,7 @@ private:
 	std::unique_ptr<MQ2NavigationPath> m_activePath;
 
 	bool m_initialized = false;
+	bool m_hooked = false;
 
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;
@@ -159,6 +165,9 @@ private:
 
 	clock::time_point m_pathfindTimer = clock::now();
 };
+
+extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
+
 
 //============================================================================
 

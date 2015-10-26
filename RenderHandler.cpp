@@ -6,7 +6,6 @@
 #include "MQ2Nav_Hooks.h"
 #include "MQ2Navigation.h"
 
-#include "FindPattern.h"
 #include "imgui_impl_dx9.h"
 
 #include <cassert>
@@ -19,74 +18,9 @@
 
 //============================================================================
 
-/*
-class DebugDrawDX : public duDebugDraw
-{
-	RenderList& m_rl;
-
-public:
-	DebugDrawDX(RenderList& rl_)
-		: m_rl(rl_)
-	{
-	}
-
-	virtual void end() override
-	{
-		m_rl.End();
-	}
-	
-	virtual void depthMask(bool state) override
-	{
-		//m_pDevice->SetRenderState(D3DRS_ZENABLE, state ? D3DZB_TRUE : D3DZB_FALSE);
-	}
-
-	virtual void texture(bool state) override
-	{
-	}
-
-	virtual void begin(duDebugDrawPrimitives prim, float size = 1.0f) override
-	{
-		RenderList::PrimitiveType type = RenderList::Prim_Points;
-
-		switch (prim)
-		{
-		case DU_DRAW_POINTS: type = RenderList::Prim_Points; break;
-		case DU_DRAW_LINES: type = RenderList::Prim_Lines; break;
-		case DU_DRAW_TRIS: type = RenderList::Prim_Triangles; break;
-		case DU_DRAW_QUADS: type = RenderList::Prim_Quads; break;
-		}
-
-		m_rl.Begin(type, size);
-	}
-
-	virtual void vertex(const float* pos, unsigned int color) override
-	{
-		vertex(pos[0], pos[1], pos[2], color, 0.0f, 0.0f);
-	}
-
-	virtual void vertex(const float x, const float y, const float z, unsigned int color) override
-	{
-		vertex(x, y, z, color, 0.0f, 0.0f);
-	}
-
-	virtual void vertex(const float* pos, unsigned int color, const float* uv) override
-	{
-		vertex(pos[0], pos[1], pos[2], color, uv[0], uv[1]);
-	}
-
-	virtual void vertex(const float x, const float y, const float z, unsigned int color, const float u, const float v) override
-	{
-		m_rl.AddVertex(x, y, z, color, u, v);
-	}
-};
-*/
-//----------------------------------------------------------------------------
-
 std::shared_ptr<RenderHandler> g_renderHandler;
 
-
 RenderHandler::RenderHandler()
-	//: m_navMeshConnection(g_pl)
 {
 	CreateDeviceObjects();
 }
@@ -112,6 +46,7 @@ void RenderHandler::CreateDeviceObjects()
 	}
 	m_deviceAcquired = true;
 
+#if 0
 	D3DXMatrixIdentity(&m_worldMatrix);
 	D3DXMatrixIdentity(&m_viewMatrix);
 	D3DXMatrixIdentity(&m_projMatrix);
@@ -123,6 +58,7 @@ void RenderHandler::CreateDeviceObjects()
 	m_navPathMaterial.Diffuse.a = 1.0f;
 
 	UpdateNavigationPath();
+#endif
 }
 
 void RenderHandler::InvalidateDeviceObjects()
@@ -137,6 +73,7 @@ void RenderHandler::InvalidateDeviceObjects()
 	}
 	m_renderables.clear();
 
+#if 0
 	// should be extract from this class
 	if (m_pVertexBuffer)
 	{
@@ -150,6 +87,7 @@ void RenderHandler::InvalidateDeviceObjects()
 	}
 
 	ClearNavigationPath();
+#endif
 }
 
 void RenderHandler::AddRenderable(const std::shared_ptr<Renderable>& renderable)
@@ -186,17 +124,20 @@ void RenderHandler::PerformRender(Renderable::RenderPhase phase)
 
 	if (phase == Renderable::Render_Geometry)
 	{
-		Render3D();
+		// move these out
+		g_pDevice->GetTransform(D3DTS_WORLD, &m_worldMatrix);
+		g_pDevice->GetTransform(D3DTS_PROJECTION, &m_projMatrix);
+		g_pDevice->GetTransform(D3DTS_VIEW, &m_viewMatrix);
+
+		//Render3D();
 	}
 }
 
 void RenderHandler::Render3D()
 {
-	// move these out
-	g_pDevice->GetTransform(D3DTS_WORLD, &m_worldMatrix);
-	g_pDevice->GetTransform(D3DTS_PROJECTION, &m_projMatrix);
-	g_pDevice->GetTransform(D3DTS_VIEW, &m_viewMatrix);
 
+
+#if 0
 	UpdateNavigationPath();
 
 	if (m_pLines)
@@ -207,19 +148,25 @@ void RenderHandler::Render3D()
 
 		g_pDevice->DrawPrimitive(D3DPT_LINESTRIP, 0, m_navpathLen - 1);
 	}
+#endif
 }
 
 void RenderHandler::SetNavigationPath(MQ2NavigationPath* navPath)
 {
+#if 0
 	ClearNavigationPath();
 
 	m_navPath = navPath;
 
 	UpdateNavigationPath();
+#endif
 }
 
 void RenderHandler::UpdateNavigationPath()
 {
+	return;
+
+#if 0
 	if (m_navPath == nullptr)
 		return;
 
@@ -276,16 +223,17 @@ void RenderHandler::UpdateNavigationPath()
 	}
 
 	delete[] vertices;
+#endif
 }
 
 void RenderHandler::ClearNavigationPath()
 {
-	m_navpathLen = 0;
-	m_navPath = nullptr;
+	//m_navpathLen = 0;
+	//m_navPath = nullptr;
 
-	if (m_pLines)
-	{
-		m_pLines->Release();
-		m_pLines = 0;
-	}
+	//if (m_pLines)
+	//{
+	//	m_pLines->Release();
+	//	m_pLines = 0;
+	//}
 }

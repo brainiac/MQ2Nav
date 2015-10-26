@@ -236,6 +236,7 @@ bool FillStructure(ReadCursor& cursor, T& data)
 	memcpy(&data, cursor.data, l);
 	cursor.data += l;
 	cursor.length -= l;
+	return true;
 }
 
 MeshLoader::LoadResult MeshLoader::LoadZoneMeshData(const std::shared_ptr<char>& data, DWORD length)
@@ -309,13 +310,14 @@ MeshLoader::LoadResult MeshLoader::LoadZoneMeshData(const std::shared_ptr<char>&
 	// these values shouldn't be set until we have a successful load
 	m_loadedTiles = passtile;
 	m_mesh = std::move(navMesh);
-	NavMeshChanged(m_mesh.get());
+	OnNavMeshChanged(m_mesh.get());
 
 	return SUCCESS;
 }
 
 void MeshLoader::Reset()
 {
+	OnNavMeshChanged(nullptr);
 	m_mesh.reset();
 	m_zoneShortName.clear();
 	m_loadedDataFile.clear();

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Renderable.h"
+#include "Signal.h"
 
 #include <chrono>
 #include <memory>
@@ -30,6 +31,9 @@ public:
 	virtual void Render(RenderPhase phase) override;
 
 	void BeginNewFrame();
+
+	// add a signal to do ui stuff
+	Signal<> OnUpdateUI;
 
 private:
 	// indicates whether imgui is ready to be used

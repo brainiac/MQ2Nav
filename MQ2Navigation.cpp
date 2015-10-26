@@ -7,6 +7,7 @@
 #include "ImGuiRenderer.h"
 #include "MQ2Nav_Hooks.h"
 #include "MeshLoader.h"
+#include "NavMeshRenderer.h"
 #include "MQ2Nav_Util.h"
 #include "MQ2Nav_Settings.h"
 #include "MQ2Nav_KeyBinds.h"
@@ -99,16 +100,24 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
   , m_meshLoader(new MeshLoader())
   , m_pEQDraw(new CEQDraw)
 {
-	AddCommand("/navigate", NavigateCommand);
-	AddMQ2Data("Navigation", NavigateData);
+	Initialize();
 
-	SetGameState(gGameState);
+	if (m_initialized)
+	{
+		AddCommand("/navigate", NavigateCommand);
+		AddMQ2Data("Navigation", NavigateData);
+
+		SetGameState(gGameState);
+	}
 }
 
 MQ2NavigationPlugin::~MQ2NavigationPlugin()
 {
-	RemoveCommand("/navigate");
-	RemoveMQ2Data("Navigation");
+	if (m_initialized)
+	{
+		RemoveCommand("/navigate");
+		RemoveMQ2Data("Navigation");
+	}
 
 	Shutdown();
 }
@@ -133,16 +142,14 @@ void MQ2NavigationPlugin::OnBeginZone()
 
 void MQ2NavigationPlugin::OnEndZone()
 {
-	pDoorTarget = NULL;
-	pGroundTarget = NULL;
+	pDoorTarget = nullptr;
+	pGroundTarget = nullptr;
 }
 
 void MQ2NavigationPlugin::SetGameState(DWORD GameState)
 {
 	if (GameState == GAMESTATE_INGAME) {
-		Initialize();
 		mq2nav::LoadWaypoints();
-
 		m_meshLoader->SetZoneId(GetCharInfo()->zoneId);
 	}
 	else {
@@ -152,7 +159,6 @@ void MQ2NavigationPlugin::SetGameState(DWORD GameState)
 		if (GameState != GAMESTATE_ZONING) {
 			m_meshLoader->Reset();
 		}
-		Shutdown();
 	}
 }
 
@@ -164,10 +170,13 @@ void MQ2NavigationPlugin::Initialize()
 		return;
 
 	g_renderHandler.reset(new RenderHandler());
+	m_render = g_renderHandler;
 
-	HWND eqhwnd = *(HWND*)EQADDR_HWND;
+	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
 	g_imguiRenderer.reset(new ImGuiRenderer(eqhwnd, g_pDevice));
 	g_renderHandler->AddRenderable(g_imguiRenderer);
+	g_navMeshRenderer.reset(new NavMeshRenderer(m_meshLoader.get(), g_pDevice));
+	g_renderHandler->AddRenderable(g_navMeshRenderer);
 
 	DebugSpewAlways("MQ2Navigation::InitializePlugin:LoadSettings");
 	mq2nav::LoadSettings();
@@ -190,8 +199,12 @@ void MQ2NavigationPlugin::Shutdown()
 		mq2nav::keybinds::UndoKeybinds();
 		Stop();
 
+		g_renderHandler->RemoveRenderable(g_navMeshRenderer);
+		g_navMeshRenderer.reset();
+
 		g_renderHandler->RemoveRenderable(g_imguiRenderer);
 		g_imguiRenderer.reset();
+
 		g_renderHandler.reset();
 
 		ShutdownHooks();

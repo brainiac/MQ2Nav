@@ -53,7 +53,7 @@ public:
 	// get the currently loaded navmesh
 	inline dtNavMesh* GetNavMesh() const { return m_mesh.get(); }
 
-	Signal<dtNavMesh*> NavMeshChanged;
+	Signal<dtNavMesh*> OnNavMeshChanged;
 
 private:
 	enum LoadResult { SUCCESS, CORRUPT, VERSION_MISMATCH };

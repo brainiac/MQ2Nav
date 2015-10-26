@@ -12,6 +12,7 @@
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
 
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -20,9 +21,6 @@
 class RenderList : public Renderable
 {
 public:
-	RenderList(IDirect3DDevice9* d3dDevice);
-	~RenderList();
-
 	enum PrimitiveType
 	{
 		Prim_Points = 0,
@@ -33,12 +31,15 @@ public:
 		Prim_Count
 	};
 
+	RenderList(IDirect3DDevice9* d3dDevice, PrimitiveType type);
+	~RenderList();
+
 	void Reset();
 
 	//----------------------------------------------------------------------------
 	// build the geometry
 
-	void Begin(PrimitiveType type, float size = 1.0f);
+	void Begin(float size = 1.0f);
 
 	void AddVertex(float x, float y, float z, unsigned int color, float u, float v);
 
@@ -47,7 +48,11 @@ public:
 	//----------------------------------------------------------------------------
 
 	// Render the geometry
-	virtual void Render();
+	virtual void Render(RenderPhase phase);
+
+	PrimitiveType GetType() const { return m_type; }
+
+	void RenderDebugUI();
 
 	// Release any resources we might be holding onto
 	virtual void InvalidateDeviceObjects();
@@ -55,8 +60,23 @@ public:
 	// Create the resources we need to render
 	virtual bool CreateDeviceObjects();
 
+	// The number of primitives in the list
+	int GetPrimitiveCount() const { return m_prims.size(); }
+
+	// Set a range of primitives to draw when rendering. Clamped by the size of the list.
+	void Debug_SetRenderRange(int begin, int end);
+	void Debug_GetRenderRange(int& begin, int& end);
+
+	void Debug_ShowTris();
+
 private:
-	void ResetCounter();
+	void AddPoint();
+	void AddLine();
+	void AddTriangle();
+	void AddQuad();
+
+	// Create buffers if necessary
+	void GenerateBuffers();
 
 	struct Vertex
 	{
@@ -66,16 +86,26 @@ private:
 	};
 	static const DWORD VertexType = (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 
+	PrimitiveType m_type;
+
 	struct PrimitiveList
 	{
-		std::vector<uint16_t> indices;
+		std::vector<uint32_t> indices;
 		int vertices = 0;
-		float size = 1.0; // not used for now
-		PrimitiveType type;
+		int count = 0;
+		float size = 1.0;
 
 		// used for rendering from the index buffer
-		uint16_t startingIndex = 0;
+		uint32_t startingIndex = 0;
 	};
+
+	uint32_t m_firstRender = 0;
+	uint32_t m_lastRender = 0xffffffff;
+
+	// buffer of temporary indices for the current primitive
+	Vertex m_tempIndices[4];
+	int m_tempIndex = 0;
+	int m_tempMax = 0;
 
 private:
 	IDirect3DDevice9* m_pDevice = nullptr;
@@ -83,8 +113,9 @@ private:
 	IDirect3DIndexBuffer9* m_pIB = nullptr;
 
 	std::vector<Vertex> m_vertices;
-	std::vector<std::unique_ptr<PrimitiveList>> m_prims;
 
+	// keyed on thickness. We don't support thickness so it doesn't
+	// make any difference at the moment.
+	std::vector<std::unique_ptr<PrimitiveList>> m_prims;
 	PrimitiveList* m_currentPrim;
-	int m_currVertexCnt; // used for assembling lines, tris, quads
 };

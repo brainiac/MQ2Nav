@@ -12,7 +12,6 @@
 #include <string.h>
 #include <math.h>
 
-
 static inline void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
 {
 	glm::vec3 nv = v;
@@ -242,9 +241,9 @@ bool MapGeometryLoader::load()
 		}
 		for (auto iter : map_eqg_models)
 		{
+			bool first = true;
 			std::string name = iter.first;
 			std::shared_ptr<EQEmu::EQG::Geometry> model = iter.second;
-
 			std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
 
 			for (const auto& vert : model->GetVertices())
@@ -254,8 +253,10 @@ bool MapGeometryLoader::load()
 
 			for (const auto& poly : model->GetPolygons())
 			{
+				// 0x10 = invisible
+				// 0x01 = no collision
 				entry->polys.emplace_back(
-					ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x10) == 0 });
+					ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x11) == 0 });
 			}
 
 			m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
@@ -277,6 +278,10 @@ bool MapGeometryLoader::load()
 
 			auto modelIter = m_models.find(name);
 			if (modelIter == m_models.end())
+				continue;
+
+			// some objects have a really low z, just ignore them.
+			if (obj->GetZ() < -30000)
 				continue;
 
 			const auto& model = modelIter->second;

@@ -3,19 +3,12 @@
 //
 
 #include "RenderList.h"
+#include "../MQ2Plugin.h"
 
 #include <d3d9.h>
+#include <imgui.h>
 
-RenderList::RenderList(IDirect3DDevice9* pDevice)
-	: m_pDevice(pDevice)
-{
-	assert(m_pDevice != nullptr);
-}
-
-RenderList::~RenderList()
-{
-	InvalidateDeviceObjects();
-}
+#include <Windows.h>
 
 static inline int PrimVertexCount(RenderList::PrimitiveType type)
 {
@@ -32,6 +25,20 @@ static inline int PrimVertexCount(RenderList::PrimitiveType type)
 	}
 }
 
+RenderList::RenderList(IDirect3DDevice9* pDevice, PrimitiveType type)
+	: m_pDevice(pDevice)
+	, m_type(type)
+	, m_tempMax(PrimVertexCount(type))
+	, m_currentPrim(nullptr)
+{
+	assert(m_pDevice != nullptr);
+}
+
+RenderList::~RenderList()
+{
+	InvalidateDeviceObjects();
+}
+
 static inline unsigned int ConvertColor(unsigned int color)
 {
 	return D3DCOLOR_RGBA(
@@ -44,71 +51,173 @@ static inline unsigned int ConvertColor(unsigned int color)
 void RenderList::Reset()
 {
 	InvalidateDeviceObjects();
+
+	m_vertices.clear();
+	m_prims.clear();
 }
 
-void RenderList::Begin(PrimitiveType type, float size /* = 1.0f */)
+void RenderList::Begin(float size /* = 1.0f */)
 {
-	std::unique_ptr<PrimitiveList> prims = std::make_unique<PrimitiveList>();
-	m_currentPrim = prims.get();
+	// check if we have a primitive list that matches this size
+	auto iter = std::find_if(m_prims.begin(), m_prims.end(),
+		[size](std::unique_ptr<PrimitiveList>& l) { return l->size == size; });
 
-	// add prims to the list
-	m_prims.emplace_back(std::move(prims));
+	if (iter == m_prims.end())
+	{
+		std::unique_ptr<PrimitiveList> p = std::make_unique<PrimitiveList>();
+		p->size = size;
 
-	m_currentPrim->type = type;
-	m_currentPrim->size = size;
-
-	// count how many vertices are left before we update the indices
-	m_currVertexCnt = PrimVertexCount(type);
+		m_currentPrim = p.get();
+		m_prims.emplace_back(std::move(p));
+	}
+	else
+	{
+		m_currentPrim = iter->get();
+	}
 }
 
 void RenderList::AddVertex(float x, float y, float z, unsigned int color, float u, float v)
 {
 	m_vertices.emplace_back(Vertex{ { z, x, y }, ConvertColor(color),{ u, v } });
+	++m_currentPrim->vertices;
+	++m_tempIndex;
 
-	--m_currVertexCnt;
-	if (m_currVertexCnt == 0)
+	if (m_tempIndex == m_tempMax)
 	{
-		int16_t index = m_vertices.size() - 1;
-		std::vector<uint16_t>& indices = m_currentPrim->indices;
-		m_currentPrim->vertices++;
+		m_tempIndex = 0;
 
 		// used up all the vertices. Add indexes
-		switch (m_currentPrim->type)
+		switch (m_type)
 		{
 		case Prim_Points:
-			indices.push_back(index);
+			AddPoint();
 			break;
 
 		case Prim_Lines:
-			indices.push_back(index - 1);
-			indices.push_back(index - 0);
+			AddLine();
 			break;
 
 		case Prim_Triangles:
-			indices.push_back(index - 2);
-			indices.push_back(index - 1);
-			indices.push_back(index - 0);
+			AddTriangle();
 			break;
 
 		case Prim_Quads:
-			indices.push_back(index - 3);
-			indices.push_back(index - 2);
-			indices.push_back(index - 1);
-			indices.push_back(index - 2);
-			indices.push_back(index - 0);
-			indices.push_back(index - 1);
+			AddQuad();
 			break;
 		}
-
-		m_currVertexCnt = PrimVertexCount(m_currentPrim->type);
 	}
+}
+
+void RenderList::AddPoint()
+{
+	uint32_t index = m_vertices.size() - 1;
+	m_currentPrim->indices.push_back(index);
+	m_currentPrim->count++;
+}
+
+void RenderList::AddLine()
+{
+	uint32_t index = m_vertices.size() - 2;
+	m_currentPrim->indices.push_back(index);
+	m_currentPrim->indices.push_back(index + 1);
+	m_currentPrim->count++;
+}
+
+inline float distance(const D3DXVECTOR3& a, const D3DXVECTOR3& b)
+{
+	float X = a.x - b.x;
+	float Y = a.y - b.y;
+	float Z = a.z - b.z;
+
+	return sqrtf(X*X + Y*Y + Z*Z);
+}
+
+void RenderList::AddTriangle()
+{
+	uint32_t index = m_vertices.size() - 3;
+	m_currentPrim->indices.push_back(index);
+	m_currentPrim->indices.push_back(index + 1);
+	m_currentPrim->indices.push_back(index + 2);
+	m_currentPrim->count++;
+}
+
+void RenderList::AddQuad()
+{
+	uint32_t index = m_vertices.size() - 4;
+	m_currentPrim->indices.push_back(index);
+	m_currentPrim->indices.push_back(index + 1);
+	m_currentPrim->indices.push_back(index + 2);
+	m_currentPrim->indices.push_back(index + 1);
+	m_currentPrim->indices.push_back(index + 3);
+	m_currentPrim->indices.push_back(index + 2);
+	m_currentPrim->count++;
 }
 
 void RenderList::End()
 {
 }
 
-void RenderList::Render()
+void RenderList::Render(Renderable::RenderPhase phase)
+{
+	if (phase != Renderable::Render_Geometry)
+		return;
+
+	GenerateBuffers();
+
+	if (!m_pVB || !m_pIB)
+		return;
+
+	m_pDevice->SetStreamSource(0, m_pVB, 0, sizeof(Vertex));
+	m_pDevice->SetIndices(m_pIB);
+	m_pDevice->SetFVF(VertexType);
+
+	int start = std::max(0u, m_firstRender);
+	int end = std::min(m_prims.size(), m_lastRender);
+
+	for (auto& p : m_prims)
+	{
+		PrimitiveList* l = p.get();
+
+		if (l->indices.size() == 0)
+			continue;
+
+		switch (m_type)
+		{
+		case Prim_Points:
+			m_pDevice->DrawIndexedPrimitive(D3DPT_POINTLIST,
+				0,                       // BaseVertexIndex
+				l->indices[0],           // MinIndex
+				l->vertices,             // NumVertices
+				l->startingIndex,        // StartIndex
+				l->count                 // PrimitiveCount
+				);
+			break;
+
+		case Prim_Lines:
+			m_pDevice->DrawIndexedPrimitive(D3DPT_LINELIST,
+				0,                       // BaseVertexIndex
+				l->indices[0],           // MinIndex
+				l->vertices,             // NumVertices
+				l->startingIndex,        // StartIndex
+				l->count                 // PrimitiveCount
+				);
+			break;
+
+		case Prim_Triangles:
+		case Prim_Quads:
+			m_pDevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,
+				0,                       // BaseVertexIndex
+				l->indices[0],           // MinIndex
+				l->vertices,             // NumVertices
+				l->startingIndex,        // StartIndex
+				l->count                 // PrimitiveCount
+				);
+			break;
+		}
+	}
+}
+
+void RenderList::GenerateBuffers()
 {
 	bool rebuildBuffers = false;
 	int vertexSize = 0, indexSize = 0;
@@ -128,11 +237,11 @@ void RenderList::Render()
 	if (!m_pIB && m_prims.size() > 0)
 	{
 		// rebuild the indices and render sets
-		for (int i = 0; i < m_prims.size(); ++i)
-			indexSize += m_prims[i]->indices.size();
+		for (auto& p : m_prims)
+			indexSize += p->indices.size();
 
-		if (m_pDevice->CreateIndexBuffer(indexSize * sizeof(uint16_t),
-			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &m_pIB, nullptr) < 0)
+		if (m_pDevice->CreateIndexBuffer(indexSize * sizeof(uint32_t),
+			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &m_pIB, nullptr) < 0)
 		{
 			return;
 		}
@@ -143,11 +252,11 @@ void RenderList::Render()
 	if (rebuildBuffers)
 	{
 		Vertex* vertexDest;
-		uint16_t* indexDest;
+		uint32_t* indexDest;
 
 		if (m_pVB->Lock(0, vertexSize * sizeof(Vertex), (void**)&vertexDest, D3DLOCK_DISCARD) < 0)
 			return;
-		if (m_pIB->Lock(0, indexSize * sizeof(uint16_t), (void**)&indexDest, D3DLOCK_DISCARD) < 0)
+		if (m_pIB->Lock(0, indexSize * sizeof(uint32_t), (void**)&indexDest, D3DLOCK_DISCARD) < 0)
 			return;
 
 		// fill vertex buffer
@@ -155,88 +264,26 @@ void RenderList::Render()
 
 		// build the index buffer
 		int currentIndex = 0;
-		for (int i = 0; i < m_prims.size(); ++i)
+		for (auto& p : m_prims)
 		{
-			PrimitiveList* l = m_prims[i].get();
+			PrimitiveList* l = p.get();
 
-			for (int j = 0; j < l->indices.size(); ++j)
-			{
-				memcpy(indexDest + currentIndex, &l->indices[0], l->indices.size() * sizeof(uint16_t));
-				l->startingIndex = currentIndex;
-			}
+			if (l->indices.size() == 0)
+				continue;
+
+			size_t source_len = l->indices.size() * sizeof(uint32_t);
+			uint32_t* source = &l->indices[0];
+			uint32_t* dest = indexDest + currentIndex;
+			memcpy(dest, source, source_len);
+
+			l->startingIndex = currentIndex;
 			currentIndex += l->indices.size();
 		}
 
+		m_lastRender = m_prims.size();
 		m_pVB->Unlock();
 		m_pIB->Unlock();
 	}
-
-	m_pDevice->SetStreamSource(0, m_pVB, 0, sizeof(Vertex));
-	m_pDevice->SetIndices(m_pIB);
-	m_pDevice->SetFVF(VertexType);
-
-	m_pDevice->SetPixelShader(NULL);
-	m_pDevice->SetVertexShader(NULL);
-	m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	m_pDevice->SetRenderState(D3DRS_LIGHTING, false);
-	m_pDevice->SetRenderState(D3DRS_ZENABLE, true);
-	m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-	m_pDevice->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-	m_pDevice->SetRenderState(D3DRS_ALPHATESTENABLE, true);
-	m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-	m_pDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
-	m_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-	m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-	m_pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-	m_pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-
-	for (int i = 0; i < m_prims.size(); ++i)
-	{
-		PrimitiveList* l = m_prims[i].get();
-
-		if (l->indices.size() == 0)
-			continue;
-
-		switch (l->type)
-		{
-		case Prim_Points:
-			m_pDevice->DrawIndexedPrimitive(D3DPT_POINTLIST,
-				0,                       // BaseVertexIndex
-				l->indices[0],           // MinIndex
-				l->vertices,             // NumVertices
-				l->startingIndex,        // StartIndex
-				l->indices.size()        // PrimitiveCount
-				);
-			break;
-
-		case Prim_Lines:
-			m_pDevice->DrawIndexedPrimitive(D3DPT_LINELIST,
-				0,                       // BaseVertexIndex
-				l->indices[0],           // MinIndex
-				l->vertices,       // NumVertices
-				l->startingIndex,        // StartIndex
-				l->indices.size() / 2    // PrimitiveCount
-				);
-			break;
-
-		case Prim_Triangles:
-		case Prim_Quads:
-			m_pDevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,
-				0,                       // BaseVertexIndex
-				l->indices[0],           // MinIndex
-				l->vertices,             // NumVertices
-				l->startingIndex,        // StartIndex
-				l->indices.size() / 3    // PrimitiveCount
-				);
-			break;
-		}
-	}
-
-	m_pDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
 }
 
 void RenderList::InvalidateDeviceObjects()
@@ -262,4 +309,20 @@ bool RenderList::CreateDeviceObjects()
 	// We'll create our objects when we need them.
 
 	return true;
+}
+
+void RenderList::Debug_SetRenderRange(int begin, int end)
+{
+	m_firstRender = begin;
+	m_lastRender = end;
+
+	if (m_firstRender >= m_lastRender)
+		m_firstRender = m_lastRender;
+
+}
+
+void RenderList::Debug_GetRenderRange(int& begin, int& end)
+{
+	begin = m_firstRender;
+	end = m_lastRender;
 }

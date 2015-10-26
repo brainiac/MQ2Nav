@@ -28,6 +28,10 @@ public:
 	{
 	}
 
+	~SignalConnectionItem()
+	{
+	}
+
 	void operator()(T... args)
 	{
 		if (m_connected && m_callback)
@@ -154,8 +158,11 @@ public:
 	SignalConnection() {}
 
 	SignalConnection(Signal<T...>& signal, const std::shared_ptr<Item>& item)
-		: m_signal(signal)
+		: m_signal(&signal)
 		, m_item(item)
+	{}
+
+	~SignalConnection()
 	{}
 
 	void operator=(const SignalConnection& other)

@@ -495,6 +495,8 @@ void ShutdownHooks()
 	RemoveDetours();
 	g_hooksInstalled = false;
 
+
+
 	// Release our Direct3D device before freeing the dx9 library
 	if (g_pDevice)
 	{

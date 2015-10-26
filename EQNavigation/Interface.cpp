@@ -323,7 +323,7 @@ void Interface::HandleEvents()
 			// Handle mouse clicks here.
 			if (event.button.button == SDL_BUTTON_RIGHT)
 			{
-				SDL_SetRelativeMouseMode(SDL_TRUE);
+				//SDL_SetRelativeMouseMode(SDL_TRUE);
 
 				// Rotate view
 				m_rotate = true;
@@ -378,7 +378,7 @@ void Interface::HandleEvents()
 			// Handle mouse clicks here.
 			if (event.button.button == SDL_BUTTON_RIGHT)
 			{
-				SDL_SetRelativeMouseMode(SDL_FALSE);
+				//SDL_SetRelativeMouseMode(SDL_FALSE);
 				m_rotate = false;
 			}
 			break;
@@ -653,6 +653,7 @@ void Interface::ShowZonePickerDialog()
 
 		bool selectSingle = false;
 		static char buf[64] = "";
+		ImGui::SetKeyboardFocusHere();
 		ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth());
 		if (ImGui::InputText("", buf, 64, ImGuiInputTextFlags_EnterReturnsTrue))
 			selectSingle = true;
