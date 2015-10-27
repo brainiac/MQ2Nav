@@ -11,6 +11,8 @@
 #include <d3dx9.h>
 #include <d3d9caps.h>
 #include <cassert>
+#include <thread>
+#include <mutex>
 
 class dtNavMesh;
 class MeshLoader;
@@ -30,8 +32,6 @@ public:
 
 	void UpdateNavMesh();
 
-	void SetPrimsEnabled(RenderList::PrimitiveType type, bool enabled);
-
 	inline RenderList* GetRenderList(RenderList::PrimitiveType type)
 	{
 		assert(type >= 0 && type < RenderList::Prim_Count);
@@ -40,13 +40,16 @@ public:
 
 private:
 	void OnUpdateUI();
-
 	void CleanupObjects();
+
+	// stop any pending geometry load
+	void StopLoad();
+	void StartLoad();
 
 private:
 	IDirect3DDevice9* m_pDevice = nullptr;
 	MeshLoader* m_meshLoader = nullptr;
-	dtNavMesh* m_navMesh = nullptr;
+	const dtNavMesh* m_navMesh = nullptr;
 
 	bool m_enabled = false;
 	bool m_loaded = false;
@@ -59,6 +62,12 @@ private:
 
 	std::unique_ptr<ConfigurableRenderState> m_state;
 	bool m_useStateEditor = false;
+
+	// loading progress
+	bool m_loading = false;
+	bool m_stopLoading = false;
+	float m_progress = 0.0f;
+	std::thread m_loadThread;
 };
 
 extern std::shared_ptr<NavMeshRenderer> g_navMeshRenderer;

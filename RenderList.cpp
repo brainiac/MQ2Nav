@@ -8,8 +8,6 @@
 #include <d3d9.h>
 #include <imgui.h>
 
-#include <Windows.h>
-
 static inline int PrimVertexCount(RenderList::PrimitiveType type)
 {
 	switch (type)

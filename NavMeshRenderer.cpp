@@ -10,6 +10,7 @@
 #include <cassert>
 #include <DetourDebugDraw.h>
 #include <RecastDebugDraw.h>
+#include <DetourNavMesh.h>
 #include <DebugDraw.h>
 
 #include <imgui.h>
@@ -112,6 +113,8 @@ void NavMeshRenderer::InvalidateDeviceObjects()
 
 void NavMeshRenderer::CleanupObjects()
 {
+	StopLoad();
+
 	for (int i = 0; i < RenderList::Prim_Count; ++i)
 		m_primLists[i]->InvalidateDeviceObjects();
 }
@@ -139,13 +142,14 @@ void NavMeshRenderer::Render(Renderable::RenderPhase phase)
 			}
 			else
 			{
+				StopLoad();
 				InvalidateDeviceObjects();
 			}
 
 			m_loaded = m_enabled;
 		}
 
-		if (!m_loaded)
+		if (!m_loaded || m_loading)
 			return;
 
 		m_pDevice->SetPixelShader(nullptr);
@@ -205,11 +209,63 @@ void NavMeshRenderer::Render(Renderable::RenderPhase phase)
 
 //----------------------------------------------------------------------------
 
+void NavMeshRenderer::StopLoad()
+{
+	if (m_loadThread.joinable())
+	{
+		m_stopLoading = true;
+		m_loadThread.join();
+	}
+}
+
+void NavMeshRenderer::StartLoad()
+{
+	m_stopLoading = false;
+	m_loading = true;
+	int tilesToLoad = 0;
+
+	std::shared_ptr<DebugDrawDX> dd = std::make_shared<DebugDrawDX>(*this);
+
+	for (int i = 0; i < m_navMesh->getMaxTiles(); ++i)
+	{
+		const dtMeshTile* tile = m_navMesh->getTile(i);
+		if (!tile->header) continue;
+
+		tilesToLoad++;
+	}
+
+	auto loadingThread = [this, dd, tilesToLoad]() mutable
+	{
+		int currentTile = 0;
+
+		for (int i = 0; i < m_navMesh->getMaxTiles() && !m_stopLoading; ++i)
+		{
+			const dtMeshTile* tile = m_navMesh->getTile(i);
+			if (!tile->header) continue;
+
+			drawMeshTile(dd.get(), *m_navMesh, 0, tile, DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST
+				/* | DU_DRAWNAVMESH_COLOR_TILES*/);
+
+			++currentTile;
+			m_progress = static_cast<float>(currentTile) / static_cast<float>(tilesToLoad) * 100;
+		}
+
+		m_loading = false;
+	};
+
+	m_loadThread = std::thread(loadingThread);
+}
+
 void NavMeshRenderer::UpdateNavMesh()
 {
 	// if not enabled, don't do any work
 	if (!m_enabled)
 		return;
+
+	StopLoad();
+
+	for (int i = 0; i < RenderList::Prim_Count; ++i)
+		m_primLists[i]->Reset();
 
 	// if we don't have a navmesh, don't build the geometry
 	if (!m_navMesh)
@@ -217,13 +273,8 @@ void NavMeshRenderer::UpdateNavMesh()
 		InvalidateDeviceObjects();
 		return;
 	}
-	DebugDrawDX dd(*this);
 
-	for (int i = 0; i < RenderList::Prim_Count; ++i)
-		m_primLists[i]->Reset();
-
-	duDebugDrawNavMesh(&dd, *m_navMesh, DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST
-		/* | DU_DRAWNAVMESH_COLOR_TILES*/);
+	StartLoad();
 }
 
 void NavMeshRenderer::OnUpdateUI()
@@ -237,6 +288,11 @@ void NavMeshRenderer::OnUpdateUI()
 			if (m_enabled)
 			{
 				ImGui::Separator();
+				if (m_loading)
+				{
+					ImGui::LabelText("Progress", "%.2f", m_progress);
+				}
+
 				ImGui::Columns(2);
 				ImGui::Checkbox("Points", &m_primsEnabled[RenderList::Prim_Points]); ImGui::NextColumn();
 				ImGui::Checkbox("Lines", &m_primsEnabled[RenderList::Prim_Lines]); ImGui::NextColumn();

@@ -111,9 +111,6 @@ private:
 	void Initialize();
 	void Shutdown();
 
-	void StopZone();
-	void LoadZone(int zoneId);
-
 	//----------------------------------------------------------------------------
 
 	bool ParseDestination(PCHAR szLine, glm::vec3& destination);
@@ -142,7 +139,6 @@ private:
 	std::unique_ptr<MQ2NavigationPath> m_activePath;
 
 	bool m_initialized = false;
-	bool m_hooked = false;
 
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;
