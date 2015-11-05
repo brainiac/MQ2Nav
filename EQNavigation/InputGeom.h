@@ -19,12 +19,21 @@ class InputGeom
 public:
 	InputGeom(const std::string& zoneShortName, const std::string& eqPath);
 	~InputGeom();
-	
+
 	bool loadMesh(class rcContext* ctx);
 
 	/// Method to return static mesh data.
-	inline const glm::vec3& getMeshBoundsMin() const { return m_meshBMin; }
-	inline const glm::vec3& getMeshBoundsMax() const { return m_meshBMax; }
+	inline const glm::vec3& getMeshBoundsMin() const { return m_meshBMinCustom; }
+	inline const glm::vec3& getMeshBoundsMax() const { return m_meshBMaxCustom; }
+
+	inline const glm::vec3& getRealMeshBoundsMin() const { return m_meshBMin; }
+	inline const glm::vec3& getRealMeshBoundsMax() const { return m_meshBMax; }
+
+
+	void resetMeshBounds();
+
+	inline void setMeshBoundsMin(const glm::vec3& min) { m_meshBMinCustom = min; }
+	inline void setMeshBoundsMax(const glm::vec3& max) { m_meshBMaxCustom = max; }
 
 	inline const MapGeometryLoader* getMeshLoader() const { return m_loader.get(); }
 	inline const rcChunkyTriMesh* getChunkyMesh() const { return m_chunkyMesh.get(); }
@@ -66,6 +75,7 @@ private:
 
 	// bounds
 	glm::vec3 m_meshBMin, m_meshBMax;
+	glm::vec3 m_meshBMinCustom, m_meshBMaxCustom;
 
 #pragma region Off-Mesh connections
 	/// @name Off-Mesh connections.

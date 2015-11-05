@@ -351,16 +351,40 @@ void Sample_TileMesh::ResetMesh()
 
 void Sample_TileMesh::handleSettings()
 {
-	Sample::handleCommonSettings();
+	if (ImGui::CollapsingHeader("Mesh Generation"))
+	{
+		Sample::handleCommonSettings();
 
-#if 0
-	if (imguiCheck("Build All Tiles", m_buildAll))
-		m_buildAll = !m_buildAll;
-#endif
-	
+		if (m_geom)
+		{
+
+			// custom bounding box controls
+			ImGui::Text("Bounding Box");
+
+			glm::vec3 min = m_geom->getMeshBoundsMin();
+			glm::vec3 max = m_geom->getMeshBoundsMax();
+
+			ImGui::SliderFloat("Min X", &min.x, m_geom->getRealMeshBoundsMin().x, m_geom->getRealMeshBoundsMax().x, "%.1f");
+			ImGui::SliderFloat("Min Y", &min.y, m_geom->getRealMeshBoundsMin().y, m_geom->getRealMeshBoundsMax().y, "%.1f");
+			ImGui::SliderFloat("Min Z", &min.z, m_geom->getRealMeshBoundsMin().z, m_geom->getRealMeshBoundsMax().z, "%.1f");
+			ImGui::SliderFloat("Max X", &max.x, m_geom->getRealMeshBoundsMin().x, m_geom->getRealMeshBoundsMax().x, "%.1f");
+			ImGui::SliderFloat("Max Y", &max.y, m_geom->getRealMeshBoundsMin().y, m_geom->getRealMeshBoundsMax().y, "%.1f");
+			ImGui::SliderFloat("Max Z", &max.z, m_geom->getRealMeshBoundsMin().z, m_geom->getRealMeshBoundsMax().z, "%.1f");
+
+			m_geom->setMeshBoundsMin(min);
+			m_geom->setMeshBoundsMax(max);
+
+			if (ImGui::Button("Reset Bounds"))
+			{
+				m_geom->resetMeshBounds();
+			}
+			ImGui::Separator();
+		}
+	}
+
 	ImGui::Text("Tiling");
-	ImGui::DragFloat("TileSize", &m_tileSize, 16.0, 16.0f, 1024.0f);
-	
+	ImGui::SliderFloat("TileSize", &m_tileSize, 16.0f, 1024.0f, "%.0f");
+
 	if (m_geom)
 	{
 		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
@@ -368,8 +392,8 @@ void Sample_TileMesh::handleSettings()
 		int gw = 0, gh = 0;
 		rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
 		const int ts = (int)m_tileSize;
-		const int tw = (gw + ts-1) / ts;
-		const int th = (gh + ts-1) / ts;
+		const int tw = (gw + ts - 1) / ts;
+		const int th = (gh + ts - 1) / ts;
 
 		ImGui::LabelText("Tiles", "%d x %d (%d)", tw, th, tw*th);
 
@@ -384,6 +408,7 @@ void Sample_TileMesh::handleSettings()
 		ImVec4 col = ImColor(255, 255, 255);
 		if (tw*th > m_maxTiles) col = ImColor(255, 0, 0);
 		ImGui::TextColored(col, "Max Tiles: %d", m_maxTiles);
+
 
 		if (m_navMesh)
 		{

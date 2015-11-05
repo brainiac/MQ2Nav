@@ -130,13 +130,13 @@ const float* Sample::getBoundsMax()
 
 void Sample::resetCommonSettings()
 {
-	m_cellSize = 0.3f;
-	m_cellHeight = 0.2f;
+	m_cellSize = 0.6f;
+	m_cellHeight = 0.3f;
 
-	m_agentHeight = 6.9f;
+	m_agentHeight = 6.0f;
 	m_agentRadius = 2.0f;
 	m_agentMaxClimb = 6.0f;
-	m_agentMaxSlope = 75.0f;
+	m_agentMaxSlope = 60.0f;
 
 	m_regionMinSize = 8;
 	m_regionMergeSize = 20;
@@ -154,60 +154,48 @@ void Sample::resetCommonSettings()
 
 void Sample::handleCommonSettings()
 {
-	if (ImGui::CollapsingHeader("Rasterization", 0, true, true))
+	ImGui::Text("Rasterization");
+	ImGui::SliderFloat("Cell Size", &m_cellSize, 0.1f, 1.0f);
+	ImGui::SliderFloat("Cell Height", &m_cellHeight, 0.1f, 1.0f);
+
+	if (m_geom)
 	{
-		ImGui::SliderFloat("Cell Size", &m_cellSize, 0.1f, 1.0f);
-		ImGui::SliderFloat("Cell Height", &m_cellHeight, 0.1f, 1.0f);
+		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+		int gw = 0, gh = 0;
+		rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
 
-		if (m_geom)
-		{
-			const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-			const glm::vec3& bmax = m_geom->getMeshBoundsMax();
-			int gw = 0, gh = 0;
-			rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
-
-			ImGui::LabelText("Voxels", "%d x %d", gw, gh);
-		}
+		ImGui::LabelText("Voxels", "%d x %d", gw, gh);
 	}
 
-	if (ImGui::CollapsingHeader("Agent", 0, true, true))
-	{
-		ImGui::DragFloat("Height", &m_agentHeight, 0.1f, 0.1f, 10.0f);
-		ImGui::DragFloat("Radius", &m_agentRadius, 0.1f, 0.0f, 10.0f);
-		ImGui::DragFloat("Max Climb", &m_agentMaxClimb, 0.1f, 0.1f, 10.0f);
-		ImGui::DragFloat("Max Slope", &m_agentMaxSlope, 0.1f, 0.0f, 100.0f);
-	}
-
+	ImGui::Separator();
+	ImGui::Text("Agent");
 	
-#if 0
-	imguiSeparator();
-	imguiLabel("Region");
-	imguiSlider("Min Region Size", &m_regionMinSize, 0.0f, 150.0f, 1.0f);
-	imguiSlider("Merged Region Size", &m_regionMergeSize, 0.0f, 150.0f, 1.0f);
-#endif
+	ImGui::SliderFloat("Height", &m_agentHeight, 0.1f, 15.0f, "%.1f");
+	ImGui::SliderFloat("Radius", &m_agentRadius, 0.1f, 15.0f, "%.1f");
+	ImGui::SliderFloat("Max Climb", &m_agentMaxClimb, 0.1f, 15.0f, "%.1f");
+	ImGui::SliderFloat("Max Slope", &m_agentMaxSlope, 0.0f, 90.0f, "%.0f");
 
-#if 0
-	imguiSeparator();
-	imguiLabel("Partitioning");
-	if (imguiCheck("Watershed", m_partitionType == SAMPLE_PARTITION_WATERSHED))
-		m_partitionType = SAMPLE_PARTITION_WATERSHED;
-	if (imguiCheck("Monotone", m_partitionType == SAMPLE_PARTITION_MONOTONE))
-		m_partitionType = SAMPLE_PARTITION_MONOTONE;
-	if (imguiCheck("Layers", m_partitionType == SAMPLE_PARTITION_LAYERS))
-		m_partitionType = SAMPLE_PARTITION_LAYERS;
-#endif
-#if 0
-	imguiSeparator();
-	imguiLabel("Polygonization");
-	imguiSlider("Max Edge Length", &m_edgeMaxLen, 0.0f, 50.0f, 1.0f);
-	imguiSlider("Max Edge Error", &m_edgeMaxError, 0.1f, 3.0f, 0.1f);
-	imguiSlider("Verts Per Poly", &m_vertsPerPoly, 3.0f, 12.0f, 1.0f);		
+	ImGui::Separator();
+	ImGui::Text("Region");
+	ImGui::SliderFloat("Min Region Size", &m_regionMinSize, 0.0f, 150.0f, "%.0f");
+	ImGui::SliderFloat("Merged Region Size", &m_regionMergeSize, 0.0f, 150.0f, "%.0f");
 
-	imguiSeparator();
-	imguiLabel("Detail Mesh");
-	imguiSlider("Sample Distance", &m_detailSampleDist, 0.0f, 16.0f, 1.0f);
-	imguiSlider("Max Sample Error", &m_detailSampleMaxError, 0.0f, 16.0f, 1.0f);
-#endif
+	ImGui::Separator();
+	ImGui::Text("Partitioning");
+	const char *partition_types[] = { "Watershed", "Monotone", "Layers" };
+	ImGui::Combo("Type", &m_partitionType, partition_types, 3);
+
+	ImGui::Separator();
+	ImGui::Text("Polygonization");
+	ImGui::SliderFloat("Max Edge Length", &m_edgeMaxLen, 0.0f, 50.0f, "%.0f");
+	ImGui::SliderFloat("Max Edge Error", &m_edgeMaxError, 0.1f, 3.0f, "%.1f");
+	ImGui::SliderFloat("Verts Per Poly", &m_vertsPerPoly, 3.0f, 12.0f, "%.0f");
+
+	ImGui::Separator();
+	ImGui::Text("Detail Mesh");
+	ImGui::SliderFloat("Sample Distance", &m_detailSampleDist, 0.0f, 32.0f, "%.0f");
+	ImGui::SliderFloat("Max Sample Error", &m_detailSampleMaxError, 0.0f, 16.0f, "%.0f");
 
 	ImGui::Separator();
 }
