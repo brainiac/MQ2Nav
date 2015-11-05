@@ -18,6 +18,9 @@
     <Filter Include="Source Files\EQDraw">
       <UniqueIdentifier>{3acbf2e7-77da-4598-9210-e737e0229b29}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\zlib">
+      <UniqueIdentifier>{9aae2e29-2a05-45dc-bd72-9d3f91ca778e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Release\DoorAdjustments.txt">
@@ -83,6 +86,9 @@
     <ClInclude Include="NavMeshRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="imgui_memory_editor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="meshext.c">
@@ -129,6 +135,30 @@
     </ClCompile>
     <ClCompile Include="NavMeshRenderer.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\zlib\src\deflate.c">
+      <Filter>Source Files\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\zlib\src\inflate.c">
+      <Filter>Source Files\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\zlib\src\adler32.c">
+      <Filter>Source Files\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\zlib\src\crc32.c">
+      <Filter>Source Files\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\zlib\src\zutil.c">
+      <Filter>Source Files\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\zlib\src\inftrees.c">
+      <Filter>Source Files\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\zlib\src\trees.c">
+      <Filter>Source Files\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\zlib\src\inffast.c">
+      <Filter>Source Files\zlib</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

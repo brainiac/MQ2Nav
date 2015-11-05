@@ -146,13 +146,7 @@ void EQConfig::LoadConfigFromIni()
 
 	if (!GetPrivateProfileStringA("General", "EverQuest Path", "", eqPath, MAX_PATH, fullPath))
 	{
-		std::string result = OpenFileDialog("c:\\Program Files (x86)\\Sony\\EverQuest", "Find Everquest Directory");
-
-		if (!result.empty())
-		{
-			m_everquestPath = result;
-			changed = true;
-		}
+		SelectEverquestPath();
 	}
 	else
 	{
@@ -163,22 +157,11 @@ void EQConfig::LoadConfigFromIni()
 
 	if (!GetPrivateProfileStringA("General", "Output Path", "", outPath, MAX_PATH, fullPath))
 	{
-		std::string result = OpenFileDialog("c:\\", "Find Output (MQ2) Directory");
-
-		if (!result.empty())
-		{
-			m_outputPath = result;
-			changed = true;
-		}
+		SelectOutputPath();
 	}
 	else
 	{
 		m_outputPath = outPath;
-	}
-
-	if (changed)
-	{
-		SaveConfigToIni();
 	}
 }
 
@@ -244,5 +227,27 @@ void EQConfig::LoadZones()
 	{
 		m_loadedMaps.emplace_back(
 			std::make_pair(std::move(currentSection), std::move(currentList)));
+	}
+}
+
+void EQConfig::SelectEverquestPath()
+{
+	std::string result = OpenFileDialog("c:\\Program Files (x86)\\Sony\\EverQuest", "Find Everquest Directory");
+
+	if (!result.empty())
+	{
+		m_everquestPath = result;
+		SaveConfigToIni();
+	}
+}
+
+void EQConfig::SelectOutputPath()
+{
+	std::string result = OpenFileDialog("c:\\", "Find Output (MQ2) Directory");
+
+	if (!result.empty())
+	{
+		m_outputPath = result;
+		SaveConfigToIni();
 	}
 }

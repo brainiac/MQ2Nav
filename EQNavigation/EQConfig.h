@@ -18,6 +18,9 @@ public:
 	const std::string& GetEverquestPath() const { return m_everquestPath; }
 	const std::string& GetOutputPath() const { return m_outputPath; }
 
+	void SelectEverquestPath();
+	void SelectOutputPath();
+
 	// loaded maps, keyed by their expansion group. Data is loaded from Zones.ini
 	typedef std::pair<std::string /*shortName*/, std::string /*longName*/> ZoneNamePair;
 

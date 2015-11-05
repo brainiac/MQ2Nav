@@ -72,9 +72,6 @@
     <ProjectReference Include="..\dependencies\zone-utilities-projects\common.vcxproj">
       <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\dependencies\zone-utilities-projects\log.vcxproj">
-      <Project>{b7b63df5-f5e8-4395-8249-caf1c049cc86}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="..\dependencies\glm\util\glm.natvis" />

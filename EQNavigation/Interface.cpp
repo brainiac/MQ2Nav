@@ -17,6 +17,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include <boost/algorithm/string.hpp>
 #include <sstream>
 
 #pragma warning(push)
@@ -27,8 +28,7 @@
 static const int32_t MAX_LOG_MESSAGES = 1000;
 
 static bool IsKeyboardBlocked() {
-	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput
-		|| ImGui::GetIO().IsModal;
+	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
 }
 
 //============================================================================
@@ -293,10 +293,10 @@ void Interface::HandleEvents()
 			{
 				switch (event.key.keysym.sym)
 				{
-				case SDLK_l:
+				case SDLK_o:
 					m_showZonePickerDialog = true;
 					break;
-				case SDLK_o:
+				case SDLK_l:
 					OpenMesh();
 					break;
 				case SDLK_s:
@@ -305,7 +305,11 @@ void Interface::HandleEvents()
 				case SDLK_t:
 					m_showTools = !m_showTools;
 					break;
+				case SDLK_p:
+					m_showSettingsDialog = true;
+					break;
 				default:
+					printf("key: %d", event.key.keysym.sym);
 					break;
 				}
 			}
@@ -446,12 +450,12 @@ void Interface::RenderInterface()
 		{
 			if (ImGui::BeginMenu("File"))
 			{
-				if (ImGui::MenuItem("Load Zone", "Ctrl+L"))
+				if (ImGui::MenuItem("Open Zone", "Ctrl+O"))
 					m_showZonePickerDialog = true;
 
 				ImGui::Separator();
 
-				if (ImGui::MenuItem("Open Mesh", "Ctrl+O", nullptr,
+				if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr,
 					m_mesh != nullptr))
 				{
 					OpenMesh();
@@ -465,6 +469,13 @@ void Interface::RenderInterface()
 					m_mesh != nullptr && m_mesh->getNavMesh() != nullptr))
 				{
 					m_mesh->ResetMesh();
+				}
+
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("Settings", "Ctrl+P", nullptr))
+				{
+					m_showSettingsDialog = true;
 				}
 
 				ImGui::Separator();
@@ -508,6 +519,7 @@ void Interface::RenderInterface()
 			ImGui::OpenPopup("Failed To Open");
 		if (ImGui::BeginPopupModal("Failed To Open"))
 		{
+			m_showFailedToOpenDialog = false;
 			ImGui::Text("Failed to open mesh.");
 			if (ImGui::Button("Close"))
 				ImGui::CloseCurrentPopup();
@@ -515,61 +527,72 @@ void Interface::RenderInterface()
 			ImGui::EndPopup();
 		}
 
-		// start the properties dialog
-		ImGui::SetNextWindowPos(ImVec2(10, 40));
-		ImGui::SetNextWindowSize(ImVec2(300, m_height - 20));
-		if (ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+		if (m_showFailedToLoadZone)
+			ImGui::OpenPopup("Failed To Open Zone");
+		if (ImGui::BeginPopupModal("Failed To Open Zone"))
 		{
-			ImGui::LabelText("Zone", m_zoneDisplayName.c_str());
+			m_showFailedToLoadZone = false;
 
-			ImGui::Separator();
-
-			if (m_geom)
-			{
-				ImGui::LabelText("Verts", "%.1fk", m_geom->getMeshLoader()->getVertCount() / 1000.0f);
-				ImGui::LabelText("Tris", "%.1fk", m_geom->getMeshLoader()->getTriCount() / 1000.0f);
-				ImGui::Separator();
-			}
-
-			float camPos[3] = { m_camz, m_camx, m_camy };
-			if (ImGui::InputFloat3("Position", camPos, -2))
-			{
-				m_camx = camPos[1];
-				m_camy = camPos[2];
-				m_camz = camPos[0];
-			}
-
-			if (m_geom && m_mesh)
-			{
-				if (/*message*/ false)
-				{
-					ImGui::Separator();
-
-					if (ImGui::Button("Halt Action"))
-						Halt();
-				}
-				else
-				{
-					m_mesh->handleSettings();
-
-					if (ImGui::Button("Build"))
-						StartBuild();
-				}
-			}
-
-			if (m_mesh)
-			{
-				if (ImGui::CollapsingHeader("Debug"))
-				{
-					m_mesh->handleDebugMode();
-				}
-			}
-
-			ImGui::End();
+			ImGui::Text("%s", m_failedZoneMsg.c_str());
+			if (ImGui::Button("Close"))
+				ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
 		}
-		
 
+		ShowSettingsDialog();
 		ShowZonePickerDialog();
+	}
+
+	// start the properties dialog
+	ImGui::SetNextWindowPos(ImVec2(10, 40));
+	ImGui::SetNextWindowSize(ImVec2(300, m_height - 20));
+	if (ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+	{
+		ImGui::LabelText("Zone", m_zoneDisplayName.c_str());
+		ImGui::Separator();
+
+		if (m_geom)
+		{
+			ImGui::LabelText("Verts", "%.1fk", m_geom->getMeshLoader()->getVertCount() / 1000.0f);
+			ImGui::LabelText("Tris", "%.1fk", m_geom->getMeshLoader()->getTriCount() / 1000.0f);
+			ImGui::Separator();
+		}
+
+		float camPos[3] = { m_camz, m_camx, m_camy };
+		if (ImGui::InputFloat3("Position", camPos, -2))
+		{
+			m_camx = camPos[1];
+			m_camy = camPos[2];
+			m_camz = camPos[0];
+		}
+
+		if (m_geom && m_mesh)
+		{
+			if (/*message*/ false)
+			{
+				ImGui::Separator();
+
+				if (ImGui::Button("Halt Action"))
+					Halt();
+			}
+			else
+			{
+				m_mesh->handleSettings();
+
+				if (ImGui::Button("Build"))
+					StartBuild();
+			}
+		}
+
+		if (m_mesh)
+		{
+			if (ImGui::CollapsingHeader("Debug"))
+			{
+				m_mesh->handleDebugMode();
+			}
+		}
+
+		ImGui::End();
 	}
 
 	if (m_geom && m_mesh && m_showTools)
@@ -640,29 +663,59 @@ void Interface::SaveMesh()
 	m_mesh->SaveMesh(meshFilename);
 }
 
+void Interface::ShowSettingsDialog()
+{
+	if (m_showSettingsDialog)
+		ImGui::OpenPopup("Settings");
+	m_showSettingsDialog = false;
+
+	if (ImGui::BeginPopupModal("Settings", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::Text("EQ Path:"); ImGui::SameLine();
+		ImGui::TextColored(ImColor(244, 250, 125), "%s", m_eqConfig.GetEverquestPath().c_str());
+		if (ImGui::Button("Change", ImVec2(120, 0)))
+			m_eqConfig.SelectEverquestPath();
+
+		ImGui::Text("Navmesh Path:"); ImGui::SameLine();
+		ImGui::TextColored(ImColor(244, 250, 125), "%s", m_eqConfig.GetOutputPath().c_str());
+		if (ImGui::Button("Change", ImVec2(120, 0)))
+			m_eqConfig.SelectOutputPath();
+
+		ImGui::Separator();
+
+		if (ImGui::Button("Close", ImVec2(120, 0)))
+			ImGui::CloseCurrentPopup();
+
+		ImGui::EndPopup();
+	}
+}
+
 void Interface::ShowZonePickerDialog()
 {
-	if (m_showZonePickerDialog)
+	bool setfocus = false;
+	if (m_showZonePickerDialog) {
 		ImGui::OpenPopup("Open Zone");
+		setfocus = true;
+	}
 	m_showZonePickerDialog = false;
 
-	ImGui::SetNextWindowSize(ImVec2(400, 575), ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize(ImVec2(500, 575), ImGuiSetCond_Once);
 	if (ImGui::BeginPopupModal("Open Zone"))
 	{
 		ImGui::Text("Select a zone or type to filter by name");
 
 		bool selectSingle = false;
-		static char buf[64] = "";
-		ImGui::SetKeyboardFocusHere();
+		static char filterText[64] = "";
+		if (setfocus) ImGui::SetKeyboardFocusHere(0);
 		ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth());
-		if (ImGui::InputText("", buf, 64, ImGuiInputTextFlags_EnterReturnsTrue))
+		if (ImGui::InputText("", filterText, 64, ImGuiInputTextFlags_EnterReturnsTrue))
 			selectSingle = true;
 		ImGui::PopItemWidth();
 
-		std::string text(buf);
+		std::string text(filterText);
 		bool closePopup = false;
 
-		ImGui::BeginChild("ZoneList", ImVec2(ImGui::GetWindowContentRegionWidth(),
+		ImGui::BeginChild("##ZoneList", ImVec2(ImGui::GetWindowContentRegionWidth(),
 			ImGui::GetWindowHeight() - 115), false);
 
 		if (text.empty())
@@ -675,19 +728,27 @@ void Interface::ShowZonePickerDialog()
 
 				if (ImGui::TreeNode(expansionName.c_str()))
 				{
+					ImGui::Columns(2);
+
 					for (const auto& zonePair : mapIter.second)
 					{
-						std::stringstream ss;
-						ss << zonePair.first << " (" << zonePair.second << ")";
-						std::string zoneName = ss.str();
+						const std::string& longName = zonePair.first;
+						const std::string& shortName = zonePair.second;
 
 						bool selected = false;
-						if (ImGui::Selectable(zoneName.c_str())) {
+						ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns);
+						ImGui::NextColumn();
+						ImGui::SetColumnOffset(-1, 300);
+						ImGui::Text(shortName.c_str());
+						ImGui::NextColumn();
+
+						if (selected) {
 							LoadGeometry(zonePair.second.c_str());
 							closePopup = true;
 							break;
 						}
 					}
+					ImGui::Columns(1);
 
 					ImGui::TreePop();
 				}
@@ -699,18 +760,23 @@ void Interface::ShowZonePickerDialog()
 			bool count = 0;
 			std::string lastZone;
 
+			ImGui::Columns(2);
+
 			for (const auto& mapIter : mapList)
 			{
 				const std::string& shortName = mapIter.first;
 				const std::string& longName = mapIter.second;
 
-				if (shortName.find(text) != std::string::npos
-					|| longName.find(text) != std::string::npos)
+				if (boost::ifind_first(shortName, text) || boost::ifind_first(longName, text))
 				{
 					std::string displayName = longName + " (" + shortName + ")";
 					lastZone = shortName;
 					bool selected = false;
-					ImGui::Selectable(longName.c_str(), &selected); ImGui::SameLine(300); ImGui::Selectable(shortName.c_str());
+					ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns);
+					ImGui::NextColumn();
+					ImGui::SetColumnOffset(-1, 300);
+					ImGui::Text(shortName.c_str());
+					ImGui::NextColumn();
 					if (selected) {
 						m_nextZoneToLoad = shortName.c_str();
 						closePopup = true;
@@ -719,6 +785,9 @@ void Interface::ShowZonePickerDialog()
 				}
 				count++;
 			}
+
+			ImGui::Columns(1);
+
 
 			if (count == 1 && selectSingle) {
 				m_nextZoneToLoad = lastZone;
@@ -729,8 +798,10 @@ void Interface::ShowZonePickerDialog()
 		ImGui::EndChild();
 
 		ImGui::PushItemWidth(250);
-		if (ImGui::Button("Cancel") || closePopup)
+		if (ImGui::Button("Cancel") || closePopup) {
+			filterText[0] = 0;
 			ImGui::CloseCurrentPopup();
+		}
 		ImGui::PopItemWidth();
 
 		ImGui::EndPopup();
@@ -799,6 +870,22 @@ void Interface::LoadGeometry(const std::string& zoneShortName)
 	std::unique_lock<std::mutex> lock(m_renderMutex);
 	m_geom.reset();
 
+	Halt();
+
+	auto ptr = std::make_unique<InputGeom>(zoneShortName, m_eqConfig.GetEverquestPath());
+	if (!ptr->loadMesh(m_context.get()))
+	{
+		m_showFailedToLoadZone = true;
+
+		std::stringstream ss;
+		ss << "Failed to load zone: " << m_eqConfig.GetLongNameForShortName(zoneShortName);
+
+		m_failedZoneMsg = ss.str();
+		return;
+	}
+
+	m_geom = std::move(ptr);
+
 	m_zoneShortname = zoneShortName;
 	m_zoneLongname = m_eqConfig.GetLongNameForShortName(m_zoneShortname);
 
@@ -806,11 +893,6 @@ void Interface::LoadGeometry(const std::string& zoneShortName)
 	ss << m_zoneLongname << " (" << m_zoneShortname << ")";
 	m_zoneDisplayName = ss.str();
 	m_expansionExpanded.clear();
-
-	Halt();
-
-	m_geom.reset(new InputGeom(m_zoneShortname, m_eqConfig.GetEverquestPath()));
-	m_geom->loadMesh(m_context.get());
 
 	if (m_mesh && m_geom)
 	{

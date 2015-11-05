@@ -8,6 +8,9 @@
 #include "RenderList.h"
 #include "Signal.h"
 
+#include "dependencies/zone-utilities/common/eqg_loader.h"
+#include "dependencies/zone-utilities/common/s3d_loader.h"
+
 #include <d3dx9.h>
 #include <d3d9caps.h>
 #include <cassert>
@@ -68,6 +71,13 @@ private:
 	bool m_stopLoading = false;
 	float m_progress = 0.0f;
 	std::thread m_loadThread;
+
+	std::vector<std::string> m_files;
+
+	std::vector<std::shared_ptr<EQEmu::EQG::Geometry>> eqg_models;
+	std::vector<std::shared_ptr<EQEmu::Placeable>> eqg_placeables;
+	std::vector<std::shared_ptr<EQEmu::EQG::Region>> eqg_regions;
+	std::vector<std::shared_ptr<EQEmu::Light>> eqg_lights;
 };
 
 extern std::shared_ptr<NavMeshRenderer> g_navMeshRenderer;

@@ -36,6 +36,7 @@ public:
 	//------------------------------------------------------------------------
 
 	void ShowZonePickerDialog();
+	void ShowSettingsDialog();
 	
 private:
 	bool InitializeWindow();
@@ -101,6 +102,7 @@ private:
 	bool m_showSample;
 	bool m_showTools = false;
 	bool m_showFailedToOpenDialog = false;
+
 	GLdouble m_proj[16];
 	GLdouble m_model[16];
 	GLint m_view[4];
@@ -135,6 +137,7 @@ private:
 	std::map<std::string, bool> m_expansionExpanded;
 	std::string m_zoneDisplayName = "<none>";
 	bool m_showZonePickerDialog = false;
+	bool m_showSettingsDialog = false;
 
 	// zone to load on next pass
 	std::string m_nextZoneToLoad;
@@ -144,6 +147,9 @@ private:
 	SDL_GLContext m_glContext = 0;
 
 	std::string m_iniFile;
+
+	bool m_showFailedToLoadZone = false;
+	std::string m_failedZoneMsg;
 };
 
 

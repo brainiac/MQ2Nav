@@ -14,9 +14,12 @@
 #include <DebugDraw.h>
 
 #include <imgui.h>
+#include "imgui_memory_editor.h"
 
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
+
+//MemoryEditor memory_editor;
 
 std::shared_ptr<NavMeshRenderer> g_navMeshRenderer;
 
@@ -183,16 +186,8 @@ void NavMeshRenderer::Render(Renderable::RenderPhase phase)
 
 			m_pDevice->SetRenderState(D3DRS_STENCILENABLE, false);
 
-			m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-			m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-			m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-
-			m_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-			m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-			m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_CURRENT);
-
 			// disable the rest of the texture stages
-			for (int i = 1; i < 8; i ++)
+			for (int i = 0; i < 8; i ++)
 			{
 				m_pDevice->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 				m_pDevice->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
@@ -258,6 +253,30 @@ void NavMeshRenderer::StartLoad()
 
 void NavMeshRenderer::UpdateNavMesh()
 {
+	// Tradeskill_objects.eqg
+	// caveswitches.eqg
+	EQEmu::EQGLoader loader;
+	if (loader.Load("Z:\\EverQuest\\tutorialb", eqg_models, eqg_placeables, eqg_regions, eqg_lights))
+	{
+		std::sort(eqg_models.begin(), eqg_models.end(),
+			[](const std::shared_ptr<EQEmu::EQG::Geometry>& geo1, const std::shared_ptr<EQEmu::EQG::Geometry>& geo2)
+		{
+			return geo1->GetName() < geo2->GetName();
+		});
+
+		std::sort(eqg_placeables.begin(), eqg_placeables.end(),
+			[](const std::shared_ptr<EQEmu::Placeable>& geo1, const std::shared_ptr<EQEmu::Placeable>& geo2)
+		{
+			return geo1->GetName() < geo2->GetName();
+		});
+	}
+
+	EQEmu::PFS::Archive archive;
+	if (archive.Open("Z:\\EverQuest\\tutorialb_obj.s3d"))
+	{
+		archive.GetFilenames("*", m_files);
+	}
+
 	// if not enabled, don't do any work
 	if (!m_enabled)
 		return;
@@ -279,35 +298,184 @@ void NavMeshRenderer::UpdateNavMesh()
 
 void NavMeshRenderer::OnUpdateUI()
 {
-	ImGui::Begin("NavMesh");
-	{
-		if (ImGui::CollapsingHeader("Debug Draw", nullptr, true, true));
-		{
-			ImGui::Checkbox("Enabled", &m_enabled);
+	if (!GetCharInfo())
+		return;
+	PCHARINFO pCharInfo = GetCharInfo();
 
-			if (m_enabled)
+	//bool valid_address = false;
+	//static DWORD address = 0;
+	//ImGui::Begin("Memory Editor");
+	//{
+	//	ImGui::InputInt("Address", (int*)&address, 1, 100, ImGuiInputTextFlags_CharsHexadecimal);
+
+	//	if (address != 0)
+	//	{
+	//		__try {
+	//			byte* value = (byte*)address;
+	//			byte forceRead = *value;
+	//			byte forceRead2 = *(value + 1024);
+
+	//			valid_address = true;
+	//		}
+	//		__except (EXCEPTION_EXECUTE_HANDLER) {
+	//			ImGui::TextColored(ImColor(255, 0, 0), "Invalid Address");
+	//		}
+	//	}
+	//}
+	//ImGui::End();
+
+	//if (valid_address)
+	//{
+	//	memory_editor.Draw("Memory Editor", (unsigned char*)address, 1024);
+	//}
+
+	ImGui::Begin("NavMesh");
+
+	DWORD zoneId = pCharInfo->zoneId & 0x7fff;
+	if (zoneId < MAX_ZONES)
+	{
+		PZONELIST pZone = ((PWORLDDATA)pWorldData)->ZoneArray[zoneId];
+		ImGui::TextColored(ImColor(255, 255, 0), "%s (%s)", pZone->LongName, pZone->ShortName);
+
+		if (m_files.size() > 0)
+		{
+			if (ImGui::TreeNode("Files"))
 			{
-				ImGui::Separator();
-				if (m_loading)
+				for (auto iter = m_files.begin(); iter != m_files.end(); ++iter)
 				{
-					ImGui::LabelText("Progress", "%.2f", m_progress);
+					//const auto& model = *iter;
+
+					ImGui::Text("%s", iter->c_str());
 				}
 
-				ImGui::Columns(2);
-				ImGui::Checkbox("Points", &m_primsEnabled[RenderList::Prim_Points]); ImGui::NextColumn();
-				ImGui::Checkbox("Lines", &m_primsEnabled[RenderList::Prim_Lines]); ImGui::NextColumn();
-				ImGui::Checkbox("Triangles", &m_primsEnabled[RenderList::Prim_Triangles]); ImGui::NextColumn();
-				ImGui::Checkbox("Quads", &m_primsEnabled[RenderList::Prim_Quads]); ImGui::NextColumn();
-				ImGui::Columns(1);
-				ImGui::Checkbox("Modify State", &m_useStateEditor);
+				ImGui::TreePop();
 			}
 		}
+
+		if (eqg_models.size() > 0)
+		{
+			if (ImGui::TreeNode("Models"))
+			{
+				for (auto iter = eqg_models.begin(); iter != eqg_models.end(); ++iter)
+				{
+					const auto& model = *iter;
+
+					ImGui::Text("%s", model->GetName().c_str());
+				}
+
+				ImGui::TreePop();
+			}
+		}
+
+		if (eqg_placeables.size() > 0)
+		{
+			if (ImGui::TreeNode("Placeables"))
+			{
+				for (auto iter = eqg_placeables.begin(); iter != eqg_placeables.end(); ++iter)
+				{
+					const auto& placeable = *iter;
+
+					ImGui::Text("%s (%s)", placeable->GetName().c_str(),
+						placeable->GetFileName().c_str());
+				}
+
+				ImGui::TreePop();
+			}
+		}
+
+	}
+
+	ImGui::Checkbox("Render Navmesh", &m_enabled);
+
+	if (m_enabled)
+	{
+		ImGui::Separator();
+		if (m_loading)
+		{
+			ImGui::LabelText("Progress", "%.2f", m_progress);
+		}
+
+#if 0
+		ImGui::Columns(2);
+		ImGui::Checkbox("Points", &m_primsEnabled[RenderList::Prim_Points]); ImGui::NextColumn();
+		ImGui::Checkbox("Lines", &m_primsEnabled[RenderList::Prim_Lines]); ImGui::NextColumn();
+		ImGui::Checkbox("Triangles", &m_primsEnabled[RenderList::Prim_Triangles]); ImGui::NextColumn();
+		ImGui::Checkbox("Quads", &m_primsEnabled[RenderList::Prim_Quads]); ImGui::NextColumn();
+		ImGui::Columns(1);
+#endif
+		ImGui::Checkbox("Modify State", &m_useStateEditor);
 
 		if (m_useStateEditor)
 		{
 			m_state->RenderDebugUI();
 		}
 	}
+
+	if (ImGui::CollapsingHeader("Doors"))
+	{
+		// temp for now, until we figure out where to put this...
+		PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
+		for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
+		{
+			PDOOR door = pDoorTable->pDoor[count];
+			ImGui::PushID(count);
+
+			if (ImGui::TreeNode(door->Name, "%s (%d)", door->Name, door->ID))
+			{
+				ImGui::LabelText("ID", "%d", door->ID);
+				ImGui::LabelText("Type", "%d", door->Type);
+				ImGui::LabelText("State", "%d", door->State);
+
+				ImGui::DragFloat3("Position", &door->Y);
+				ImGui::DragFloat("Heading", &door->Heading);
+				ImGui::DragFloat("Angle", &door->DoorAngle);
+				ImGui::DragFloat2("Top Speed", &door->TopSpeed1);
+
+				ImGui::DragFloat3("Default Position", &door->DefaultY);
+				ImGui::DragFloat("Default Heading", &door->DefaultHeading);
+				ImGui::DragFloat("Default Angle", &door->DefaultDoorAngle);
+
+				ImGui::LabelText("Zone Point", "%d", door->ZonePoint);
+				ImGui::LabelText("Switch?", "%s", door->pSwitch ? "true" : "false");
+				ImGui::LabelText("Timestamp", "%d", door->TimeStamp);
+
+				if (ImGui::Button("Reset Position"))
+				{
+					door->X = door->DefaultX;
+					door->Y = door->DefaultY;
+					door->Z = door->DefaultZ;
+					door->Heading = door->DefaultHeading;
+					door->DoorAngle = door->DefaultDoorAngle;
+				}
+
+				if (ImGui::TreeNode("Door Dump"))
+				{
+					ImGui::Columns(4);
+
+					for (int i = 0; i < 55; ++i)
+					{
+						float* p = (float*)door;
+						p += i;
+
+						ImGui::Text("0x%08x (+%04x)", p, (i * 4)); ImGui::NextColumn();
+						
+						BYTE* b = (BYTE*)p;
+						ImGui::Text("%02x %02x %02x %02x", b[0], b[1], b[2], b[3]); ImGui::NextColumn();
+						ImGui::Text("0x%08x", *(DWORD*)p); ImGui::NextColumn();
+						ImGui::Text("%f", *p); ImGui::NextColumn();
+					}
+
+					ImGui::Columns(1);
+
+					ImGui::TreePop();
+				}
+
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+		}
+	}
+
 	ImGui::End();
 }
 

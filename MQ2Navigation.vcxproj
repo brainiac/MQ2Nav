@@ -44,19 +44,19 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>$(DXSDK_DIR)Include;$(IncludePath)</IncludePath>
     <CodeAnalysisRuleSet>C:\Program Files (x86)\Microsoft Visual Studio 14.0\Team Tools\Static Analysis Tools\Rule Sets\NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;dependencies\zone-utilities\common;dependencies\zone-utilities\log;dependencies\zlib\include;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4018;4244</DisableSpecificWarnings>
-      <EnablePREfast Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnablePREfast>
+      <EnablePREfast Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</EnablePREfast>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>Interactions\DirectX\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
@@ -69,6 +69,7 @@
     <ClInclude Include="FindPattern.h" />
     <ClInclude Include="ImGuiRenderer.h" />
     <ClInclude Include="imgui_impl_dx9.h" />
+    <ClInclude Include="imgui_memory_editor.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
     <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
     <ClInclude Include="MQ2Navigation.h" />
@@ -86,6 +87,14 @@
     <ClInclude Include="Signal.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dependencies\zlib\src\adler32.c" />
+    <ClCompile Include="dependencies\zlib\src\crc32.c" />
+    <ClCompile Include="dependencies\zlib\src\deflate.c" />
+    <ClCompile Include="dependencies\zlib\src\inffast.c" />
+    <ClCompile Include="dependencies\zlib\src\inflate.c" />
+    <ClCompile Include="dependencies\zlib\src\inftrees.c" />
+    <ClCompile Include="dependencies\zlib\src\trees.c" />
+    <ClCompile Include="dependencies\zlib\src\zutil.c" />
     <ClCompile Include="FindPattern.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
     <ClCompile Include="imgui_impl_dx9.cpp" />
@@ -114,6 +123,9 @@
     </ProjectReference>
     <ProjectReference Include="dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dependencies\zone-utilities-projects\common.vcxproj">
+      <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

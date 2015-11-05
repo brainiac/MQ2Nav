@@ -126,6 +126,24 @@
     <ClInclude Include="..\zone-utilities\common\safe_alloc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\zone-utilities\log\log_base.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\zone-utilities\log\log_file.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\zone-utilities\log\log_macros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\zone-utilities\log\log_manager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\zone-utilities\log\log_stdout.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\zone-utilities\log\log_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\zone-utilities\common\water_map.cpp">
@@ -146,15 +164,6 @@
     <ClCompile Include="..\zone-utilities\common\compression.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\eqg_loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\eqg_model_loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\eqg_v4_loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\zone-utilities\common\oriented_bounding_box.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -168,6 +177,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\zone-utilities\common\string_util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\zone-utilities\log\log_file.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\zone-utilities\log\log_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\zone-utilities\log\log_stdout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\zone-utilities\common\eqg_loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\zone-utilities\common\eqg_model_loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\zone-utilities\common\eqg_v4_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

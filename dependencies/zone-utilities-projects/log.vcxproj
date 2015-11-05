@@ -10,19 +10,6 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\zone-utilities\log\log_file.cpp" />
-    <ClCompile Include="..\zone-utilities\log\log_manager.cpp" />
-    <ClCompile Include="..\zone-utilities\log\log_stdout.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\zone-utilities\log\log_base.h" />
-    <ClInclude Include="..\zone-utilities\log\log_file.h" />
-    <ClInclude Include="..\zone-utilities\log\log_macros.h" />
-    <ClInclude Include="..\zone-utilities\log\log_manager.h" />
-    <ClInclude Include="..\zone-utilities\log\log_stdout.h" />
-    <ClInclude Include="..\zone-utilities\log\log_types.h" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{B7B63DF5-F5E8-4395-8249-CAF1C049CC86}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

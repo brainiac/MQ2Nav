@@ -14,35 +14,4 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\zone-utilities\log\log_stdout.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\zone-utilities\log\log_file.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\zone-utilities\log\log_manager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\zone-utilities\log\log_stdout.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_types.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_base.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_file.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_macros.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_manager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
 </Project>
