@@ -68,10 +68,12 @@ public:
 		EQEmu::EQGModelLoader model_loader;
 		ModelPtr model;
 
-		model_loader.Load(m_archive, modelName, model);
-		model->SetName(modelName);
+		if (model_loader.Load(m_archive, modelName, model))
+		{
+			model->SetName(modelName);
+			m_models[name] = model;
+		}
 
-		m_models[name] = model;
 		return model;
 	}
 

@@ -135,6 +135,13 @@ private:
 	bool m_targetted = false;
 };
 
+//----------------------------------------------------------------------------
+
+const char* GetTeleportName(DWORD id)
+{
+	return "UNKNOWN";
+}
+
 ModelLoader::ModelLoader()
 {
 }
@@ -329,7 +336,7 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door)
 	if (model)
 	{
 		bool visible = model->IsVisible();
-		ImGui::Checkbox("Render", &visible);
+		ImGui::Checkbox("Render", &visible); ImGui::SameLine();
 		model->SetVisible(visible);
 
 		bool highlight = model->IsHighlighted();
@@ -346,8 +353,8 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door)
 	ImGui::Text("ID: %d Type: %d State: %d", door->ID, door->Type, door->State);
 	if (door->ZonePoint != -1)
 	{
-		const char* zone = GetShortZone(door->ZonePoint);
-		ImGui::LabelText("Zone Point", "%s (%d)", zone, door->ZonePoint);
+		const char* zone = GetTeleportName(door->ZonePoint);
+		ImGui::TextColored(ImColor(255, 255, 0), "Zone Point: %s (%d)", zone, door->ZonePoint);
 	}
 
 	ImGui::DragFloat3("Position", &door->Y);
