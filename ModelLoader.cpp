@@ -19,6 +19,7 @@
 #include <d3d9types.h>
 
 int s_matrixOffset = 0xE4;
+bool s_visibleOverride = false;
 
 class ModelData : public Renderable
 {
@@ -28,6 +29,7 @@ public:
 		, m_bb(bb)
 	{
 		m_grp = std::make_unique<RenderGroup>(device);
+
 		RegenerateMesh();
 	}
 
@@ -41,8 +43,7 @@ public:
 		if (color != m_color)
 		{
 			m_color = color;
-			RegenerateMesh();
-			InvalidateDeviceObjects();
+			Rebuild();
 		}
 	}
 
@@ -76,8 +77,10 @@ public:
 	{
 		DebugDrawDX dd(m_grp.get());
 
-		duDebugDrawBoxWire(&dd, m_bb.min.x, m_bb.min.z, m_bb.min.y,
-			m_bb.max.x, m_bb.max.z, m_bb.max.y, m_color, 1.0);
+		BoundingBox& bb = m_bb;
+
+		duDebugDrawBoxWire(&dd, bb.min.x, bb.min.z, bb.min.y,
+			bb.max.x, bb.max.z, bb.max.y, m_color, 1.0);
 	}
 
 	virtual void Render(RenderPhase phase) override
@@ -96,7 +99,7 @@ public:
 
 					bool zDisabled = m_targetted || m_highlight;
 
-					g_pDevice->SetRenderState(D3DRS_ZENABLE, !zDisabled);
+					g_pDevice->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
 					g_pDevice->SetRenderState(D3DRS_FOGENABLE, false);
 
 					BYTE* b = (BYTE*)door->pSwitch;
@@ -124,10 +127,20 @@ public:
 	void SetVisible(bool visible) { m_visible = visible; }
 	bool IsVisible() const { return m_visible; }
 
+	BoundingBox& GetBoundingBox() { return m_bb; }
+
 private:
+	void Rebuild()
+	{
+		m_grp->Reset();
+		RegenerateMesh();
+	}
+
 	BoundingBox m_bb;
 	std::unique_ptr<RenderGroup> m_grp;
 	DWORD m_color = D3DCOLOR_RGBA(255, 255, 255, 255);
+
+	glm::vec3 m_lastAdjust;
 
 	bool m_visible = true;
 	int m_doorId = 0;
@@ -160,28 +173,29 @@ void ModelLoader::Shutdown()
 	m_uiConn.Disconnect();
 }
 
-DWORD lastDoorTargetId = 0;
-
 void ModelLoader::Process()
 {
+	if (m_zoneId == 0)
+		return;
+
 	DWORD doorTargetId = 0;
 	if (pDoorTarget)
 		doorTargetId = pDoorTarget->ID;
-	if (doorTargetId != lastDoorTargetId)
+	if (doorTargetId != m_lastDoorTargetId)
 	{
-		if (lastDoorTargetId)
+		if (m_lastDoorTargetId)
 		{
-			if (auto model = m_modelData[lastDoorTargetId])
+			if (auto model = m_modelData[m_lastDoorTargetId])
 			{
 				model->SetTargetted(false);
 			}
 		}
 
-		lastDoorTargetId = doorTargetId;
+		m_lastDoorTargetId = doorTargetId;
 
-		if (lastDoorTargetId)
+		if (m_lastDoorTargetId)
 		{
-			if (auto model = m_modelData[lastDoorTargetId])
+			if (auto model = m_modelData[m_lastDoorTargetId])
 			{
 				model->SetTargetted(true);
 			}
@@ -237,6 +251,7 @@ void ModelLoader::Reset()
 	m_zoneFile.clear();
 	m_zoneData.reset();
 	m_models.clear();
+	m_lastDoorTargetId = 0;
 
 	for (auto iter = m_modelData.begin(); iter != m_modelData.end(); ++iter)
 		g_renderHandler->RemoveRenderable(iter->second);
@@ -253,16 +268,18 @@ void ModelLoader::OnUpdateUI()
 		//ImGui::LabelText("Models Loaded", "%d", m_models.size());
 		//ImGui::LabelText("Filename", "%s", m_zoneFile.c_str());
 
+		ImGui::Checkbox("All doors visible", &s_visibleOverride);
+
 		if (ImGui::TreeNode("##SwitchTable", "Objects"))
 		{
 			PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
 			
-			if (lastDoorTargetId)
+			if (m_lastDoorTargetId)
 			{
 				PDOOR door = nullptr;
 				for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
 				{
-					if (pDoorTable->pDoor[count]->ID == lastDoorTargetId)
+					if (pDoorTable->pDoor[count]->ID == m_lastDoorTargetId)
 						door = pDoorTable->pDoor[count];
 				}
 
@@ -274,7 +291,7 @@ void ModelLoader::OnUpdateUI()
 					{
 						ImGui::PopStyleColor();
 
-						RenderDoorObjectUI(door);
+						RenderDoorObjectUI(door, true);
 
 						ImGui::TreePop();
 					}
@@ -329,7 +346,7 @@ void ModelLoader::OnUpdateUI()
 	ImGui::End();
 }
 
-void ModelLoader::RenderDoorObjectUI(PDOOR door)
+void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
 {
 	auto model = m_modelData[door->ID];
 
@@ -342,10 +359,30 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door)
 		bool highlight = model->IsHighlighted();
 		ImGui::Checkbox("Highlight", &highlight);
 		model->SetHighlight(highlight);
+
+		ImGui::DragFloat3("Bounding Box (Min)", &model->GetBoundingBox().min.x);
+		ImGui::DragFloat3("Bounding Box (Max)", &model->GetBoundingBox().max.x);
+
 	}
 	else
 	{
 		ImGui::TextColored(ImColor(255, 0, 0), "No Model Data");
+	}
+
+	if (target)
+	{
+		if (ImGui::TreeNode("Door Data"))
+		{
+			DumpDataUI(door, sizeof(_DOOR));
+
+			ImGui::TreePop();
+		}
+		if (ImGui::TreeNode("Switch Data"))
+		{
+			DumpDataUI(door->pSwitch, sizeof(EQSWITCH));
+
+			ImGui::TreePop();
+		}
 	}
 
 	ImGui::Separator();
@@ -381,4 +418,28 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door)
 		door->Z = door->DefaultZ;
 		door->Heading = door->DefaultHeading;
 	}
+}
+
+void DumpDataUI(void* ptr, DWORD length)
+{
+	ImGui::Columns(4);
+
+	for (int i = 0; i < length / 4; ++i)
+	{
+		float* p = (float*)ptr;
+		p += i;
+
+		ImGui::Text("0x%08x (+%04x)", p, (i * 4)); ImGui::NextColumn();
+
+		BYTE* b = (BYTE*)p;
+		ImGui::Text("%02x %02x %02x %02x", b[0], b[1], b[2], b[3]); ImGui::NextColumn();
+		ImGui::Text("0x%08x", *(DWORD*)p); ImGui::NextColumn();
+
+		ImGui::PushID(i);
+		ImGui::DragFloat("", p);
+		ImGui::PopID();
+		ImGui::NextColumn();
+	}
+
+	ImGui::Columns(1);
 }

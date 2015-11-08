@@ -71,7 +71,6 @@ void RenderHandler::InvalidateDeviceObjects()
 	{
 		p->InvalidateDeviceObjects();
 	}
-	m_renderables.clear();
 
 #if 0
 	// should be extract from this class
