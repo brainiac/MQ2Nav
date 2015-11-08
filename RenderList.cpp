@@ -78,7 +78,10 @@ void RenderList::Begin(float size /* = 1.0f */)
 
 void RenderList::AddVertex(float x, float y, float z, unsigned int color, float u, float v)
 {
-	m_vertices.emplace_back(Vertex{ { z, x, y }, ConvertColor(color),{ u, v } });
+	if (m_eqCoords)
+		m_vertices.emplace_back(Vertex{ { x, y, z}, ConvertColor(color), {u, v} });
+	else
+		m_vertices.emplace_back(Vertex{ { z, x, y}, ConvertColor(color), {u, v} });
 	++m_currentPrim->vertices;
 	++m_tempIndex;
 
@@ -170,6 +173,12 @@ void RenderList::Render(Renderable::RenderPhase phase)
 	m_pDevice->SetStreamSource(0, m_pVB, 0, sizeof(Vertex));
 	m_pDevice->SetIndices(m_pIB);
 	m_pDevice->SetFVF(VertexType);
+
+	if (m_mtx)
+	{
+		m_pDevice->SetTransform(D3DTS_WORLD, m_mtx);
+		m_mtx = nullptr;
+	}
 
 	int start = std::max(0u, m_firstRender);
 	int end = std::min(m_prims.size(), m_lastRender);

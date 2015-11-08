@@ -454,6 +454,20 @@ bool MapGeometryLoader::Build()
 		return false;
 	}
 
+	//std::vector<EQEmu::S3D::WLDFragment> object_frags2;
+	//if (s3d.ParseWLDFile(filePath + "_obj2.s3d", m_zoneName + "_obj2.wld", object_frags2))
+	//{
+	//	object_frags.insert(object_frags.end(),
+	//		object_frags2.begin(), object_frags2.end());
+	//}
+
+	//std::vector<EQEmu::S3D::WLDFragment> object_frags3;
+	//if (s3d.ParseWLDFile(filePath + "_obj3.s3d", m_zoneName + "_obj3.wld", object_frags3))
+	//{
+	//	object_frags.insert(object_frags.end(),
+	//		object_frags3.begin(), object_frags3.end());
+	//}
+
 	return CompileS3D(zone_frags, zone_object_frags, object_frags);
 }
 

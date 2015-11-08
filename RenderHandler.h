@@ -92,3 +92,6 @@ private:
 };
 
 extern std::shared_ptr<RenderHandler> g_renderHandler;
+
+void ResetDeviceState();
+

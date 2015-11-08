@@ -6,6 +6,7 @@
 #include "ImGuiRenderer.h"
 #include "MQ2Navigation.h"
 #include "MeshLoader.h"
+#include "DebugDrawDX.h"
 
 #include <cassert>
 #include <DetourDebugDraw.h>
@@ -19,71 +20,8 @@
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
 
-//MemoryEditor memory_editor;
-
 std::shared_ptr<NavMeshRenderer> g_navMeshRenderer;
 
-class DebugDrawDX : public duDebugDraw
-{
-	NavMeshRenderer& m_renderer;
-	RenderList* m_rl = nullptr;
-
-public:
-	DebugDrawDX(NavMeshRenderer& rl_)
-		: m_renderer(rl_)
-	{
-	}
-
-	virtual void end() override
-	{
-		m_rl->End();
-	}
-
-	virtual void depthMask(bool state) override
-	{
-		//m_pDevice->SetRenderState(D3DRS_ZENABLE, state ? D3DZB_TRUE : D3DZB_FALSE);
-	}
-
-	virtual void texture(bool state) override
-	{
-	}
-
-	virtual void begin(duDebugDrawPrimitives prim, float size = 1.0f) override
-	{
-		RenderList::PrimitiveType type = RenderList::Prim_Points;
-
-		switch (prim)
-		{
-		case DU_DRAW_POINTS: type = RenderList::Prim_Points; break;
-		case DU_DRAW_LINES: type = RenderList::Prim_Lines; break;
-		case DU_DRAW_TRIS: type = RenderList::Prim_Triangles; break;
-		case DU_DRAW_QUADS: type = RenderList::Prim_Quads; break;
-		}
-
-		m_rl = m_renderer.GetRenderList(type);
-		m_rl->Begin(size);
-	}
-
-	virtual void vertex(const float* pos, unsigned int color) override
-	{
-		vertex(pos[0], pos[1], pos[2], color, 0.0f, 0.0f);
-	}
-
-	virtual void vertex(const float x, const float y, const float z, unsigned int color) override
-	{
-		vertex(x, y, z, color, 0.0f, 0.0f);
-	}
-
-	virtual void vertex(const float* pos, unsigned int color, const float* uv) override
-	{
-		vertex(pos[0], pos[1], pos[2], color, uv[0], uv[1]);
-	}
-
-	virtual void vertex(const float x, const float y, const float z, unsigned int color, const float u, const float v) override
-	{
-		m_rl->AddVertex(x, y, z, color, u, v);
-	}
-};
 
 //----------------------------------------------------------------------------
 
@@ -97,11 +35,7 @@ NavMeshRenderer::NavMeshRenderer(MeshLoader* loader, IDirect3DDevice9* device)
 	auto conn = [this](dtNavMesh* m) { m_navMesh = m; UpdateNavMesh(); };
 	m_meshConn = loader->OnNavMeshChanged.Connect(conn);
 
-	for (int i = 0; i < RenderList::Prim_Count; ++i)
-	{
-		m_primLists[i].reset(new RenderList(device, static_cast<RenderList::PrimitiveType>(i)));
-		m_primsEnabled[i] = true;
-	}
+	m_primGroup = std::make_unique<RenderGroup>(device);
 }
 
 NavMeshRenderer::~NavMeshRenderer()
@@ -118,16 +52,12 @@ void NavMeshRenderer::CleanupObjects()
 {
 	StopLoad();
 
-	for (int i = 0; i < RenderList::Prim_Count; ++i)
-		m_primLists[i]->InvalidateDeviceObjects();
+	m_primGroup->InvalidateDeviceObjects();
 }
 
 bool NavMeshRenderer::CreateDeviceObjects()
 {
-	for (int i = 0; i < RenderList::Prim_Count; ++i)
-		m_primLists[i]->CreateDeviceObjects();
-
-	return true;
+	return m_primGroup->CreateDeviceObjects();
 }
 
 void NavMeshRenderer::Render(Renderable::RenderPhase phase)
@@ -194,11 +124,7 @@ void NavMeshRenderer::Render(Renderable::RenderPhase phase)
 			}
 		}
 
-		for (int i = 0; i < RenderList::Prim_Count; ++i)
-		{
-			if (m_primsEnabled[i])
-				m_primLists[i]->Render(phase);
-		}
+		m_primGroup->Render(phase);
 	}
 }
 
@@ -219,7 +145,7 @@ void NavMeshRenderer::StartLoad()
 	m_loading = true;
 	int tilesToLoad = 0;
 
-	std::shared_ptr<DebugDrawDX> dd = std::make_shared<DebugDrawDX>(*this);
+	std::shared_ptr<DebugDrawDX> dd = std::make_shared<DebugDrawDX>(m_primGroup.get());
 
 	for (int i = 0; i < m_navMesh->getMaxTiles(); ++i)
 	{
@@ -242,7 +168,7 @@ void NavMeshRenderer::StartLoad()
 				/* | DU_DRAWNAVMESH_COLOR_TILES*/);
 
 			++currentTile;
-			m_progress = static_cast<float>(currentTile) / static_cast<float>(tilesToLoad) * 100;
+			m_progress = static_cast<float>(currentTile) / static_cast<float>(tilesToLoad);
 		}
 
 		m_loading = false;
@@ -253,38 +179,13 @@ void NavMeshRenderer::StartLoad()
 
 void NavMeshRenderer::UpdateNavMesh()
 {
-	// Tradeskill_objects.eqg
-	// caveswitches.eqg
-	EQEmu::EQGLoader loader;
-	if (loader.Load("Z:\\EverQuest\\tutorialb", eqg_models, eqg_placeables, eqg_regions, eqg_lights))
-	{
-		std::sort(eqg_models.begin(), eqg_models.end(),
-			[](const std::shared_ptr<EQEmu::EQG::Geometry>& geo1, const std::shared_ptr<EQEmu::EQG::Geometry>& geo2)
-		{
-			return geo1->GetName() < geo2->GetName();
-		});
-
-		std::sort(eqg_placeables.begin(), eqg_placeables.end(),
-			[](const std::shared_ptr<EQEmu::Placeable>& geo1, const std::shared_ptr<EQEmu::Placeable>& geo2)
-		{
-			return geo1->GetName() < geo2->GetName();
-		});
-	}
-
-	EQEmu::PFS::Archive archive;
-	if (archive.Open("Z:\\EverQuest\\tutorialb_obj.s3d"))
-	{
-		archive.GetFilenames("*", m_files);
-	}
+	StopLoad();
 
 	// if not enabled, don't do any work
 	if (!m_enabled)
 		return;
 
-	StopLoad();
-
-	for (int i = 0; i < RenderList::Prim_Count; ++i)
-		m_primLists[i]->Reset();
+	m_primGroup->Reset();
 
 	// if we don't have a navmesh, don't build the geometry
 	if (!m_navMesh)
@@ -302,177 +203,37 @@ void NavMeshRenderer::OnUpdateUI()
 		return;
 	PCHARINFO pCharInfo = GetCharInfo();
 
-	//bool valid_address = false;
-	//static DWORD address = 0;
-	//ImGui::Begin("Memory Editor");
-	//{
-	//	ImGui::InputInt("Address", (int*)&address, 1, 100, ImGuiInputTextFlags_CharsHexadecimal);
+	ImGui::Begin("Debug");
 
-	//	if (address != 0)
-	//	{
-	//		__try {
-	//			byte* value = (byte*)address;
-	//			byte forceRead = *value;
-	//			byte forceRead2 = *(value + 1024);
-
-	//			valid_address = true;
-	//		}
-	//		__except (EXCEPTION_EXECUTE_HANDLER) {
-	//			ImGui::TextColored(ImColor(255, 0, 0), "Invalid Address");
-	//		}
-	//	}
-	//}
-	//ImGui::End();
-
-	//if (valid_address)
-	//{
-	//	memory_editor.Draw("Memory Editor", (unsigned char*)address, 1024);
-	//}
-
-	ImGui::Begin("NavMesh");
-
-	DWORD zoneId = pCharInfo->zoneId & 0x7fff;
-	if (zoneId < MAX_ZONES)
+	if (ImGui::CollapsingHeader("Navigation Mesh", "##navmesh"))
 	{
-		PZONELIST pZone = ((PWORLDDATA)pWorldData)->ZoneArray[zoneId];
-		ImGui::TextColored(ImColor(255, 255, 0), "%s (%s)", pZone->LongName, pZone->ShortName);
+		ImGui::Checkbox("Render Navmesh", &m_enabled);
 
-		if (m_files.size() > 0)
+		if (m_enabled)
 		{
-			if (ImGui::TreeNode("Files"))
+			ImGui::Separator();
+			if (m_loading)
 			{
-				for (auto iter = m_files.begin(); iter != m_files.end(); ++iter)
-				{
-					//const auto& model = *iter;
-
-					ImGui::Text("%s", iter->c_str());
-				}
-
-				ImGui::TreePop();
+				ImGui::ProgressBar("Progress", m_progress);
 			}
-		}
 
-		if (eqg_models.size() > 0)
-		{
-			if (ImGui::TreeNode("Models"))
+			ImGui::Columns(2);
+			ImGui::Checkbox("Points", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Points]);
+			ImGui::NextColumn();
+			ImGui::Checkbox("Lines", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Lines]);
+			ImGui::NextColumn();
+			ImGui::Checkbox("Triangles", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Triangles]);
+			ImGui::NextColumn();
+			ImGui::Checkbox("Quads", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Quads]);
+			ImGui::NextColumn();
+			ImGui::Columns(1);
+
+			ImGui::Checkbox("Modify State", &m_useStateEditor);
+
+			if (m_useStateEditor)
 			{
-				for (auto iter = eqg_models.begin(); iter != eqg_models.end(); ++iter)
-				{
-					const auto& model = *iter;
-
-					ImGui::Text("%s", model->GetName().c_str());
-				}
-
-				ImGui::TreePop();
+				m_state->RenderDebugUI();
 			}
-		}
-
-		if (eqg_placeables.size() > 0)
-		{
-			if (ImGui::TreeNode("Placeables"))
-			{
-				for (auto iter = eqg_placeables.begin(); iter != eqg_placeables.end(); ++iter)
-				{
-					const auto& placeable = *iter;
-
-					ImGui::Text("%s (%s)", placeable->GetName().c_str(),
-						placeable->GetFileName().c_str());
-				}
-
-				ImGui::TreePop();
-			}
-		}
-
-	}
-
-	ImGui::Checkbox("Render Navmesh", &m_enabled);
-
-	if (m_enabled)
-	{
-		ImGui::Separator();
-		if (m_loading)
-		{
-			ImGui::LabelText("Progress", "%.2f", m_progress);
-		}
-
-#if 0
-		ImGui::Columns(2);
-		ImGui::Checkbox("Points", &m_primsEnabled[RenderList::Prim_Points]); ImGui::NextColumn();
-		ImGui::Checkbox("Lines", &m_primsEnabled[RenderList::Prim_Lines]); ImGui::NextColumn();
-		ImGui::Checkbox("Triangles", &m_primsEnabled[RenderList::Prim_Triangles]); ImGui::NextColumn();
-		ImGui::Checkbox("Quads", &m_primsEnabled[RenderList::Prim_Quads]); ImGui::NextColumn();
-		ImGui::Columns(1);
-#endif
-		ImGui::Checkbox("Modify State", &m_useStateEditor);
-
-		if (m_useStateEditor)
-		{
-			m_state->RenderDebugUI();
-		}
-	}
-
-	if (ImGui::CollapsingHeader("Doors"))
-	{
-		// temp for now, until we figure out where to put this...
-		PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
-		for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
-		{
-			PDOOR door = pDoorTable->pDoor[count];
-			ImGui::PushID(count);
-
-			if (ImGui::TreeNode(door->Name, "%s (%d)", door->Name, door->ID))
-			{
-				ImGui::LabelText("ID", "%d", door->ID);
-				ImGui::LabelText("Type", "%d", door->Type);
-				ImGui::LabelText("State", "%d", door->State);
-
-				ImGui::DragFloat3("Position", &door->Y);
-				ImGui::DragFloat("Heading", &door->Heading);
-				ImGui::DragFloat("Angle", &door->DoorAngle);
-				ImGui::DragFloat2("Top Speed", &door->TopSpeed1);
-
-				ImGui::DragFloat3("Default Position", &door->DefaultY);
-				ImGui::DragFloat("Default Heading", &door->DefaultHeading);
-				ImGui::DragFloat("Default Angle", &door->DefaultDoorAngle);
-
-				ImGui::LabelText("Zone Point", "%d", door->ZonePoint);
-				ImGui::LabelText("Switch?", "%s", door->pSwitch ? "true" : "false");
-				ImGui::LabelText("Timestamp", "%d", door->TimeStamp);
-
-				if (ImGui::Button("Reset Position"))
-				{
-					door->X = door->DefaultX;
-					door->Y = door->DefaultY;
-					door->Z = door->DefaultZ;
-					door->Heading = door->DefaultHeading;
-					door->DoorAngle = door->DefaultDoorAngle;
-				}
-
-				if (ImGui::TreeNode("Door Dump"))
-				{
-					ImGui::Columns(4);
-
-					for (int i = 0; i < 55; ++i)
-					{
-						float* p = (float*)door;
-						p += i;
-
-						ImGui::Text("0x%08x (+%04x)", p, (i * 4)); ImGui::NextColumn();
-						
-						BYTE* b = (BYTE*)p;
-						ImGui::Text("%02x %02x %02x %02x", b[0], b[1], b[2], b[3]); ImGui::NextColumn();
-						ImGui::Text("0x%08x", *(DWORD*)p); ImGui::NextColumn();
-						ImGui::Text("%f", *p); ImGui::NextColumn();
-					}
-
-					ImGui::Columns(1);
-
-					ImGui::TreePop();
-				}
-
-				ImGui::TreePop();
-			}
-			ImGui::PopID();
 		}
 	}
 

@@ -45,9 +45,9 @@ bool Waypoint::readFromDescription(const std::string& description)
 typedef std::map<std::string, Waypoint> tZoneData;
 tZoneData g_currentZoneData;
 
-void LoadWaypoints()
+void LoadWaypoints(int zoneId)
 {
-	PCHAR currentZone = GetShortZone(GetCharInfo()->zoneId);
+	PCHAR currentZone = GetShortZone(zoneId);
 	WriteChatf(PLUGIN_MSG "loading waypoints for zone: %s ...", currentZone);
 	g_currentZoneData.clear();
 
@@ -73,9 +73,9 @@ void LoadWaypoints()
 	}
 }
 
-void SaveWaypoints()
+void SaveWaypoints(int zoneId)
 {
-	PCHAR currentZone = GetShortZone(GetCharInfo()->zoneId);
+	PCHAR currentZone = GetShortZone(zoneId);
 	WriteChatf(PLUGIN_MSG "saving waypoints for zone: %s ...", currentZone);
 
 	for (const auto& elem : g_currentZoneData)
@@ -112,8 +112,12 @@ bool AddWaypoint(const std::string& name, const std::string& tag)
 		// store them
 		g_currentZoneData[name] = std::move(wp);
 
+		// todo, store this globally
+		int zoneId = GetCharInfo()->zoneId;
+		zoneId = zoneId & 0x7fff;
+
 		// save data
-		SaveWaypoints();
+		SaveWaypoints(zoneId);
 	}
 
 	return true;

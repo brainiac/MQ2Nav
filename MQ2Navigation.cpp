@@ -7,6 +7,7 @@
 #include "ImGuiRenderer.h"
 #include "MQ2Nav_Hooks.h"
 #include "MeshLoader.h"
+#include "ModelLoader.h"
 #include "NavMeshRenderer.h"
 #include "MQ2Nav_Util.h"
 #include "MQ2Nav_Settings.h"
@@ -98,6 +99,7 @@ static BOOL NavigateData(PCHAR szName, MQ2TYPEVAR& Dest)
 MQ2NavigationPlugin::MQ2NavigationPlugin()
   : m_navigationType(new MQ2NavigationType(this))
   , m_meshLoader(new MeshLoader())
+  , m_modelLoader(new ModelLoader())
   , m_pEQDraw(new CEQDraw)
 {
 	Initialize();
@@ -124,8 +126,11 @@ MQ2NavigationPlugin::~MQ2NavigationPlugin()
 
 void MQ2NavigationPlugin::OnPulse()
 {
-	if (m_meshLoader)
-		m_meshLoader->Process();
+	if (!m_initialized)
+		Initialize();
+
+	m_meshLoader->Process();
+	m_modelLoader->Process();
 
 	if (m_initialized && mq2nav::ValidIngame(TRUE))
 	{
@@ -137,7 +142,7 @@ void MQ2NavigationPlugin::OnPulse()
 
 void MQ2NavigationPlugin::OnBeginZone()
 {
-	mq2nav::LoadWaypoints();
+	UpdateCurrentZone();
 }
 
 void MQ2NavigationPlugin::OnEndZone()
@@ -149,8 +154,7 @@ void MQ2NavigationPlugin::OnEndZone()
 void MQ2NavigationPlugin::SetGameState(DWORD GameState)
 {
 	if (GameState == GAMESTATE_INGAME) {
-		mq2nav::LoadWaypoints();
-		m_meshLoader->SetZoneId(GetCharInfo()->zoneId);
+		UpdateCurrentZone();
 	}
 	else {
 		// don't unload the mesh until we finish zoning. We might zone
@@ -159,6 +163,39 @@ void MQ2NavigationPlugin::SetGameState(DWORD GameState)
 		if (GameState != GAMESTATE_ZONING) {
 			m_meshLoader->Reset();
 		}
+	}
+}
+
+void MQ2NavigationPlugin::OnAddGroundItem(PGROUNDITEM pGroundItem)
+{
+}
+
+void MQ2NavigationPlugin::OnRemoveGroundItem(PGROUNDITEM pGroundItem)
+{
+}
+
+void MQ2NavigationPlugin::UpdateCurrentZone()
+{
+	if (PCHARINFO pChar = GetCharInfo())
+	{
+		int zoneId = pChar->zoneId;
+
+		zoneId &= 0x7FFF;
+		if (zoneId >= MAX_ZONES)
+			return;
+
+		DebugSpewAlways("Switching to zone: %d", zoneId);
+
+		mq2nav::LoadWaypoints(zoneId);
+		m_meshLoader->SetZoneId(zoneId);
+		m_modelLoader->SetZoneId(zoneId);
+	}
+	else
+	{
+		// reset things,
+		DebugSpewAlways("Resetting Zone");
+
+		m_modelLoader->Reset();
 	}
 }
 
@@ -178,16 +215,14 @@ void MQ2NavigationPlugin::Initialize()
 	g_navMeshRenderer.reset(new NavMeshRenderer(m_meshLoader.get(), g_pDevice));
 	g_renderHandler->AddRenderable(g_navMeshRenderer);
 
-	DebugSpewAlways("MQ2Navigation::InitializePlugin:LoadSettings");
 	mq2nav::LoadSettings();
-	DebugSpewAlways("MQ2Navigation::InitializePlugin:FindKeys");
 	mq2nav::keybinds::FindKeys();
-	DebugSpewAlways("MQ2Navigation::InitializePlugin:DoKeybinds");
 	mq2nav::keybinds::DoKeybinds();
-	DebugSpewAlways("MQ2Navigation::InitializePlugin:all good");
 
 	m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
 	m_pEQDraw->Initialize();
+
+	m_modelLoader->Initialize();
 
 	m_initialized = true;
 }
@@ -196,6 +231,8 @@ void MQ2NavigationPlugin::Shutdown()
 {
 	if (m_initialized)
 	{
+		m_modelLoader->Shutdown();
+
 		mq2nav::keybinds::UndoKeybinds();
 		Stop();
 

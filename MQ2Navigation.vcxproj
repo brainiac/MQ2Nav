@@ -50,8 +50,8 @@
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;dependencies\zone-utilities\common;dependencies\zone-utilities\log;dependencies\zlib\include;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4018;4244</DisableSpecificWarnings>
       <EnablePREfast Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</EnablePREfast>
     </ClCompile>
@@ -66,6 +66,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DebugDrawDX.h" />
     <ClInclude Include="FindPattern.h" />
     <ClInclude Include="ImGuiRenderer.h" />
     <ClInclude Include="imgui_impl_dx9.h" />
@@ -76,6 +77,7 @@
     <ClInclude Include="MQ2Nav_Hooks.h" />
     <ClInclude Include="MeshLoader.h" />
     <ClInclude Include="NavMeshRenderer.h" />
+    <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="MQ2Nav_KeyBinds.h" />
     <ClInclude Include="Renderable.h" />
@@ -85,6 +87,7 @@
     <ClInclude Include="Waypoints.h" />
     <ClInclude Include="meshext.h" />
     <ClInclude Include="Signal.h" />
+    <ClInclude Include="ZoneData.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dependencies\zlib\src\adler32.c" />
@@ -99,6 +102,7 @@
     <ClCompile Include="ImGuiRenderer.cpp" />
     <ClCompile Include="imgui_impl_dx9.cpp" />
     <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp" />
+    <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
     <ClCompile Include="meshext.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
@@ -113,6 +117,7 @@
     <ClCompile Include="MQ2Nav_Settings.cpp" />
     <ClCompile Include="Waypoints.cpp" />
     <ClCompile Include="RenderList.cpp" />
+    <ClCompile Include="ZoneData.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQ2Navigation1.rc" />

@@ -14,7 +14,7 @@ class EQGModelLoader
 public:
 	EQGModelLoader();
 	~EQGModelLoader();
-	bool Load(EQEmu::PFS::Archive &archive, std::string model, std::shared_ptr<EQG::Geometry> model_out);
+	bool Load(EQEmu::PFS::Archive &archive, std::string model, std::shared_ptr<EQG::Geometry>& model_out);
 };
 
 }

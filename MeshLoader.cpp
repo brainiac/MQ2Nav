@@ -20,10 +20,6 @@ static char libpass[MAXPASSLEN + 1];
 
 void MeshLoader::SetZoneId(DWORD zoneId)
 {
-	zoneId &= 0x7FFF;
-	if (zoneId >= MAX_ZONES)
-		return;
-
 	if (m_zoneId != zoneId)
 	{
 		m_zoneId = zoneId;

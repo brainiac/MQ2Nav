@@ -50,6 +50,9 @@ public:
 	// Render the geometry
 	virtual void Render(RenderPhase phase);
 
+	void SetTransform(D3DXMATRIX* mtx) { m_mtx = mtx; }
+	void SetEQCoords(bool eqCoords) { m_eqCoords = eqCoords; }
+
 	PrimitiveType GetType() const { return m_type; }
 
 	void RenderDebugUI();
@@ -107,6 +110,9 @@ private:
 	int m_tempIndex = 0;
 	int m_tempMax = 0;
 
+	D3DXMATRIX* m_mtx = nullptr;
+	bool m_eqCoords = false;
+
 private:
 	IDirect3DDevice9* m_pDevice = nullptr;
 	IDirect3DVertexBuffer9* m_pVB = nullptr;
@@ -118,4 +124,103 @@ private:
 	// make any difference at the moment.
 	std::vector<std::unique_ptr<PrimitiveList>> m_prims;
 	PrimitiveList* m_currentPrim;
+};
+
+
+class RenderGroup : public Renderable
+{
+public:
+	RenderGroup(IDirect3DDevice9* device)
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+		{
+			m_primLists[i].reset(new RenderList(device, static_cast<RenderList::PrimitiveType>(i)));
+			m_primsEnabled[i] = true;
+		}
+	}
+
+	~RenderGroup()
+	{
+		m_currentList = nullptr;
+	}
+
+	auto GetPrimsEnabled() -> auto& { return m_primsEnabled; }
+
+	inline RenderList* GetRenderList(RenderList::PrimitiveType type)
+	{
+		assert(type >= 0 && type < RenderList::Prim_Count);
+		return m_primLists[type].get();
+	}
+
+	inline void Reset()
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+			m_primLists[i]->Reset();
+
+		m_currentList = nullptr;
+	}
+
+	inline void SetEQCoords(bool eqCoords)
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+			m_primLists[i]->SetEQCoords(eqCoords);
+	}
+
+	void SetTransform(D3DXMATRIX* mtx)
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+		{
+			if (m_primsEnabled[i])
+				m_primLists[i]->SetTransform(mtx);
+		}
+	}
+
+	virtual void Render(Renderable::RenderPhase phase) override
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+		{
+			if (m_primsEnabled[i])
+				m_primLists[i]->Render(phase);
+		}
+	}
+
+	virtual bool CreateDeviceObjects() override
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+			m_primLists[i]->CreateDeviceObjects();
+
+		return true;
+	}
+
+	virtual void InvalidateDeviceObjects() override
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+			m_primLists[i]->InvalidateDeviceObjects();
+	}
+
+	//----------------------------------------------------------------------------
+	// build the geometry
+
+	inline void Begin(RenderList::PrimitiveType type, float size = 1.0f)
+	{
+		m_currentList = m_primLists[type].get();
+		m_currentList->Begin(size);
+	}
+
+	inline void AddVertex(float x, float y, float z, unsigned int color, float u, float v)
+	{
+		m_currentList->AddVertex(x, y, z, color, u, v);
+	}
+
+	void End()
+	{
+		m_currentList->End();
+		m_currentList = nullptr;
+	}
+
+private:
+	std::unique_ptr<RenderList> m_primLists[RenderList::Prim_Count];
+	bool m_primsEnabled[RenderList::Prim_Count];
+
+	RenderList* m_currentList = nullptr;
 };

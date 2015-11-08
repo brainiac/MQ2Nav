@@ -24,6 +24,7 @@ class CEQDraw;
 class MQ2NavigationPlugin;
 class MQ2NavigatinType;
 class MQ2NavigationPath;
+class ModelLoader;
 class RenderHandler;
 class MeshLoader;
 
@@ -67,6 +68,8 @@ public:
 	void OnBeginZone();
 	void OnEndZone();
 	void SetGameState(DWORD GameState);
+	void OnAddGroundItem(PGROUNDITEM pGroundItem);
+	void OnRemoveGroundItem(PGROUNDITEM pGroundItem);
 
 	// Handler for /navigate
 	void Command_Navigate(PSPAWNINFO pChar, PCHAR szLine);
@@ -111,6 +114,8 @@ private:
 	void Initialize();
 	void Shutdown();
 
+	void UpdateCurrentZone();
+
 	//----------------------------------------------------------------------------
 
 	bool ParseDestination(PCHAR szLine, glm::vec3& destination);
@@ -136,6 +141,7 @@ private:
 
 	// our nav mesh and active path
 	std::unique_ptr<MeshLoader> m_meshLoader;
+	std::unique_ptr<ModelLoader> m_modelLoader;
 	std::unique_ptr<MQ2NavigationPath> m_activePath;
 
 	bool m_initialized = false;

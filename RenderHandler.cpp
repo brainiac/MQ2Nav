@@ -237,3 +237,32 @@ void RenderHandler::ClearNavigationPath()
 	//	m_pLines = 0;
 	//}
 }
+
+void ResetDeviceState()
+{
+	g_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+	g_pDevice->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+	g_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	g_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+	g_pDevice->SetRenderState(D3DRS_ALPHATESTENABLE, true);
+	g_pDevice->SetRenderState(D3DRS_ALPHAREF, 0);
+	g_pDevice->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
+
+	g_pDevice->SetRenderState(D3DRS_ZENABLE, true);
+	g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+	g_pDevice->SetRenderState(D3DRS_ZWRITEENABLE, true);
+
+	g_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+	g_pDevice->SetRenderState(D3DRS_LIGHTING, false);
+	g_pDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+
+	g_pDevice->SetRenderState(D3DRS_STENCILENABLE, false);
+
+	// disable the rest of the texture stages
+	for (int i = 0; i < 8; i++)
+	{
+		g_pDevice->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		g_pDevice->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	}
+}

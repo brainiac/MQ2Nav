@@ -54,3 +54,15 @@ PLUGIN_API void SetGameState(DWORD GameState)
 	if (g_mq2Nav)
 		g_mq2Nav->SetGameState(GameState);
 }
+
+PLUGIN_API void OnAddGroundItem(PGROUNDITEM pNewGroundItem)
+{
+	if (g_mq2Nav)
+		g_mq2Nav->OnAddGroundItem(pNewGroundItem);
+}
+
+PLUGIN_API void OnRemoveGroundItem(PGROUNDITEM pGroundItem)
+{
+	if (g_mq2Nav)
+		g_mq2Nav->OnRemoveGroundItem(pGroundItem);
+}

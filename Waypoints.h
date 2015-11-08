@@ -33,8 +33,8 @@ public:
 };
 
 // Load/Save waypoints from .ini file
-void LoadWaypoints();
-void SaveWaypoints();
+void LoadWaypoints(int zoneId);
+void SaveWaypoints(int zoneId);
 
 // Returns true and fills in wp if waypoint with name is found
 bool GetWaypoint(const std::string& name, Waypoint& wp);

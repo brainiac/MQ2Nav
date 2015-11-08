@@ -11,7 +11,7 @@ EQEmu::EQGModelLoader::EQGModelLoader() {
 EQEmu::EQGModelLoader::~EQGModelLoader() {
 }
 
-bool EQEmu::EQGModelLoader::Load(EQEmu::PFS::Archive &archive, std::string model, std::shared_ptr<EQG::Geometry> model_out) {
+bool EQEmu::EQGModelLoader::Load(EQEmu::PFS::Archive &archive, std::string model, std::shared_ptr<EQG::Geometry>& model_out) {
 	eqLogMessage(LogTrace, "Loading model %s.", model.c_str());
 	std::vector<char> buffer;
 	if(!archive.Get(model, buffer)) {
@@ -38,6 +38,8 @@ bool EQEmu::EQGModelLoader::Load(EQEmu::PFS::Archive &archive, std::string model
 		eqLogMessage(LogDebug, "Attempted to load an eqg model that was not type M or T.");
 		return false;
 	}
+
+	model_out = std::make_shared<EQG::Geometry>();
 	
 	uint32_t list_loc = idx;
 	idx += header->list_length;
