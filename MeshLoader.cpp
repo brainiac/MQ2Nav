@@ -268,9 +268,6 @@ MeshLoader::LoadResult MeshLoader::LoadZoneMeshData(const std::shared_ptr<char>&
 
 	for (int i = 0; i < header.numTiles; ++i)
 	{
-		if ((i % 100) == 0)
-			DebugSpewAlways("LoadZoneMeshData() - tile #%d", i);
-		
 		NavMeshTileHeader tileHeader;
 		if (!FillStructure(cursor, tileHeader)) {
 			DebugSpewAlways("Failed to read tile header for tile %d!", i);

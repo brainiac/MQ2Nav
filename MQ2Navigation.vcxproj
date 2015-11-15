@@ -71,15 +71,15 @@
     <ClInclude Include="ImGuiRenderer.h" />
     <ClInclude Include="imgui_impl_dx9.h" />
     <ClInclude Include="imgui_memory_editor.h" />
-    <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h" />
-    <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h" />
     <ClInclude Include="MQ2Navigation.h" />
     <ClInclude Include="MQ2Nav_Hooks.h" />
     <ClInclude Include="MeshLoader.h" />
+    <ClInclude Include="NavigationPath.h" />
+    <ClInclude Include="NavigationType.h" />
     <ClInclude Include="NavMeshRenderer.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="RenderHandler.h" />
-    <ClInclude Include="MQ2Nav_KeyBinds.h" />
+    <ClInclude Include="KeybindHandler.h" />
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="RenderList.h" />
     <ClInclude Include="MQ2Nav_Settings.h" />
@@ -101,7 +101,6 @@
     <ClCompile Include="FindPattern.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
     <ClCompile Include="imgui_impl_dx9.cpp" />
-    <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
     <ClCompile Include="meshext.c">
@@ -109,7 +108,9 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
     </ClCompile>
     <ClCompile Include="MQ2Nav_Hooks.cpp" />
-    <ClCompile Include="MQ2Nav_KeyBinds.cpp" />
+    <ClCompile Include="KeybindHandler.cpp" />
+    <ClCompile Include="NavigationPath.cpp" />
+    <ClCompile Include="NavigationType.cpp" />
     <ClCompile Include="NavMeshRenderer.cpp" />
     <ClCompile Include="PluginMain.cpp" />
     <ClCompile Include="RenderHandler.cpp" />

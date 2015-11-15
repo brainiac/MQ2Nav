@@ -6,7 +6,6 @@
 #include "MQ2Navigation.h"
 #include "ImGuiRenderer.h"
 #include "RenderHandler.h"
-#include "EQGraphics.h"
 #include "FindPattern.h"
 
 #include <imgui.h>
@@ -79,6 +78,13 @@ FUNCTION_AT_ADDRESS(int FlushDxKeyboard(), __FlushDxKeyboard);
 
 // Don't need a signature for this, can get it programmatically
 DWORD __WndProc = 0;
+
+class CRender
+{
+public:
+	/*0x000*/ BYTE Unknown0x0[0xf08];
+	/*0xf08*/ IDirect3DDevice9 *pDevice; // device pointer
+};
 
 //----------------------------------------------------------------------------
 

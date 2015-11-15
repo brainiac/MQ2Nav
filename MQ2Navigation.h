@@ -6,8 +6,7 @@
 
 #include "MQ2Plugin.h"
 
-#include "DetourNavMeshQuery.h"
-#include "DetourPathCorridor.h"
+#include "Signal.h"
 
 #include <memory>
 #include <chrono>
@@ -20,40 +19,14 @@
 //----------------------------------------------------------------------------
 
 class dtNavMesh;
-class CEQDraw;
 class MQ2NavigationPlugin;
-class MQ2NavigatinType;
-class MQ2NavigationPath;
+class MQ2NavigationType;
+class NavigationPath;
 class ModelLoader;
 class RenderHandler;
 class MeshLoader;
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
-
-//----------------------------------------------------------------------------
-
-class MQ2NavigationType : public MQ2Type
-{
-public:
-	enum NavigationMembers {
-		Active = 1,
-		MeshLoaded = 2,
-		PathExists = 3,
-		PathLength = 4,
-	};
-
-	MQ2NavigationType(MQ2NavigationPlugin* nav_);
-	virtual ~MQ2NavigationType();
-
-	virtual bool GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR& Dest) override;
-	virtual bool ToString(MQ2VARPTR VarPtr, PCHAR Destination) override;
-
-	virtual bool FromData(MQ2VARPTR& VarPtr, MQ2TYPEVAR& Source) override { return false; }
-	virtual bool FromString(MQ2VARPTR& VarPtr, PCHAR Source) override { return false; }
-
-private:
-	MQ2NavigationPlugin* m_nav;
-};
 
 //----------------------------------------------------------------------------
 
@@ -132,17 +105,18 @@ private:
 	void AttemptMovement();
 	void Stop();
 
+	void OnMovementKeyPressed();
+
 	void UpdateNavigationDisplay();
 
 private:
 	std::unique_ptr<MQ2NavigationType> m_navigationType;
-	std::unique_ptr<CEQDraw> m_pEQDraw;
 	std::shared_ptr<RenderHandler> m_render;
 
 	// our nav mesh and active path
 	std::unique_ptr<MeshLoader> m_meshLoader;
 	std::unique_ptr<ModelLoader> m_modelLoader;
-	std::unique_ptr<MQ2NavigationPath> m_activePath;
+	std::unique_ptr<NavigationPath> m_activePath;
 
 	bool m_initialized = false;
 
@@ -166,83 +140,10 @@ private:
 	float m_stuckY = 0;
 
 	clock::time_point m_pathfindTimer = clock::now();
+
+	Signal<>::ScopedConnection m_keypressConn;
 };
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
 
-
 //============================================================================
-
-class MQ2NavigationPath
-{
-public:
-	MQ2NavigationPath(dtNavMesh* navMesh);
-	~MQ2NavigationPath();
-
-	//----------------------------------------------------------------------------
-	// constants
-
-	static const int MAX_POLYS = 4028 * 4;
-
-	static const int MAX_NODES = 2048 * 4;
-
-	static const int MAX_PATH_SIZE = 2048 * 4;
-
-	//----------------------------------------------------------------------------
-
-	const glm::vec3& GetDestination() const { return m_destination; }
-
-	int GetPathSize() const { return m_currentPathSize; }
-	int GetPathIndex() const { return m_currentPathCursor; }
-
-	bool FindPath(const glm::vec3& pos);
-
-	void UpdatePath();
-
-	// Check if we are at the end if our path
-	inline bool IsAtEnd() const { return m_currentPathCursor >= m_currentPathSize; }
-
-	inline glm::vec3 GetNextPosition() const
-	{
-		return GetPosition(m_currentPathCursor);
-	}
-	inline const float* GetRawPosition(int index) const
-	{
-		assert(index < m_currentPathSize);
-		return &m_currentPath[index * 3];
-	}
-	inline glm::vec3 GetPosition(int index) const
-	{
-		const float* rawcoord = GetRawPosition(index);
-		return glm::vec3(rawcoord[0], rawcoord[1], rawcoord[2]);
-	}
-
-	inline void Increment() { ++m_currentPathCursor; }
-
-	const float* GetCurrentPath() const { return &m_currentPath[0]; }
-
-	dtNavMesh* GetNavMesh() const { return m_navMesh; }
-	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
-
-private:
-	void FindPathInternal(const glm::vec3& pos);
-
-	glm::vec3 m_destination;
-
-	float m_currentPath[MAX_POLYS * 3];
-	unsigned char m_cornerFlags[MAX_POLYS];
-
-	int m_currentPathCursor = 0;
-	int m_currentPathSize = 0;
-
-	// the plugin owns the mesh
-	dtNavMesh* m_navMesh;
-
-	// we own the query
-	std::unique_ptr<dtNavMeshQuery> m_query;
-	std::unique_ptr<dtPathCorridor> m_corridor;
-
-	dtQueryFilter m_filter;
-
-	float m_extents[3] = { 50, 400, 50 }; // note: X, Z, Y
-};

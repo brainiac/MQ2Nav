@@ -15,6 +15,7 @@
 #include <string>
 #include <deque>
 #include <mutex>
+#include <thread>
 
 class BuildContext;
 class Sample_TileMesh;
@@ -150,6 +151,9 @@ private:
 
 	bool m_showFailedToLoadZone = false;
 	std::string m_failedZoneMsg;
+
+	// current navmesh build worker thread
+	std::thread m_buildThread;
 };
 
 

@@ -51,3 +51,4 @@ private:
 	std::function<void()> f;
 };
 
+void ClickDoor(PDOOR pDoor);

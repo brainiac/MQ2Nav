@@ -3,21 +3,26 @@
 //
 
 #include "MQ2Navigation.h"
+#include "NavigationPath.h"
+#include "NavigationType.h"
 #include "RenderHandler.h"
 #include "ImGuiRenderer.h"
+#include "KeybindHandler.h"
 #include "MQ2Nav_Hooks.h"
 #include "MeshLoader.h"
 #include "ModelLoader.h"
 #include "NavMeshRenderer.h"
 #include "MQ2Nav_Util.h"
 #include "MQ2Nav_Settings.h"
-#include "MQ2Nav_KeyBinds.h"
 #include "Waypoints.h"
-#include "DetourNavMesh.h"
+
 #include "DetourCommon.h"
-#include "EQDraw.h"
 
 #include <set>
+
+#pragma comment (lib, "d3d9.lib")
+#pragma comment (lib, "d3dx9.lib")
+
 
 //============================================================================
 
@@ -26,55 +31,6 @@ static bool IsInt(char* buffer)
 	if (!*buffer) return false;
 	for (int i = 0; i < strlen(buffer); i++)
 		if (!(isdigit(buffer[i]) || buffer[i] == '.' || (buffer[i] == '-' && i == 0))) return false;
-	return true;
-}
-
-//============================================================================
-
-#pragma region MQ2NavigationType
-MQ2NavigationType::MQ2NavigationType(MQ2NavigationPlugin* nav_)
-  : MQ2Type("Navigation")
-  , m_nav(nav_)
-{
-	TypeMember(Active);
-	TypeMember(MeshLoaded);
-	TypeMember(PathExists);
-	TypeMember(PathLength);
-}
-
-MQ2NavigationType::~MQ2NavigationType()
-{
-}
-
-bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR &Dest)
-{
-	PMQ2TYPEMEMBER pMember = MQ2NavigationType::FindMember(Member);
-	if (pMember) switch ((NavigationMembers)pMember->ID) {
-	case Active:
-		Dest.Type = pBoolType;
-		Dest.DWord = m_nav->IsActive();
-		return true;
-	case MeshLoaded:
-		Dest.Type = pBoolType;
-		Dest.DWord = m_nav->IsMeshLoaded();
-		return true;
-	case PathExists:
-		Dest.Type = pBoolType;
-		Dest.DWord = m_nav->CanNavigateToPoint(Index);
-		return true;
-	case PathLength:
-		Dest.Type = pFloatType;
-		Dest.Float = m_nav->GetNavigationPathLength(Index);
-		return true;
-	}
-	Dest.Type = pStringType;
-	Dest.Ptr = "NULL";
-	return true;
-}
-
-bool MQ2NavigationType::ToString(MQ2VARPTR VarPtr, PCHAR Destination)
-{
-	strcpy(Destination, "TRUE");
 	return true;
 }
 
@@ -91,16 +47,40 @@ static BOOL NavigateData(PCHAR szName, MQ2TYPEVAR& Dest)
 
 	return FALSE;
 }
-#pragma endregion
 
-//----------------------------------------------------------------------------
+void ClickDoor(PDOOR pDoor)
+{
+	EQSwitch *pSwitch = (EQSwitch *)pDoor;
+	srand((unsigned int)time(0));
+	int randclickY = rand() % 5;
+	int randclickX = rand() % 5;
+	int randclickZ = rand() % 5;
+	
+	SWITCHCLICK click;
+	click.Y = pDoor->Y + randclickY;
+	click.X = pDoor->X + randclickX;
+	click.Z = pDoor->Z + randclickZ;
+	randclickY = rand() % 5;
+	randclickX = rand() % 5;
+	randclickZ = rand() % 5;
+	click.Y1 = click.Y + randclickY;
+	click.X1 = click.X + randclickX;
+	click.Z1 = click.Z + randclickZ;
+	pSwitch->UseSwitch(GetCharInfo()->pSpawn->SpawnID, 0xFFFFFFFF, 0, (DWORD)&click);
+}
+
+static void ClickGroundItem(PGROUNDITEM pGroundItem)
+{
+
+}
+
+//============================================================================
 
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
   : m_navigationType(new MQ2NavigationType(this))
   , m_meshLoader(new MeshLoader())
   , m_modelLoader(new ModelLoader())
-  , m_pEQDraw(new CEQDraw)
 {
 	Initialize();
 
@@ -160,7 +140,7 @@ void MQ2NavigationPlugin::SetGameState(DWORD GameState)
 		// don't unload the mesh until we finish zoning. We might zone
 		// into the same zone (succor), so no use unload the mesh until
 		// after loading completes.
-		if (GameState != GAMESTATE_ZONING) {
+		if (GameState != GAMESTATE_ZONING && GameState != GAMESTATE_LOGGINGIN) {
 			m_meshLoader->Reset();
 		}
 	}
@@ -216,12 +196,13 @@ void MQ2NavigationPlugin::Initialize()
 	g_renderHandler->AddRenderable(g_navMeshRenderer);
 
 	mq2nav::LoadSettings();
-	mq2nav::keybinds::FindKeys();
-	mq2nav::keybinds::DoKeybinds();
+
+	// add the keybind handler and connect it to our keypress handler
+	g_keybindHandler = std::make_unique<KeybindHandler>();
+	m_keypressConn = g_keybindHandler->OnMovementKeyPressed.Connect(
+		[this]() { OnMovementKeyPressed(); });
 
 	m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
-	m_pEQDraw->Initialize();
-
 	m_modelLoader->Initialize();
 
 	m_initialized = true;
@@ -231,10 +212,11 @@ void MQ2NavigationPlugin::Shutdown()
 {
 	if (m_initialized)
 	{
+		Stop();
+
 		m_modelLoader->Shutdown();
 
-		mq2nav::keybinds::UndoKeybinds();
-		Stop();
+		g_keybindHandler.reset();
 
 		g_renderHandler->RemoveRenderable(g_navMeshRenderer);
 		g_navMeshRenderer.reset();
@@ -322,17 +304,12 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 
 	if (m_isActive)
 		EzCommand("/squelch /stick off");
-
-	// TODO: Fixme
-	//mq2nav::keybinds::bDoMove = m_isActive;
-	mq2nav::keybinds::stopNavigation = std::bind(&MQ2NavigationPlugin::Stop, this);
 }
 
 void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 {
 	// first clear existing state
 	m_isActive = false;
-	g_renderHandler->ClearNavigationPath();
 	m_activePath.reset();
 
 	if (!m_meshLoader->IsNavMeshLoaded())
@@ -341,8 +318,8 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 		return;
 	}
 
-	m_activePath.reset(new MQ2NavigationPath(m_meshLoader->GetNavMesh()));
-	g_renderHandler->SetNavigationPath(m_activePath.get());
+	m_activePath = std::make_unique<NavigationPath>(
+		m_meshLoader->GetNavMesh(), true);
 
 	m_activePath->FindPath(pos);
 	m_isActive = m_activePath->GetPathSize() > 0;
@@ -353,6 +330,13 @@ bool MQ2NavigationPlugin::IsMeshLoaded() const
 	return m_meshLoader->IsNavMeshLoaded();
 }
 
+void MQ2NavigationPlugin::OnMovementKeyPressed()
+{
+	if (m_isActive && mq2nav::GetSettings().autobreak)
+	{
+		Stop();
+	}
+}
 
 //============================================================================
 
@@ -374,11 +358,11 @@ void MQ2NavigationPlugin::AttemptClick()
 
 	if (m_pEndingDoor && GetDistance(m_pEndingDoor->X, m_pEndingDoor->Y) < 25)
 	{
-		m_pEQDraw->Click(m_pEndingDoor);
+		ClickDoor(m_pEndingDoor);
 	}
 	else if (m_pEndingItem && GetDistance(m_pEndingItem->X, m_pEndingItem->Y) < 25)
 	{
-		m_pEQDraw->Click(m_pEndingItem);
+		ClickGroundItem(m_pEndingItem);
 	}
 }
 
@@ -403,7 +387,7 @@ bool MQ2NavigationPlugin::ClickNearestClosedDoor(float cDistance)
 		}
 	}
 	if (pDoor) {
-		m_pEQDraw->Click(pDoor);
+		ClickDoor(pDoor);
 		return true;
 	}
 	return false;
@@ -428,8 +412,9 @@ void MQ2NavigationPlugin::StuckCheck()
 				&& !GetCharInfo()->Stunned
 				&& m_isActive)
 			{
-				MQ2Globals::ExecuteCmd(FindMappableCommand("JUMP"), 1, 0);
-				MQ2Globals::ExecuteCmd(FindMappableCommand("JUMP"), 0, 0);
+				int jumpCmd = FindMappableCommand("JUMP");
+				MQ2Globals::ExecuteCmd(jumpCmd, 1, 0);
+				MQ2Globals::ExecuteCmd(jumpCmd, 0, 0);
 			}
 
 			m_stuckX = GetCharInfo()->pSpawn->X;
@@ -478,12 +463,11 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 		if (now - m_pathfindTimer > std::chrono::milliseconds(PATHFINDING_DELAY_MS))
 		{
-			WriteChatf(PLUGIN_MSG "Recomputing Path...");
+			//WriteChatf(PLUGIN_MSG "Recomputing Path...");
 
 			// update path
 			m_activePath->UpdatePath();
 			m_isActive = m_activePath->GetPathSize() > 0;
-			//mq2nav::keybinds::bDoMove = m_isActive;
 
 			m_pathfindTimer = now;
 		}
@@ -510,7 +494,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 			if (distanceToTarget < ENDPOINT_STOP_DISTANCE
 				&& !m_bSpamClick)
 			{
-				//LookAt(dest);
+				LookAt(dest);
 			}
 		}
 
@@ -540,8 +524,8 @@ void MQ2NavigationPlugin::AttemptMovement()
 			DebugSpewAlways("[MQ2Navigation] Moving Towards: %.2f %.2f %.2f", nextPosition.x, nextPosition.z, nextPosition.y);
 		}
 
-		//glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
-		//LookAt(eqPoint);
+		glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
+		LookAt(eqPoint);
 	}
 }
 
@@ -637,7 +621,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
 {
 	float result = -1.f;
 
-	MQ2NavigationPath path(m_meshLoader->GetNavMesh());
+	NavigationPath path(m_meshLoader->GetNavMesh());
 	path.FindPath(pos);
 
 	//WriteChatf("MQ2Navigation::GetPathLength - num points: %d", numPoints);
@@ -676,7 +660,7 @@ bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
 	bool result = false;
 
 	if (ParseDestination(szLine, destination)) {
-		MQ2NavigationPath path(m_meshLoader->GetNavMesh());
+		NavigationPath path(m_meshLoader->GetNavMesh());
 		path.FindPath(destination);
 		result = path.GetPathSize() > 0;
 	}
@@ -688,145 +672,16 @@ void MQ2NavigationPlugin::Stop()
 {
 	if (m_isActive)
 	{
-		//WriteChatf(PLUGIN_MSG "Stopping navigation");
-		//MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+		WriteChatf(PLUGIN_MSG "Stopping navigation");
+		MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
 	}
 
-	g_renderHandler->ClearNavigationPath();
 	m_activePath.reset();
 	m_isActive = false;
 
 	m_pEndingDoor = nullptr;
 	m_pEndingItem = nullptr;
-
-	//mq2nav::keybinds::bDoMove = m_isActive;
-	mq2nav::keybinds::stopNavigation = nullptr;
 }
 #pragma endregion
 
 //============================================================================
-
-#pragma region MQ2NavigationPath
-MQ2NavigationPath::MQ2NavigationPath(dtNavMesh* navMesh)
-	: m_navMesh(navMesh)
-{
-	m_filter.setIncludeFlags(0x01); // walkable surface
-}
-
-MQ2NavigationPath::~MQ2NavigationPath()
-{
-}
-
-//----------------------------------------------------------------------------
-
-bool MQ2NavigationPath::FindPath(const glm::vec3& pos)
-{
-	if (nullptr != m_navMesh)
-	{
-		// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
-		FindPathInternal(pos);
-
-		if (m_currentPathSize > 0)
-		{
-			// DebugSpewAlways("FindPath - cursor = %d, size = %d", m_currentPathCursor , m_currentPathSize);
-			return true;
-		}
-	}
-	return false;
-}
-
-void MQ2NavigationPath::FindPathInternal(const glm::vec3& pos)
-{
-	if (nullptr == m_navMesh)
-		return;
-
-	m_currentPathCursor = 0;
-	m_currentPathSize = 0;
-	m_destination = pos;
-
-	m_query.reset(new dtNavMeshQuery);
-	m_query->init(m_navMesh, 10000 /* MAX_NODES */);
-
-	UpdatePath();
-}
-
-void MQ2NavigationPath::UpdatePath()
-{
-	if (m_navMesh == nullptr)
-		return;
-	if (m_query == nullptr)
-		return;
-
-	PSPAWNINFO me = GetCharInfo()->pSpawn;
-	if (me == nullptr)
-		return;
-
-	float startOffset[3] = { me->X, me->Z, me->Y };
-	float endOffset[3] = { m_destination.x, m_destination.z, m_destination.y };
-	float spos[3];
-	float epos[3];
-
-	m_currentPathCursor = 0;
-	m_currentPathSize = 0;
-	return;
-
-	dtPolyRef startRef, endRef;
-	m_query->findNearestPoly(startOffset, m_extents, &m_filter, &startRef, spos);
-
-	if (!startRef)
-	{
-		WriteChatf(PLUGIN_MSG "No start reference");
-		return;
-	}
-
-	dtPolyRef polys[MAX_POLYS];
-	int numPolys = 0;
-
-	if (!m_corridor)
-	{
-		// initialize planning
-		m_corridor.reset(new dtPathCorridor);
-		m_corridor->init(MAX_PATH_SIZE);
-
-		m_corridor->reset(startRef, startOffset);
-
-		m_query->findNearestPoly(endOffset, m_extents, &m_filter, &endRef, epos);
-
-		if (!endRef)
-		{
-			WriteChatf(PLUGIN_MSG "No end reference");
-			return;
-		}
-
-		dtStatus status = m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
-		if (status & DT_OUT_OF_NODES)
-			DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: out of nodes",
-				startOffset[0], startOffset[1], startOffset[2],
-				endOffset[0], endOffset[1], endOffset[2]);
-		if (status & DT_PARTIAL_RESULT)
-			DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
-				startOffset[0], startOffset[1], startOffset[2],
-				endOffset[0], endOffset[1], endOffset[2]);
-
-		m_corridor->setCorridor(endOffset, polys, numPolys);
-	}
-	else
-	{
-		// this is an update
-		m_corridor->movePosition(startOffset, m_query.get(), &m_filter);
-	}
-
-	m_corridor->optimizePathTopology(m_query.get(), &m_filter);
-
-	m_currentPathSize = m_corridor->findCorners(m_currentPath,
-		m_cornerFlags, polys, 10, m_query.get(), &m_filter);
-
-	//if (numPolys > 0)
-	//{
-	//	m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath,
-	//		0, 0, &m_currentPathSize, MAX_POLYS, 0);
-	//}
-}
-
-
-#pragma endregion

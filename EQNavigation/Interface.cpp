@@ -175,7 +175,7 @@ int Interface::RunMainLoop()
 		glGetIntegerv(GL_VIEWPORT, m_view);
 		GLdouble x, y, z;
 
-		if (m_showPreview && m_mesh)
+		if (m_showPreview)
 		{
 			gluUnProject(m_mx, m_my, 0.0f, m_model, m_proj, m_view, &x, &y, &z);
 			m_rays[0] = (float)x;
@@ -339,7 +339,7 @@ void Interface::HandleEvents()
 			else if (event.button.button == SDL_BUTTON_LEFT)
 			{
 				// Hit test mesh.
-				if (m_geom && m_mesh)
+				if (m_geom)
 				{
 					// Hit test mesh.
 					float t;
@@ -415,10 +415,7 @@ void Interface::HandleEvents()
 
 void Interface::RenderInterface()
 {
-	if (m_mesh)
-	{
-		m_mesh->handleRenderOverlay((double*)m_proj, (double*)m_model, (int*)m_view);
-	}
+	m_mesh->handleRenderOverlay((double*)m_proj, (double*)m_model, (int*)m_view);
 
 	bool showMenu = true;
 
@@ -450,23 +447,26 @@ void Interface::RenderInterface()
 		{
 			if (ImGui::BeginMenu("File"))
 			{
-				if (ImGui::MenuItem("Open Zone", "Ctrl+O"))
+				if (ImGui::MenuItem("Open Zone", "Ctrl+O", nullptr,
+					!m_mesh->isBuildingTiles()))
+				{
 					m_showZonePickerDialog = true;
+				}
 
 				ImGui::Separator();
 
 				if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr,
-					m_mesh != nullptr))
+					!m_mesh->isBuildingTiles()))
 				{
 					OpenMesh();
 				}
 				if (ImGui::MenuItem("Save Mesh", "Ctrl+S", nullptr,
-					m_mesh != nullptr && m_mesh->getNavMesh() != nullptr))
+					!m_mesh->isBuildingTiles() && m_mesh->getNavMesh() != nullptr))
 				{
 					SaveMesh();
 				}
 				if (ImGui::MenuItem("Reset Mesh", "", nullptr,
-					m_mesh != nullptr && m_mesh->getNavMesh() != nullptr))
+					!m_mesh->isBuildingTiles() && m_mesh->getNavMesh() != nullptr))
 				{
 					m_mesh->ResetMesh();
 				}
@@ -549,14 +549,6 @@ void Interface::RenderInterface()
 	if (ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 	{
 		ImGui::LabelText("Zone", m_zoneDisplayName.c_str());
-		ImGui::Separator();
-
-		if (m_geom)
-		{
-			ImGui::LabelText("Verts", "%.1fk", m_geom->getMeshLoader()->getVertCount() / 1000.0f);
-			ImGui::LabelText("Tris", "%.1fk", m_geom->getMeshLoader()->getTriCount() / 1000.0f);
-			ImGui::Separator();
-		}
 
 		float camPos[3] = { m_camz, m_camx, m_camy };
 		if (ImGui::InputFloat3("Position", camPos, -2))
@@ -566,29 +558,56 @@ void Interface::RenderInterface()
 			m_camz = camPos[0];
 		}
 
+		ImGui::Separator();
+
+		if (m_geom)
+		{
+			ImGui::LabelText("Verts", "%.1fk", m_geom->getMeshLoader()->getVertCount() / 1000.0f);
+			ImGui::LabelText("Tris", "%.1fk", m_geom->getMeshLoader()->getTriCount() / 1000.0f);
+
+			if (m_mesh)
+			{
+				int tw, th, tm;
+				m_mesh->getTileStatistics(tw, th, tm);
+				int tt = tw*th;
+				ImGui::LabelText("Tiles", "%d x %d (%d)", tw, th, tt);
+
+				ImVec4 col = ImColor(255, 255, 255);
+				if (tt > tm) {
+					col = ImColor(255, 0, 0);
+				}
+				ImGui::TextColored(col, "Max Tiles: %d", tm);
+
+				if (m_mesh->isBuildingTiles())
+				{
+					float percent = (float)m_mesh->getTilesBuilt() / (float)tm * 100;
+
+					ImGui::LabelText("Progress", "%d of %d (%.2f%%)",
+						m_mesh->getTilesBuilt(), tm, percent);
+
+					if (ImGui::Button("Halt Build"))
+						Halt();
+				}
+				else
+				{
+					if (ImGui::Button("Build Mesh"))
+						StartBuild();
+				}
+			}
+
+			ImGui::Separator();
+		}
+
 		if (m_geom && m_mesh)
 		{
-			if (/*message*/ false)
-			{
-				ImGui::Separator();
-
-				if (ImGui::Button("Halt Action"))
-					Halt();
-			}
-			else
+			if (!m_mesh->isBuildingTiles())
 			{
 				m_mesh->handleSettings();
 
-				if (ImGui::Button("Build"))
-					StartBuild();
-			}
-		}
-
-		if (m_mesh)
-		{
-			if (ImGui::CollapsingHeader("Debug"))
-			{
-				m_mesh->handleDebugMode();
+				if (ImGui::CollapsingHeader("Debug"))
+				{
+					m_mesh->handleDebugMode();
+				}
 			}
 		}
 
@@ -649,6 +668,9 @@ void Interface::RenderInterface()
 
 void Interface::OpenMesh()
 {
+	if (m_mesh->isBuildingTiles())
+		return;
+
 	std::string meshFilename = GetMeshFilename();
 	if (!m_mesh->LoadMesh(meshFilename))
 	{
@@ -658,6 +680,9 @@ void Interface::OpenMesh()
 
 void Interface::SaveMesh()
 {
+	if (m_mesh->isBuildingTiles() || m_mesh->getNavMesh() == nullptr)
+		return;
+
 	std::string meshFilename = GetMeshFilename();
 
 	m_mesh->SaveMesh(meshFilename);
@@ -692,6 +717,11 @@ void Interface::ShowSettingsDialog()
 
 void Interface::ShowZonePickerDialog()
 {
+	if (m_mesh->isBuildingTiles()) {
+		m_showZonePickerDialog = false;
+		return;
+	}
+
 	bool setfocus = false;
 	if (m_showZonePickerDialog) {
 		ImGui::OpenPopup("Open Zone");
@@ -840,29 +870,29 @@ std::string Interface::GetMeshFilename()
 	return ss.str();
 }
 
-// the shitty zone. Fix this up
-HANDLE handle = 0;
-
-DWORD WINAPI Interface::BuildThread(LPVOID lpParam)
+void Interface::Halt()
 {
-	Interface* iface = static_cast<Interface*>(lpParam);
-	iface->BuildThreadImpl();
-	return NULL;
-}
-
-void Interface::BuildThreadImpl()
-{
-	if (m_mesh)
+	// message = NULL;
+	if (m_mesh && m_mesh->isBuildingTiles())
 	{
-		m_mesh->handleBuild();
+		m_mesh->cancelBuildAllTiles();
 	}
+
+	if (m_buildThread.joinable())
+		m_buildThread.join();
 }
 
 void Interface::StartBuild()
 {
 	Halt();
 
-	handle = CreateThread(NULL, 0, BuildThread, this, 0, NULL);
+	if (m_mesh)
+	{
+		m_buildThread = std::thread([this]()
+		{
+			m_mesh->handleBuild();
+		});
+	}
 }
 
 void Interface::LoadGeometry(const std::string& zoneShortName)
@@ -904,19 +934,6 @@ void Interface::LoadGeometry(const std::string& zoneShortName)
 
 		m_mesh->handleMeshChanged(m_geom.get());
 		m_resetCamera = true;
-	}
-}
-
-void Interface::Halt()
-{
-	// message = NULL;
-	if (handle)
-	{
-		DWORD exitCode = 0;
-		GetExitCodeThread(handle, &exitCode);
-		TerminateThread(handle, exitCode);
-
-		handle = 0;
 	}
 }
 

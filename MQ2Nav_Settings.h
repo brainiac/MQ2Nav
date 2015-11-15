@@ -10,7 +10,7 @@ namespace mq2nav
 {
 	struct SettingsData
 	{
-		bool autobreak = false;;
+		bool autobreak = false;
 		bool autoreload = false;
 	};
 	SettingsData& GetSettings();

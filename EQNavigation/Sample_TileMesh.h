@@ -24,6 +24,7 @@
 #include "Recast.h"
 #include "ChunkyTriMesh.h"
 
+#include <atomic>
 #include <memory>
 #include <functional>
 
@@ -75,6 +76,14 @@ protected:
 	int m_tileTriCount;
 	char* m_outputPath;
 
+	int m_tilesWidth = 0;
+	int m_tilesHeight = 0;
+	int m_tilesCount = 0;
+	std::atomic<int> m_tilesBuilt = 0;
+
+	std::atomic<bool> m_buildingTiles = false;
+	std::atomic<bool> m_cancelTiles = false;
+
 	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize);
 
 	void saveAll(const char* path, const dtNavMesh* mesh);
@@ -103,6 +112,12 @@ public:
 	void removeTile(const float* pos);
 	void buildAllTiles();
 	void removeAllTiles();
+	void cancelBuildAllTiles();
+
+	bool isBuildingTiles() const { return m_buildingTiles; }
+
+	void getTileStatistics(int& width, int& height, int& maxTiles) const;
+	int getTilesBuilt() const { return m_tilesBuilt; }
 
 	void setOutputPath(const char* output_path);
 

@@ -349,10 +349,56 @@ void Sample_TileMesh::ResetMesh()
 	}
 }
 
+void Sample_TileMesh::getTileStatistics(int& width, int& height, int& maxTiles) const
+{
+	width = m_tilesWidth;
+	height = m_tilesHeight;
+	maxTiles = m_maxTiles;
+}
+
 void Sample_TileMesh::handleSettings()
 {
-	if (ImGui::CollapsingHeader("Mesh Generation"))
+	if (ImGui::CollapsingHeader("Mesh Generation", 0, true, true))
 	{
+		ImGui::Text("Tiling");
+		ImGui::SliderFloat("TileSize", &m_tileSize, 16.0f, 1024.0f, "%.0f");
+
+		if (m_geom)
+		{
+			const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+			const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+			int gw = 0, gh = 0;
+			rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
+			const int ts = (int)m_tileSize;
+			m_tilesWidth = (gw + ts - 1) / ts;
+			m_tilesHeight = (gh + ts - 1) / ts;
+			m_tilesCount = m_tilesWidth * m_tilesHeight;
+
+			// Max tiles and max polys affect how the tile IDs are caculated.
+			// There are 22 bits available for identifying a tile and a polygon.
+			int tileBits = rcMin((int)ilog2(nextPow2(m_tilesCount)), 14);
+			if (tileBits > 14) tileBits = 14;
+			int polyBits = 22 - tileBits;
+			m_maxTiles = 1 << tileBits;
+			m_maxPolysPerTile = 1 << polyBits;
+
+			if (m_navMesh)
+			{
+				ImGui::Separator();
+
+				ImGui::Text("Build Time: %.1fms", m_totalBuildTimeMs);
+			}
+		}
+		else
+		{
+			m_maxTiles = 0;
+			m_maxPolysPerTile = 0;
+			m_tilesWidth = 0;
+			m_tilesHeight = 0;
+			m_tilesCount = 0;
+		}
+
+		ImGui::Separator();
 		Sample::handleCommonSettings();
 
 		if (m_geom)
@@ -378,49 +424,7 @@ void Sample_TileMesh::handleSettings()
 			{
 				m_geom->resetMeshBounds();
 			}
-			ImGui::Separator();
 		}
-	}
-
-	ImGui::Text("Tiling");
-	ImGui::SliderFloat("TileSize", &m_tileSize, 16.0f, 1024.0f, "%.0f");
-
-	if (m_geom)
-	{
-		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
-		int gw = 0, gh = 0;
-		rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
-		const int ts = (int)m_tileSize;
-		const int tw = (gw + ts - 1) / ts;
-		const int th = (gh + ts - 1) / ts;
-
-		ImGui::LabelText("Tiles", "%d x %d (%d)", tw, th, tw*th);
-
-		// Max tiles and max polys affect how the tile IDs are caculated.
-		// There are 22 bits available for identifying a tile and a polygon.
-		int tileBits = rcMin((int)ilog2(nextPow2(tw*th)), 14);
-		if (tileBits > 14) tileBits = 14;
-		int polyBits = 22 - tileBits;
-		m_maxTiles = 1 << tileBits;
-		m_maxPolysPerTile = 1 << polyBits;
-
-		ImVec4 col = ImColor(255, 255, 255);
-		if (tw*th > m_maxTiles) col = ImColor(255, 0, 0);
-		ImGui::TextColored(col, "Max Tiles: %d", m_maxTiles);
-
-
-		if (m_navMesh)
-		{
-			ImGui::Separator();
-
-			ImGui::Text("Build Time: %.1fms", m_totalBuildTimeMs);
-		}
-	}
-	else
-	{
-		m_maxTiles = 0;
-		m_maxPolysPerTile = 0;
 	}
 }
 
@@ -842,6 +846,9 @@ void Sample_TileMesh::buildAllTiles()
 {
 	if (!m_geom) return;
 	if (!m_navMesh) return;
+
+	m_buildingTiles = true;
+	m_cancelTiles = false;
 	
 	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
 	const glm::vec3& bmax = m_geom->getMeshBoundsMax();
@@ -851,6 +858,8 @@ void Sample_TileMesh::buildAllTiles()
 	const int tw = (gw + ts-1) / ts;
 	const int th = (gh + ts-1) / ts;
 	const float tcs = m_tileSize*m_cellSize;
+
+	m_tilesBuilt = 0;
 
 	// This was added by EQNavigation, commented out so we can do it better.
 	//char* buffer = new char[512];
@@ -863,8 +872,13 @@ void Sample_TileMesh::buildAllTiles()
 
 	Concurrency::parallel_for(0, (th * tw), [&](int i)
 	{
+		if (m_cancelTiles)
+			return;
+
 		int y = i / tw;
 		int x = i % tw;
+
+		++m_tilesBuilt;
 
 		//index++;
 		//sprintf(buffer, "Building Navmesh: %1.1f%%%%", index / max * 100);
@@ -909,7 +923,8 @@ void Sample_TileMesh::buildAllTiles()
 	m_ctx->stopTimer(RC_TIMER_TEMP);
 
 	m_totalBuildTimeMs = m_ctx->getAccumulatedTime(RC_TIMER_TEMP)/1000.0f;
-	
+
+	m_buildingTiles = false;
 }
 
 void Sample_TileMesh::removeAllTiles()
@@ -927,6 +942,12 @@ void Sample_TileMesh::removeAllTiles()
 		for (int x = 0; x < tw; ++x)
 			m_navMesh->removeTile(m_navMesh->getTileRefAt(x, y, 0), 0, 0);
 	}
+}
+
+void Sample_TileMesh::cancelBuildAllTiles()
+{
+	if (m_buildingTiles)
+		m_cancelTiles = true;
 }
 
 deleted_unique_ptr<rcCompactHeightfield> Sample_TileMesh::rasterizeGeometry(rcConfig& cfg)

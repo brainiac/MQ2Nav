@@ -12,12 +12,6 @@
     <Filter Include="Resource Files">
       <UniqueIdentifier>{55570512-5592-4def-ab72-e27b303cbb0f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\EQDraw">
-      <UniqueIdentifier>{f8722e89-cafe-4dce-a80a-5d787cb77796}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\EQDraw">
-      <UniqueIdentifier>{3acbf2e7-77da-4598-9210-e737e0229b29}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\zlib">
       <UniqueIdentifier>{9aae2e29-2a05-45dc-bd72-9d3f91ca778e}</UniqueIdentifier>
     </Filter>
@@ -32,19 +26,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Interactions\EQDraw\Include\EQDraw.h">
-      <Filter>Header Files\EQDraw</Filter>
-    </ClInclude>
-    <ClInclude Include="Interactions\EQDraw\Include\EQGraphics.h">
-      <Filter>Header Files\EQDraw</Filter>
-    </ClInclude>
     <ClInclude Include="meshext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="imgui_impl_dx9.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MQ2Nav_KeyBinds.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MQ2Nav_Settings.h">
@@ -98,13 +83,19 @@
     <ClInclude Include="ZoneData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NavigationType.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KeybindHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NavigationPath.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="meshext.c">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Interactions\EQDraw\Source\EQDraw.cpp">
-      <Filter>Source Files\EQDraw</Filter>
     </ClCompile>
     <ClCompile Include="imgui_impl_dx9.cpp">
       <Filter>Source Files</Filter>
@@ -113,9 +104,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MQ2Nav_Settings.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MQ2Nav_KeyBinds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FindPattern.cpp">
@@ -173,6 +161,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ZoneData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NavigationType.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="KeybindHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NavigationPath.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

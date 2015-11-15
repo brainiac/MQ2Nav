@@ -7,6 +7,7 @@
 #include "DebugDrawDX.h"
 #include "Renderable.h"
 #include "RenderHandler.h"
+#include "MQ2Nav_Util.h"
 
 #include <imgui.h>
 #include <boost/format.hpp>
@@ -417,6 +418,11 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
 		door->Y = door->DefaultY;
 		door->Z = door->DefaultZ;
 		door->Heading = door->DefaultHeading;
+	}
+
+	if (ImGui::Button("Click"))
+	{
+		ClickDoor(door);
 	}
 }
 
