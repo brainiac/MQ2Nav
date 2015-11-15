@@ -27,6 +27,7 @@
 #include <atomic>
 #include <memory>
 #include <functional>
+#include <thread>
 
 template <typename T>
 using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
@@ -80,11 +81,11 @@ protected:
 	int m_tilesHeight = 0;
 	int m_tilesCount = 0;
 	std::atomic<int> m_tilesBuilt = 0;
-
 	std::atomic<bool> m_buildingTiles = false;
 	std::atomic<bool> m_cancelTiles = false;
+	std::thread m_buildThread;
 
-	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize);
+	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize) const;
 
 	void saveAll(const char* path, const dtNavMesh* mesh);
 	dtNavMesh* loadAll(const char* path);
@@ -110,18 +111,20 @@ public:
 	
 	void buildTile(const float* pos);
 	void removeTile(const float* pos);
-	void buildAllTiles();
 	void removeAllTiles();
-	void cancelBuildAllTiles();
+
+	void buildAllTiles(bool async = true);
+	void cancelBuildAllTiles(bool wait = true);
 
 	bool isBuildingTiles() const { return m_buildingTiles; }
 
 	void getTileStatistics(int& width, int& height, int& maxTiles) const;
 	int getTilesBuilt() const { return m_tilesBuilt; }
+	float getTotalBuildTimeMS() const { return m_totalBuildTimeMs; }
 
 	void setOutputPath(const char* output_path);
 
-	deleted_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg);
+	deleted_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
 };
 
 

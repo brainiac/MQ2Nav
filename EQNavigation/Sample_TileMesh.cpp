@@ -37,6 +37,7 @@
 #include <gl/GLU.h>
 
 #include <ppl.h>
+#include <agents.h>
 #include <mutex>
 
 #include <math.h>
@@ -271,6 +272,18 @@ bool Sample_TileMesh::LoadMesh(const std::string& outputPath)
 		if (m_navMesh)
 			dtFreeNavMesh(m_navMesh);
 		m_navMesh = mesh;
+
+		dtStatus status = m_navQuery->init(m_navMesh, MAX_NODES);
+		if (dtStatusFailed(status))
+		{
+			m_ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not init Detour navmesh query");
+			return false;
+		}
+
+		if (m_tool)
+			m_tool->init(this);
+		initToolStates(this);
+
 		return true;
 	}
 
@@ -332,7 +345,12 @@ dtNavMesh* Sample_TileMesh::loadAll(const char* path)
 		if (readLen != 1)
 			return 0;
 
-		mesh->addTile(data, tileHeader.dataSize, DT_TILE_FREE_DATA, tileHeader.tileRef, 0);
+		dtMeshHeader* header = (dtMeshHeader*)data;
+
+		dtStatus status = mesh->addTile(data, tileHeader.dataSize, DT_TILE_FREE_DATA, tileHeader.tileRef, 0);
+
+		m_ctx->log(RC_LOG_PROGRESS, "Read Tile: %d, %d (%d) = %d\n", header->x,
+			header->y, header->layer, status);
 	}
 	
 	fclose(fp);
@@ -381,13 +399,6 @@ void Sample_TileMesh::handleSettings()
 			int polyBits = 22 - tileBits;
 			m_maxTiles = 1 << tileBits;
 			m_maxPolysPerTile = 1 << polyBits;
-
-			if (m_navMesh)
-			{
-				ImGui::Separator();
-
-				ImGui::Text("Build Time: %.1fms", m_totalBuildTimeMs);
-			}
 		}
 		else
 		{
@@ -842,10 +853,71 @@ void Sample_TileMesh::removeTile(const float* pos)
 	m_navMesh->removeTile(m_navMesh->getTileRefAt(tx,ty,0),0,0);
 }
 
-void Sample_TileMesh::buildAllTiles()
+struct TileData
+{
+	unsigned char* data = 0;
+	int length = 0;
+	int x = 0;
+	int y = 0;
+};
+
+typedef std::shared_ptr<TileData> TileDataPtr;
+
+class NavmeshUpdaterAgent : public concurrency::agent
+{
+public:
+	explicit NavmeshUpdaterAgent(concurrency::ISource<TileDataPtr>& dataSource,
+		dtNavMesh* navMesh)
+		: m_source(dataSource)
+		, m_navMesh(navMesh)
+	{
+	}
+
+protected:
+	virtual void run() override
+	{
+		TileDataPtr data = receive(m_source);
+		while (data != nullptr)
+		{
+			// Remove any previous data (navmesh owns and deletes the data).
+			m_navMesh->removeTile(m_navMesh->getTileRefAt(data->x, data->y, 0), 0, 0);
+
+			// Let the navmesh own the data.
+			dtStatus status = m_navMesh->addTile(data->data, data->length, DT_TILE_FREE_DATA, 0, 0);
+			if (dtStatusFailed(status))
+			{
+				dtFree(data->data);
+			}
+
+			data = receive(m_source);
+		}
+
+		done();
+	}
+
+private:
+	concurrency::ISource<TileDataPtr>& m_source;
+	dtNavMesh* m_navMesh;
+};
+
+void Sample_TileMesh::buildAllTiles(bool async)
 {
 	if (!m_geom) return;
 	if (!m_navMesh) return;
+	if (m_buildingTiles) return;
+
+	// if async, invoke on a new thread
+	if (async)
+	{
+		if (m_buildThread.joinable())
+			m_buildThread.join();
+
+		m_buildThread = std::thread([this]()
+		{
+			buildAllTiles(false);
+		});
+		return;
+	}
 
 	m_buildingTiles = true;
 	m_cancelTiles = false;
@@ -861,63 +933,60 @@ void Sample_TileMesh::buildAllTiles()
 
 	m_tilesBuilt = 0;
 
-	// This was added by EQNavigation, commented out so we can do it better.
-	//char* buffer = new char[512];
-	//float max = (float)(th * tw), index = 0.0;
+	//concurrency::CurrentScheduler::Create(concurrency::SchedulerPolicy(1, concurrency::MaxConcurrency, 3));
 
-	std::mutex mtx;
-	
+	concurrency::unbounded_buffer<TileDataPtr> agentTiles;
+	NavmeshUpdaterAgent updater_agent(agentTiles, m_navMesh);
+
+	updater_agent.start();
+
 	// Start the build process.
 	m_ctx->startTimer(RC_TIMER_TEMP);
 
-	Concurrency::parallel_for(0, (th * tw), [&](int i)
+	concurrency::task_group tasks;
+	for (int x = 0; x < tw; x++)
 	{
-		if (m_cancelTiles)
-			return;
-
-		int y = i / tw;
-		int x = i % tw;
-
-		++m_tilesBuilt;
-
-		//index++;
-		//sprintf(buffer, "Building Navmesh: %1.1f%%%%", index / max * 100);
-		//message = buffer;
-
-		m_tileBmin[0] = bmin[0] + x*tcs;
-		m_tileBmin[1] = bmin[1];
-		m_tileBmin[2] = bmin[2] + y*tcs;
-
-		m_tileBmax[0] = bmin[0] + (x + 1)*tcs;
-		m_tileBmax[1] = bmax[1];
-		m_tileBmax[2] = bmin[2] + (y + 1)*tcs;
-
-		int dataSize = 0;
-		unsigned char* data = buildTileMesh(x, y, m_tileBmin, m_tileBmax, dataSize);
-		if (data)
+		for (int y = 0; y < th; y++)
 		{
-			// Update the nav mesh
-			std::unique_lock<std::mutex> lock(mtx);
+			tasks.run([this, x, y, &bmin, &bmax, tcs, &agentTiles]()
+			{
+				if (m_cancelTiles)
+					return;
 
-			// Remove any previous data (navmesh owns and deletes the data).
-			m_navMesh->removeTile(m_navMesh->getTileRefAt(x, y, 0), 0, 0);
-			// Let the navmesh own the data.
-			dtStatus status = m_navMesh->addTile(data, dataSize, DT_TILE_FREE_DATA, 0, 0);
-			if (dtStatusFailed(status))
-			{
-				printf("Failed! %d\n", status);
-				dtFree(data);
-			}
-			else
-			{
-				printf("Completed! %dx%d\n", x, y);
-			}
+				++m_tilesBuilt;
+
+				m_tileBmin[0] = bmin[0] + x*tcs;
+				m_tileBmin[1] = bmin[1];
+				m_tileBmin[2] = bmin[2] + y*tcs;
+
+				m_tileBmax[0] = bmin[0] + (x + 1)*tcs;
+				m_tileBmax[1] = bmax[1];
+				m_tileBmax[2] = bmin[2] + (y + 1)*tcs;
+
+				int dataSize = 0;
+				unsigned char* data = buildTileMesh(x, y, m_tileBmin, m_tileBmax, dataSize);
+
+				if (data)
+				{
+					TileDataPtr tileData = std::make_shared<TileData>();
+					tileData->data = data;
+					tileData->length = dataSize;
+					tileData->x = x;
+					tileData->y = y;
+
+					asend(agentTiles, tileData);
+				}
+			});
 		}
-		else
-		{
-			printf("Error!!! %dx%d\n", x, y);
-		}
-	});
+	}
+
+	tasks.wait();
+
+	// send terminator
+	asend(agentTiles, TileDataPtr());
+
+	concurrency::agent::wait(&updater_agent);
+
 
 	// Start the build process.
 	m_ctx->stopTimer(RC_TIMER_TEMP);
@@ -944,13 +1013,16 @@ void Sample_TileMesh::removeAllTiles()
 	}
 }
 
-void Sample_TileMesh::cancelBuildAllTiles()
+void Sample_TileMesh::cancelBuildAllTiles(bool wait)
 {
 	if (m_buildingTiles)
 		m_cancelTiles = true;
+
+	if (wait && m_buildThread.joinable())
+		m_buildThread.join();
 }
 
-deleted_unique_ptr<rcCompactHeightfield> Sample_TileMesh::rasterizeGeometry(rcConfig& cfg)
+deleted_unique_ptr<rcCompactHeightfield> Sample_TileMesh::rasterizeGeometry(rcConfig& cfg) const
 {
 	// Allocate voxel heightfield where we rasterize our input data to.
 	deleted_unique_ptr<rcHeightfield> solid(rcAllocHeightfield(),
@@ -983,7 +1055,7 @@ deleted_unique_ptr<rcCompactHeightfield> Sample_TileMesh::rasterizeGeometry(rcCo
 	if (!ncid)
 		return 0;
 
-	m_tileTriCount = 0;
+	//m_tileTriCount = 0;
 
 	for (int i = 0; i < ncid; ++i)
 	{
@@ -991,7 +1063,7 @@ deleted_unique_ptr<rcCompactHeightfield> Sample_TileMesh::rasterizeGeometry(rcCo
 		const int* ctris = &chunkyMesh->tris[node.i * 3];
 		const int nctris = node.n;
 
-		m_tileTriCount += nctris;
+		//m_tileTriCount += nctris;
 
 		memset(triareas.get(), 0, nctris*sizeof(unsigned char));
 		rcMarkWalkableTriangles(m_ctx, cfg.walkableSlopeAngle,
@@ -1022,7 +1094,7 @@ deleted_unique_ptr<rcCompactHeightfield> Sample_TileMesh::rasterizeGeometry(rcCo
 	return std::move(chf);
 }
 
-unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize)
+unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize) const
 {
 	if (!m_geom || !m_geom->getMeshLoader() || !m_geom->getChunkyMesh())
 	{
@@ -1030,8 +1102,8 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 		return 0;
 	}
 	
-	m_tileMemUsage = 0;
-	m_tileBuildTime = 0;
+	//m_tileMemUsage = 0;
+	//m_tileBuildTime = 0;
 
 	// Init build configuration from GUI
 	rcConfig cfg;
@@ -1280,7 +1352,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 			return 0;
 		}		
 	}
-	m_tileMemUsage = navDataSize/1024.0f;
+	//m_tileMemUsage = navDataSize/1024.0f;
 	
 	m_ctx->stopTimer(RC_TIMER_TOTAL);
 	
@@ -1288,7 +1360,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	//duLogBuildTimes(*m_ctx, m_ctx->getAccumulatedTime(RC_TIMER_TOTAL));
 	//m_ctx->log(RC_LOG_PROGRESS, ">> Polymesh: %d vertices  %d polygons", pmesh->nverts, pmesh->npolys);
 	
-	m_tileBuildTime = m_ctx->getAccumulatedTime(RC_TIMER_TOTAL)/1000.0f;
+	//m_tileBuildTime = m_ctx->getAccumulatedTime(RC_TIMER_TOTAL)/1000.0f;
 
 	dataSize = navDataSize;
 	return navData;

@@ -281,13 +281,7 @@ void Interface::HandleEvents()
 			// Handle any key presses here.
 			if (event.key.keysym.sym == SDLK_ESCAPE)
 			{
-				//HaltBuild();
-				//m_done = true;
-			}
-			else if (event.key.keysym.sym == SDLK_TAB)
-			{
-				// TODO: Reacquire paths
-				//DefineDirectories(true);
+				Halt();
 			}
 			else if (event.key.keysym.mod & KMOD_CTRL)
 			{
@@ -309,7 +303,7 @@ void Interface::HandleEvents()
 					m_showSettingsDialog = true;
 					break;
 				default:
-					printf("key: %d", event.key.keysym.sym);
+					//printf("key: %d", event.key.keysym.sym);
 					break;
 				}
 			}
@@ -565,41 +559,46 @@ void Interface::RenderInterface()
 			ImGui::LabelText("Verts", "%.1fk", m_geom->getMeshLoader()->getVertCount() / 1000.0f);
 			ImGui::LabelText("Tris", "%.1fk", m_geom->getMeshLoader()->getTriCount() / 1000.0f);
 
-			if (m_mesh)
-			{
-				int tw, th, tm;
-				m_mesh->getTileStatistics(tw, th, tm);
-				int tt = tw*th;
-				ImGui::LabelText("Tiles", "%d x %d (%d)", tw, th, tt);
+			int tw, th, tm;
+			m_mesh->getTileStatistics(tw, th, tm);
+			int tt = tw*th;
 
+			float percent = (float)m_mesh->getTilesBuilt() / (float)tt * 100;
+
+			if (m_mesh->isBuildingTiles())
+			{
+				ImGui::LabelText("Progress", "%d of %d (%.2f%%)",
+					m_mesh->getTilesBuilt(), tt, percent);
+
+				if (ImGui::Button("Halt Build"))
+					m_mesh->cancelBuildAllTiles();
+			}
+			else
+			{
 				ImVec4 col = ImColor(255, 255, 255);
 				if (tt > tm) {
 					col = ImColor(255, 0, 0);
 				}
-				ImGui::TextColored(col, "Max Tiles: %d", tm);
+				ImGui::TextColored(col, "Tile Limit: %d", tm);
 
-				if (m_mesh->isBuildingTiles())
-				{
-					float percent = (float)m_mesh->getTilesBuilt() / (float)tm * 100;
+				if (ImGui::Button("Build Mesh"))
+					m_mesh->handleBuild();
 
-					ImGui::LabelText("Progress", "%d of %d (%.2f%%)",
-						m_mesh->getTilesBuilt(), tm, percent);
+				ImGui::SameLine();
 
-					if (ImGui::Button("Halt Build"))
-						Halt();
+				col = ImColor(0, 255, 0);
+				if (tt > tm) {
+					col = ImColor(255, 0, 0);
 				}
-				else
-				{
-					if (ImGui::Button("Build Mesh"))
-						StartBuild();
-				}
+				ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, tw, th);
+
+				float totalBuildTime = m_mesh->getTotalBuildTimeMS();
+				if (totalBuildTime > 0)
+					ImGui::Text("Build Time: %.1fms", totalBuildTime);
 			}
 
 			ImGui::Separator();
-		}
 
-		if (m_geom && m_mesh)
-		{
 			if (!m_mesh->isBuildingTiles())
 			{
 				m_mesh->handleSettings();
@@ -614,7 +613,7 @@ void Interface::RenderInterface()
 		ImGui::End();
 	}
 
-	if (m_geom && m_mesh && m_showTools)
+	if (m_geom && m_showTools)
 	{
 		ImGui::SetNextWindowPos(ImVec2(m_width - 300 - 10, 10));
 		ImGui::SetNextWindowSize(ImVec2(300, 600));
@@ -872,27 +871,7 @@ std::string Interface::GetMeshFilename()
 
 void Interface::Halt()
 {
-	// message = NULL;
-	if (m_mesh && m_mesh->isBuildingTiles())
-	{
-		m_mesh->cancelBuildAllTiles();
-	}
-
-	if (m_buildThread.joinable())
-		m_buildThread.join();
-}
-
-void Interface::StartBuild()
-{
-	Halt();
-
-	if (m_mesh)
-	{
-		m_buildThread = std::thread([this]()
-		{
-			m_mesh->handleBuild();
-		});
-	}
+	m_mesh->cancelBuildAllTiles();
 }
 
 void Interface::LoadGeometry(const std::string& zoneShortName)
@@ -924,7 +903,7 @@ void Interface::LoadGeometry(const std::string& zoneShortName)
 	m_zoneDisplayName = ss.str();
 	m_expansionExpanded.clear();
 
-	if (m_mesh && m_geom)
+	if (m_geom)
 	{
 		// Update the window title
 		std::stringstream ss;
@@ -1167,6 +1146,7 @@ void BuildContext::doResetLog()
 void BuildContext::doLog(const rcLogCategory category,
 	const char* message, const int length)
 {
+#if 0
 	if (!length)
 		return;
 
@@ -1177,10 +1157,15 @@ void BuildContext::doLog(const rcLogCategory category,
 		m_logs.pop_front();
 
 	m_logs.emplace_back(std::string(message, static_cast<std::size_t>(length)));
+#endif
+	OutputDebugStringA(message);
 }
 
 void BuildContext::dumpLog(const char* format, ...)
 {
+	return;
+
+
 	// Print header.
 	va_list ap;
 	va_start(ap, format);

@@ -113,6 +113,9 @@ bool InputGeom::loadMesh(rcContext* ctx)
 		return false;
 	}
 
+	if (m_loader->getVerts() == nullptr)
+		return false;
+
 	rcCalcBounds(m_loader->getVerts(), m_loader->getVertCount(),
 		&m_meshBMin[0], &m_meshBMax[0]);
 

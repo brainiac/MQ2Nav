@@ -47,7 +47,6 @@ private:
 
 	void HandleEvents();
 
-	void StartBuild();
 	static DWORD WINAPI BuildThread(LPVOID lpParam);
 	void BuildThreadImpl();
 
