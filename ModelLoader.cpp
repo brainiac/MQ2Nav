@@ -19,6 +19,14 @@
 #include <DebugDraw.h>
 #include <d3d9types.h>
 
+float GetDoorScale(PDOOR door)
+{
+	DWORD* scale = (DWORD*)&door->Unknown0x74;
+
+	float scaled = (float)(*scale) / 100.0f;
+	return scaled;
+}
+
 int s_matrixOffset = 0xE4;
 bool s_visibleOverride = false;
 
@@ -82,6 +90,54 @@ public:
 
 		duDebugDrawBoxWire(&dd, bb.min.x, bb.min.z, bb.min.y,
 			bb.max.x, bb.max.z, bb.max.y, m_color, 1.0);
+
+		// iterate over all the things!
+		if (bb.oldModel)
+		{
+			auto verts = bb.oldModel->GetVertices();
+			auto polys = bb.oldModel->GetPolygons();
+
+#define VERT(PX) { \
+	glm::vec3 p0; const glm::vec3& p = verts[iter->verts[PX]].pos; \
+	p0.x = p.y; \
+	p0.y = p.z; \
+	p0.z = p.x; \
+	dd.vertex(&p0.x, 0xffffffff); \
+}
+
+			for (auto iter = polys.begin(); iter != polys.end(); ++iter)
+			{
+				if (iter->flags & 0x11)
+					continue;
+
+				dd.begin(DU_DRAW_TRIS);
+
+				VERT(0);
+				VERT(1);
+				VERT(2);
+
+				dd.end();
+			}
+		}
+
+		if (bb.newModel)
+		{
+			auto verts = bb.newModel->GetVertices();
+			auto polys = bb.newModel->GetPolygons();
+
+			for (auto iter = polys.begin(); iter != polys.end(); ++iter)
+			{
+				if (iter->flags & 0x11)
+					continue;
+				dd.begin(DU_DRAW_TRIS);
+
+				VERT(0);
+				VERT(1);
+				VERT(2);
+
+				dd.end();
+			}
+		}
 	}
 
 	virtual void Render(RenderPhase phase) override
@@ -108,7 +164,13 @@ public:
 
 					D3DXMATRIX* mtx = (D3DXMATRIX*)b;
 
-					m_grp->SetTransform(mtx);
+					D3DXMATRIX scale;
+					float scaleFactor = GetDoorScale(door);
+					D3DXMatrixScaling(&scale, scaleFactor, scaleFactor, scaleFactor);
+
+					scale = scale * *mtx;
+
+					m_grp->SetTransform(&scale);
 					m_grp->Render(phase);
 				}
 			}
@@ -178,6 +240,8 @@ void ModelLoader::Process()
 {
 	if (m_zoneId == 0)
 		return;
+	if (gGameState != GAMESTATE_INGAME)
+		return;
 
 	DWORD doorTargetId = 0;
 	if (pDoorTarget)
@@ -238,7 +302,6 @@ void ModelLoader::SetZoneId(int zoneId)
 		{
 			// Create new model object
 			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, bb, g_pDevice);
-			//md->SetVisible(boost::iequals(door->Name, "OBJ_TABLE_MARKET_A"));
 			m_modelData[door->ID] = md;
 
 			g_renderHandler->AddRenderable(md);
@@ -398,7 +461,8 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
 	ImGui::DragFloat3("Position", &door->Y);
 	ImGui::DragFloat("Heading", &door->Heading);
 	ImGui::DragFloat("Angle", &door->DoorAngle);
-
+	ImGui::LabelText("Scale", "%.2f", GetDoorScale(door));
+	ImGui::LabelText("Type", "0x%02x (%d)", door->Type, door->Type);
 
 #if 0
 

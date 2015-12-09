@@ -8,6 +8,8 @@
 #include "dependencies/zone-utilities/common/eqg_loader.h"
 #include "dependencies/zone-utilities/common/s3d_loader.h"
 
+typedef std::shared_ptr<EQEmu::EQG::Geometry> ModelPtr;
+typedef std::shared_ptr<EQEmu::S3D::Geometry> OldModelPtr;
 
 class ZoneDataLoader;
 
@@ -15,6 +17,9 @@ struct BoundingBox
 {
 	glm::vec3 min;
 	glm::vec3 max;
+
+	OldModelPtr oldModel;
+	ModelPtr newModel;
 };
 
 class ZoneData

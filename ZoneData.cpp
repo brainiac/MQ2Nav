@@ -6,7 +6,7 @@
 #include "../MQ2plugin.h"
 
 #include "dependencies/zone-utilities/common/eqg_model_loader.h"
-#include "dependencies/zone-utilities/common/safE_alloc.h"
+#include "dependencies/zone-utilities/common/safe_alloc.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
@@ -91,6 +91,8 @@ public:
 				bb.max.y = std::max(vert.pos.x, bb.max.y);
 				bb.max.z = std::max(vert.pos.z, bb.max.z);
 			}
+
+			bb.newModel = model;
 
 			return true;
 		}
@@ -260,6 +262,8 @@ public:
 				bb.max.z = std::max(vert.pos.z, bb.max.z);
 			}
 
+			bb.oldModel = model;
+
 			return true;
 		}
 
@@ -278,6 +282,8 @@ public:
 					bb.max.y = std::max(vert.pos.x, bb.max.y);
 					bb.max.z = std::max(vert.pos.z, bb.max.z);
 				}
+
+				bb.newModel = model;
 
 				return true;
 			}
