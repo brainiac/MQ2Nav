@@ -160,10 +160,6 @@ void NavigationPath::UpdatePath()
 NavigationLine::NavigationLine(NavigationPath* path)
 	: m_path(path)
 {
-	// temp!
-	m_shaderFile = std::string(gszINIPath) + "\\..\\MQ2Navigation\\VolumeLines.fx";
-	m_textureFile = std::string(gszINIPath) + "\\..\\MQ2Navigation\\LineTexture.png";
-
 	ZeroMemory(&m_material, sizeof(m_material));
 	m_material.Diffuse.r = 1.0f;
 	m_material.Diffuse.g = 1.0f;
@@ -178,52 +174,12 @@ NavigationLine::~NavigationLine()
 
 bool NavigationLine::CreateDeviceObjects()
 {
-	ID3DXBuffer* errors = 0;
-	HRESULT hr;
-
-	hr = D3DXCreateTextureFromFileA(g_pDevice, m_textureFile.c_str(), &m_lineTexture);
-	if (FAILED(hr))
-	{
-		DebugSpewAlways("Failed to load texture!");
-
-		InvalidateDeviceObjects();
-		return false;
-	}
-
-	hr = D3DXCreateEffectFromFileA(g_pDevice, m_shaderFile.c_str(),
-		NULL, NULL, 0, NULL, &m_effect, &errors);
-	if (FAILED(hr))
-	{
-		if (errors)
-		{
-			DebugSpewAlways("Effect error: %s", errors->GetBufferPointer());
-
-			errors->Release();
-			errors = nullptr;
-		}
-
-		InvalidateDeviceObjects();
-		return false;
-	}
-
-	m_effect->SetTexture("lineTexture", m_lineTexture);
 	m_loaded = true;
+	return true;
 }
 
 void NavigationLine::InvalidateDeviceObjects()
 {
-	if (m_effect)
-	{
-		m_effect->Release();
-		m_effect = nullptr;
-	}
-
-	if (m_lineTexture)
-	{
-		m_lineTexture->Release();
-		m_lineTexture = nullptr;
-	}
-
 	if (m_vertexBuffer)
 	{
 		m_vertexBuffer->Release();
@@ -246,93 +202,16 @@ void NavigationLine::Render(RenderPhase phase)
 	if (!m_vertexBuffer)
 		return;
 
-	g_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
-	g_pDevice->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
-	g_pDevice->SetRenderState(D3DRS_ALPHATESTENABLE, false);
-	g_pDevice->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
-	g_pDevice->SetRenderState(D3DRS_ZENABLE, true);
-	g_pDevice->SetRenderState(D3DRS_FOGENABLE, false);
-	g_pDevice->SetRenderState(D3DRS_ZWRITEENABLE, true);
-	g_pDevice->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-	g_pDevice->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
-	g_pDevice->SetRenderState(D3DRS_CLIPPING, true);
-	g_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	g_pDevice->SetRenderState(D3DRS_DEPTHBIAS, 0);
-	g_pDevice->SetRenderState(D3DRS_DITHERENABLE, false);
-	g_pDevice->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-	g_pDevice->SetRenderState(D3DRS_LASTPIXEL, true);
-	g_pDevice->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, true);
-	g_pDevice->SetRenderState(D3DRS_MULTISAMPLEMASK, 0xFFFFFFFF);
-	g_pDevice->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-	g_pDevice->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
-	g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESS);
-	g_pDevice->SetRenderState(D3DRS_WRAP0, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP1, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP2, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP3, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP4, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP5, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP6, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP7, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP8, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP9, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP10, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP11, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP12, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP13, 0);
-	g_pDevice->SetRenderState(D3DRS_WRAP15, 0);
+	//g_pDevice->SetMaterial(&m_material);
+	g_pDevice->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
+	g_pDevice->SetFVF(TVertex::FVF);
 
-	// disable the rest of the texture stages
-	for (int i = 1; i < 8; i++)
+	// render
+	for (auto& cmd : m_commands)
 	{
-		g_pDevice->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		g_pDevice->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		g_pDevice->DrawPrimitive(D3DPT_LINESTRIP,
+			cmd.StartVertex, cmd.PrimitiveCount);
 	}
-	g_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-	g_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-
-	D3DXMATRIX matrix;
-	D3DXMatrixIdentity(&matrix);
-
-	g_pDevice->SetTransform(D3DTS_WORLD, &matrix);
-
-	D3DXMATRIX world, worldProjection;
-
-	g_pDevice->GetTransform(D3DTS_WORLD, &world);
-	g_pDevice->GetTransform(D3DTS_PROJECTION, &worldProjection);
-
-	// We will not be using a viewing transformation, so the view matrix will be identity.
-	m_effect->SetMatrix("mWV", &world);
-	m_effect->SetMatrix("mWVP", &worldProjection);
-
-
-	UINT passes = 0;
-	m_effect->Begin(&passes, 0);
-
-	for (int iPass = 0; iPass < passes; iPass++)
-	{
-		m_effect->BeginPass(iPass);
-		g_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-		g_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
-
-		//g_pDevice->SetRenderState(D3DRS_ZENABLE, false);
-
-		//g_pDevice->SetMaterial(&m_material);
-		g_pDevice->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
-		g_pDevice->SetFVF(TVertex::FVF);
-
-		static bool first = true;
-
-		// render
-		for (auto& cmd : m_commands)
-		{
-			g_pDevice->DrawPrimitive(D3DPT_LINESTRIP,
-				cmd.StartVertex, cmd.PrimitiveCount);
-		}
-
-		m_effect->EndPass();
-	}
-	m_effect->End();
 }
 
 void NavigationLine::GenerateBuffers()

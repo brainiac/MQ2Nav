@@ -21,10 +21,7 @@
 
 float GetDoorScale(PDOOR door)
 {
-	DWORD* scale = (DWORD*)&door->Unknown0x74;
-
-	float scaled = (float)(*scale) / 100.0f;
-	return scaled;
+	return (float)door->ScaleFactor / 100.0f;
 }
 
 int s_matrixOffset = 0xE4;
@@ -107,8 +104,8 @@ public:
 
 			for (auto iter = polys.begin(); iter != polys.end(); ++iter)
 			{
-				if (iter->flags & 0x11)
-					continue;
+				//if (iter->flags & 0x11)
+				//	continue;
 
 				dd.begin(DU_DRAW_TRIS);
 
@@ -127,8 +124,8 @@ public:
 
 			for (auto iter = polys.begin(); iter != polys.end(); ++iter)
 			{
-				if (iter->flags & 0x11)
-					continue;
+				//if (iter->flags & 0x11)
+				//	continue;
 				dd.begin(DU_DRAW_TRIS);
 
 				VERT(0);

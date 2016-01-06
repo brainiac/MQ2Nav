@@ -12,7 +12,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{115BC0F5-8702-4EC6-9724-D0FBE76D80CB}</ProjectGuid>
-    <RootNamespace>MQ2Navigation</RootNamespace>
+    <RootNamespace>MQ2Nav</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -24,7 +24,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v140_xp</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -121,7 +121,7 @@
     <ClCompile Include="ZoneData.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="MQ2Navigation1.rc" />
+    <ResourceCompile Include="MQ2Nav.rc" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="dependencies\imgui\imgui.vcxproj">

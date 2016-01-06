@@ -39,7 +39,8 @@ bool EQEmu::EQGModelLoader::Load(EQEmu::PFS::Archive &archive, std::string model
 		return false;
 	}
 
-	model_out = std::make_shared<EQG::Geometry>();
+	if (!model_out)
+		model_out = std::make_shared<EQG::Geometry>();
 	
 	uint32_t list_loc = idx;
 	idx += header->list_length;
