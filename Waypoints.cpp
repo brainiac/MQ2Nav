@@ -48,7 +48,7 @@ tZoneData g_currentZoneData;
 void LoadWaypoints(int zoneId)
 {
 	PCHAR currentZone = GetShortZone(zoneId);
-	WriteChatf(PLUGIN_MSG "loading waypoints for zone: %s ...", currentZone);
+	WriteChatf(PLUGIN_MSG "Loading waypoints for zone: %s", currentZone);
 	g_currentZoneData.clear();
 
 	CHAR pchKeys[MAX_STRING * 10] = { 0 };
@@ -61,12 +61,12 @@ void LoadWaypoints(int zoneId)
 		while (pKeys[0])
 		{
 			GetPrivateProfileString(currentZone, pKeys, "", pchValue, MAX_STRING, INIFileName);
-			WriteChatf(PLUGIN_MSG "found waypoint entry: %s -> %s", pKeys, pchValue);
+			WriteChatf(PLUGIN_MSG "Waypoint: %s -> %s", pKeys, pchValue);
 			if (0 != pchValue[0] && wp.readFromDescription(std::string(pchValue))) {
 				g_currentZoneData[std::string(pKeys)] = wp;
 			}
 			else {
-				WriteChatf(PLUGIN_MSG "invalid waypoint entry: %s", pKeys);
+				WriteChatf(PLUGIN_MSG "Invalid waypoint entry: %s", pKeys);
 			}
 			pKeys += strlen(pKeys) + 1;
 		}
@@ -76,7 +76,7 @@ void LoadWaypoints(int zoneId)
 void SaveWaypoints(int zoneId)
 {
 	PCHAR currentZone = GetShortZone(zoneId);
-	WriteChatf(PLUGIN_MSG "saving waypoints for zone: %s ...", currentZone);
+	WriteChatf(PLUGIN_MSG "Saving waypoints for zone: %s", currentZone);
 
 	for (const auto& elem : g_currentZoneData)
 	{

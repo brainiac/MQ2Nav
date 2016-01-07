@@ -16,9 +16,9 @@ namespace mq2nav
 	SettingsData& GetSettings();
 
 	// Load settings from the .ini file
-	void LoadSettings(bool showMessage = true);
+	void LoadSettings(bool showMessage = false);
 
 	// Save settings to the .ini file
-	void SaveSettings(bool showMessage = true);
+	void SaveSettings(bool showMessage = false);
 
 } // namespace mq2nav

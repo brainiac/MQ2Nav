@@ -23,6 +23,7 @@ ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	// Iniialize the ImGui overlay
 	ImGui_ImplDX9_Init(eqhwnd, device);
 
+#if 0
 	ImGuiStyle& mStyle = ImGui::GetStyle();
 	mStyle.WindowMinSize = ImVec2(160, 20);
 	mStyle.FramePadding = ImVec2(4, 2);
@@ -84,7 +85,7 @@ ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.92f, 0.18f, 0.29f, 0.43f);
 	style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.47f, 0.77f, 0.83f, 0.72f);
 	style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.22f, 0.27f, 0.73f);
-
+#endif
 
 	m_pDevice->AddRef();
 

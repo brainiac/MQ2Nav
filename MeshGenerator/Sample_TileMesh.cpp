@@ -1370,6 +1370,6 @@ void Sample_TileMesh::setOutputPath(const char* output_path)
 {
 	strcpy(m_outputPath, output_path);
 	char buffer[512];
-	sprintf(buffer, "%s\\MQ2Navigation", output_path);
+	sprintf(buffer, "%s\\MQ2Nav", output_path);
 	CreateDirectory(buffer, NULL);
 }

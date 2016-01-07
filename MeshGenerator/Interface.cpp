@@ -877,7 +877,7 @@ void Interface::ResetCamera()
 std::string Interface::GetMeshFilename()
 {
 	std::stringstream ss;
-	ss << m_eqConfig.GetOutputPath() << "\\MQ2Navigation\\" << m_zoneShortname << ".bin";
+	ss << m_eqConfig.GetOutputPath() << "\\MQ2Nav\\" << m_zoneShortname << ".bin";
 
 	return ss.str();
 }

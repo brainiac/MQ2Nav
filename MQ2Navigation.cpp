@@ -167,6 +167,9 @@ void MQ2NavigationPlugin::UpdateCurrentZone()
 		zoneId &= 0x7FFF;
 		if (zoneId >= MAX_ZONES)
 			return;
+		if (zoneId == m_zoneId)
+			return;
+		m_zoneId = zoneId;
 
 		DebugSpewAlways("Switching to zone: %d", zoneId);
 
@@ -180,6 +183,9 @@ void MQ2NavigationPlugin::UpdateCurrentZone()
 		DebugSpewAlways("Resetting Zone");
 
 		m_modelLoader->Reset();
+		m_meshLoader->Reset();
+
+		m_zoneId = -1;
 	}
 }
 

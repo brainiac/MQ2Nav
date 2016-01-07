@@ -88,6 +88,7 @@ public:
 		duDebugDrawBoxWire(&dd, bb.min.x, bb.min.z, bb.min.y,
 			bb.max.x, bb.max.z, bb.max.y, m_color, 1.0);
 
+#if 0
 		// iterate over all the things!
 		if (bb.oldModel)
 		{
@@ -135,6 +136,7 @@ public:
 				dd.end();
 			}
 		}
+#endif
 	}
 
 	virtual void Render(RenderPhase phase) override
@@ -147,7 +149,7 @@ public:
 			PDOOR door = pDoorTable->pDoor[count];
 			if (door && door->ID == m_doorId)
 			{
-				if (m_visible && door->pSwitch)
+				if ((m_visible || s_visibleOverride) && door->pSwitch)
 				{
 					ResetDeviceState();
 
@@ -202,7 +204,7 @@ private:
 
 	glm::vec3 m_lastAdjust;
 
-	bool m_visible = true;
+	bool m_visible = false;
 	int m_doorId = 0;
 	bool m_highlight = false;
 	bool m_targetted = false;

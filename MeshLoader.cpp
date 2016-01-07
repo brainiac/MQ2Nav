@@ -164,21 +164,7 @@ bool MeshLoader::LoadNavMesh()
 			return true;
 	}
 
-	// The ncr filename
-	std::string ncr_filename = root_path + m_zoneShortName + ".ncr";
-
-	// load compressed & encrypted file first
-	file_data = ReadRarFile(ncr_filename, mesh_filename);
-	if (file_data.first)
-	{
-		if (next_load_stage(file_data, ncr_filename))
-			return true;
-	}
-	else
-	{
-		WriteChatf(PLUGIN_MSG "\ayNo zone mesh available for \am%s\ax", m_zoneShortName.c_str());
-	}
-
+	WriteChatf(PLUGIN_MSG "\ayNo zone mesh available for \am%s\ax", m_zoneShortName.c_str());
 	return false;
 }
 

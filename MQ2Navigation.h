@@ -119,6 +119,7 @@ private:
 	std::unique_ptr<NavigationPath> m_activePath;
 
 	bool m_initialized = false;
+	int m_zoneId = -1;
 
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;
