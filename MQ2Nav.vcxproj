@@ -19,58 +19,73 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v140_xp</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v140_xp</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\Plugin.Release.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\Plugin.Debug.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(DXSDK_DIR)Include;$(IncludePath)</IncludePath>
+    <LinkIncremental>false</LinkIncremental>
+    <IntDir>Intermediate\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(DXSDK_DIR)Include;$(IncludePath)</IncludePath>
-    <CodeAnalysisRuleSet>C:\Program Files (x86)\Microsoft Visual Studio 14.0\Team Tools\Static Analysis Tools\Rule Sets\NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <LinkIncremental>true</LinkIncremental>
+    <IntDir>Intermediate\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;dependencies\zone-utilities\common;dependencies\zone-utilities\log;dependencies\zlib\include;Interactions\DirectX\Include;Interactions\EQDraw\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;dependencies\zone-utilities\common;dependencies\zone-utilities\log;dependencies\zlib\include;dependencies\dx9\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
+      <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EditAndContinue</DebugInformationFormat>
+      <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">MultiThreadedDebug</RuntimeLibrary>
+      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</FunctionLevelLinking>
+      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Disabled</Optimization>
+      <StringPooling Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</StringPooling>
+      <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</StringPooling>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <StructMemberAlignment>1Byte</StructMemberAlignment>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">LIVE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">LIVE;_DEBUG;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4018;4244</DisableSpecificWarnings>
-      <EnablePREfast Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</EnablePREfast>
+      <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
+      <BufferSecurityCheck Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</BufferSecurityCheck>
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(ProjectDir)dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ImageHasSafeExceptionHandlers Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ImageHasSafeExceptionHandlers>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\Detours\lib;$(ProjectDir)dependencies\zlib\lib;$(ProjectDir)dependencies\dx9\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <ImportLibrary>$(OutDir)$(ProjectName).lib</ImportLibrary>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <PostBuildEvent>
+      <Command>COPY /y $(ProjectDir)Zones.ini $(OutDir)Zones.ini</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="..\Release\DoorAdjustments.txt" />
-    <None Include="..\Release\Zones.ini" />
     <None Include="packages.config" />
+    <None Include="Zones.ini" />
+    <None Include="DoorAdjustments.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugDrawDX.h" />
     <ClInclude Include="FindPattern.h" />
     <ClInclude Include="ImGuiRenderer.h" />
-    <ClInclude Include="imgui_impl_dx9.h" />
-    <ClInclude Include="imgui_memory_editor.h" />
+    <ClInclude Include="ImGuiDX9.h" />
     <ClInclude Include="MQ2Navigation.h" />
     <ClInclude Include="MQ2Nav_Hooks.h" />
     <ClInclude Include="MeshLoader.h" />
@@ -85,28 +100,15 @@
     <ClInclude Include="MQ2Nav_Settings.h" />
     <ClInclude Include="MQ2Nav_Util.h" />
     <ClInclude Include="Waypoints.h" />
-    <ClInclude Include="meshext.h" />
     <ClInclude Include="Signal.h" />
     <ClInclude Include="ZoneData.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dependencies\zlib\src\adler32.c" />
-    <ClCompile Include="dependencies\zlib\src\crc32.c" />
-    <ClCompile Include="dependencies\zlib\src\deflate.c" />
-    <ClCompile Include="dependencies\zlib\src\inffast.c" />
-    <ClCompile Include="dependencies\zlib\src\inflate.c" />
-    <ClCompile Include="dependencies\zlib\src\inftrees.c" />
-    <ClCompile Include="dependencies\zlib\src\trees.c" />
-    <ClCompile Include="dependencies\zlib\src\zutil.c" />
     <ClCompile Include="FindPattern.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
-    <ClCompile Include="imgui_impl_dx9.cpp" />
+    <ClCompile Include="ImGuiDX9.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
-    <ClCompile Include="meshext.c">
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
-    </ClCompile>
     <ClCompile Include="MQ2Nav_Hooks.cpp" />
     <ClCompile Include="KeybindHandler.cpp" />
     <ClCompile Include="NavigationPath.cpp" />
@@ -121,17 +123,20 @@
     <ClCompile Include="ZoneData.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="MQ2Nav.rc" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="dependencies\imgui\imgui.vcxproj">
       <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
     </ProjectReference>
     <ProjectReference Include="dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
     </ProjectReference>
-    <ProjectReference Include="dependencies\zone-utilities-projects\common.vcxproj">
+    <ProjectReference Include="dependencies\zlib\zlib.vcxproj">
+      <Project>{d5fc478c-d94c-437f-9911-14f1fb7b9a2b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="dependencies\zone-utilities-projects\zone-utilities.vcxproj">
       <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\MQ2Main\MQ2Main.vcxproj">
+      <Project>{2A0A06A4-E9C6-4229-82EE-BD2D4E0A7221}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

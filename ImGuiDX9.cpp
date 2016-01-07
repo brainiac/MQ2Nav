@@ -2,7 +2,7 @@
 // https://github.com/ocornut/imgui
 
 #include <imgui.h>
-#include "imgui_impl_dx9.h"
+#include "ImGuiDX9.h"
 
 // DirectX
 #include <d3dx9.h>

@@ -6,17 +6,11 @@
 #include "MQ2Nav_Util.h"
 #include "MQ2Navigation.h"
 
-// this gives us rar functionality for navmeshes stored in 'ncr' files
-#include "meshext.h"
-
 // nav mesh definitions
 #include "DetourNavMesh.h"
 #include "DetourCommon.h"
 
 #include <ctime>
-
-static const int MAXPASSLEN = 40;
-static char libpass[MAXPASSLEN + 1];
 
 void MeshLoader::SetZoneId(DWORD zoneId)
 {
@@ -33,12 +27,12 @@ void MeshLoader::SetZoneId(DWORD zoneId)
 		if (m_zoneShortName == "UNKNOWN_ZONE")
 		{
 			// invalid / unsupported zone id
-			DebugSpewAlways("[MQ2Navigation] Unrecognized zone id: %d", zoneId);
+			DebugSpewAlways("[MQ2Nav] Unrecognized zone id: %d", zoneId);
 			Reset();
 		}
 		else
 		{
-			DebugSpewAlways("[MQ2Navigation] Zone changed to: %s", m_zoneShortName.c_str());
+			DebugSpewAlways("[MQ2Nav] Zone changed to: %s", m_zoneShortName.c_str());
 
 			if (m_autoLoad)
 			{
@@ -86,20 +80,12 @@ static std::pair<std::shared_ptr<char>, DWORD> ReadRarFile(const std::string& fi
 {
 	char* outbuf = nullptr;
 	DWORD outsize = 0;
-	char* password = "";
 
 	char outfile[MAX_PATH];
 	strcpy_s(outfile, contentsFile.c_str());
 
 	char rarfile[MAX_PATH];
 	strcpy_s(rarfile, filename.c_str());
-	
-	if (!urarlib_get(&outbuf, &outsize, outfile, rarfile, password))
-	{
-		if (outbuf)
-			free(outbuf);
-		return std::make_pair(nullptr, 0);
-	}
 
 	return std::make_pair(std::shared_ptr<char>(outbuf, free), outsize);
 }
@@ -107,7 +93,7 @@ static std::pair<std::shared_ptr<char>, DWORD> ReadRarFile(const std::string& fi
 std::string MeshLoader::GetMeshDirectory() const
 {
 	// the root path is where we look for all of our mesh files
-	return std::string(gszINIPath) + "\\MQ2Navigation";
+	return std::string(gszINIPath) + "\\MQ2Nav";
 }
 
 bool MeshLoader::LoadNavMesh()

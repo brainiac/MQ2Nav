@@ -37,7 +37,7 @@ bool NavigationPath::FindPath(const glm::vec3& pos)
 {
 	if (nullptr != m_navMesh)
 	{
-		// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
+		// WriteChatf("MQ2Nav::FindPath - %.1f %.1f %.1f", X, Y, Z);
 		FindPathInternal(pos);
 
 		if (m_currentPathSize > 0)

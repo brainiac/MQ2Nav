@@ -11,9 +11,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="eqnav.rc" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="CrowdTool.cpp" />
@@ -50,6 +47,7 @@
     <ClInclude Include="OffMeshConnectionTool.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="PerfTimer.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Sample.h" />
     <ClInclude Include="SampleInterfaces.h" />
     <ClInclude Include="Sample_Debug.h" />
@@ -69,7 +67,10 @@
     <ProjectReference Include="..\dependencies\sdl\VisualC\SDL\SDL_VS2013.vcxproj">
       <Project>{81ce8daf-ebb2-4761-8e45-b71abcca8c68}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\dependencies\zone-utilities-projects\common.vcxproj">
+    <ProjectReference Include="..\dependencies\zlib\zlib.vcxproj">
+      <Project>{d5fc478c-d94c-437f-9911-14f1fb7b9a2b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\zone-utilities-projects\zone-utilities.vcxproj">
       <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
     </ProjectReference>
   </ItemGroup>
@@ -79,23 +80,30 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="MeshGenerator.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MeshGenerator.rc" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0F4E974D-3E48-44F0-945E-90C97E1E254D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>EQNavigation</RootNamespace>
+    <RootNamespace>MeshGenerator</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <ProjectName>MQ2Nav_MeshGenerator</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140_xp</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140_xp</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
@@ -109,7 +117,14 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IntDir>Intermediate\$(Configuration)\$(ProjectName)\</IntDir>
+    <TargetName>MeshGenerator</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IntDir>Intermediate\$(Configuration)\$(ProjectName)\</IntDir>
+    <TargetName>MeshGenerator</TargetName>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>
@@ -128,7 +143,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>shlwapi.lib;openGL32.lib;glu32.lib;zlib1.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)..\dependencies\sdl\lib;$(ProjectDir)..\dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
@@ -156,7 +171,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(ProjectDir)..\dependencies\sdl\lib;$(ProjectDir)..\dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>shlwapi.lib;openGL32.lib;glu32.lib;zlib1.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

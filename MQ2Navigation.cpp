@@ -23,6 +23,10 @@
 #pragma comment (lib, "d3d9.lib")
 #pragma comment (lib, "d3dx9.lib")
 
+#if !defined(GAMESTATE_ZONING)
+#define GAMESTATE_ZONING 4
+#endif
+
 
 //============================================================================
 
@@ -248,11 +252,11 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 	CHAR buffer[MAX_STRING] = { 0 };
 	int i = 0;
 
-	//DebugSpewAlways("MQ2Navigation::NavigateCommand - start with arg: %s", szLine);
+	//DebugSpewAlways("MQ2Nav::NavigateCommand - start with arg: %s", szLine);
 	glm::vec3 destination;
 	bool haveDestination = ParseDestination(szLine, destination);
 
-	//DebugSpewAlways("MQ2Navigation::NavigateCommand - have destination: %d", haveDestination ? 1 : 0);
+	//DebugSpewAlways("MQ2Nav::NavigateCommand - have destination: %d", haveDestination ? 1 : 0);
 
 	if (!haveDestination)
 	{
@@ -486,7 +490,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 	if (m_activePath->IsAtEnd())
 	{
-		DebugSpewAlways("[MQ2Navigation] Reached destination at: %.2f %.2f %.2f",
+		DebugSpewAlways("[MQ2Nav] Reached destination at: %.2f %.2f %.2f",
 			dest.x, dest.z, dest.y);
 
 		if (PSPAWNINFO me = GetCharInfo()->pSpawn)
@@ -521,7 +525,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 		if (m_currentWaypoint != nextPosition)
 		{
 			m_currentWaypoint = nextPosition;
-			DebugSpewAlways("[MQ2Navigation] Moving Towards: %.2f %.2f %.2f", nextPosition.x, nextPosition.z, nextPosition.y);
+			DebugSpewAlways("[MQ2Nav] Moving Towards: %.2f %.2f %.2f", nextPosition.x, nextPosition.z, nextPosition.y);
 		}
 
 		glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
@@ -538,14 +542,14 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 	if (!strcmp(buffer, "target") && pTarget)
 	{
 		PSPAWNINFO target = (PSPAWNINFO)pTarget;
-		//WriteChatf("[MQ2Navigation] locating target: %s", target->Name);
+		//WriteChatf("[MQ2Nav] locating target: %s", target->Name);
 		destination.x = target->X;
 		destination.y = target->Y;
 		destination.z = target->Z;
 	}
 	else if (!strcmp(buffer, "door") && pDoorTarget)
 	{
-		//WriteChatf("[MQ2Navigation] locating door target: %s", pDoorTarget->Name);
+		//WriteChatf("[MQ2Nav] locating door target: %s", pDoorTarget->Name);
 		destination.x = pDoorTarget->X;
 		destination.y = pDoorTarget->Y;
 		destination.z = pDoorTarget->Z;
@@ -557,7 +561,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 	}
 	else if (!strcmp(buffer, "item") && pGroundTarget)
 	{
-		//WriteChatf("[MQ2Navigation] locating item target: %s", pGroundTarget->Name);
+		//WriteChatf("[MQ2Nav] locating item target: %s", pGroundTarget->Name);
 		destination.x = pGroundTarget->X;
 		destination.y = pGroundTarget->Y;
 		destination.z = pGroundTarget->Z;
@@ -607,7 +611,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 			tmpDestination[i] = atof(item);
 		}
 		if (i == 3) {
-			//WriteChatf("[MQ2Navigation] locating loc: %.1f, %.1f, %.1f", tmpDestination[0], tmpDestination[1], tmpDestination[2]);
+			//WriteChatf("[MQ2Nav] locating loc: %.1f, %.1f, %.1f", tmpDestination[0], tmpDestination[1], tmpDestination[2]);
 			destination = tmpDestination;
 		}
 		else {
@@ -624,7 +628,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
 	NavigationPath path(m_meshLoader->GetNavMesh());
 	path.FindPath(pos);
 
-	//WriteChatf("MQ2Navigation::GetPathLength - num points: %d", numPoints);
+	//WriteChatf("MQ2Nav::GetPathLength - num points: %d", numPoints);
 	int numPoints = path.GetPathSize();
 	if (numPoints > 0)
 	{
@@ -637,7 +641,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
 
 			float segment = dtVdist(first, second);
 			result += segment;
-			//WriteChatf("MQ2Navigation::GetPathLength - segment #%d length: %f - total: %f", i, segment, result);
+			//WriteChatf("MQ2Nav::GetPathLength - segment #%d length: %f - total: %f", i, segment, result);
 		}
 	}
 	return result;

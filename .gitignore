@@ -1,0 +1,16 @@
+*.dll
+*.exp
+*.map
+*.sdf
+*.opensdf
+Intermediate/
+Release/
+Debug/
+.vs/
+*.pdb
+*.suo
+*.user
+*.aps
+
+packages/
+*.opendb

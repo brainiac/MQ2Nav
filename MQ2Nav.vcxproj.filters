@@ -12,26 +12,19 @@
     <Filter Include="Resource Files">
       <UniqueIdentifier>{55570512-5592-4def-ab72-e27b303cbb0f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\zlib">
-      <UniqueIdentifier>{9aae2e29-2a05-45dc-bd72-9d3f91ca778e}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Release\DoorAdjustments.txt">
+    <None Include="packages.config">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="..\Release\Zones.ini">
+    <None Include="Zones.ini">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="packages.config" />
+    <None Include="DoorAdjustments.txt">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="meshext.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui_impl_dx9.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MQ2Nav_Settings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -71,9 +64,6 @@
     <ClInclude Include="NavMeshRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="imgui_memory_editor.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ModelLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -92,14 +82,11 @@
     <ClInclude Include="NavigationPath.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ImGuiDX9.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="meshext.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui_impl_dx9.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="MQ2Navigation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -133,30 +120,6 @@
     <ClCompile Include="NavMeshRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dependencies\zlib\src\deflate.c">
-      <Filter>Source Files\zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\zlib\src\inflate.c">
-      <Filter>Source Files\zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\zlib\src\adler32.c">
-      <Filter>Source Files\zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\zlib\src\crc32.c">
-      <Filter>Source Files\zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\zlib\src\zutil.c">
-      <Filter>Source Files\zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\zlib\src\inftrees.c">
-      <Filter>Source Files\zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\zlib\src\trees.c">
-      <Filter>Source Files\zlib</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\zlib\src\inffast.c">
-      <Filter>Source Files\zlib</Filter>
-    </ClCompile>
     <ClCompile Include="ModelLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -172,11 +135,9 @@
     <ClCompile Include="NavigationPath.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="MQ2Navigation1.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
+    <ClCompile Include="ImGuiDX9.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="dependencies\glm\util\glm.natvis">

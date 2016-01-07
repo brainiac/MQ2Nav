@@ -8,6 +8,7 @@
 #include "InputGeom.h"
 #include "Sample_TileMesh.h"
 #include "Sample_Debug.h"
+#include "resource.h"
 
 #include <imgui/imgui.h>
 #include "imgui_impl_sdl.h"
@@ -50,7 +51,7 @@ Interface::Interface(const std::string& defaultZone)
 	CHAR fullPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA(NULL, fullPath, MAX_PATH);
 	PathRemoveFileSpecA(fullPath);
-	PathAppendA(fullPath, "EQNavigation_UI.ini");
+	PathAppendA(fullPath, "MeshGenerator_UI.ini");
 	m_iniFile = fullPath;
 
 	InitializeWindow();
@@ -92,9 +93,21 @@ bool Interface::InitializeWindow()
 	m_width = vr.w - 200;
 	m_height = vr.h - 200;
 
-	m_window = SDL_CreateWindow("EQ Navigation", 100, 100, m_width, m_height,
+	m_window = SDL_CreateWindow("MQ2Nav Mesh Generator", 100, 100, m_width, m_height,
 		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 	m_glContext = SDL_GL_CreateContext(m_window);
+
+	// set window icon
+	HINSTANCE handle = ::GetModuleHandle(nullptr);
+	HICON icon = ::LoadIcon(handle, MAKEINTRESOURCE(IDI_ICON1));
+	if (icon != nullptr) {
+		SDL_SysWMinfo wminfo;
+		SDL_VERSION(&wminfo.version);
+		if (SDL_GetWindowWMInfo(m_window, &wminfo) == 1) {
+			HWND hwnd = wminfo.info.win.window;
+			::SetClassLong(hwnd, GCL_HICON, reinterpret_cast<LONG>(icon));
+		}
+	}
 
 	ImGui_ImplSdl_Init(m_window);
 

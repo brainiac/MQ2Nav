@@ -6,7 +6,7 @@
 #include "MQ2Nav_Hooks.h"
 #include "MQ2Navigation.h"
 
-#include "imgui_impl_dx9.h"
+#include "ImGuiDX9.h"
 
 #include <cassert>
 #include <DetourDebugDraw.h>

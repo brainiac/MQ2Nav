@@ -4,9 +4,9 @@
 
 #include "MQ2Navigation.h"
 
-PreSetup("MQ2Navigation");
+PreSetup("MQ2Nav");
 PLUGIN_VERSION(2.00);
-
+#define PLUGIN_NAME "MQ2Nav"
 
 #include <memory>
 
@@ -19,6 +19,7 @@ std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
 PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("Initializing MQ2Nav");
+
 	WriteChatf("\ay[MQ2Nav]\ax v%1.2f by brainiac", MQ2Version);
 
 	g_mq2Nav.reset(new MQ2NavigationPlugin);
@@ -27,7 +28,6 @@ PLUGIN_API void InitializePlugin()
 PLUGIN_API void ShutdownPlugin()
 {
 	DebugSpewAlways("Shutting down MQ2Nav");
-
 	g_mq2Nav.reset();
 }
 

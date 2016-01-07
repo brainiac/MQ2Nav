@@ -514,7 +514,7 @@ void ShutdownHooks()
 	{
 		// A handle to our own module. We use this to avoid being released until we
 		// have successfully left the keyboard hook.
-		HMODULE selfModule = LoadLibraryA("MQ2Navigation.dll");
+		HMODULE selfModule = LoadLibraryA("MQ2Nav.dll");
 
 		// start a thread and wait for g_inKeyboardEventHandler to be false.
 		// then call FreeLibraryAndExitThread

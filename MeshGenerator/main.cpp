@@ -72,8 +72,14 @@ private:
 
 int main(int argc, char* argv[])
 {
+	// Construct the path to the ini file
+	CHAR logfilePath[MAX_PATH] = { 0 };
+	GetModuleFileNameA(NULL, logfilePath, MAX_PATH);
+	PathRemoveFileSpecA(logfilePath);
+	PathAppendA(logfilePath, "MeshGenerator.log");
+
 	eqLogInit(-1);
-	eqLogRegister(std::make_shared<EQEmu::Log::LogFile>("eqnav.log"));
+	eqLogRegister(std::make_shared<EQEmu::Log::LogFile>(logfilePath));
 	eqLogRegister(std::make_shared<EQEmu::Log::LogStdOut>());
 	//eqLogRegister(std::make_shared<LogContext>(ctx));
 

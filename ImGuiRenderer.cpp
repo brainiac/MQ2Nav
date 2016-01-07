@@ -3,7 +3,7 @@
 //
 
 #include "ImGuiRenderer.h"
-#include "imgui_impl_dx9.h"
+#include "ImGuiDX9.h"
 #include "MQ2Navigation.h"
 #include "MQ2Nav_Hooks.h"
 
