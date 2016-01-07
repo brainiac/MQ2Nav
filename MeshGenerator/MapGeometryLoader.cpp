@@ -2,10 +2,16 @@
 #include "pch.h"
 #include "MapGeometryLoader.h"
 
+#include "../ZoneData.h"
+
 #include "zone-utilities/log/log_macros.h"
 #include "zone-utilities/common/compression.h"
 
 #include <gtc/matrix_transform.hpp>
+#include <rapidjson/document.h>
+
+#include <sstream>
+#include <boost/filesystem.hpp>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,9 +65,10 @@ static inline void TranslateVertex(glm::vec3& v, const glm::vec3& t)
 }
 
 MapGeometryLoader::MapGeometryLoader(const std::string& zoneShortName,
-	const std::string& everquest_path)
+	const std::string& everquest_path, const std::string& mesh_path)
 	: m_zoneName(zoneShortName)
 	, m_eqPath(everquest_path)
+	, m_meshPath(mesh_path)
 {
 }
 
@@ -127,161 +134,191 @@ bool MapGeometryLoader::load()
 	{
 		return false;
 	}
-	else
+
+	// load terrain geometry
+	if (terrain)
 	{
-		// load terrain geometry
-		if (terrain)
+		const auto& tiles = terrain->GetTiles();
+		uint32_t quads_per_tile = terrain->GetQuadsPerTile();
+		float units_per_vertex = terrain->GetUnitsPerVertex();
+		uint32_t vert_count = ((quads_per_tile + 1) * (quads_per_tile + 1));
+		uint32_t quad_count = (quads_per_tile * quads_per_tile);
+
+		for (uint32_t i = 0; i < tiles.size(); ++i)
 		{
-			const auto& tiles = terrain->GetTiles();
-			uint32_t quads_per_tile = terrain->GetQuadsPerTile();
-			float units_per_vertex = terrain->GetUnitsPerVertex();
-			uint32_t vert_count = ((quads_per_tile + 1) * (quads_per_tile + 1));
-			uint32_t quad_count = (quads_per_tile * quads_per_tile);
+			auto& tile = tiles[i];
+			bool flat = tile->IsFlat();
 
-			for (uint32_t i = 0; i < tiles.size(); ++i)
+			float x = tile->GetX();
+			float y = tile->GetY();
+
+
+			if (flat)
 			{
-				auto& tile = tiles[i];
-				bool flat = tile->IsFlat();
+				float z = tile->GetFloats()[0];
 
-				float x = tile->GetX();
-				float y = tile->GetY();
+				// get x,y of corner point for this quad
+				float dt = quads_per_tile * units_per_vertex;
 
+				addVertex(x,      z, y);
+				addVertex(x + dt, z, y);
+				addVertex(x + dt, z, y + dt);
+				addVertex(x,      z, y + dt);
 
-				if (flat)
+				addTriangle(counter + 0, counter + 2, counter + 1);
+				addTriangle(counter + 2, counter + 0, counter + 3);
+
+				counter += 4;
+			}
+			else
+			{
+				auto& floats = tile->GetFloats();
+				int row_number = -1;
+
+				for (uint32_t quad = 0; quad < quad_count; ++quad)
 				{
-					float z = tile->GetFloats()[0];
+					if (quad % quads_per_tile == 0)
+						++row_number;
+
+					if (tile->GetFlags()[quad] & 0x01)
+						continue;
 
 					// get x,y of corner point for this quad
-					float dt = quads_per_tile * units_per_vertex;
+					float _x = x + (row_number * units_per_vertex);
+					float _y = y + (quad % quads_per_tile) * units_per_vertex;
+					float dt = units_per_vertex;
 
-					addVertex(x,      z, y);
-					addVertex(x + dt, z, y);
-					addVertex(x + dt, z, y + dt);
-					addVertex(x,      z, y + dt);
+					float z1 = floats[quad + row_number];
+					float z2 = floats[quad + row_number + quads_per_tile + 1];
+					float z3 = floats[quad + row_number + quads_per_tile + 2];
+					float z4 = floats[quad + row_number + 1];
+
+					addVertex(_x,      z1, _y);
+					addVertex(_x + dt, z2, _y);
+					addVertex(_x + dt, z3, _y + dt);
+					addVertex(_x,      z4, _y + dt);
 
 					addTriangle(counter + 0, counter + 2, counter + 1);
 					addTriangle(counter + 2, counter + 0, counter + 3);
 
 					counter += 4;
 				}
-				else
-				{
-					auto& floats = tile->GetFloats();
-					int row_number = -1;
-
-					for (uint32_t quad = 0; quad < quad_count; ++quad)
-					{
-						if (quad % quads_per_tile == 0)
-							++row_number;
-
-						if (tile->GetFlags()[quad] & 0x01)
-							continue;
-
-						// get x,y of corner point for this quad
-						float _x = x + (row_number * units_per_vertex);
-						float _y = y + (quad % quads_per_tile) * units_per_vertex;
-						float dt = units_per_vertex;
-
-						float z1 = floats[quad + row_number];
-						float z2 = floats[quad + row_number + quads_per_tile + 1];
-						float z3 = floats[quad + row_number + quads_per_tile + 2];
-						float z4 = floats[quad + row_number + 1];
-
-						addVertex(_x,      z1, _y);
-						addVertex(_x + dt, z2, _y);
-						addVertex(_x + dt, z3, _y + dt);
-						addVertex(_x,      z4, _y + dt);
-
-						addTriangle(counter + 0, counter + 2, counter + 1);
-						addTriangle(counter + 2, counter + 0, counter + 3);
-
-						counter += 4;
-					}
-				}
 			}
 		}
+	}
 
-		for (uint32_t index = 0; index < collide_indices.size(); index += 3, counter += 3)
+	for (uint32_t index = 0; index < collide_indices.size(); index += 3, counter += 3)
+	{
+		uint32_t vert_index1 = collide_indices[index];
+		const glm::vec3& vert1 = collide_verts[vert_index1];
+		addVertex(vert1.x, vert1.z, vert1.y);
+
+		uint32_t vert_index2 = collide_indices[index + 2];
+		const glm::vec3& vert2 = collide_verts[vert_index2];
+		addVertex(vert2.x, vert2.z, vert2.y);
+
+		uint32_t vert_index3 = collide_indices[index + 1];
+		const glm::vec3& vert3 = collide_verts[vert_index3];
+		addVertex(vert3.x, vert3.z, vert3.y);
+
+		addTriangle(counter, counter + 2, counter + 1);
+	}
+
+	// Load models
+	for (auto iter : map_models)
+	{
+		std::string name = iter.first;
+		std::shared_ptr<EQEmu::S3D::Geometry> model = iter.second;
+
+		std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
+
+		for (const auto& vert : model->GetVertices())
 		{
-			uint32_t vert_index1 = collide_indices[index];
-			const glm::vec3& vert1 = collide_verts[vert_index1];
-			addVertex(vert1.x, vert1.z, vert1.y);
-
-			uint32_t vert_index2 = collide_indices[index + 2];
-			const glm::vec3& vert2 = collide_verts[vert_index2];
-			addVertex(vert2.x, vert2.z, vert2.y);
-
-			uint32_t vert_index3 = collide_indices[index + 1];
-			const glm::vec3& vert3 = collide_verts[vert_index3];
-			addVertex(vert3.x, vert3.z, vert3.y);
-
-			addTriangle(counter, counter + 2, counter + 1);
+			entry->verts.push_back(vert.pos);
 		}
 
-		// Load models
-		for (auto iter : map_models)
+		for (const auto& poly : model->GetPolygons())
 		{
-			std::string name = iter.first;
-			std::shared_ptr<EQEmu::S3D::Geometry> model = iter.second;
-
-			std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
-
-			for (const auto& vert : model->GetVertices())
-			{
-				entry->verts.push_back(vert.pos);
-			}
-
-			for (const auto& poly : model->GetPolygons())
-			{
-				entry->polys.emplace_back(
-					ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x10) == 0 });
-			}
-
-			m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
-		}
-		for (auto iter : map_eqg_models)
-		{
-			bool first = true;
-			std::string name = iter.first;
-			std::shared_ptr<EQEmu::EQG::Geometry> model = iter.second;
-			std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
-
-			for (const auto& vert : model->GetVertices())
-			{
-				entry->verts.push_back(vert.pos);
-			}
-
-			for (const auto& poly : model->GetPolygons())
-			{
-				// 0x10 = invisible
-				// 0x01 = no collision
-				entry->polys.emplace_back(
-					ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x11) == 0 });
-			}
-
-			m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
+			entry->polys.emplace_back(
+				ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x10) == 0 });
 		}
 
-		auto AddTriangle = [&](const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
+		m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
+	}
+	for (auto iter : map_eqg_models)
+	{
+		bool first = true;
+		std::string name = iter.first;
+		std::shared_ptr<EQEmu::EQG::Geometry> model = iter.second;
+		std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
+
+		for (const auto& vert : model->GetVertices())
 		{
-			addVertex(v1.y, v1.z, v1.x);
-			addVertex(v2.y, v2.z, v2.x);
-			addVertex(v3.y, v3.z, v3.x);
+			entry->verts.push_back(vert.pos);
+		}
 
-			addTriangle(counter, counter + 1, counter + 2);
-			counter += 3;
-		};
+		for (const auto& poly : model->GetPolygons())
+		{
+			// 0x10 = invisible
+			// 0x01 = no collision
+			entry->polys.emplace_back(
+				ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x11) == 0 });
+		}
 
-		for (const auto& obj : map_placeables)
+		m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
+	}
+
+	auto AddTriangle = [&](const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
+	{
+		addVertex(v1.y, v1.z, v1.x);
+		addVertex(v2.y, v2.z, v2.x);
+		addVertex(v3.y, v3.z, v3.x);
+
+		addTriangle(counter, counter + 1, counter + 2);
+		counter += 3;
+	};
+
+	for (const auto& obj : map_placeables)
+	{
+		const std::string& name = obj->GetFileName();
+
+		auto modelIter = m_models.find(name);
+		if (modelIter == m_models.end())
+			continue;
+
+		// some objects have a really low z, just ignore them.
+		if (obj->GetZ() < -30000)
+			continue;
+
+		const auto& model = modelIter->second;
+		for (const auto& poly : model->polys)
+		{
+			if (!poly.vis)
+				continue;
+
+			glm::vec3 v[3];
+			for (int i = 0; i < 3; i++)
+			{
+				v[i] = model->verts[poly.v[i]];
+
+				RotateVertex(v[i], GetRotation(obj));
+				ScaleVertex(v[i], GetScale(obj));
+				TranslateVertex(v[i], GetTranslation(obj));
+			}
+
+			AddTriangle(v[0], v[1], v[2]);
+		}
+	}
+
+#if 0
+	for (const auto& group : map_group_placeables)
+	{
+		for (const auto& obj : group->GetPlaceables())
 		{
 			const std::string& name = obj->GetFileName();
 
 			auto modelIter = m_models.find(name);
 			if (modelIter == m_models.end())
-				continue;
-
-			// some objects have a really low z, just ignore them.
-			if (obj->GetZ() < -30000)
 				continue;
 
 			const auto& model = modelIter->second;
@@ -290,95 +327,65 @@ bool MapGeometryLoader::load()
 				if (!poly.vis)
 					continue;
 
-				glm::vec3 v[3];
+				glm::vec3 v_[3];
 				for (int i = 0; i < 3; i++)
 				{
-					v[i] = model->verts[poly.v[i]];
+					glm::vec3& v = v_[i];
+					v = model->verts[poly.v[i]];
 
-					RotateVertex(v[i], GetRotation(obj));
-					ScaleVertex(v[i], GetScale(obj));
-					TranslateVertex(v[i], GetTranslation(obj));
+					ScaleVertex(v, GetScale(obj));
+					TranslateVertex(v, GetTranslation(obj));
+
+					RotateVertex(v, group->GetRotationX(), 0, 0);
+					RotateVertex(v, 0, group->GetRotationY(), 0);
+
+					glm::vec3 correction = GetTranslation(obj);
+
+					RotateVertex(correction, group->GetRotationX(), 0, 0);
+
+					TranslateVertex(v, -correction.x, -correction.y, -correction.z);
+
+					RotateVertex(v, obj->GetRotateX(), 0, 0);
+					RotateVertex(v, 0, -obj->GetRotateY(), 0);
+					RotateVertex(v, 0, 0, obj->GetRotateZ());
+
+					TranslateVertex(v, correction.x, correction.y, correction.z);
+
+					RotateVertex(v, 0, 0, group->GetRotationZ());
+
+					ScaleVertex(v, GetScale(group));
+
+					TranslateVertex(v, group->GetTileX(), group->GetTileY(), group->GetTileZ());
+					TranslateVertex(v, GetTranslation(group));
 				}
 
-				AddTriangle(v[0], v[1], v[2]);
+				AddTriangle(v_[0], v_[1], v_[2]);
 			}
 		}
-
-#if 0
-		for (const auto& group : map_group_placeables)
-		{
-			for (const auto& obj : group->GetPlaceables())
-			{
-				const std::string& name = obj->GetFileName();
-
-				auto modelIter = m_models.find(name);
-				if (modelIter == m_models.end())
-					continue;
-
-				const auto& model = modelIter->second;
-				for (const auto& poly : model->polys)
-				{
-					if (!poly.vis)
-						continue;
-
-					glm::vec3 v_[3];
-					for (int i = 0; i < 3; i++)
-					{
-						glm::vec3& v = v_[i];
-						v = model->verts[poly.v[i]];
-
-						ScaleVertex(v, GetScale(obj));
-						TranslateVertex(v, GetTranslation(obj));
-
-						RotateVertex(v, group->GetRotationX(), 0, 0);
-						RotateVertex(v, 0, group->GetRotationY(), 0);
-
-						glm::vec3 correction = GetTranslation(obj);
-
-						RotateVertex(correction, group->GetRotationX(), 0, 0);
-
-						TranslateVertex(v, -correction.x, -correction.y, -correction.z);
-
-						RotateVertex(v, obj->GetRotateX(), 0, 0);
-						RotateVertex(v, 0, -obj->GetRotateY(), 0);
-						RotateVertex(v, 0, 0, obj->GetRotateZ());
-
-						TranslateVertex(v, correction.x, correction.y, correction.z);
-
-						RotateVertex(v, 0, 0, group->GetRotationZ());
-
-						ScaleVertex(v, GetScale(group));
-
-						TranslateVertex(v, group->GetTileX(), group->GetTileY(), group->GetTileZ());
-						TranslateVertex(v, GetTranslation(group));
-					}
-
-					AddTriangle(v_[0], v_[1], v_[2]);
-				}
-			}
-		}
+	}
 #endif
 
-		//const auto& non_collide_indices = map.GetNonCollideIndices();
+	//const auto& non_collide_indices = map.GetNonCollideIndices();
 
-		//for (uint32_t index = 0; index < non_collide_indices.size(); index += 3, counter += 3)
-		//{
-		//	uint32_t vert_index1 = non_collide_indices[index];
-		//	const glm::vec3& vert1 = map.GetNonCollideVert(vert_index1);
-		//	addVertex(vert1.x, vert1.z, vert1.y, vcap);
+	//for (uint32_t index = 0; index < non_collide_indices.size(); index += 3, counter += 3)
+	//{
+	//	uint32_t vert_index1 = non_collide_indices[index];
+	//	const glm::vec3& vert1 = map.GetNonCollideVert(vert_index1);
+	//	addVertex(vert1.x, vert1.z, vert1.y, vcap);
 
-		//	uint32_t vert_index2 = non_collide_indices[index + 1];
-		//	const glm::vec3& vert2 = map.GetNonCollideVert(vert_index2);
-		//	addVertex(vert2.x, vert2.z, vert2.y, vcap);
+	//	uint32_t vert_index2 = non_collide_indices[index + 1];
+	//	const glm::vec3& vert2 = map.GetNonCollideVert(vert_index2);
+	//	addVertex(vert2.x, vert2.z, vert2.y, vcap);
 
-		//	uint32_t vert_index3 = non_collide_indices[index + 2];
-		//	const glm::vec3& vert3 = map.GetNonCollideVert(vert_index3);
-		//	addVertex(vert3.x, vert3.z, vert3.y, vcap);
+	//	uint32_t vert_index3 = non_collide_indices[index + 2];
+	//	const glm::vec3& vert3 = map.GetNonCollideVert(vert_index3);
+	//	addVertex(vert3.x, vert3.z, vert3.y, vcap);
 
-		//	addTriangle(counter, counter + 2, counter + 1, tcap);
-		//}
-	}
-	
+	//	addTriangle(counter, counter + 2, counter + 1, tcap);
+	//}
+
+	LoadDoors();
+
 	//message = "Calculating Surface Normals...";
 	m_normals = new float[m_triCount*3];
 	for (int i = 0; i < m_triCount*3; i += 3)
@@ -407,6 +414,135 @@ bool MapGeometryLoader::load()
 	}
 
 	return true;
+}
+
+struct DoorParams
+{
+	uint32_t id;
+	std::string name;
+	uint16_t type;
+	float scale;
+	glm::mat4x4 transform;
+};
+
+void MapGeometryLoader::LoadDoors()
+{
+	std::string filename = m_meshPath + "\\MQ2Nav\\" + m_zoneName + "_doors.json";
+	
+	boost::system::error_code ec;
+	if (!boost::filesystem::is_regular_file(filename, ec))
+		return;
+
+	std::stringstream ss;
+	std::ifstream ifs;
+
+	ifs.open(filename.c_str());
+	ss << ifs.rdbuf();
+	ifs.close();
+
+	rapidjson::Document document;
+
+	if (document.Parse<0>(ss.str().c_str()).HasParseError())
+		return;
+	if (!document.IsArray())
+		return;
+
+	std::vector<DoorParams> doors;
+
+	for (size_t i = 0; i < document.Size(); ++i)
+	{
+		for (rapidjson::Value::ConstValueIterator iter = document.Begin(); iter != document.End(); ++iter)
+		{
+			if (!iter->IsObject())
+				return;
+
+			DoorParams params;
+			params.id = (*iter)["ID"].GetInt();
+			params.name = (*iter)["Name"].GetString();
+			params.type = (*iter)["Type"].GetInt();
+			params.scale = (*iter)["Scale"].GetDouble();
+
+			const auto& t = (*iter)["Transform"];
+			for (int i = 0; i < 4; i++)
+			{
+				for (int j = 0; j < 4; j++)
+				{
+					params.transform[i][j] = t[i][j].GetDouble();
+				}
+			}
+
+			doors.push_back(params);
+		}
+	}
+
+	if (doors.empty()) {
+		m_doorsLoaded = true;
+		return;
+	}
+
+	ZoneData zoneData(m_eqPath, m_zoneName);
+
+	if (!zoneData.IsLoaded())
+		return;
+
+	uint32_t counter = m_vertCount;
+
+	auto AddTriangle = [&](const glm::mat4x4& matrix, const glm::vec3& v1_, const glm::vec3& v2_, const glm::vec3& v3_)
+	{
+		glm::vec4 v1 = matrix * glm::vec4(v1_.x, v1_.y, v1_.z, 1.0);
+		glm::vec4 v2 = matrix * glm::vec4(v2_.x, v2_.y, v2_.z, 1.0);
+		glm::vec4 v3 = matrix * glm::vec4(v3_.x, v3_.y, v3_.z, 1.0);
+
+		addVertex(v1.y, v1.z, v1.x);
+		addVertex(v2.y, v2.z, v2.x);
+		addVertex(v3.y, v3.z, v3.x);
+
+		addTriangle(counter, counter + 1, counter + 2);
+		counter += 3;
+	};
+
+	// generic lambda for both old and new model types
+	auto addModel = [&](const glm::mat4x4& matrix, float scale, auto modelPtr)
+	{
+		auto verts = modelPtr->GetVertices();
+		auto polys = modelPtr->GetPolygons();
+
+		for (auto iter = polys.begin(); iter != polys.end(); ++iter)
+		{
+			if (iter->flags & 0x11)
+				continue;
+
+			auto& polygon = *iter;
+			AddTriangle(matrix, 
+				scale * verts[polygon.verts[0]].pos,
+				scale * verts[polygon.verts[1]].pos,
+				scale * verts[polygon.verts[2]].pos);
+		}
+	};
+
+	for (auto iter = doors.begin(); iter != doors.end(); ++iter)
+	{
+		auto& params = *iter;
+
+		ModelInfo mi;
+		if (!zoneData.GetModelInfo(params.name, mi))
+		{
+			eqLogMessage(LogTrace, "Couldn't find model for %s.", params.name.c_str());
+			continue;
+		}
+
+		glm::mat4x4 matrix = params.transform;
+
+		if (mi.oldModel)
+		{
+			addModel(matrix, params.scale, mi.oldModel);
+		}
+		if (mi.newModel)
+		{
+			addModel(matrix, params.scale, mi.newModel);
+		}
+	}
+
 }
 
 //============================================================================
@@ -453,20 +589,6 @@ bool MapGeometryLoader::Build()
 	{
 		return false;
 	}
-
-	//std::vector<EQEmu::S3D::WLDFragment> object_frags2;
-	//if (s3d.ParseWLDFile(filePath + "_obj2.s3d", m_zoneName + "_obj2.wld", object_frags2))
-	//{
-	//	object_frags.insert(object_frags.end(),
-	//		object_frags2.begin(), object_frags2.end());
-	//}
-
-	//std::vector<EQEmu::S3D::WLDFragment> object_frags3;
-	//if (s3d.ParseWLDFile(filePath + "_obj3.s3d", m_zoneName + "_obj3.wld", object_frags3))
-	//{
-	//	object_frags.insert(object_frags.end(),
-	//		object_frags3.begin(), object_frags3.end());
-	//}
 
 	return CompileS3D(zone_frags, zone_object_frags, object_frags);
 }

@@ -20,7 +20,8 @@
 class MapGeometryLoader
 {
 public:
-	MapGeometryLoader(const std::string& zoneShortName, const std::string& everquest_path);
+	MapGeometryLoader(const std::string& zoneShortName, const std::string& everquest_path,
+		const std::string& mesh_path);
 	~MapGeometryLoader();
 
 	bool load();
@@ -35,6 +36,7 @@ public:
 
 private:
 	bool Build();
+	void LoadDoors();
 
 	void TraverseBone(std::shared_ptr<EQEmu::S3D::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
 
@@ -104,4 +106,7 @@ private:
 
 	std::string m_zoneName;
 	std::string m_eqPath;
+	std::string m_meshPath;
+
+	bool m_doorsLoaded = false;
 };

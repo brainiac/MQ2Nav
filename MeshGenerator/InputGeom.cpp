@@ -89,9 +89,10 @@ static char* parseRow(char* buf, char* bufEnd, char* row, int len)
 
 
 
-InputGeom::InputGeom(const std::string& zoneShortName, const std::string& eqPath)
+InputGeom::InputGeom(const std::string& zoneShortName, const std::string& eqPath, const std::string& meshPath)
 	: m_zoneShortName(zoneShortName)
 	, m_eqPath(eqPath)
+	, m_meshPath(meshPath)
 {
 }
 
@@ -105,7 +106,7 @@ bool InputGeom::loadMesh(rcContext* ctx)
 	m_offMeshConCount = 0;
 	m_volumeCount = 0;
 	
-	m_loader.reset(new MapGeometryLoader(m_zoneShortName, m_eqPath));
+	m_loader.reset(new MapGeometryLoader(m_zoneShortName, m_eqPath, m_meshPath));
 	if (!m_loader->load())
 	{
 		ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not load '%s'",

@@ -150,6 +150,4 @@ private:
 	bool m_loaded = false;
 	bool m_needsUpdate = false;
 	float m_thickness = 1.0f;
-
-
 };

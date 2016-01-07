@@ -894,7 +894,7 @@ void Interface::LoadGeometry(const std::string& zoneShortName)
 
 	Halt();
 
-	auto ptr = std::make_unique<InputGeom>(zoneShortName, m_eqConfig.GetEverquestPath());
+	auto ptr = std::make_unique<InputGeom>(zoneShortName, m_eqConfig.GetEverquestPath(), m_eqConfig.GetOutputPath());
 	if (!ptr->loadMesh(m_context.get()))
 	{
 		m_showFailedToLoadZone = true;

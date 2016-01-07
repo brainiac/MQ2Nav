@@ -47,7 +47,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
-      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;dependencies\zone-utilities\common;dependencies\zone-utilities\log;dependencies\zlib\include;dependencies\dx9\Include;$(ProjectDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;dependencies\zone-utilities\common;dependencies\zone-utilities\log;dependencies\zlib\include;dependencies\dx9\Include;dependencies\rapidjson\include;$(ProjectDir)..</AdditionalIncludeDirectories>
       <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EditAndContinue</DebugInformationFormat>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">MultiThreadedDebug</RuntimeLibrary>

@@ -70,6 +70,23 @@ private:
 	BuildContext& m_ctx;
 };
 
+#define DebugHeader "[MeshGen]"
+
+VOID DebugSpewAlways(PCHAR szFormat, ...)
+{
+	va_list vaList;
+	va_start(vaList, szFormat);
+	int len = _vscprintf(szFormat, vaList) + 1;// _vscprintf doesn't count // terminating '\0'  
+	int headerlen = strlen(DebugHeader) + 1;
+	size_t thelen = len + headerlen + 32;
+	char *szOutput = (char *)LocalAlloc(LPTR, thelen);
+	strcpy_s(szOutput, thelen, DebugHeader " ");
+	vsprintf_s(szOutput + headerlen, thelen - headerlen, szFormat, vaList);
+	strcat_s(szOutput, thelen, "\n");
+	OutputDebugString(szOutput);
+	LocalFree(szOutput);
+}
+
 int main(int argc, char* argv[])
 {
 	// Construct the path to the ini file

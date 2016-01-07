@@ -13,7 +13,7 @@ typedef std::shared_ptr<EQEmu::S3D::Geometry> OldModelPtr;
 
 class ZoneDataLoader;
 
-struct BoundingBox
+struct ModelInfo
 {
 	glm::vec3 min;
 	glm::vec3 max;
@@ -30,7 +30,7 @@ public:
 
 	bool IsLoaded();
 
-	bool GetBoundingBox(const std::string& modelName, BoundingBox& bb);
+	bool GetModelInfo(const std::string& modelName, ModelInfo& bb);
 
 	std::string GetZoneName() const { return m_zoneName; }
 	std::string GetEQPath() const { return m_eqPath; }

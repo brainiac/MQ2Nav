@@ -3,7 +3,6 @@
 //
 
 #include "ZoneData.h"
-#include "../MQ2plugin.h"
 
 #include "dependencies/zone-utilities/common/eqg_model_loader.h"
 #include "dependencies/zone-utilities/common/safe_alloc.h"
@@ -28,7 +27,7 @@ public:
 
 	virtual bool Load() = 0;
 
-	virtual bool GetBoundingBox(const std::string& modelName, BoundingBox& bb) = 0;
+	virtual bool GetBoundingBox(const std::string& modelName, ModelInfo& bb) = 0;
 };
 
 //----------------------------------------------------------------------------
@@ -77,7 +76,7 @@ public:
 		return model;
 	}
 
-	virtual bool GetBoundingBox(const std::string& modelName, BoundingBox& bb) override
+	virtual bool GetBoundingBox(const std::string& modelName, ModelInfo& bb) override
 	{
 		if (ModelPtr model = GetModel(modelName))
 		{
@@ -159,7 +158,7 @@ public:
 
 						if (m_s3dModels.find(model->GetName()) == m_s3dModels.end())
 						{
-							DebugSpewAlways("Loaded S3D Model: %s", model->GetName().c_str());
+							//DebugSpewAlways("Loaded S3D Model: %s", model->GetName().c_str());
 
 							m_s3dModels[model->GetName()] = model;
 							loadedSomething = true;
@@ -208,7 +207,7 @@ public:
 							model_loader.Load(archive, modelName, model);
 							if (model)
 							{
-								DebugSpewAlways("Loaded EQG Model: %s", modelName.c_str());
+								//DebugSpewAlways("Loaded EQG Model: %s", modelName.c_str());
 
 								model->SetName(modelName);
 								m_eqgModels[modelName] = model;
@@ -246,7 +245,7 @@ public:
 		return nullptr;
 	}
 
-	virtual bool GetBoundingBox(const std::string& modelName, BoundingBox& bb) override
+	virtual bool GetBoundingBox(const std::string& modelName, ModelInfo& bb) override
 	{
 		// try to find the s3d model first, that is the most common
 		if (OldModelPtr model = GetS3dModel(modelName))
@@ -327,7 +326,7 @@ void ZoneData::LoadZone()
 		m_loader.reset();
 }
 
-bool ZoneData::GetBoundingBox(const std::string& modelName, BoundingBox& bb)
+bool ZoneData::GetModelInfo(const std::string& modelName, ModelInfo& bb)
 {
 	if (m_loader)
 		return m_loader->GetBoundingBox(modelName, bb);

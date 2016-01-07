@@ -7,6 +7,12 @@ Navigation Mesh plugin for [MacroQuest2](http://www.macroquest2.com). This is ba
 
 Contributions are welcome!
 
+This project consists of two parts: The MQ2 Plugin (MQ2Nav.dll), and the Mesh Generator (MeshGenerator.exe)
+
+![screenshot of some MQ2Nav features](/images/mq2nav1.png?raw=true)
+![screenshot of navmesh in MeshGenerator.exe](/images/meshgen1.png?raw=true)
+
+
 Building
 --------
 
@@ -30,11 +36,12 @@ The outputs will go into your Release (or Debug) folder.
 This plugin makes use of the following libraries:
 
 * [EQEmu zone-utilities](https://github.com/EQEmu/zone-utilities)
-* [imgui](https://github.com/ocornut/imgui/)
-* [glm](https://github.com/g-truc/glm)
+* [imgui](https://github.com/ocornut/imgui)
+* [glm](http://glm.g-truc.net)
+* [rapidjson](http://rapidjson.org)
 * [RecastNavigation](https://github.com/recastnavigation/recastnavigation)
-* [SDL2](https://www.libsdl.org/download-2.0.php)
-* [zlib](http://www.zlib.net/)
+* [SDL2](http://libsdl.org/)
+* [zlib](http://zlib.net/)
 
 
 Contributing

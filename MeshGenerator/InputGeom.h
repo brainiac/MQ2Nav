@@ -17,7 +17,7 @@ struct ConvexVolume
 class InputGeom
 {
 public:
-	InputGeom(const std::string& zoneShortName, const std::string& eqPath);
+	InputGeom(const std::string& zoneShortName, const std::string& eqPath, const std::string& meshPath);
 	~InputGeom();
 
 	bool loadMesh(class rcContext* ctx);
@@ -69,6 +69,7 @@ public:
 private:
 	std::string m_eqPath;
 	std::string m_zoneShortName;
+	std::string m_meshPath;
 
 	std::unique_ptr<rcChunkyTriMesh> m_chunkyMesh;
 	std::unique_ptr<MapGeometryLoader> m_loader;
