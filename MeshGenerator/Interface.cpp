@@ -605,6 +605,12 @@ void Interface::RenderInterface()
 				}
 				ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, tw, th);
 
+				if (!m_mesh->isBuildingTiles() && m_mesh->getNavMesh() != nullptr)
+				{
+					if (ImGui::Button("Save Mesh"))
+						SaveMesh();
+				}
+
 				float totalBuildTime = m_mesh->getTotalBuildTimeMS();
 				if (totalBuildTime > 0)
 					ImGui::Text("Build Time: %.1fms", totalBuildTime);
