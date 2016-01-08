@@ -73,7 +73,7 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>COPY /y $(ProjectDir)Zones.ini $(OutDir)Zones.ini</Command>
+      <Command>COPY /y "$(ProjectDir)Zones.ini" "$(OutDir)Zones.ini"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
