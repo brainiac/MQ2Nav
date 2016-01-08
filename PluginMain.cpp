@@ -20,8 +20,7 @@ PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("Initializing MQ2Nav");
 
-	WriteChatf("\ag[MQ2Nav]\ax v%1.1f \ay(BETA)\ax by brainiac", MQ2Version);
-	WriteChatf("\ag[MQ2Nav]\ax \aohttps://github.com/brainiac/MQ2Nav\ax");
+	WriteChatf("\ag[MQ2Nav]\ax v%1.1f \ay(BETA)\ax by brainiac (\aohttps://github.com/brainiac/MQ2Nav\ax)", MQ2Version);
 
 	g_mq2Nav.reset(new MQ2NavigationPlugin);
 }
