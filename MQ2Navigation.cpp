@@ -435,6 +435,7 @@ void MQ2NavigationPlugin::StuckCheck()
 
 void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 {
+#if 0
 	gFaceAngle = (atan2(pos.x - GetCharInfo()->pSpawn->X, pos.y - GetCharInfo()->pSpawn->Y)  * 256.0f / PI);
 	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
 	if (gFaceAngle<0.0f) gFaceAngle += 512.0f;
@@ -460,6 +461,7 @@ void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 	}
 	else
 		GetCharInfo()->pSpawn->CameraAngle = 0.0f;
+#endif
 
 	// this is a sentinel value telling MQ2 to not adjust the look angle
 	gLookAngle = 10000.0f;

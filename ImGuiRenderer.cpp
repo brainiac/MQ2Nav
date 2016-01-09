@@ -86,6 +86,11 @@ ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.65f, 0.25f, 0.25f, 1.00f);
 #endif
 
+	ImGuiIO& io = ImGui::GetIO();
+
+	m_iniFileName = std::string(gszINIPath) + "\\MQ2NavUI.ini";
+	io.IniFilename = m_iniFileName.c_str();
+
 	m_pDevice->AddRef();
 
 	m_prevHistoryPoint = std::chrono::system_clock::now();

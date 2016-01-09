@@ -48,6 +48,8 @@ private:
 	// fps counter
 	std::vector<float> m_renderFrameRateHistory;
 	std::chrono::system_clock::time_point m_prevHistoryPoint;
+
+	std::string m_iniFileName;
 };
 
 extern std::shared_ptr<ImGuiRenderer> g_imguiRenderer;

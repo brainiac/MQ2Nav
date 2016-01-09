@@ -37,7 +37,7 @@ bool NavigationPath::FindPath(const glm::vec3& pos)
 {
 	if (nullptr != m_navMesh)
 	{
-		// WriteChatf("MQ2Nav::FindPath - %.1f %.1f %.1f", X, Y, Z);
+		// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
 		FindPathInternal(pos);
 
 		if (m_currentPathSize > 0)
@@ -160,6 +160,10 @@ void NavigationPath::UpdatePath()
 NavigationLine::NavigationLine(NavigationPath* path)
 	: m_path(path)
 {
+	// temp!
+	m_shaderFile = std::string(gszINIPath) + "\\MQ2Nav\\VolumeLines.fx";
+	m_textureFile = std::string(gszINIPath) + "\\MQ2Nav\\LineTexture.png";
+
 	ZeroMemory(&m_material, sizeof(m_material));
 	m_material.Diffuse.r = 1.0f;
 	m_material.Diffuse.g = 1.0f;
@@ -174,16 +178,78 @@ NavigationLine::~NavigationLine()
 
 bool NavigationLine::CreateDeviceObjects()
 {
+	ID3DXBuffer* errors = 0;
+	HRESULT hr;
+
+	hr = D3DXCreateTextureFromFileA(g_pDevice, m_textureFile.c_str(), &m_lineTexture);
+	if (FAILED(hr))
+	{
+		DebugSpewAlways("Failed to load texture!");
+
+		InvalidateDeviceObjects();
+		return false;
+	}
+
+	hr = D3DXCreateEffectFromFileA(g_pDevice, m_shaderFile.c_str(),
+		NULL, NULL, 0, NULL, &m_effect, &errors);
+	if (FAILED(hr))
+	{
+		if (errors)
+		{
+			DebugSpewAlways("Effect error: %s", errors->GetBufferPointer());
+
+			errors->Release();
+			errors = nullptr;
+		}
+
+		InvalidateDeviceObjects();
+		return false;
+	}
+
+	D3DVERTEXELEMENT9 vertexElements[] =
+	{
+		{ 0,  0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION,  0 },
+		{ 0, 12,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,  0 },
+		{ 0, 24,  D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  0 },
+		{ 0, 40,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  1 },
+		D3DDECL_END()
+	};
+
+	hr = g_pDevice->CreateVertexDeclaration(vertexElements, &m_vDeclaration);
+	if (FAILED(hr))
+	{
+		InvalidateDeviceObjects();
+		return false;
+	}
+
+	m_effect->SetTexture("lineTexture", m_lineTexture);
 	m_loaded = true;
-	return true;
 }
 
 void NavigationLine::InvalidateDeviceObjects()
 {
+	if (m_effect)
+	{
+		m_effect->Release();
+		m_effect = nullptr;
+	}
+
+	if (m_lineTexture)
+	{
+		m_lineTexture->Release();
+		m_lineTexture = nullptr;
+	}
+
 	if (m_vertexBuffer)
 	{
 		m_vertexBuffer->Release();
 		m_vertexBuffer = nullptr;
+	}
+
+	if (m_vDeclaration)
+	{
+		m_vDeclaration->Release();
+		m_vDeclaration = nullptr;
 	}
 
 	m_loaded = false;
@@ -202,16 +268,41 @@ void NavigationLine::Render(RenderPhase phase)
 	if (!m_vertexBuffer)
 		return;
 
-	//g_pDevice->SetMaterial(&m_material);
-	g_pDevice->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
-	g_pDevice->SetFVF(TVertex::FVF);
+	D3DXMATRIX world;
+	D3DXMatrixIdentity(&world);
+	g_pDevice->SetTransform(D3DTS_WORLD, &world);
 
-	// render
-	for (auto& cmd : m_commands)
+	D3DXMATRIX view, proj, mWVP, mWV;
+	g_pDevice->GetTransform(D3DTS_VIEW, &view);
+	g_pDevice->GetTransform(D3DTS_PROJECTION, &proj);
+
+	mWV = world * view;
+	mWVP = world * view * proj;
+
+	// We will not be using a viewing transformation, so the view matrix will be identity.
+	m_effect->SetMatrix("mWV", &mWV);
+	m_effect->SetMatrix("mWVP", &mWVP);
+
+	UINT passes = 0;
+	m_effect->Begin(&passes, 0);
+
+	for (int iPass = 0; iPass < passes; iPass++)
 	{
-		g_pDevice->DrawPrimitive(D3DPT_LINESTRIP,
-			cmd.StartVertex, cmd.PrimitiveCount);
+		m_effect->BeginPass(iPass);
+
+		g_pDevice->SetVertexDeclaration(m_vDeclaration);
+		g_pDevice->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
+
+		// render
+		for (auto& cmd : m_commands)
+		{
+			g_pDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP,
+				cmd.StartVertex, cmd.PrimitiveCount);
+		}
+
+		m_effect->EndPass();
 	}
+	m_effect->End();
 }
 
 void NavigationLine::GenerateBuffers()
@@ -221,7 +312,6 @@ void NavigationLine::GenerateBuffers()
 	if (size == m_lastSize)
 	{
 		// check if the path actually changed.
-
 	}
 
 	if (size <= 0)
@@ -272,23 +362,23 @@ void NavigationLine::GenerateBuffers()
 		v1.z = pt[1].y + 1;
 
 		vertexDest[index + 0].pos = v0;
-		vertexDest[index + 0].otherPos = v1;
-		vertexDest[index + 0].thickness = D3DXVECTOR3(-m_thickness, 0.f, m_thickness * 0.5f);
-		vertexDest[index + 0].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.f, 0.f);
-
 		vertexDest[index + 1].pos = v1;
-		vertexDest[index + 1].otherPos = v0;
-		vertexDest[index + 1].thickness = D3DXVECTOR3(m_thickness, 0.f, m_thickness * 0.5f);
-		vertexDest[index + 1].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.25f, 0.f);
-
 		vertexDest[index + 2].pos = v0;
-		vertexDest[index + 2].otherPos = v1;
-		vertexDest[index + 2].thickness = D3DXVECTOR3(m_thickness, 0.f, m_thickness * 0.5f);
-		vertexDest[index + 2].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.f, 0.25f);
-
 		vertexDest[index + 3].pos = v1;
+
+		vertexDest[index + 0].otherPos = v1;
+		vertexDest[index + 1].otherPos = v0;
+		vertexDest[index + 2].otherPos = v1;
 		vertexDest[index + 3].otherPos = v0;
+
+		vertexDest[index + 0].thickness = D3DXVECTOR3(-m_thickness, 0.f, m_thickness * 0.5f);
+		vertexDest[index + 1].thickness = D3DXVECTOR3(m_thickness, 0.f, m_thickness * 0.5f);
+		vertexDest[index + 2].thickness = D3DXVECTOR3(m_thickness, 0.f, m_thickness * 0.5f);
 		vertexDest[index + 3].thickness = D3DXVECTOR3(-m_thickness, 0.f, m_thickness * 0.5f);
+
+		vertexDest[index + 0].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.f, 0.f);
+		vertexDest[index + 1].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.25f, 0.f);
+		vertexDest[index + 2].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.f, 0.25f);
 		vertexDest[index + 3].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.25f, 0.25f);
 
 		m_commands[i].StartVertex = index;

@@ -119,6 +119,12 @@ public:
 private:
 	NavigationPath* m_path;
 
+	std::string m_shaderFile;
+	ID3DXEffect* m_effect = nullptr;
+
+	std::string m_textureFile;
+	IDirect3DTexture9* m_lineTexture = nullptr;
+
 	// The vertex structure we'll be using for line drawing. Each line is defined as two vertices,
 	// and the vertex shader will create a quad from these two vertices. However, since the vertex
 	// shader can only process one vertex at a time, we need to store information in each vertex
@@ -137,6 +143,7 @@ private:
 	};
 
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;
+	IDirect3DVertexDeclaration9* m_vDeclaration = nullptr;
 	D3DMATERIAL9 m_material;
 
 	struct RenderCommand
@@ -149,5 +156,7 @@ private:
 
 	bool m_loaded = false;
 	bool m_needsUpdate = false;
-	float m_thickness = 1.0f;
+	float m_thickness = 0.2f;
+
+
 };

@@ -200,9 +200,11 @@ void NavMeshRenderer::OnUpdateUI()
 {
 	if (!GetCharInfo())
 		return;
+
 	PCHARINFO pCharInfo = GetCharInfo();
 
-	ImGui::Begin("Debug");
+	ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiSetCond_FirstUseEver);
+	ImGui::Begin("MQ2Nav Tools");
 
 	if (ImGui::CollapsingHeader("Navigation Mesh", "##navmesh"))
 	{
@@ -213,9 +215,10 @@ void NavMeshRenderer::OnUpdateUI()
 			ImGui::Separator();
 			if (m_loading)
 			{
-				ImGui::ProgressBar("Progress", m_progress);
+				ImGui::ProgressBar(m_progress);
 			}
 
+#if 0
 			ImGui::Columns(2);
 			ImGui::Checkbox("Points", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Points]);
 			ImGui::NextColumn();
@@ -233,6 +236,7 @@ void NavMeshRenderer::OnUpdateUI()
 			{
 				m_state->RenderDebugUI();
 			}
+#endif
 		}
 	}
 
@@ -438,7 +442,6 @@ void ConfigurableRenderState::RenderDebugUI()
 
 			std::string label = "Stage " + std::to_string(stage);
 			ImGui::Text("Stage %d", stage);
-			//ImGui::BeginChild(label.c_str(), ImVec2(0, 200), true);
 
 			TypedCombo("Color Operation", Tex.m_colorOpIndex, Tex.m_colorOp, texture_op);
 			TypedCombo("Color Arg 1", Tex.m_colorArg1Index, Tex.m_colorArg1, color_arg);
@@ -452,18 +455,8 @@ void ConfigurableRenderState::RenderDebugUI()
 			ImGui::ColorEdit4("Constant Color", (float*)&color);
 			Tex.m_colorConstant = ImGui::ColorConvertFloat4ToU32(color);
 
-			//m_pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-			//m_pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-			//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-			//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-			//m_pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-
-
 			ImGui::PopID();
-			//ImGui::EndChild();
-			//ImGui::NextColumn();
 		}
-		//ImGui::Columns(1);
 	}
 
 	if (ImGui::CollapsingHeader("Capabilities"))

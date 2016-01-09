@@ -174,11 +174,7 @@ public:
 			{
 				if (m_visible && door->pSwitch)
 				{
-					ResetDeviceState();
-
 					bool zDisabled = m_targetted || m_highlight;
-
-					g_pDevice->SetRenderState(D3DRS_FOGENABLE, false);
 
 					D3DXMATRIX* mtx = (D3DXMATRIX*)(&door->pSwitch->transformMatrix);
 
@@ -474,6 +470,8 @@ void DoorsDebugUI::Render()
 {
 if (!m_showDoorsUI)
 		return;
+
+	ImGui::SetNextWindowSize(ImVec2(500, 120), ImGuiSetCond_FirstUseEver);
 	if (!ImGui::Begin("EQ Doors", &m_showDoorsUI))
 		return;
 
@@ -611,7 +609,7 @@ void ModelLoader::OnUpdateUI()
 {
 	m_doorsUI->Render();
 
-	ImGui::Begin("Debug");
+	ImGui::Begin("MQ2Nav Tools");
 
 	if (ImGui::CollapsingHeader("Objects"))
 	{
@@ -620,14 +618,15 @@ void ModelLoader::OnUpdateUI()
 		//ImGui::LabelText("Filename", "%s", m_zoneFile.c_str());
 
 		ImGui::Checkbox("Draw Bounding Boxes", &s_drawBoundingBoxes);
-		ImGui::Checkbox("All doors visible", &s_visibleOverride);
+		if (s_drawBoundingBoxes)
+			ImGui::Checkbox("All doors visible", &s_visibleOverride);
 
 		if (ImGui::Button("View Doors"))
 		{
 			m_doorsUI->Show();
 		}
 
-		if (ImGui::TreeNode("##SwitchTable", "Objects"))
+		if (ImGui::TreeNode("##SwitchTable", "Door Objects"))
 		{
 			PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
 			
