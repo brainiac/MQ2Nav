@@ -34,6 +34,9 @@ public:
 	inline int getVertCount() const { return m_vertCount; }
 	inline int getTriCount() const { return m_triCount; }
 
+	inline int GetDynamicObjectsCount() const { return m_dynamicObjects; }
+	inline bool HasDynamicObjects() const { return m_hasDynamicObjects; }
+
 private:
 	bool Build();
 	void LoadDoors();
@@ -70,6 +73,9 @@ private:
 	std::map<std::string, std::shared_ptr<EQEmu::EQG::Geometry>> map_eqg_models;
 	std::vector<std::shared_ptr<EQEmu::Placeable>> map_placeables;
 	std::vector<std::shared_ptr<EQEmu::PlaceableGroup>> map_group_placeables;
+
+	int m_dynamicObjects = 0;
+	bool m_hasDynamicObjects = false;
 
 	struct ModelEntry
 	{

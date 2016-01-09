@@ -569,9 +569,6 @@ void Interface::RenderInterface()
 
 		if (m_geom)
 		{
-			ImGui::LabelText("Verts", "%.1fk", m_geom->getMeshLoader()->getVertCount() / 1000.0f);
-			ImGui::LabelText("Tris", "%.1fk", m_geom->getMeshLoader()->getTriCount() / 1000.0f);
-
 			int tw, th, tm;
 			m_mesh->getTileStatistics(tw, th, tm);
 			int tt = tw*th;
@@ -580,8 +577,10 @@ void Interface::RenderInterface()
 
 			if (m_mesh->isBuildingTiles())
 			{
-				ImGui::LabelText("Progress", "%d of %d (%.2f%%)",
-					m_mesh->getTilesBuilt(), tt, percent);
+				char szProgress[256];
+				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_mesh->getTilesBuilt(), tt, percent);
+
+				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
 
 				if (ImGui::Button("Halt Build"))
 					m_mesh->cancelBuildAllTiles();
@@ -615,6 +614,31 @@ void Interface::RenderInterface()
 				if (totalBuildTime > 0)
 					ImGui::Text("Build Time: %.1fms", totalBuildTime);
 			}
+
+			ImGui::Separator();
+
+			auto* loader = m_geom->getMeshLoader();
+
+			if (loader->HasDynamicObjects())
+				ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
+			else {
+				ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
+
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::BeginTooltip();
+					ImGui::Text("Dynamic objects can be loaded after entering\n"
+					            "a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
+					            "to refresh the dynamic objects.");
+					ImGui::EndTooltip();
+				}
+			}
+
+
+
+			ImGui::LabelText("Verts", "%.1fk", loader->getVertCount() / 1000.0f);
+			ImGui::LabelText("Tris", "%.1fk", loader->getTriCount() / 1000.0f);
+
 
 			ImGui::Separator();
 

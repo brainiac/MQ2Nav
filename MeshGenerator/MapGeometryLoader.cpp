@@ -458,6 +458,7 @@ void MapGeometryLoader::LoadDoors()
 		return;
 
 	std::vector<DoorParams> doors;
+	m_hasDynamicObjects = true;
 
 	for (auto iter = document.Begin(); iter != document.End(); ++iter)
 	{
@@ -533,6 +534,8 @@ void MapGeometryLoader::LoadDoors()
 				scale * verts[polygon.verts[1]].pos,
 				scale * verts[polygon.verts[2]].pos);
 		}
+
+		++m_dynamicObjects;
 	};
 
 	for (auto iter = doors.begin(); iter != doors.end(); ++iter)

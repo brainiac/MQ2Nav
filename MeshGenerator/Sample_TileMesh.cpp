@@ -764,12 +764,13 @@ bool Sample_TileMesh::handleBuild()
 		m_ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not init Detour navmesh query");
 		return false;
 	}
-	
+
 	if (m_buildAll)
 		buildAllTiles();
 	
 	if (m_tool)
 		m_tool->init(this);
+
 	initToolStates(this);
 
 	return true;
