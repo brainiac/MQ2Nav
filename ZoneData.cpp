@@ -27,7 +27,7 @@ public:
 
 	virtual bool Load() = 0;
 
-	virtual bool GetBoundingBox(const std::string& modelName, ModelInfo& bb) = 0;
+	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) = 0;
 };
 
 //----------------------------------------------------------------------------
@@ -76,27 +76,28 @@ public:
 		return model;
 	}
 
-	virtual bool GetBoundingBox(const std::string& modelName, ModelInfo& bb) override
+	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
 		if (ModelPtr model = GetModel(modelName))
 		{
+			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
+
 			for (auto& vert : model->GetVertices())
 			{
-				bb.min.x = std::min(vert.pos.y, bb.min.x);
-				bb.min.y = std::min(vert.pos.x, bb.min.y);
-				bb.min.z = std::min(vert.pos.z, bb.min.z);
+				modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
+				modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
+				modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
 
-				bb.max.x = std::max(vert.pos.y, bb.max.x);
-				bb.max.y = std::max(vert.pos.x, bb.max.y);
-				bb.max.z = std::max(vert.pos.z, bb.max.z);
+				modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
+				modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
+				modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
 			}
 
-			bb.newModel = model;
-
-			return true;
+			modelInfo->newModel = model;
+			return modelInfo;
 		}
 
-		return false;
+		return nullptr;
 	}
 
 private:
@@ -245,50 +246,49 @@ public:
 		return nullptr;
 	}
 
-	virtual bool GetBoundingBox(const std::string& modelName, ModelInfo& bb) override
+	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
 		// try to find the s3d model first, that is the most common
 		if (OldModelPtr model = GetS3dModel(modelName))
 		{
+			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
+
 			for (auto& vert : model->GetVertices())
 			{
-				bb.min.x = std::min(vert.pos.y, bb.min.x);
-				bb.min.y = std::min(vert.pos.x, bb.min.y);
-				bb.min.z = std::min(vert.pos.z, bb.min.z);
+				modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
+				modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
+				modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
 
-				bb.max.x = std::max(vert.pos.y, bb.max.x);
-				bb.max.y = std::max(vert.pos.x, bb.max.y);
-				bb.max.z = std::max(vert.pos.z, bb.max.z);
+				modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
+				modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
+				modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
 			}
 
-			bb.oldModel = model;
-
-			return true;
+			modelInfo->oldModel = model;
+			return modelInfo;
 		}
 
 		// otherwise, if we have eqg models, try them too
-		if (!m_eqgModels.empty())
+		if (ModelPtr model = GetEQGModel(modelName))
 		{
-			if (ModelPtr model = GetEQGModel(modelName))
+			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
+
+			for (auto& vert : model->GetVertices())
 			{
-				for (auto& vert : model->GetVertices())
-				{
-					bb.min.x = std::min(vert.pos.y, bb.min.x);
-					bb.min.y = std::min(vert.pos.x, bb.min.y);
-					bb.min.z = std::min(vert.pos.z, bb.min.z);
+				modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
+				modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
+				modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
 
-					bb.max.x = std::max(vert.pos.y, bb.max.x);
-					bb.max.y = std::max(vert.pos.x, bb.max.y);
-					bb.max.z = std::max(vert.pos.z, bb.max.z);
-				}
-
-				bb.newModel = model;
-
-				return true;
+				modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
+				modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
+				modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
 			}
+
+			modelInfo->newModel = model;
+			return modelInfo;
 		}
 
-		return false;
+		return nullptr;
 	}
 
 private:
@@ -326,12 +326,13 @@ void ZoneData::LoadZone()
 		m_loader.reset();
 }
 
-bool ZoneData::GetModelInfo(const std::string& modelName, ModelInfo& bb)
+std::shared_ptr<ModelInfo> ZoneData::GetModelInfo(const std::string& modelName)
 {
-	if (m_loader)
-		return m_loader->GetBoundingBox(modelName, bb);
+	auto iter = m_modelInfo.find(modelName);
+	if (iter != m_modelInfo.end())
+		return iter->second;
 
-	return false;
+	return m_loader ? m_loader->GetModelInfo(modelName) : nullptr;
 }
 
 bool ZoneData::IsLoaded()

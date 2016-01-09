@@ -35,9 +35,9 @@ bool s_drawBoundingBoxes = false;
 class ModelData : public Renderable
 {
 public:
-	ModelData(int doorId, ModelInfo& bb, IDirect3DDevice9* device)
+	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo, IDirect3DDevice9* device)
 		: m_doorId(doorId)
-		, m_bb(bb)
+		, m_modelInfo(modelInfo)
 	{
 		m_grpBB = std::make_unique<RenderGroup>(device);
 #if RENDER_MODELS
@@ -96,14 +96,14 @@ public:
 	}
 
 	void RegenerateMesh()
-	{
-		ModelInfo& bb = m_bb;
-	
+	{	
 		{
 			DebugDrawDX dd(m_grpBB.get());
 
-			duDebugDrawBoxWire(&dd, bb.min.x, bb.min.z, bb.min.y,
-				bb.max.x, bb.max.z, bb.max.y, m_color, 1.0);
+			duDebugDrawBoxWire(&dd,
+				m_modelInfo->min.x, m_modelInfo->min.z, m_modelInfo->min.y,
+				m_modelInfo->max.x, m_modelInfo->max.z, m_modelInfo->max.y,
+				m_color, 1.0);
 		}
 
 #if RENDER_MODELS
@@ -113,10 +113,10 @@ public:
 		DebugDrawDX dd(m_grpModel.get());
 
 		// iterate over all the things!
-		if (bb.oldModel)
+		if (m_modelInfo->oldModel)
 		{
-			auto verts = bb.oldModel->GetVertices();
-			auto polys = bb.oldModel->GetPolygons();
+			auto verts = m_modelInfo->oldModel->GetVertices();
+			auto polys = m_modelInfo->oldModel->GetPolygons();
 
 #define VERT(PX) { \
 	glm::vec3 p0; const glm::vec3& p = verts[iter->verts[PX]].pos; \
@@ -141,10 +141,10 @@ public:
 			}
 		}
 
-		if (bb.newModel)
+		if (m_modelInfo->newModel)
 		{
-			auto verts = bb.newModel->GetVertices();
-			auto polys = bb.newModel->GetPolygons();
+			auto verts = m_modelInfo->newModel->GetVertices();
+			auto polys = m_modelInfo->newModel->GetPolygons();
 
 			for (auto iter = polys.begin(); iter != polys.end(); ++iter)
 			{
@@ -224,7 +224,7 @@ public:
 	void SetVisible(bool visible) { m_visible = visible; }
 	bool IsVisible() const { return m_visible; }
 
-	ModelInfo& GetBoundingBox() { return m_bb; }
+	const std::shared_ptr<ModelInfo>& GetModelInfo() { return m_modelInfo; }
 
 private:
 	void Rebuild()
@@ -236,7 +236,7 @@ private:
 		RegenerateMesh();
 	}
 
-	ModelInfo m_bb;
+	std::shared_ptr<ModelInfo> m_modelInfo;
 	std::unique_ptr<RenderGroup> m_grpBB;
 #if RENDER_MODELS
 	std::unique_ptr<RenderGroup> m_grpModel;
@@ -362,19 +362,17 @@ void ModelLoader::SetZoneId(int zoneId)
 		return;
 	}
 
-	m_zoneData = std::move(zoneData);
-
 	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
 	for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
 	{
 		PDOOR door = pDoorTable->pDoor[count];
-		ModelInfo bb;
+		std::shared_ptr<ModelInfo> modelInfo;
 
 		// might end up moving the renderable generating into m_zoneData
-		if (m_zoneData->GetModelInfo(door->Name, bb))
+		if (modelInfo = zoneData->GetModelInfo(door->Name))
 		{
 			// Create new model object
-			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, bb, g_pDevice);
+			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, modelInfo, g_pDevice);
 			m_modelData[door->ID] = md;
 
 			g_renderHandler->AddRenderable(md);
@@ -447,7 +445,6 @@ void ModelLoader::Reset()
 {
 	m_zoneId = 0;
 	m_zoneFile.clear();
-	m_zoneData.reset();
 	m_models.clear();
 	m_lastDoorTargetId = -1;
 

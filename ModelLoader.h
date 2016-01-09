@@ -48,8 +48,6 @@ private:
 	std::string m_zoneFile;
 	int m_lastDoorTargetId = -1;
 
-	std::unique_ptr<ZoneData> m_zoneData;
-
 	std::map<std::string, std::shared_ptr<EQEmu::EQG::Geometry>> m_models;
 	std::map<int, std::shared_ptr<ModelData>> m_modelData;
 

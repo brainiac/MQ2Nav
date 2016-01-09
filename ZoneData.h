@@ -30,7 +30,7 @@ public:
 
 	bool IsLoaded();
 
-	bool GetModelInfo(const std::string& modelName, ModelInfo& bb);
+	std::shared_ptr<ModelInfo> ZoneData::GetModelInfo(const std::string& modelName);
 
 	std::string GetZoneName() const { return m_zoneName; }
 	std::string GetEQPath() const { return m_eqPath; }
@@ -43,4 +43,5 @@ private:
 
 	// For EQG files
 	std::unique_ptr<ZoneDataLoader> m_loader;
+	std::map<std::string, std::shared_ptr<ModelInfo>> m_modelInfo;
 };

@@ -425,8 +425,18 @@ struct DoorParams
 	glm::mat4x4 transform;
 };
 
+bool IsSwitchStationary(DWORD type)
+{
+	return (type != 53 && type >= 50 && type < 59)
+		|| (type >= 153 && type <= 155);
+}
+
+
 void MapGeometryLoader::LoadDoors()
 {
+	//
+	// Load the door data
+	//
 	std::string filename = m_meshPath + "\\MQ2Nav\\" + m_zoneName + "_doors.json";
 	
 	boost::system::error_code ec;
@@ -449,36 +459,41 @@ void MapGeometryLoader::LoadDoors()
 
 	std::vector<DoorParams> doors;
 
-	for (size_t i = 0; i < document.Size(); ++i)
+	for (auto iter = document.Begin(); iter != document.End(); ++iter)
 	{
-		for (rapidjson::Value::ConstValueIterator iter = document.Begin(); iter != document.End(); ++iter)
+		if (!iter->IsObject())
+			return;
+
+		DoorParams params;
+		params.id = (*iter)["ID"].GetInt();
+		params.name = (*iter)["Name"].GetString();
+		params.type = (*iter)["Type"].GetInt();
+		params.scale = (*iter)["Scale"].GetDouble();
+
+		// only add stationary objects
+		if (!IsSwitchStationary(params.type))
+			continue;
+
+		const auto& t = (*iter)["Transform"];
+		for (int i = 0; i < 4; i++)
 		{
-			if (!iter->IsObject())
-				return;
-
-			DoorParams params;
-			params.id = (*iter)["ID"].GetInt();
-			params.name = (*iter)["Name"].GetString();
-			params.type = (*iter)["Type"].GetInt();
-			params.scale = (*iter)["Scale"].GetDouble();
-
-			const auto& t = (*iter)["Transform"];
-			for (int i = 0; i < 4; i++)
+			for (int j = 0; j < 4; j++)
 			{
-				for (int j = 0; j < 4; j++)
-				{
-					params.transform[i][j] = t[i][j].GetDouble();
-				}
+				params.transform[i][j] = t[i][j].GetDouble();
 			}
-
-			doors.push_back(params);
 		}
+
+		doors.push_back(params);
 	}
 
 	if (doors.empty()) {
 		m_doorsLoaded = true;
 		return;
 	}
+
+	//
+	// Load the models for that door data
+	//
 
 	ZoneData zoneData(m_eqPath, m_zoneName);
 
@@ -524,25 +539,24 @@ void MapGeometryLoader::LoadDoors()
 	{
 		auto& params = *iter;
 
-		ModelInfo mi;
-		if (!zoneData.GetModelInfo(params.name, mi))
+		if (std::shared_ptr<ModelInfo> mi = zoneData.GetModelInfo(params.name))
+		{
+			glm::mat4x4 matrix = params.transform;
+
+			if (mi->oldModel)
+			{
+				addModel(matrix, params.scale, mi->oldModel);
+			}
+			if (mi->newModel)
+			{
+				addModel(matrix, params.scale, mi->newModel);
+			}
+		}
+		else
 		{
 			eqLogMessage(LogTrace, "Couldn't find model for %s.", params.name.c_str());
-			continue;
-		}
-
-		glm::mat4x4 matrix = params.transform;
-
-		if (mi.oldModel)
-		{
-			addModel(matrix, params.scale, mi.oldModel);
-		}
-		if (mi.newModel)
-		{
-			addModel(matrix, params.scale, mi.newModel);
 		}
 	}
-
 }
 
 //============================================================================

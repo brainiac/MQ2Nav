@@ -73,11 +73,9 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>XCOPY /y "$(ProjectDir)Zones.ini" "$(OutDir)Zones.ini"
-
-MKDIR "$(OutDir)MQ2Nav"
-XCOPY /y "$(ProjectDir)LineTexture.png" "$(OutDir)MQ2Nav\LineTexture.png"
-XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav\VolumeLines.fx"
+      <Command>MKDIR "$(OutDir)MQ2Nav"
+XCOPY /y "$(ProjectDir)LineTexture.png" "$(OutDir)MQ2Nav"
+XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
