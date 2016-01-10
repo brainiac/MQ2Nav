@@ -51,6 +51,7 @@ PLUGIN_API void OnEndZone()
 
 PLUGIN_API void OnZoned()
 {
+	// OnZoned occurs later than OnEndZone, when more data is available
 	if (g_mq2Nav)
 		g_mq2Nav->OnEndZone();
 }

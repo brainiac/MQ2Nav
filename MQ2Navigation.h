@@ -67,6 +67,7 @@ public:
 	//----------------------------------------------------------------------------
 
 	bool IsActive() const { return m_isActive; }
+	bool IsPaused() const { return m_isPaused; }
 	bool IsMeshLoaded() const;
 
 	// Load navigation mesh for the current zone
@@ -134,6 +135,9 @@ private:
 	// whether the current path is active or not
 	bool m_isActive = false;
 	glm::vec3 m_currentWaypoint;
+
+	// if paused, path will not be followed
+	bool m_isPaused = false;
 
 	typedef std::chrono::high_resolution_clock clock;
 

@@ -12,6 +12,7 @@ MQ2NavigationType::MQ2NavigationType(MQ2NavigationPlugin* nav_)
 	, m_nav(nav_)
 {
 	TypeMember(Active);
+	TypeMember(Paused);
 	TypeMember(MeshLoaded);
 	TypeMember(PathExists);
 	TypeMember(PathLength);
@@ -29,6 +30,10 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 		Dest.Type = pBoolType;
 		Dest.DWord = m_nav->IsActive();
 		return true;
+	case Paused:
+		Dest.Type = pBoolType;
+		Dest.DWord = m_nav->IsPaused();
+		break;
 	case MeshLoaded:
 		Dest.Type = pBoolType;
 		Dest.DWord = m_nav->IsMeshLoaded();

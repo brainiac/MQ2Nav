@@ -34,7 +34,7 @@ NavMeshRenderer::NavMeshRenderer(NavMeshLoader* loader, IDirect3DDevice9* device
 	m_meshConn = loader->OnNavMeshChanged.Connect(conn);
 
 	m_primGroup = std::make_unique<RenderGroup>(device);
-	m_enabled = mq2nav::GetSettings().show_navmesh_overlay;
+	//m_enabled = mq2nav::GetSettings().show_navmesh_overlay;
 }
 
 NavMeshRenderer::~NavMeshRenderer()
@@ -207,8 +207,8 @@ void NavMeshRenderer::OnUpdateUI()
 		m_meshLoader->LoadNavMesh();
 
 	if (ImGui::Checkbox("Show navmesh", &m_enabled)) {
-		mq2nav::GetSettings().show_navmesh_overlay = m_enabled;
-		mq2nav::SaveSettings(false);
+		//mq2nav::GetSettings().show_navmesh_overlay = m_enabled;
+		//mq2nav::SaveSettings(false);
 	}
 
 	if (m_enabled && m_loading)

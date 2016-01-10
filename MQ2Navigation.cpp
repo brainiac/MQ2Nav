@@ -129,13 +129,15 @@ void MQ2NavigationPlugin::OnBeginZone()
 	UpdateCurrentZone();
 
 	// hide imgui while zoning
-	g_imguiRenderer->SetVisible(false);
+	if (g_imguiRenderer)
+		g_imguiRenderer->SetVisible(false);
 }
 
 void MQ2NavigationPlugin::OnEndZone()
 {
 	// restore imgui after zoning
-	g_imguiRenderer->SetVisible(true);
+	if (g_imguiRenderer)
+		g_imguiRenderer->SetVisible(true);
 
 	pDoorTarget = nullptr;
 	pGroundTarget = nullptr;
@@ -261,10 +263,23 @@ BOOL MQ2NavigationPlugin::Data_Navigate(PCHAR szName, MQ2TYPEVAR& Dest)
 
 void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 {
-	m_pEndingDoor = nullptr;
-	m_pEndingItem = nullptr;
 	CHAR buffer[MAX_STRING] = { 0 };
 	int i = 0;
+
+	GetArg(buffer, szLine, 1);
+
+	if (!stricmp(buffer, "ui")) {
+		mq2nav::GetSettings().show_ui = !mq2nav::GetSettings().show_ui;
+		mq2nav::SaveSettings(false);
+		return;
+	}
+	else if (!stricmp(buffer, "pause")) {
+		m_isPaused = !m_isPaused;
+		return;
+	}
+
+	m_pEndingDoor = nullptr;
+	m_pEndingItem = nullptr;
 
 	//DebugSpewAlways("MQ2Nav::NavigateCommand - start with arg: %s", szLine);
 	glm::vec3 destination;
@@ -274,8 +289,6 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 
 	if (!haveDestination)
 	{
-		GetArg(buffer, szLine, 1);
-
 		// reload nav mesh
 		if (!strcmp(buffer, "reload")) {
 			m_meshLoader->LoadNavMesh();
@@ -283,7 +296,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		else if (!stricmp(buffer, "recordwaypoint") || !stricmp(buffer, "rwp")) {
 			GetArg(buffer, szLine, 2);
 			if (0 == *buffer) {
-				WriteChatf(PLUGIN_MSG "usage: /navigate recordwaypoint <waypoint name> <waypoint tag>");
+				WriteChatf(PLUGIN_MSG "Usage: /navigate recordwaypoint <waypoint name> <waypoint tag>");
 			}
 			else {
 				std::string waypointName(buffer);
@@ -296,23 +309,25 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 			}
 		}
 		else if (!stricmp(buffer, "help")) {
-			WriteChatf(PLUGIN_MSG "Usage: /navigate [save | load | reload] [target] [X Y Z] [item [click] [once]] [door  [click] [once]] [waypoint <waypoint name>] [stop] [recordwaypoint <name> <tag> ]");
+			WriteChatf(PLUGIN_MSG "Usage:");
+			WriteChatf(PLUGIN_MSG "\ag/navigate [save | load]\ax - save/load settings");
+			WriteChatf(PLUGIN_MSG "\ag/navigate reload\ax - reload navmesh");
+			WriteChatf(PLUGIN_MSG "\ag/navigate recordwaypoint <waypoint name> <waypoint tag>\ax - create a waypoint");
+
+			WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
+			WriteChatf(PLUGIN_MSG "\ag/navigate target\ax - navigate to target");
+			WriteChatf(PLUGIN_MSG "\ag/navigate X Y Z\ax - navigate to coordinates");
+			WriteChatf(PLUGIN_MSG "\ag/navigate item [click] [once]\ax - navigate to item (and click it)");
+			WriteChatf(PLUGIN_MSG "\ag/navigate door [click] [once]\ax - navigate to door/object (and click it)");
+			WriteChatf(PLUGIN_MSG "\ag/navigate waypoint <waypoint>\ax - navigate to waypoint");
+			WriteChatf(PLUGIN_MSG "\ag/navigate stop\ax - stop navigation");
+			WriteChatf(PLUGIN_MSG "\ag/naviagte pause\ax - pause navigation");
 		}
 		else if (!stricmp(buffer, "load")) {
-			mq2nav::LoadSettings();
+			mq2nav::LoadSettings(true);
 		}
 		else if (!stricmp(buffer, "save")) {
-			mq2nav::SaveSettings();
-		}
-		else if (!stricmp(buffer, "ui")) {
-			mq2nav::GetSettings().show_ui = !mq2nav::GetSettings().show_ui;
-			mq2nav::SaveSettings(false);
-		}
-		else if (!stricmp(buffer, "autoreload")) {
-			mq2nav::GetSettings().autoreload = !mq2nav::GetSettings().autoreload;
-			m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
-			WriteChatf(PLUGIN_MSG "Autoreload is now %s", mq2nav::GetSettings().autoreload ? "\agon\ax" : "\aroff\ax");
-			mq2nav::SaveSettings(false);
+			mq2nav::SaveSettings(true);
 		}
 		Stop();
 		return;
@@ -353,9 +368,16 @@ bool MQ2NavigationPlugin::IsMeshLoaded() const
 
 void MQ2NavigationPlugin::OnMovementKeyPressed()
 {
-	if (m_isActive && mq2nav::GetSettings().autobreak)
+	if (m_isActive)
 	{
-		Stop();
+		if (mq2nav::GetSettings().autobreak)
+		{
+			Stop();
+		}
+		else if (mq2nav::GetSettings().autopause)
+		{
+			m_isPaused = true;
+		}
 	}
 }
 
@@ -446,7 +468,9 @@ void MQ2NavigationPlugin::StuckCheck()
 
 void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 {
-#if 0
+	if (m_isPaused)
+		return;
+
 	gFaceAngle = (atan2(pos.x - GetCharInfo()->pSpawn->X, pos.y - GetCharInfo()->pSpawn->Y)  * 256.0f / PI);
 	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
 	if (gFaceAngle<0.0f) gFaceAngle += 512.0f;
@@ -472,7 +496,6 @@ void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 	}
 	else
 		GetCharInfo()->pSpawn->CameraAngle = 0.0f;
-#endif
 
 	// this is a sentinel value telling MQ2 to not adjust the look angle
 	gLookAngle = 10000.0f;
@@ -525,8 +548,11 @@ void MQ2NavigationPlugin::AttemptMovement()
 	}
 	else if (m_activePath->GetPathSize() > 0)
 	{
-		//if (!GetCharInfo()->pSpawn->SpeedRun)
-		//	MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 1, 0);
+		if (!m_isPaused)
+		{
+			if (!GetCharInfo()->pSpawn->SpeedRun)
+				MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 1, 0);
+		}
 
 		glm::vec3 nextPosition = m_activePath->GetNextPosition();
 
@@ -637,6 +663,9 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 			result = false;
 		}
 	}
+	if (result)
+		m_isPaused = false;
+
 	return result;
 }
 
@@ -725,6 +754,40 @@ void MQ2NavigationPlugin::OnUpdateUI()
 
 	if (do_ui)
 	{
+		if (ImGui::Checkbox("Pause navigation", &m_isPaused)) {
+			if (m_isPaused)
+				MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+		}
+
+		if (ImGui::TreeNode("Pathing State"))
+		{
+			if (m_activePath) {
+				auto dest = m_activePath->GetDestination();
+				ImGui::LabelText("Destination", "(%.2f, %.2f, %.2f)",
+					dest.x, dest.y, dest.z);
+				
+				auto charInfo = GetCharInfo();
+				glm::vec3 myPos(charInfo->pSpawn->X, charInfo->pSpawn->Y, charInfo->pSpawn->Z);
+				ImGui::LabelText("Distance", "%.2f", glm::distance(dest, myPos));
+			}
+			else {
+				ImGui::LabelText("Destination", "<none>");
+				ImGui::LabelText("Distance", "");
+			}
+			ImGui::LabelText("Ending Door", "%s", m_pEndingDoor ? m_pEndingDoor->Name : "<none>");
+			ImGui::LabelText("Ending Item", "%s", m_pEndingItem ? m_pEndingItem->Name : "<none>");
+			ImGui::LabelText("Is Active", "%s", m_isActive ? "true" : "false");
+			ImGui::LabelText("Spam Click", "%s", m_bSpamClick ? "true" : "false");
+			ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f)", m_currentWaypoint.x, m_currentWaypoint.y, m_currentWaypoint.z);
+			ImGui::LabelText("Stuck Data", "(%.2f, %.2f) %d", m_stuckX, m_stuckY, m_stuckTimer.time_since_epoch());
+			ImGui::LabelText("Last Click", "%d", m_lastClick.time_since_epoch());
+			ImGui::LabelText("Pathfind Timer", "%d", m_pathfindTimer.time_since_epoch());
+
+			ImGui::TreePop();
+		}
+
+		ImGui::Separator();
+
 		if (g_navMeshRenderer) g_navMeshRenderer->OnUpdateUI();
 
 		if (m_activePath) m_activePath->OnUpdateUI();
@@ -739,6 +802,11 @@ void MQ2NavigationPlugin::OnUpdateUI()
 				changed = true;
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Automatically stop navigation when pressing a movement key");
+
+			if (ImGui::Checkbox("Auto Pause", &settings.autopause))
+				changed = true;
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Automatically pause navigation when pressing a movement key");
 
 			if (ImGui::Checkbox("Auto update nav mesh", &settings.autoreload))
 				changed = true;

@@ -76,8 +76,6 @@ public:
 					std::string asset_file = (boost::format("%s\\%s") % m_zd->GetEQPath() % name).str();
 					EQEmu::PFS::Archive archive;
 
-					//DebugSpewAlways("[MQ2] Open Archive: %s", asset_file.c_str());
-
 					if (!archive.Open(asset_file))
 						continue;
 
@@ -93,7 +91,6 @@ public:
 							model_loader.Load(archive, modelName, model);
 							if (model)
 							{
-								//DebugSpewAlways("[MQ2] Loaded EQG Model: %s", modelName.c_str());
 								model->SetName(modelName);
 								m_modelsByFile[modelName] = model;
 								loadedSomething = true;
@@ -141,8 +138,6 @@ public:
 		{
 			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
 
-			//DebugSpewAlways("[MQ2] GetModelInfo (%s) -> %p", modelName.c_str(), model.get());
-
 			for (auto& vert : model->GetVertices())
 			{
 				modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
@@ -157,8 +152,6 @@ public:
 			modelInfo->newModel = model;
 			return modelInfo;
 		}
-
-		//DebugSpewAlways("[MQ2] GetModelInfo (%s) -> 0", modelName.c_str());
 
 		return nullptr;
 	}
@@ -224,8 +217,6 @@ public:
 
 						if (m_s3dModels.find(model->GetName()) == m_s3dModels.end())
 						{
-							//DebugSpewAlways("Loaded S3D Model: %s", model->GetName().c_str());
-
 							m_s3dModels[model->GetName()] = model;
 							loadedSomething = true;
 						}
@@ -282,7 +273,6 @@ public:
 				}
 			}
 		}
-
 
 		return loadedSomething;
 	}

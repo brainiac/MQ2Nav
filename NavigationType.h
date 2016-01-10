@@ -17,9 +17,10 @@ class MQ2NavigationType : public MQ2Type
 public:
 	enum NavigationMembers {
 		Active = 1,
-		MeshLoaded = 2,
-		PathExists = 3,
-		PathLength = 4,
+		Paused = 2,
+		MeshLoaded = 3,
+		PathExists = 4,
+		PathLength = 5,
 	};
 
 	MQ2NavigationType(MQ2NavigationPlugin* nav_);

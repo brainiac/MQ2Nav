@@ -13,6 +13,9 @@ struct SettingsData
 	// auto break navigation if keyboard input is received
 	bool autobreak = false;
 
+	// auto pause navigation if keyboard input is received
+	bool autopause = false;
+
 	// auto reload navmesh if file changes
 	bool autoreload = true;
 

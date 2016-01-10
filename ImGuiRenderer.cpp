@@ -126,6 +126,8 @@ void ImGuiRenderer::Render(RenderPhase phase)
 		return;
 	if (!m_visible)
 		return;
+	if (gGameState != GAMESTATE_INGAME)
+		return;
 
 	if (m_imguiReady)
 	{

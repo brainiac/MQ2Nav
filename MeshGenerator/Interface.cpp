@@ -573,7 +573,7 @@ void Interface::RenderInterface()
 			m_mesh->getTileStatistics(tw, th, tm);
 			int tt = tw*th;
 
-			float percent = (float)m_mesh->getTilesBuilt() / (float)tt * 100;
+			float percent = (float)m_mesh->getTilesBuilt() / (float)tt;
 
 			if (m_mesh->isBuildingTiles())
 			{

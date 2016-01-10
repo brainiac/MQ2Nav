@@ -30,6 +30,11 @@ void LoadSettings(bool showMessage/* = true*/)
 		szTemp, MAX_STRING, INIFileName);
 	g_settings.autobreak = (!strnicmp(szTemp, "on", 3));
 
+	GetPrivateProfileString("Settings", "AutoPause",
+		defaults.autopause ? "on" : "off",
+		szTemp, MAX_STRING, INIFileName);
+	g_settings.autopause = (!strnicmp(szTemp, "on", 3));
+
 	GetPrivateProfileString("Settings", "AutoReload",
 		defaults.autoreload ? "on" : "off",
 		szTemp, MAX_STRING, INIFileName);
@@ -64,6 +69,7 @@ void SaveSettings(bool showMessage/* = true*/)
 
 	// default settings
 	WritePrivateProfileString("Settings", "AutoBreak", g_settings.autobreak ? "on" : "off", INIFileName);
+	WritePrivateProfileString("Settings", "AutoPause", g_settings.autopause ? "on" : "off", INIFileName);
 	WritePrivateProfileString("Settings", "AutoReload", g_settings.autoreload ? "on" : "off", INIFileName);
 	WritePrivateProfileString("Settings", "ShowUI", g_settings.show_ui ? "on" : "off", INIFileName);
 	WritePrivateProfileString("Settings", "ShowNavMesh", g_settings.show_navmesh_overlay ? "on" : "off", INIFileName);
