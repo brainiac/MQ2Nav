@@ -51,12 +51,70 @@ public:
 
 	virtual bool Load() override
 	{
-		return m_archive.Open(GetZoneFile(m_zd));
+		bool loadedSomething = m_archive.Open(GetZoneFile(m_zd));
+
+		std::string base_filename = (boost::format("%s\\%s")
+			% m_zd->GetEQPath()
+			% m_zd->GetZoneName()).str();
+
+		// next we need to try to read an _assets file and load more eqg based data.
+		std::string assets_file = base_filename + "_assets.txt";
+		boost::system::error_code ec;
+		if (boost::filesystem::exists(assets_file, ec))
+		{
+			std::vector<std::string> filenames;
+			std::ifstream assets(assets_file.c_str());
+
+			if (assets.is_open())
+			{
+				std::copy(std::istream_iterator<std::string>(assets),
+					std::istream_iterator<std::string>(),
+					std::back_inserter(filenames));
+
+				for (auto& name : filenames)
+				{
+					std::string asset_file = (boost::format("%s\\%s") % m_zd->GetEQPath() % name).str();
+					EQEmu::PFS::Archive archive;
+
+					//DebugSpewAlways("[MQ2] Open Archive: %s", asset_file.c_str());
+
+					if (!archive.Open(asset_file))
+						continue;
+
+					std::vector<std::string> models;
+
+					if (archive.GetFilenames("mod", models))
+					{
+						for (auto& modelName : models)
+						{
+							EQEmu::EQGModelLoader model_loader;
+							ModelPtr model;
+
+							model_loader.Load(archive, modelName, model);
+							if (model)
+							{
+								//DebugSpewAlways("[MQ2] Loaded EQG Model: %s", modelName.c_str());
+								model->SetName(modelName);
+								m_modelsByFile[modelName] = model;
+								loadedSomething = true;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return loadedSomething;
 	}
 
 	ModelPtr GetModel(const std::string& modelName)
 	{
 		std::string name = boost::to_lower_copy(modelName) + ".mod";
+		auto fileIter = m_modelsByFile.find(name);
+		if (fileIter != m_modelsByFile.end())
+		{
+			return fileIter->second;
+		}
 
 		auto iter = m_models.find(modelName);
 		if (iter != m_models.end())
@@ -78,9 +136,12 @@ public:
 
 	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
+
 		if (ModelPtr model = GetModel(modelName))
 		{
 			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
+
+			//DebugSpewAlways("[MQ2] GetModelInfo (%s) -> %p", modelName.c_str(), model.get());
 
 			for (auto& vert : model->GetVertices())
 			{
@@ -97,13 +158,17 @@ public:
 			return modelInfo;
 		}
 
+		//DebugSpewAlways("[MQ2] GetModelInfo (%s) -> 0", modelName.c_str());
+
 		return nullptr;
 	}
 
 private:
 	ZoneData* m_zd;
 	EQEmu::PFS::Archive m_archive;
+
 	std::map<std::string, ModelPtr> m_models;
+	std::map<std::string, ModelPtr> m_modelsByFile;
 };
 
 //----------------------------------------------------------------------------
@@ -208,8 +273,6 @@ public:
 							model_loader.Load(archive, modelName, model);
 							if (model)
 							{
-								//DebugSpewAlways("Loaded EQG Model: %s", modelName.c_str());
-
 								model->SetName(modelName);
 								m_eqgModels[modelName] = model;
 								loadedSomething = true;
