@@ -5,7 +5,8 @@
 #include "NavMeshRenderer.h"
 #include "ImGuiRenderer.h"
 #include "MQ2Navigation.h"
-#include "MeshLoader.h"
+#include "MQ2Nav_Settings.h"
+#include "NavMeshLoader.h"
 #include "DebugDrawDX.h"
 
 #include <cassert>
@@ -24,17 +25,16 @@ std::shared_ptr<NavMeshRenderer> g_navMeshRenderer;
 
 //----------------------------------------------------------------------------
 
-NavMeshRenderer::NavMeshRenderer(MeshLoader* loader, IDirect3DDevice9* device)
+NavMeshRenderer::NavMeshRenderer(NavMeshLoader* loader, IDirect3DDevice9* device)
 	: m_pDevice(device)
 	, m_meshLoader(loader)
 	, m_state(new ConfigurableRenderState)
 {
-	m_uiConn = g_imguiRenderer->OnUpdateUI.Connect([this]() { OnUpdateUI(); });
-
 	auto conn = [this](dtNavMesh* m) { m_navMesh = m; UpdateNavMesh(); };
 	m_meshConn = loader->OnNavMeshChanged.Connect(conn);
 
 	m_primGroup = std::make_unique<RenderGroup>(device);
+	m_enabled = mq2nav::GetSettings().show_navmesh_overlay;
 }
 
 NavMeshRenderer::~NavMeshRenderer()
@@ -198,49 +198,43 @@ void NavMeshRenderer::UpdateNavMesh()
 
 void NavMeshRenderer::OnUpdateUI()
 {
-	if (!GetCharInfo())
-		return;
+	if (!m_navMesh)
+		ImGui::TextColored(ImColor(255, 255, 0), "No navmesh loaded");
+	else
+		ImGui::TextColored(ImColor(0, 255, 0), "Navmesh loaded");
+	ImGui::SameLine();
+	if (ImGui::Button("Reload"))
+		m_meshLoader->LoadNavMesh();
 
-	PCHARINFO pCharInfo = GetCharInfo();
-
-	ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiSetCond_FirstUseEver);
-	ImGui::Begin("MQ2Nav Tools");
-
-	if (ImGui::CollapsingHeader("Navigation Mesh", "##navmesh"))
-	{
-		ImGui::Checkbox("Render Navmesh", &m_enabled);
-
-		if (m_enabled)
-		{
-			ImGui::Separator();
-			if (m_loading)
-			{
-				ImGui::ProgressBar(m_progress);
-			}
-
-#if 0
-			ImGui::Columns(2);
-			ImGui::Checkbox("Points", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Points]);
-			ImGui::NextColumn();
-			ImGui::Checkbox("Lines", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Lines]);
-			ImGui::NextColumn();
-			ImGui::Checkbox("Triangles", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Triangles]);
-			ImGui::NextColumn();
-			ImGui::Checkbox("Quads", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Quads]);
-			ImGui::NextColumn();
-			ImGui::Columns(1);
-
-			ImGui::Checkbox("Modify State", &m_useStateEditor);
-
-			if (m_useStateEditor)
-			{
-				m_state->RenderDebugUI();
-			}
-#endif
-		}
+	if (ImGui::Checkbox("Show navmesh", &m_enabled)) {
+		mq2nav::GetSettings().show_navmesh_overlay = m_enabled;
+		mq2nav::SaveSettings(false);
 	}
 
-	ImGui::End();
+	if (m_enabled && m_loading)
+	{
+		ImGui::ProgressBar(m_progress);
+	}
+
+#if 0
+	ImGui::Columns(2);
+	ImGui::Checkbox("Points", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Points]);
+	ImGui::NextColumn();
+	ImGui::Checkbox("Lines", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Lines]);
+	ImGui::NextColumn();
+	ImGui::Checkbox("Triangles", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Triangles]);
+	ImGui::NextColumn();
+	ImGui::Checkbox("Quads", &m_primGroup->GetPrimsEnabled()[RenderList::Prim_Quads]);
+	ImGui::NextColumn();
+	ImGui::Columns(1);
+
+	ImGui::Checkbox("Modify State", &m_useStateEditor);
+
+	if (m_useStateEditor)
+	{
+		m_state->RenderDebugUI();
+	}
+#endif
 }
 
 //----------------------------------------------------------------------------

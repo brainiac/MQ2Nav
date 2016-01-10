@@ -300,12 +300,10 @@ ModelLoader::~ModelLoader()
 
 void ModelLoader::Initialize()
 {
-	m_uiConn = g_imguiRenderer->OnUpdateUI.Connect([this]() { OnUpdateUI(); });
 }
 
 void ModelLoader::Shutdown()
 {
-	m_uiConn.Disconnect();
 }
 
 void ModelLoader::Process()
@@ -314,6 +312,13 @@ void ModelLoader::Process()
 		return;
 	if (gGameState != GAMESTATE_INGAME)
 		return;
+
+	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
+	if (m_loadedDoorCount != pDoorTable->NumEntries
+		&& pDoorTable->NumEntries > 0)
+	{
+		UpdateModels();
+	}
 
 	DWORD doorTargetId = -1;
 	if (pDoorTarget)
@@ -350,6 +355,11 @@ void ModelLoader::SetZoneId(int zoneId)
 
 	DebugSpewAlways("Model Loader, zone set to: %d", zoneId);
 	m_zoneId = zoneId;
+}
+
+void ModelLoader::UpdateModels()
+{
+	m_modelData.clear();
 
 	const char* zoneName = GetShortZone(m_zoneId);
 	CHAR szEQPath[MAX_STRING];
@@ -378,6 +388,8 @@ void ModelLoader::SetZoneId(int zoneId)
 			g_renderHandler->AddRenderable(md);
 		}
 	}
+
+	m_loadedDoorCount = pDoorTable->NumEntries;
 
 	// dump the doors out to a config file
 	DumpDoors();
@@ -447,6 +459,7 @@ void ModelLoader::Reset()
 	m_zoneFile.clear();
 	m_models.clear();
 	m_lastDoorTargetId = -1;
+	m_loadedDoorCount = 0;
 
 	for (auto iter = m_modelData.begin(); iter != m_modelData.end(); ++iter)
 		g_renderHandler->RemoveRenderable(iter->second);
@@ -606,8 +619,6 @@ void ModelLoader::OnUpdateUI()
 {
 	m_doorsUI->Render();
 
-	ImGui::Begin("MQ2Nav Tools");
-
 	if (ImGui::CollapsingHeader("Objects"))
 	{
 		//ImGui::LabelText("ZoneId", "%d", m_zoneId);
@@ -695,8 +706,6 @@ void ModelLoader::OnUpdateUI()
 			ImGui::TreePop();
 		}
 	}
-
-	ImGui::End();
 }
 
 void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)

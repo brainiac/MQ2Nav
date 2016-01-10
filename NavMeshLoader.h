@@ -14,10 +14,10 @@
 class dtNavMesh;
 class MQ2NavigationPlugin;
 
-class MeshLoader
+class NavMeshLoader
 {
 public:
-	MeshLoader() {}
+	NavMeshLoader() {}
 
 	// called from OnPulse, will do actions on specific intervals
 	void Process();

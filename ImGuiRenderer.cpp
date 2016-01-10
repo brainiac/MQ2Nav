@@ -124,6 +124,8 @@ void ImGuiRenderer::Render(RenderPhase phase)
 {
 	if (phase != Render_UI)
 		return;
+	if (!m_visible)
+		return;
 
 	if (m_imguiReady)
 	{
@@ -142,6 +144,11 @@ void ImGuiRenderer::BeginNewFrame()
 {
 	m_imguiReady = ImGui_ImplDX9_NewFrame();
 	m_imguiRender = true;
+}
+
+void ImGuiRenderer::SetVisible(bool visible)
+{
+	m_visible = visible;
 }
 
 //----------------------------------------------------------------------------

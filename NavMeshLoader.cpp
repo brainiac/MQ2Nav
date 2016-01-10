@@ -1,8 +1,8 @@
 //
-// MeshLoader.cpp
+// NavMeshLoader.cpp
 //
 
-#include "MeshLoader.h"
+#include "NavMeshLoader.h"
 #include "MQ2Nav_Util.h"
 #include "MQ2Navigation.h"
 
@@ -12,7 +12,7 @@
 
 #include <ctime>
 
-void MeshLoader::SetZoneId(DWORD zoneId)
+void NavMeshLoader::SetZoneId(DWORD zoneId)
 {
 	if (m_zoneId != zoneId)
 	{
@@ -42,7 +42,7 @@ void MeshLoader::SetZoneId(DWORD zoneId)
 	}
 }
 
-void MeshLoader::SetAutoLoad(bool autoLoad)
+void NavMeshLoader::SetAutoLoad(bool autoLoad)
 {
 	m_autoLoad = autoLoad;
 }
@@ -90,13 +90,13 @@ static std::pair<std::shared_ptr<char>, DWORD> ReadRarFile(const std::string& fi
 	return std::make_pair(std::shared_ptr<char>(outbuf, free), outsize);
 }
 
-std::string MeshLoader::GetMeshDirectory() const
+std::string NavMeshLoader::GetMeshDirectory() const
 {
 	// the root path is where we look for all of our mesh files
 	return std::string(gszINIPath) + "\\MQ2Nav";
 }
 
-bool MeshLoader::LoadNavMesh()
+bool NavMeshLoader::LoadNavMesh()
 {
 	// At this point, we expect the zone short name to be set, so we know
 	// which map file we need to load.
@@ -164,7 +164,7 @@ bool MeshLoader::LoadNavMesh()
 			return true;
 	}
 
-	WriteChatf(PLUGIN_MSG "\ayNo zone mesh available for \am%s\ax", m_zoneShortName.c_str());
+	WriteChatf(PLUGIN_MSG "\ayNo nav mesh available for \am%s\ax", m_zoneShortName.c_str());
 	return false;
 }
 
@@ -207,7 +207,7 @@ bool FillStructure(ReadCursor& cursor, T& data)
 	return true;
 }
 
-MeshLoader::LoadResult MeshLoader::LoadZoneMeshData(const std::shared_ptr<char>& data, DWORD length)
+NavMeshLoader::LoadResult NavMeshLoader::LoadZoneMeshData(const std::shared_ptr<char>& data, DWORD length)
 {
 	ReadCursor cursor{ data.get(), length };
 
@@ -280,7 +280,7 @@ MeshLoader::LoadResult MeshLoader::LoadZoneMeshData(const std::shared_ptr<char>&
 	return SUCCESS;
 }
 
-void MeshLoader::Reset()
+void NavMeshLoader::Reset()
 {
 	OnNavMeshChanged(nullptr);
 	m_mesh.reset();
@@ -289,7 +289,7 @@ void MeshLoader::Reset()
 	m_loadedTiles = 0;
 }
 
-void MeshLoader::Process()
+void NavMeshLoader::Process()
 {
 	if (m_autoReload)
 	{
@@ -324,7 +324,7 @@ void MeshLoader::Process()
 
 //----------------------------------------------------------------------------
 
-void MeshLoader::SetAutoReload(bool autoReload)
+void NavMeshLoader::SetAutoReload(bool autoReload)
 {
 	if (m_autoReload != autoReload)
 	{

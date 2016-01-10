@@ -9,7 +9,7 @@
 #include "ImGuiRenderer.h"
 #include "KeybindHandler.h"
 #include "MQ2Nav_Hooks.h"
-#include "MeshLoader.h"
+#include "NavMeshLoader.h"
 #include "ModelLoader.h"
 #include "NavMeshRenderer.h"
 #include "MQ2Nav_Util.h"
@@ -83,7 +83,7 @@ static void ClickGroundItem(PGROUNDITEM pGroundItem)
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
   : m_navigationType(new MQ2NavigationType(this))
-  , m_meshLoader(new MeshLoader())
+  , m_meshLoader(new NavMeshLoader())
   , m_modelLoader(new ModelLoader())
 {
 	Initialize();
@@ -127,10 +127,16 @@ void MQ2NavigationPlugin::OnPulse()
 void MQ2NavigationPlugin::OnBeginZone()
 {
 	UpdateCurrentZone();
+
+	// hide imgui while zoning
+	g_imguiRenderer->SetVisible(false);
 }
 
 void MQ2NavigationPlugin::OnEndZone()
 {
+	// restore imgui after zoning
+	g_imguiRenderer->SetVisible(true);
+
 	pDoorTarget = nullptr;
 	pGroundTarget = nullptr;
 }
@@ -196,6 +202,8 @@ void MQ2NavigationPlugin::Initialize()
 	if (!InitializeHooks())
 		return;
 
+	mq2nav::LoadSettings();
+
 	g_renderHandler.reset(new RenderHandler());
 	m_render = g_renderHandler;
 
@@ -205,7 +213,7 @@ void MQ2NavigationPlugin::Initialize()
 	g_navMeshRenderer.reset(new NavMeshRenderer(m_meshLoader.get(), g_pDevice));
 	g_renderHandler->AddRenderable(g_navMeshRenderer);
 
-	mq2nav::LoadSettings();
+	m_uiConn = g_imguiRenderer->OnUpdateUI.Connect([this]() { OnUpdateUI(); });
 
 	// add the keybind handler and connect it to our keypress handler
 	g_keybindHandler = std::make_unique<KeybindHandler>();
@@ -272,7 +280,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		if (!strcmp(buffer, "reload")) {
 			m_meshLoader->LoadNavMesh();
 		}
-		else if (!strcmp(buffer, "recordwaypoint") || !strcmp(buffer, "rwp")) {
+		else if (!stricmp(buffer, "recordwaypoint") || !stricmp(buffer, "rwp")) {
 			GetArg(buffer, szLine, 2);
 			if (0 == *buffer) {
 				WriteChatf(PLUGIN_MSG "usage: /navigate recordwaypoint <waypoint name> <waypoint tag>");
@@ -287,16 +295,20 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 				}
 			}
 		}
-		else if (!strcmp(buffer, "help")) {
+		else if (!stricmp(buffer, "help")) {
 			WriteChatf(PLUGIN_MSG "Usage: /navigate [save | load | reload] [target] [X Y Z] [item [click] [once]] [door  [click] [once]] [waypoint <waypoint name>] [stop] [recordwaypoint <name> <tag> ]");
 		}
-		else if (!strcmp(buffer, "load")) {
+		else if (!stricmp(buffer, "load")) {
 			mq2nav::LoadSettings();
 		}
-		else if (!strcmp(buffer, "save")) {
+		else if (!stricmp(buffer, "save")) {
 			mq2nav::SaveSettings();
 		}
-		else if (!strcmp(buffer, "autoreload")) {
+		else if (!stricmp(buffer, "ui")) {
+			mq2nav::GetSettings().show_ui = !mq2nav::GetSettings().show_ui;
+			mq2nav::SaveSettings(false);
+		}
+		else if (!stricmp(buffer, "autoreload")) {
 			mq2nav::GetSettings().autoreload = !mq2nav::GetSettings().autoreload;
 			m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
 			WriteChatf(PLUGIN_MSG "Autoreload is now %s", mq2nav::GetSettings().autoreload ? "\agon\ax" : "\aroff\ax");
@@ -328,8 +340,7 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 		return;
 	}
 
-	m_activePath = std::make_unique<NavigationPath>(
-		m_meshLoader->GetNavMesh(), true);
+	m_activePath = std::make_unique<NavigationPath>(m_meshLoader->GetNavMesh());
 
 	m_activePath->FindPath(pos);
 	m_isActive = m_activePath->GetPathSize() > 0;
@@ -695,5 +706,51 @@ void MQ2NavigationPlugin::Stop()
 	m_pEndingItem = nullptr;
 }
 #pragma endregion
+
+//----------------------------------------------------------------------------
+
+void MQ2NavigationPlugin::OnUpdateUI()
+{
+	// MQ2Nav Tools UI
+	bool show_ui = mq2nav::GetSettings().show_ui;
+	if (!show_ui)
+		return;
+
+	bool do_ui = ImGui::Begin("MQ2Nav Tools", &show_ui, ImVec2(400, 400), -1, 0);
+
+	if (!show_ui) {
+		mq2nav::GetSettings().show_ui = false;
+		mq2nav::SaveSettings(false);
+	}
+
+	if (do_ui)
+	{
+		if (g_navMeshRenderer) g_navMeshRenderer->OnUpdateUI();
+
+		if (m_activePath) m_activePath->OnUpdateUI();
+
+		// "Settings" section (maybe make a separate window?)
+		if (ImGui::CollapsingHeader("Settings"))
+		{
+			bool changed = false;
+			auto& settings = mq2nav::GetSettings();
+
+			if (ImGui::Checkbox("Auto Break", &settings.autobreak))
+				changed = true;
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Automatically stop navigation when pressing a movement key");
+
+			if (ImGui::Checkbox("Auto update nav mesh", &settings.autoreload))
+				changed = true;
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Automatically reload the navmesh when it is modified");
+		}
+
+		// "Objects" section
+		if (m_modelLoader) m_modelLoader->OnUpdateUI();
+	}
+
+	ImGui::End();
+}
 
 //============================================================================

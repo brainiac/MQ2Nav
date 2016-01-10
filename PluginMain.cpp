@@ -45,6 +45,12 @@ PLUGIN_API void OnBeginZone()
 
 PLUGIN_API void OnEndZone()
 {
+	//if (g_mq2Nav)
+	//	g_mq2Nav->OnEndZone();
+}
+
+PLUGIN_API void OnZoned()
+{
 	if (g_mq2Nav)
 		g_mq2Nav->OnEndZone();
 }

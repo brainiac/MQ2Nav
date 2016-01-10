@@ -15,7 +15,7 @@
 #include <mutex>
 
 class dtNavMesh;
-class MeshLoader;
+class NavMeshLoader;
 class ConfigurableRenderState;
 
 //----------------------------------------------------------------------------
@@ -23,7 +23,7 @@ class ConfigurableRenderState;
 class NavMeshRenderer : public Renderable
 {
 public:
-	NavMeshRenderer(MeshLoader* loader, IDirect3DDevice9* device);
+	NavMeshRenderer(NavMeshLoader* loader, IDirect3DDevice9* device);
 	~NavMeshRenderer();
 
 	virtual void InvalidateDeviceObjects() override;
@@ -32,8 +32,9 @@ public:
 
 	void UpdateNavMesh();
 
-private:
 	void OnUpdateUI();
+
+private:
 	void CleanupObjects();
 
 	// stop any pending geometry load
@@ -42,15 +43,13 @@ private:
 
 private:
 	IDirect3DDevice9* m_pDevice = nullptr;
-	MeshLoader* m_meshLoader = nullptr;
+	NavMeshLoader* m_meshLoader = nullptr;
 	const dtNavMesh* m_navMesh = nullptr;
 
 	bool m_enabled = false;
 	bool m_loaded = false;
 
 	std::unique_ptr<RenderGroup> m_primGroup;
-
-	Signal<>::ScopedConnection m_uiConn;
 	Signal<dtNavMesh*>::ScopedConnection m_meshConn;
 
 	std::unique_ptr<ConfigurableRenderState> m_state;

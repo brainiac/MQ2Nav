@@ -22,40 +22,35 @@ void LoadSettings(bool showMessage/* = true*/)
 		WriteChatf(PLUGIN_MSG "Loading settings...");
 	}
 
+	SettingsData defaults;
 	char szTemp[MAX_STRING] = { 0 };
-	char szTempF[MAX_STRING] = { 0 };
-	bool bRewriteIni = false; // re-save if bad values were read
 
-	// default settings
-#if 0
-	GetPrivateProfileString("Defaults", "AllowMove",
-	                        ftoa(SET->AllowMove, szTempF),
-	                        szTemp, MAX_STRING, INIFileName);
-	if ((float)atof(szTemp) >= 10.0f)
-	{
-		g_settings.AllowMove = (float)atof(szTemp);
-	}
-	else
-	{
-		bRewriteIni = true;
-	}
-#endif
-
-	GetPrivateProfileString("Defaults", "AutoBreak",
-		g_settings.autobreak ? "on" : "off",
+	GetPrivateProfileString("Settings", "AutoBreak",
+		defaults.autobreak ? "on" : "off",
 		szTemp, MAX_STRING, INIFileName);
 	g_settings.autobreak = (!strnicmp(szTemp, "on", 3));
 
-	GetPrivateProfileString("Defaults", "AutoReload",
-		g_settings.autoreload ? "on" : "off",
+	GetPrivateProfileString("Settings", "AutoReload",
+		defaults.autoreload ? "on" : "off",
 		szTemp, MAX_STRING, INIFileName);
 	g_settings.autoreload = (!strnicmp(szTemp, "on", 3));
 
-#if 0
-	GetPrivateProfileString("Defaults", "AutoSave",
-		SET->AutoSave    ? "on" : "off",
+	GetPrivateProfileString("Settings", "ShowUI",
+		defaults.show_ui ? "on" : "off",
 		szTemp, MAX_STRING, INIFileName);
-#endif
+	g_settings.show_ui = (!strnicmp(szTemp, "on", 3));
+
+	GetPrivateProfileString("Settings", "ShowNavMesh",
+		defaults.show_navmesh_overlay ? "on" : "off",
+		szTemp, MAX_STRING, INIFileName);
+	g_settings.show_navmesh_overlay = (!strnicmp(szTemp, "on", 3));
+
+	GetPrivateProfileString("Settings", "ShowNavPath",
+		defaults.show_nav_path ? "on" : "off",
+		szTemp, MAX_STRING, INIFileName);
+	g_settings.show_nav_path = (!strnicmp(szTemp, "on", 3));
+
+	SaveSettings(false);
 }
 
 void SaveSettings(bool showMessage/* = true*/)
@@ -68,8 +63,11 @@ void SaveSettings(bool showMessage/* = true*/)
 	char szTemp[MAX_STRING] = { 0 };
 
 	// default settings
-	WritePrivateProfileString("Defaults", "AutoBreak", g_settings.autobreak ? "on" : "off", INIFileName);
-	WritePrivateProfileString("Defaults", "AutoReload", g_settings.autoreload ? "on" : "off", INIFileName);
+	WritePrivateProfileString("Settings", "AutoBreak", g_settings.autobreak ? "on" : "off", INIFileName);
+	WritePrivateProfileString("Settings", "AutoReload", g_settings.autoreload ? "on" : "off", INIFileName);
+	WritePrivateProfileString("Settings", "ShowUI", g_settings.show_ui ? "on" : "off", INIFileName);
+	WritePrivateProfileString("Settings", "ShowNavMesh", g_settings.show_navmesh_overlay ? "on" : "off", INIFileName);
+	WritePrivateProfileString("Settings", "ShowNavPath", g_settings.show_nav_path ? "on" : "off", INIFileName);
 
 #if 0
 	WritePrivateProfileString("Defaults",   "AllowMove",              ftoa(SET->AllowMove,      szTemp),     INIFileName);

@@ -27,7 +27,7 @@ class NavigationPath
 	friend class NavigationLine;
 
 public:
-	NavigationPath(dtNavMesh* navMesh, bool renderPaths = false);
+	NavigationPath(dtNavMesh* navMesh, bool renderPaths = true);
 	~NavigationPath();
 
 	//----------------------------------------------------------------------------
@@ -49,6 +49,8 @@ public:
 	bool FindPath(const glm::vec3& pos);
 
 	void UpdatePath();
+
+	void OnUpdateUI();
 
 	// Check if we are at the end if our path
 	inline bool IsAtEnd() const { return m_currentPathCursor >= m_currentPathSize; }
@@ -107,6 +109,8 @@ public:
 	virtual ~NavigationLine();
 
 	void SetThickness(float thickness);
+	float GetThickness() const { return m_thickness; }
+	void SetVisible(bool visible);
 
 	void Update() { m_needsUpdate = true; }
 
@@ -156,7 +160,6 @@ private:
 
 	bool m_loaded = false;
 	bool m_needsUpdate = false;
-	float m_thickness = 0.2f;
-
-
+	float m_thickness = 0.25f;
+	bool m_visible = true;
 };

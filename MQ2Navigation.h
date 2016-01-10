@@ -24,7 +24,7 @@ class MQ2NavigationType;
 class NavigationPath;
 class ModelLoader;
 class RenderHandler;
-class MeshLoader;
+class NavMeshLoader;
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
 
@@ -81,13 +81,14 @@ public:
 	// Begin navigating to a point
 	void BeginNavigation(const glm::vec3& pos);
 
-	MeshLoader* GetMeshLoader() const { return m_meshLoader.get(); }
+	NavMeshLoader* GetMeshLoader() const { return m_meshLoader.get(); }
 
 private:
 	void Initialize();
 	void Shutdown();
 
 	void UpdateCurrentZone();
+	void OnUpdateUI();
 
 	//----------------------------------------------------------------------------
 
@@ -114,9 +115,11 @@ private:
 	std::shared_ptr<RenderHandler> m_render;
 
 	// our nav mesh and active path
-	std::unique_ptr<MeshLoader> m_meshLoader;
+	std::unique_ptr<NavMeshLoader> m_meshLoader;
 	std::unique_ptr<ModelLoader> m_modelLoader;
 	std::unique_ptr<NavigationPath> m_activePath;
+
+	Signal<>::ScopedConnection m_uiConn;
 
 	bool m_initialized = false;
 	int m_zoneId = -1;

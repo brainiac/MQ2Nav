@@ -91,7 +91,7 @@ XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ClInclude Include="ImGuiDX9.h" />
     <ClInclude Include="MQ2Navigation.h" />
     <ClInclude Include="MQ2Nav_Hooks.h" />
-    <ClInclude Include="MeshLoader.h" />
+    <ClInclude Include="NavMeshLoader.h" />
     <ClInclude Include="NavigationPath.h" />
     <ClInclude Include="NavigationType.h" />
     <ClInclude Include="NavMeshRenderer.h" />
@@ -119,7 +119,7 @@ XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ClCompile Include="NavMeshRenderer.cpp" />
     <ClCompile Include="PluginMain.cpp" />
     <ClCompile Include="RenderHandler.cpp" />
-    <ClCompile Include="MeshLoader.cpp" />
+    <ClCompile Include="NavMeshLoader.cpp" />
     <ClCompile Include="MQ2Nav_Settings.cpp" />
     <ClCompile Include="Waypoints.cpp" />
     <ClCompile Include="RenderList.cpp" />

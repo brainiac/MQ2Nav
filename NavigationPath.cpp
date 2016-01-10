@@ -5,6 +5,7 @@
 #include "NavigationPath.h"
 #include "MQ2Navigation.h"
 #include "RenderHandler.h"
+#include "MQ2Nav_Settings.h"
 
 #include "DetourNavMesh.h"
 #include "DetourCommon.h"
@@ -19,7 +20,9 @@ NavigationPath::NavigationPath(dtNavMesh* navMesh, bool renderPaths)
 	if (m_renderPaths)
 	{
 		m_line = std::make_shared<NavigationLine>(this);
+		m_line->SetVisible(mq2nav::GetSettings().show_nav_path);
 		g_renderHandler->AddRenderable(m_line);
+
 	}
 }
 
@@ -149,10 +152,26 @@ void NavigationPath::UpdatePath()
 			0, 0, &m_currentPathSize, MAX_POLYS, 0);
 	}
 
-	if (m_line)
+	if (m_line && mq2nav::GetSettings().show_nav_path)
 	{
 		m_line->Update();
 	}
+}
+
+void NavigationPath::OnUpdateUI()
+{
+	bool showPath = mq2nav::GetSettings().show_nav_path;
+	if (ImGui::Checkbox("Show navigation path", &showPath))
+	{
+		mq2nav::GetSettings().show_nav_path = showPath;
+		mq2nav::SaveSettings(false);
+
+		m_line->SetVisible(showPath);
+	}
+
+	//float thickness = m_line->GetThickness();
+	//if (ImGui::DragFloat("Path Thickness", &thickness, 0.01f, 0.0f, FLT_MAX))
+	//	m_line->SetThickness(thickness);
 }
 
 //----------------------------------------------------------------------------
@@ -178,6 +197,9 @@ NavigationLine::~NavigationLine()
 
 bool NavigationLine::CreateDeviceObjects()
 {
+	if (!m_visible)
+		return true;
+
 	ID3DXBuffer* errors = 0;
 	HRESULT hr;
 
@@ -261,10 +283,8 @@ void NavigationLine::Render(RenderPhase phase)
 		return;
 	if (!m_loaded)
 		return;
-
 	if (m_needsUpdate)
 		GenerateBuffers();
-
 	if (!m_vertexBuffer)
 		return;
 
@@ -398,3 +418,20 @@ void NavigationLine::SetThickness(float thickness)
 		Update();
 	}
 }
+
+void NavigationLine::SetVisible(bool visible)
+{
+	if (m_visible != visible)
+	{
+		m_visible = visible;
+
+		if (m_visible) {
+			m_needsUpdate = true;
+			CreateDeviceObjects();
+		}
+		else
+			InvalidateDeviceObjects();
+	}
+}
+
+//----------------------------------------------------------------------------

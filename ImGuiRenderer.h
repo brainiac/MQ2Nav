@@ -32,6 +32,8 @@ public:
 
 	void BeginNewFrame();
 
+	void SetVisible(bool visible);
+
 	// add a signal to do ui stuff
 	Signal<> OnUpdateUI;
 
@@ -41,6 +43,8 @@ private:
 
 	// indicate whether imgui should render a new frame
 	bool m_imguiRender = false;
+
+	bool m_visible = true;
 
 	// we're holding onto the device, we need to maintain a refcount
 	IDirect3DDevice9* m_pDevice = nullptr;
