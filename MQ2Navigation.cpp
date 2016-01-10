@@ -321,7 +321,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 			WriteChatf(PLUGIN_MSG "\ag/navigate door [click] [once]\ax - navigate to door/object (and click it)");
 			WriteChatf(PLUGIN_MSG "\ag/navigate waypoint <waypoint>\ax - navigate to waypoint");
 			WriteChatf(PLUGIN_MSG "\ag/navigate stop\ax - stop navigation");
-			WriteChatf(PLUGIN_MSG "\ag/naviagte pause\ax - pause navigation");
+			WriteChatf(PLUGIN_MSG "\ag/navigate pause\ax - pause navigation");
 		}
 		else if (!stricmp(buffer, "load")) {
 			mq2nav::LoadSettings(true);
