@@ -740,12 +740,12 @@ void Interface::ShowSettingsDialog()
 	{
 		ImGui::Text("EQ Path:"); ImGui::SameLine();
 		ImGui::TextColored(ImColor(244, 250, 125), "%s", m_eqConfig.GetEverquestPath().c_str());
-		if (ImGui::Button("Change", ImVec2(120, 0)))
+		if (ImGui::Button("Change##EverquestPath", ImVec2(120, 0)))
 			m_eqConfig.SelectEverquestPath();
 
 		ImGui::Text("Navmesh Path:"); ImGui::SameLine();
 		ImGui::TextColored(ImColor(244, 250, 125), "%s", m_eqConfig.GetOutputPath().c_str());
-		if (ImGui::Button("Change", ImVec2(120, 0)))
+		if (ImGui::Button("Change##OutputPath", ImVec2(120, 0)))
 			m_eqConfig.SelectOutputPath();
 
 		ImGui::Separator();
