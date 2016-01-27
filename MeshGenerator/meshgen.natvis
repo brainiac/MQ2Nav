@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
+	<Type Name="EQEmu::EQG::Geometry">
+		<DisplayString>EQG::Geomtry {{name={name} verts={verts} polys={polys} }}</DisplayString>
+	</Type>
+	<Type Name="EQEmu::Placeable">
+		<DisplayString>EQG::Placeable {{ name={model_name} file={model_file} pos={x},{y},{z} }}</DisplayString>
+	</Type>
+	<Type Name="EQEmu::EQG::Region">
+		<DisplayString>EQG::Region {{ name={name} alt_name={alt_name} flags={flag[0]},{flag[1]} pos={x},{y},{z} }}</DisplayString>
+	</Type>
+</AutoVisualizer>

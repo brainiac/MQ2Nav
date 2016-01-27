@@ -147,6 +147,9 @@
     <Natvis Include="..\dependencies\glm\util\glm.natvis">
       <Filter>Resource Files</Filter>
     </Natvis>
+    <Natvis Include="meshgen.natvis">
+      <Filter>Resource Files</Filter>
+    </Natvis>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config">
