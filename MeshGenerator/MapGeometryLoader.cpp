@@ -929,6 +929,10 @@ bool MapGeometryLoader::CompileEQG(
 
 		if (!is_ter)
 		{
+			// TODO: come up with external list of models to ignore.
+			if (model->GetName() == "OBJ_BlockerA.MOD")
+				continue;
+
 			if (map_eqg_models.count(model->GetName()) == 0)
 			{
 				map_eqg_models[model->GetName()] = model;
