@@ -578,7 +578,7 @@ void Interface::RenderInterface()
 			if (m_mesh->isBuildingTiles())
 			{
 				char szProgress[256];
-				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_mesh->getTilesBuilt(), tt, percent);
+				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_mesh->getTilesBuilt(), tt, percent * 100);
 
 				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
 
