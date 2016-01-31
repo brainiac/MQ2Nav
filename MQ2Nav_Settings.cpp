@@ -55,6 +55,11 @@ void LoadSettings(bool showMessage/* = true*/)
 		szTemp, MAX_STRING, INIFileName);
 	g_settings.show_nav_path = (!strnicmp(szTemp, "on", 3));
 
+	GetPrivateProfileString("Settings", "AttemptUnstuck",
+		defaults.attempt_unstuck ? "on" : "off",
+		szTemp, MAX_STRING, INIFileName);
+	g_settings.attempt_unstuck = (!strnicmp(szTemp, "on", 3));
+
 	SaveSettings(false);
 }
 

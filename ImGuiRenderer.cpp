@@ -126,13 +126,14 @@ void ImGuiRenderer::Render(RenderPhase phase)
 		return;
 	if (!m_visible)
 		return;
-	if (gGameState != GAMESTATE_INGAME)
-		return;
 
 	if (m_imguiReady)
 	{
-		if (m_imguiRender)
+		// don't draw ui if we're not in game, but also
+		// do call render so we keep the imgui input state clear.
+		if (gGameState == GAMESTATE_INGAME && m_imguiRender)
 		{
+
 			DrawUI();
 
 			m_imguiRender = false;

@@ -438,6 +438,12 @@ bool MQ2NavigationPlugin::ClickNearestClosedDoor(float cDistance)
 
 void MQ2NavigationPlugin::StuckCheck()
 {
+	if (m_isPaused)
+		return;
+
+	if (!mq2nav::GetSettings().attempt_unstuck)
+		return;
+
 	clock::time_point now = clock::now();
 
 	// check every 100 ms
@@ -798,15 +804,37 @@ void MQ2NavigationPlugin::OnUpdateUI()
 			bool changed = false;
 			auto& settings = mq2nav::GetSettings();
 
-			if (ImGui::Checkbox("Auto Break", &settings.autobreak))
-				changed = true;
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Automatically stop navigation when pressing a movement key");
+			enum BreakBehavior {
+				DoNothing = 0,
+				Stop = 1,
+				Pause = 2
+			};
 
-			if (ImGui::Checkbox("Auto Pause", &settings.autopause))
+			int current = DoNothing;
+			if (settings.autobreak)
+				current = Stop;
+			else  if (settings.autopause)
+				current = Pause;
+
+			if (ImGui::Combo("Break Behavior", &current, "Disabled\0Stop Navigation\0Pause Navigation"))
+			{
+				settings.autobreak = current == Stop;
+				settings.autopause = current == Pause;
+				changed = true;
+			}
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip(
+					"Auto Break Behavior\n"
+					"-------------------------------------------------\n"
+					"What happens when a movement key is pressed.\n"
+					"  Disable - Auto break is turned off\n"
+					"  Stop - Stop the navigation\n"
+					"  Pause - Pause navigation. /nav pause to unpause");
+
+			if (ImGui::Checkbox("Attempt to get unstuck", &settings.attempt_unstuck))
 				changed = true;
 			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Automatically pause navigation when pressing a movement key");
+				ImGui::SetTooltip("Automatically try to get unstuck of movement is impeeded.\nThis will do things like jump and click randomly. Use with caution!");
 
 			if (ImGui::Checkbox("Auto update nav mesh", &settings.autoreload))
 				changed = true;

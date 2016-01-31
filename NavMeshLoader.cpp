@@ -129,8 +129,7 @@ bool NavMeshLoader::LoadNavMesh()
 		LoadResult result = LoadZoneMeshData(data, dataLen);
 		if (result == SUCCESS)
 		{
-			WriteChatf(PLUGIN_MSG "\agSuccessfully loaded mesh for \am%s\ax (%s)", m_zoneShortName.c_str(),
-				load_filename.c_str());
+			WriteChatf(PLUGIN_MSG "\agSuccessfully loaded mesh for \am%s\ax", m_zoneShortName.c_str()); 
 			m_loadedDataFile = load_filename;
 
 			// Get filetime

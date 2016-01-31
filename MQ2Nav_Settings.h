@@ -27,6 +27,9 @@ struct SettingsData
 
 	// show the current navigation path
 	bool show_nav_path = true;
+
+	// attempt to get unstuck
+	bool attempt_unstuck = false;
 };
 SettingsData& GetSettings();
 
