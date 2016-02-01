@@ -18,8 +18,6 @@
 
 //============================================================================
 
-std::shared_ptr<RenderHandler> g_renderHandler;
-
 RenderHandler::RenderHandler()
 {
 	CreateDeviceObjects();
@@ -59,7 +57,7 @@ void RenderHandler::InvalidateDeviceObjects()
 	}
 }
 
-void RenderHandler::AddRenderable(const std::shared_ptr<Renderable>& renderable)
+void RenderHandler::AddRenderable(Renderable* renderable)
 {
 	assert(std::find(m_renderables.begin(), m_renderables.end(), renderable) == m_renderables.cend());
 
@@ -71,7 +69,7 @@ void RenderHandler::AddRenderable(const std::shared_ptr<Renderable>& renderable)
 	}
 }
 
-void RenderHandler::RemoveRenderable(const std::shared_ptr<Renderable>& renderable)
+void RenderHandler::RemoveRenderable(Renderable* renderable)
 {
 	assert(std::find(m_renderables.begin(), m_renderables.end(), renderable) != m_renderables.end());
 

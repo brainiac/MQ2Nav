@@ -42,4 +42,7 @@ bool GetWaypoint(const std::string& name, Waypoint& wp);
 // returns true if waypoint was replaced, false if it was inserted
 bool AddWaypoint(const std::string& name, const std::string& tag);
 
+typedef std::map<std::string, Waypoint> WaypointMap;
+extern WaypointMap g_currentZoneWaypoints;
+
 } // namespace mq2nav

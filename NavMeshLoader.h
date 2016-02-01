@@ -5,6 +5,7 @@
 #pragma once
 
 #include "MQ2Plugin.h"
+#include "NavModule.h"
 #include "Signal.h"
 
 #include <chrono>
@@ -14,18 +15,22 @@
 class dtNavMesh;
 class MQ2NavigationPlugin;
 
-class NavMeshLoader
+class NavMeshLoader : public NavModule
 {
 public:
 	NavMeshLoader() {}
 
-	// called from OnPulse, will do actions on specific intervals
-	void Process();
+	virtual void Initialize() override;
+	virtual void Shutdown() override;
+
+	// will do actions on specific intervals
+	virtual void OnPulse() override;
+	virtual void SetGameState(int GameState) override;
 
 	// update the current zone. This will trigger a reload of the navmesh file if
 	// the zone has changed, if autoload is enabled
-	void SetZoneId(DWORD zoneId);
-	DWORD GetZoneId() const { return m_zoneId; }
+	virtual void SetZoneId(int zoneId) override;
+	int GetZoneId() const { return m_zoneId; }
 
 	// turns autoload on or off. A navmesh will be loaded when zoning if autoload
 	// is true.
@@ -66,7 +71,7 @@ private:
 	std::unique_ptr<dtNavMesh> m_mesh;
 
 	std::string m_zoneShortName;
-	DWORD m_zoneId = (DWORD)-1;
+	int m_zoneId = -1;
 
 	bool m_autoLoad = true;
 	std::string m_loadedDataFile;

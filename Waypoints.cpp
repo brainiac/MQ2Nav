@@ -8,6 +8,8 @@ namespace mq2nav {
 
 //----------------------------------------------------------------------------
 
+WaypointMap g_currentZoneWaypoints;
+
 std::string Waypoint::getDescription() const
 {
 	std::ostringstream ostr;
@@ -42,14 +44,11 @@ bool Waypoint::readFromDescription(const std::string& description)
 
 //----------------------------------------------------------------------------
 
-typedef std::map<std::string, Waypoint> tZoneData;
-tZoneData g_currentZoneData;
-
 void LoadWaypoints(int zoneId)
 {
 	PCHAR currentZone = GetShortZone(zoneId);
 	WriteChatf(PLUGIN_MSG "Loading waypoints for zone: %s", currentZone);
-	g_currentZoneData.clear();
+	g_currentZoneWaypoints.clear();
 
 	CHAR pchKeys[MAX_STRING * 10] = { 0 };
 	CHAR pchValue[MAX_STRING];
@@ -63,7 +62,7 @@ void LoadWaypoints(int zoneId)
 			GetPrivateProfileString(currentZone, pKeys, "", pchValue, MAX_STRING, INIFileName);
 			WriteChatf(PLUGIN_MSG "Waypoint: %s -> %s", pKeys, pchValue);
 			if (0 != pchValue[0] && wp.readFromDescription(std::string(pchValue))) {
-				g_currentZoneData[std::string(pKeys)] = wp;
+				g_currentZoneWaypoints[std::string(pKeys)] = wp;
 			}
 			else {
 				WriteChatf(PLUGIN_MSG "Invalid waypoint entry: %s", pKeys);
@@ -78,7 +77,7 @@ void SaveWaypoints(int zoneId)
 	PCHAR currentZone = GetShortZone(zoneId);
 	WriteChatf(PLUGIN_MSG "Saving waypoints for zone: %s", currentZone);
 
-	for (const auto& elem : g_currentZoneData)
+	for (const auto& elem : g_currentZoneWaypoints)
 	{
 		WritePrivateProfileString(currentZone, elem.first.c_str(),
 			elem.second.getDescription().c_str(), INIFileName);
@@ -87,9 +86,9 @@ void SaveWaypoints(int zoneId)
 
 bool GetWaypoint(const std::string& name, Waypoint& wp)
 {
-	auto findIt = g_currentZoneData.find(name);
+	auto findIt = g_currentZoneWaypoints.find(name);
 
-	bool result = (findIt != g_currentZoneData.end());
+	bool result = (findIt != g_currentZoneWaypoints.end());
 
 	wp = result ? findIt->second : Waypoint();
 	return result;
@@ -107,10 +106,10 @@ bool AddWaypoint(const std::string& name, const std::string& tag)
 		glm::vec3 playerLoc = { pCharacterSpawn->X, pCharacterSpawn->Y, pCharacterSpawn->Z };
 		Waypoint wp(playerLoc, tag);
 
-		result = (g_currentZoneData.find(name) != g_currentZoneData.end());
+		result = (g_currentZoneWaypoints.find(name) != g_currentZoneWaypoints.end());
 
 		// store them
-		g_currentZoneData[name] = std::move(wp);
+		g_currentZoneWaypoints[name] = std::move(wp);
 
 		// todo, store this globally
 		int zoneId = GetCharInfo()->zoneId;
@@ -120,7 +119,7 @@ bool AddWaypoint(const std::string& name, const std::string& tag)
 		SaveWaypoints(zoneId);
 	}
 
-	return true;
+	return result;
 }
 
 } // namespace mq2nav

@@ -12,14 +12,29 @@
 
 #include <ctime>
 
-void NavMeshLoader::SetZoneId(DWORD zoneId)
+//----------------------------------------------------------------------------
+
+void NavMeshLoader::Initialize()
 {
-	if (m_zoneId != zoneId)
+}
+
+void NavMeshLoader::Shutdown()
+{
+}
+
+//----------------------------------------------------------------------------
+
+void NavMeshLoader::SetZoneId(int zoneId)
+{
+	if (m_zoneId == zoneId)
+		return;
+
+	m_zoneId = zoneId;
+
+	Reset();
+
+	if (m_zoneId != -1)
 	{
-		m_zoneId = zoneId;
-
-		Reset();
-
 		// set or clear zone name
 		PCHAR zoneName = GetShortZone(zoneId);
 		m_zoneShortName = zoneName ? zoneName : std::string();
@@ -288,7 +303,7 @@ void NavMeshLoader::Reset()
 	m_loadedTiles = 0;
 }
 
-void NavMeshLoader::Process()
+void NavMeshLoader::OnPulse()
 {
 	if (m_autoReload)
 	{
@@ -317,6 +332,18 @@ void NavMeshLoader::Process()
 				}
 				CloseHandle(hFile);
 			}
+		}
+	}
+}
+
+void NavMeshLoader::SetGameState(int GameState)
+{
+	if (GameState != GAMESTATE_INGAME) {
+		// don't unload the mesh until we finish zoning. We might zone
+		// into the same zone (succor), so no use unload the mesh until
+		// after loading completes.
+		if (GameState != GAMESTATE_ZONING && GameState != GAMESTATE_LOGGINGIN) {
+			Reset();
 		}
 	}
 }

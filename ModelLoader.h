@@ -5,6 +5,7 @@
 #pragma once
 
 #include "MQ2Navigation.h"
+#include "NavModule.h"
 #include "Signal.h"
 #include "ZoneData.h"
 
@@ -21,21 +22,20 @@
 class ModelData;
 class DoorsDebugUI;
 
-class ModelLoader
+class ModelLoader : public NavModule
 {
 public:
 	ModelLoader();
 	~ModelLoader();
 
-	void Process();
+	virtual void Initialize() override;
+	virtual void Shutdown() override;
+	virtual void OnPulse() override;
 
 	void SetZoneId(int zoneId);
 	void Reset();
 
 	void OnUpdateUI();
-
-	void Initialize();
-	void Shutdown();
 
 private:
 	void RenderDoorObjectUI(PDOOR door, bool target = false);

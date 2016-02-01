@@ -9,6 +9,12 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="Header Files\custom">
+      <UniqueIdentifier>{98bcf5f6-3aa9-4d96-b12b-b39d411bd928}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\custom">
+      <UniqueIdentifier>{f7e5fa4f-f315-45e4-ba95-d034ae74f4f3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="imgui.cpp">
@@ -19,6 +25,12 @@
     </ClCompile>
     <ClCompile Include="imgui_demo.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_custom\imgui_user.cpp">
+      <Filter>Source Files\custom</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_custom\imgui_column_headers.cpp">
+      <Filter>Source Files\custom</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -37,16 +49,14 @@
     <ClInclude Include="imconfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="imgui_user.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="imgui_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="imgui_user.cpp">
-      <Filter>Source Files</Filter>
-    </None>
+    <ClInclude Include="imgui_custom\imgui_column_headers.h">
+      <Filter>Header Files\custom</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_custom\imgui_user.h">
+      <Filter>Header Files\custom</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -20,31 +20,40 @@ PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("Initializing MQ2Nav");
 
-	WriteChatf("\ag[MQ2Nav]\ax v%1.1f \ay(BETA)\ax by brainiac (\aohttps://github.com/brainiac/MQ2Nav\ax)", MQ2Version);
+	WriteChatf(PLUGIN_MSG "v%1.1f \ay(BETA)\ax by brainiac (\aohttps://github.com/brainiac/MQ2Nav\ax)", MQ2Version);
 
 	g_mq2Nav.reset(new MQ2NavigationPlugin);
+	g_mq2Nav->Plugin_Initialize();
+
+	if (!g_mq2Nav->IsInitialized())
+	{
+		WriteChatf(PLUGIN_MSG "\arFailed to initialize plugin!");
+	}
 }
 
 PLUGIN_API void ShutdownPlugin()
 {
 	DebugSpewAlways("Shutting down MQ2Nav");
+
+	g_mq2Nav->Plugin_Shutdown();
 	g_mq2Nav.reset();
 }
 
 PLUGIN_API void OnPulse()
 {
 	if (g_mq2Nav)
-		g_mq2Nav->OnPulse();
+		g_mq2Nav->Plugin_OnPulse();
 }
 
 PLUGIN_API void OnBeginZone()
 {
 	if (g_mq2Nav)
-		g_mq2Nav->OnBeginZone();
+		g_mq2Nav->Plugin_OnBeginZone();
 }
 
 PLUGIN_API void OnEndZone()
 {
+	// OnZoned occurs later than OnEndZone, when more data is available
 	//if (g_mq2Nav)
 	//	g_mq2Nav->OnEndZone();
 }
@@ -53,23 +62,23 @@ PLUGIN_API void OnZoned()
 {
 	// OnZoned occurs later than OnEndZone, when more data is available
 	if (g_mq2Nav)
-		g_mq2Nav->OnEndZone();
+		g_mq2Nav->Plugin_OnEndZone();
 }
 
 PLUGIN_API void SetGameState(DWORD GameState)
 {
 	if (g_mq2Nav)
-		g_mq2Nav->SetGameState(GameState);
+		g_mq2Nav->Plugin_SetGameState(GameState);
 }
 
 PLUGIN_API void OnAddGroundItem(PGROUNDITEM pNewGroundItem)
 {
 	if (g_mq2Nav)
-		g_mq2Nav->OnAddGroundItem(pNewGroundItem);
+		g_mq2Nav->Plugin_OnAddGroundItem(pNewGroundItem);
 }
 
 PLUGIN_API void OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 {
 	if (g_mq2Nav)
-		g_mq2Nav->OnRemoveGroundItem(pGroundItem);
+		g_mq2Nav->Plugin_OnRemoveGroundItem(pGroundItem);
 }

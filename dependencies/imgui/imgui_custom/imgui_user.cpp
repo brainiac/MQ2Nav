@@ -1,10 +1,8 @@
 
-// stupid hack to make visual studio happy. This is defined in imgui.cpp
-#ifndef IMGUI_DEFINE_MATH_OPERATORS
-#include "imgui.cpp"
-#include "imgui.h"
-#include "imgui_internal.h"
-#endif
+#include "imgui_user.h"
+
+#include <imgui.h>
+#include <imgui_internal.h>
 
 static void RenderTextOverlay(ImVec2 pos, const ImVec4& color, ImGuiAlign_ alignment,
 	const char* text, const char* text_end)
@@ -118,36 +116,80 @@ void ImGui::RenderTextRight(int x, int y, const ImVec4& color, const char* fmt, 
 	RenderTextOverlay(ImVec2((float)x, (float)y), color, ImGuiAlign_Right, g.TempBuffer, text_end);
 }
 
-float ImGui::ProgressBar(const char *optionalPrefixText, float value, const float minValue, const float maxValue,
-	const char *format, const ImVec2 &sizeOfBarWithoutTextInPixels, const ImVec4 &colorLeft, const ImVec4 &colorRight,
-	const ImVec4 &colorBorder)
+bool ImGui::TabLabels(int numTabs, const char** tabLabels, int& selectedIndex, const char** tabLabelTooltips, bool autoLayout, int *pOptionalHoveredIndex)
 {
-	if (value<minValue) value = minValue;
-	else if (value>maxValue) value = maxValue;
-	const float valueFraction = (maxValue == minValue) ? 1.0f : ((value - minValue) / (maxValue - minValue));
-	const bool needsPercConversion = strstr(format, "%%") != NULL;
+	ImGuiStyle& style = ImGui::GetStyle();
 
-	ImVec2 size = sizeOfBarWithoutTextInPixels;
-	if (size.x <= 0) size.x = ImGui::GetWindowWidth()*0.25f;
-	if (size.y <= 0) size.y = ImGui::GetTextLineHeightWithSpacing(); // or without
+	const ImVec2 itemSpacing = style.ItemSpacing;
+	const ImVec4 color = style.Colors[ImGuiCol_Button];
+	const ImVec4 colorActive = style.Colors[ImGuiCol_ButtonActive];
+	const ImVec4 colorHover = style.Colors[ImGuiCol_ButtonHovered];
+	style.ItemSpacing.x = 1;
+	style.ItemSpacing.y = 1;
 
-	const ImFontAtlas* fontAtlas = ImGui::GetIO().Fonts;
 
-	if (optionalPrefixText && strlen(optionalPrefixText) > 0) {
-		ImGui::AlignFirstTextHeightToWidgets();
-		ImGui::Text(optionalPrefixText);
-		ImGui::SameLine();
+	if (numTabs > 0 && (selectedIndex < 0 || selectedIndex >= numTabs)) selectedIndex = 0;
+	if (pOptionalHoveredIndex) *pOptionalHoveredIndex = -1;
+
+	// Parameters to adjust to make autolayout work as expected:----------
+	// The correct values are probably the ones in the comments, but I took some margin so that they work well
+	// with a (medium size) vertical scrollbar too [Ok I should detect its presence and use the appropriate values...].
+	const float btnOffset = 2.f*style.FramePadding.x;   // [2.f*style.FramePadding.x] It should be: ImGui::Button(text).size.x = ImGui::CalcTextSize(text).x + btnOffset;
+	const float sameLineOffset = 2.f*style.ItemSpacing.x;    // [style.ItemSpacing.x]      It should be: sameLineOffset = ImGui::SameLine().size.x;
+	const float uniqueLineOffset = 2.f*style.WindowPadding.x;  // [style.WindowPadding.x]    Width to be sutracted by windowWidth to make it work.
+															   //--------------------------------------------------------------------
+
+	float windowWidth = 0.f, sumX = 0.f;
+	if (autoLayout) windowWidth = ImGui::GetWindowWidth() - uniqueLineOffset;
+
+	bool selection_changed = false;
+	for (int i = 0; i < numTabs; i++)
+	{
+		// push the style
+		if (i == selectedIndex)
+		{
+			style.Colors[ImGuiCol_Button] = colorActive;
+			style.Colors[ImGuiCol_ButtonActive] = colorActive;
+			style.Colors[ImGuiCol_ButtonHovered] = colorActive;
+		}
+		else
+		{
+			style.Colors[ImGuiCol_Button] = color;
+			style.Colors[ImGuiCol_ButtonActive] = colorActive;
+			style.Colors[ImGuiCol_ButtonHovered] = colorHover;
+		}
+
+		ImGui::PushID(i);   // otherwise two tabs with the same name would clash.
+
+		if (!autoLayout) { if (i>0) ImGui::SameLine(); }
+		else if (sumX > 0.f) {
+			sumX += sameLineOffset;   // Maybe we can skip it if we use SameLine(0,0) below
+			sumX += ImGui::CalcTextSize(tabLabels[i]).x + btnOffset;
+			if (sumX > windowWidth) sumX = 0.f;
+			else ImGui::SameLine();
+		}
+
+		// Draw the button
+		if (ImGui::Button(tabLabels[i])) { selection_changed = (selectedIndex != i); selectedIndex = i; }
+		if (autoLayout && sumX == 0.f) {
+			// First element of a line
+			sumX = ImGui::GetItemRectSize().x;
+		}
+		if (pOptionalHoveredIndex) {
+			if (ImGui::IsItemHovered()) {
+				*pOptionalHoveredIndex = i;
+				if (tabLabelTooltips && tabLabelTooltips[i] && strlen(tabLabelTooltips[i]) > 0)  ImGui::SetTooltip("%s", tabLabelTooltips[i]);
+			}
+		}
+		else if (tabLabelTooltips && tabLabelTooltips[i] && ImGui::IsItemHovered() && strlen(tabLabelTooltips[i]) > 0) ImGui::SetTooltip("%s", tabLabelTooltips[i]);
+		ImGui::PopID();
 	}
 
-	if (valueFraction > 0) {
-		ImGui::Image(fontAtlas->TexID, ImVec2(size.x*valueFraction, size.y), fontAtlas->TexUvWhitePixel, fontAtlas->TexUvWhitePixel, colorLeft, colorBorder);
-	}
-	if (valueFraction < 1) {
-		if (valueFraction > 0) ImGui::SameLine(0, 0);
-		ImGui::Image(fontAtlas->TexID, ImVec2(size.x*(1.f - valueFraction), size.y), fontAtlas->TexUvWhitePixel, fontAtlas->TexUvWhitePixel, colorRight, colorBorder);
-	}
-	ImGui::SameLine();
+	// Restore the style
+	style.Colors[ImGuiCol_Button] = color;
+	style.Colors[ImGuiCol_ButtonActive] = colorActive;
+	style.Colors[ImGuiCol_ButtonHovered] = colorHover;
+	style.ItemSpacing = itemSpacing;
 
-	ImGui::Text(format, needsPercConversion ? (valueFraction*100.f + 0.0001f) : value);
-	return valueFraction;
+	return selection_changed;
 }

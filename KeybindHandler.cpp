@@ -3,16 +3,17 @@
 //
 
 #include "KeybindHandler.h"
+#include "MQ2Navigation.h"
 
 #include <string>
 #include <vector>
 
 //----------------------------------------------------------------------------
 
-std::unique_ptr<KeybindHandler> g_keybindHandler;
-
 namespace
 {
+	KeybindHandler* s_handler = nullptr;
+
 	std::vector<std::string> BindList = {
 		"forward",
 		"back",
@@ -28,20 +29,29 @@ namespace
 
 	void NavKeyPressed(char*, int keyDown)
 	{
-		if (keyDown)
+		if (keyDown && s_handler)
 		{
-			if (g_keybindHandler)
-				g_keybindHandler->OnMovementKeyPressed();
+			s_handler->OnMovementKeyPressed();
 		}
 	}
 }
 
 KeybindHandler::KeybindHandler()
 {
-	InstallKeybinds();
+	s_handler = this;
 }
 
 KeybindHandler::~KeybindHandler()
+{
+	s_handler = nullptr;
+}
+
+void KeybindHandler::Initialize()
+{
+	InstallKeybinds();
+}
+
+void KeybindHandler::Shutdown()
 {
 	RemoveKeybinds();
 }

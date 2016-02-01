@@ -10,6 +10,8 @@
 #include "MQ2Nav_Util.h"
 
 #include <imgui.h>
+#include "imgui_custom/imgui_column_headers.h"
+
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
@@ -43,12 +45,15 @@ public:
 #if RENDER_MODELS
 		m_grpModel = std::make_unique<RenderGroup>(device);
 #endif
-
 		RegenerateMesh();
+
+		g_renderHandler->AddRenderable(this);
 	}
 
 	~ModelData()
 	{
+		g_renderHandler->RemoveRenderable(this);
+
 		InvalidateDeviceObjects();
 	}
 
@@ -306,7 +311,7 @@ void ModelLoader::Shutdown()
 {
 }
 
-void ModelLoader::Process()
+void ModelLoader::OnPulse()
 {
 	if (m_zoneId == 0)
 		return;
@@ -353,8 +358,11 @@ void ModelLoader::SetZoneId(int zoneId)
 
 	Reset();
 
-	DebugSpewAlways("Model Loader, zone set to: %d", zoneId);
-	m_zoneId = zoneId;
+	if (zoneId != -1)
+	{
+		DebugSpewAlways("Model Loader, zone set to: %d", zoneId);
+		m_zoneId = zoneId;
+	}
 }
 
 void ModelLoader::UpdateModels()
@@ -384,8 +392,6 @@ void ModelLoader::UpdateModels()
 			// Create new model object
 			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, modelInfo, g_pDevice);
 			m_modelData[door->ID] = md;
-
-			g_renderHandler->AddRenderable(md);
 		}
 	}
 
@@ -464,7 +470,7 @@ void ModelLoader::Reset()
 	for (auto iter = m_modelData.begin(); iter != m_modelData.end(); ++iter)
 	{
 		if (iter->second)
-			g_renderHandler->RemoveRenderable(iter->second);
+			g_renderHandler->RemoveRenderable(iter->second.get());
 	}
 	m_modelData.clear();
 }

@@ -25,8 +25,8 @@ public:
 	RenderHandler();
 	~RenderHandler();
 
-	void AddRenderable(const std::shared_ptr<Renderable>& renderable);
-	void RemoveRenderable(const std::shared_ptr<Renderable>& renderable);
+	void AddRenderable(Renderable* renderable);
+	void RemoveRenderable(Renderable* renderable);
 
 private:
 
@@ -41,10 +41,8 @@ private:
 private:
 	bool m_deviceAcquired = false; // implies that g_pDevice is valid to use
 
-	std::vector<std::shared_ptr<Renderable>> m_renderables;
+	std::vector<Renderable*> m_renderables;
 };
-
-extern std::shared_ptr<RenderHandler> g_renderHandler;
 
 // utility function to reset the state of the current direct3d9 device
 void ResetDeviceState();

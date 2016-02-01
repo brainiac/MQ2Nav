@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "NavModule.h"
 #include "Renderable.h"
 #include "RenderList.h"
 #include "Signal.h"
@@ -20,11 +21,14 @@ class ConfigurableRenderState;
 
 //----------------------------------------------------------------------------
 
-class NavMeshRenderer : public Renderable
+class NavMeshRenderer : public Renderable, public NavModule
 {
 public:
-	NavMeshRenderer(NavMeshLoader* loader, IDirect3DDevice9* device);
+	NavMeshRenderer();
 	~NavMeshRenderer();
+
+	virtual void Initialize() override;
+	virtual void Shutdown() override;
 
 	virtual void InvalidateDeviceObjects() override;
 	virtual bool CreateDeviceObjects() override;
@@ -61,8 +65,6 @@ private:
 	float m_progress = 0.0f;
 	std::thread m_loadThread;
 };
-
-extern std::shared_ptr<NavMeshRenderer> g_navMeshRenderer;
 
 //----------------------------------------------------------------------------
 

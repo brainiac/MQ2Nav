@@ -10,8 +10,9 @@
 #include "Sample_Debug.h"
 #include "resource.h"
 
-#include <imgui/imgui.h>
+#include <imgui.h>
 #include "imgui_impl_sdl.h"
+#include "imgui_custom/imgui_user.h"
 
 #include <gl/GLU.h>
 

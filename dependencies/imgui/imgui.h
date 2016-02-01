@@ -1300,7 +1300,12 @@ struct ImFont
     IMGUI_API void              RenderText(float size, ImVec2 pos, ImU32 col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, ImDrawList* draw_list, float wrap_width = 0.0f, bool cpu_fine_clip = false) const;
 };
 
-//---- Include imgui_user.h at the end of imgui.h
-//---- So you can include code that extends ImGui using any of the types declared above.
-//---- (also convenient for user to only explicitly include vanilla imgui.h)
-#include "imgui_user.h"
+//-----------------------------------------------------------------------------
+
+// Include imgui_user.inl at the end of imgui.cpp to access private data/functions that aren't exposed.
+// Prefer just including imgui_internal.h from your code rather than using this define. If a declaration is missing from imgui_internal.h add it or request it on the github.
+#ifdef IMGUI_INCLUDE_IMGUI_USER_INL
+#include "imgui_user.inl"
+#endif
+
+//-----------------------------------------------------------------------------

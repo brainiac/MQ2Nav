@@ -14,6 +14,7 @@
 #include "NavMeshRenderer.h"
 #include "MQ2Nav_Util.h"
 #include "MQ2Nav_Settings.h"
+#include "UiController.h"
 #include "Waypoints.h"
 
 #include "DetourCommon.h"
@@ -23,10 +24,11 @@
 #pragma comment (lib, "d3d9.lib")
 #pragma comment (lib, "d3dx9.lib")
 
-#if !defined(GAMESTATE_ZONING)
-#define GAMESTATE_ZONING 4
-#endif
 
+//============================================================================
+
+std::unique_ptr<RenderHandler> g_renderHandler;
+std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
 
 //============================================================================
 
@@ -82,39 +84,23 @@ static void ClickGroundItem(PGROUNDITEM pGroundItem)
 
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
-  : m_navigationType(new MQ2NavigationType(this))
-  , m_meshLoader(new NavMeshLoader())
-  , m_modelLoader(new ModelLoader())
+	: m_navigationType(new MQ2NavigationType(this))
 {
-	Initialize();
-
-	if (m_initialized)
-	{
-		AddCommand("/navigate", NavigateCommand);
-		AddMQ2Data("Navigation", NavigateData);
-
-		SetGameState(gGameState);
-	}
 }
 
 MQ2NavigationPlugin::~MQ2NavigationPlugin()
 {
-	if (m_initialized)
-	{
-		RemoveCommand("/navigate");
-		RemoveMQ2Data("Navigation");
-	}
-
-	Shutdown();
 }
 
-void MQ2NavigationPlugin::OnPulse()
+void MQ2NavigationPlugin::Plugin_OnPulse()
 {
 	if (!m_initialized)
-		Initialize();
+		return;
 
-	m_meshLoader->Process();
-	m_modelLoader->Process();
+	for (const auto& m : m_modules)
+	{
+		m.second->OnPulse();
+	}
 
 	if (m_initialized && mq2nav::ValidIngame(TRUE))
 	{
@@ -124,80 +110,54 @@ void MQ2NavigationPlugin::OnPulse()
 	}
 }
 
-void MQ2NavigationPlugin::OnBeginZone()
+void MQ2NavigationPlugin::Plugin_OnBeginZone()
 {
+	if (!m_initialized)
+		return;
+
 	UpdateCurrentZone();
 
-	// hide imgui while zoning
-	if (g_imguiRenderer)
-		g_imguiRenderer->SetVisible(false);
+	for (const auto& m : m_modules)
+	{
+		m.second->OnBeginZone();
+	}
 }
 
-void MQ2NavigationPlugin::OnEndZone()
+void MQ2NavigationPlugin::Plugin_OnEndZone()
 {
-	// restore imgui after zoning
-	if (g_imguiRenderer)
-		g_imguiRenderer->SetVisible(true);
+	if (!m_initialized)
+		return;
+
+	for (const auto& m : m_modules)
+	{
+		m.second->OnEndZone();
+	}
 
 	pDoorTarget = nullptr;
 	pGroundTarget = nullptr;
 }
 
-void MQ2NavigationPlugin::SetGameState(DWORD GameState)
+void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
 {
 	if (GameState == GAMESTATE_INGAME) {
 		UpdateCurrentZone();
 	}
-	else {
-		// don't unload the mesh until we finish zoning. We might zone
-		// into the same zone (succor), so no use unload the mesh until
-		// after loading completes.
-		if (GameState != GAMESTATE_ZONING && GameState != GAMESTATE_LOGGINGIN) {
-			m_meshLoader->Reset();
-		}
-	}
-}
 
-void MQ2NavigationPlugin::OnAddGroundItem(PGROUNDITEM pGroundItem)
-{
-}
-
-void MQ2NavigationPlugin::OnRemoveGroundItem(PGROUNDITEM pGroundItem)
-{
-}
-
-void MQ2NavigationPlugin::UpdateCurrentZone()
-{
-	if (PCHARINFO pChar = GetCharInfo())
+	for (const auto& m : m_modules)
 	{
-		int zoneId = pChar->zoneId;
-
-		zoneId &= 0x7FFF;
-		if (zoneId >= MAX_ZONES)
-			return;
-		if (zoneId == m_zoneId)
-			return;
-		m_zoneId = zoneId;
-
-		DebugSpewAlways("Switching to zone: %d", zoneId);
-
-		mq2nav::LoadWaypoints(zoneId);
-		m_meshLoader->SetZoneId(zoneId);
-		m_modelLoader->SetZoneId(zoneId);
-	}
-	else
-	{
-		// reset things,
-		DebugSpewAlways("Resetting Zone");
-
-		m_modelLoader->Reset();
-		m_meshLoader->Reset();
-
-		m_zoneId = -1;
+		m.second->SetGameState(GameState);
 	}
 }
 
-void MQ2NavigationPlugin::Initialize()
+void MQ2NavigationPlugin::Plugin_OnAddGroundItem(PGROUNDITEM pGroundItem)
+{
+}
+
+void MQ2NavigationPlugin::Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem)
+{
+}
+
+void MQ2NavigationPlugin::Plugin_Initialize()
 {
 	if (m_initialized)
 		return;
@@ -206,50 +166,81 @@ void MQ2NavigationPlugin::Initialize()
 
 	mq2nav::LoadSettings();
 
+	InitializeRenderer();
+
+	AddModule<KeybindHandler>();
+	AddModule<NavMeshLoader>();
+	AddModule<ModelLoader>();
+	AddModule<NavMeshRenderer>();
+	AddModule<UiController>();
+
+	for (const auto& m : m_modules)
+	{
+		m.second->Initialize();
+	}
+
+	// get the keybind handler and connect it to our keypress handler
+	auto keybindHandler = Get<KeybindHandler>();
+	m_keypressConn = keybindHandler->OnMovementKeyPressed.Connect(
+		[this]() { OnMovementKeyPressed(); });
+
+	// initialize mesh loader's settings
+	auto meshLoader = Get<NavMeshLoader>();
+	meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
+
+	m_initialized = true;
+
+	Plugin_SetGameState(gGameState);
+
+	AddCommand("/navigate", NavigateCommand);
+	AddMQ2Data("Navigation", NavigateData);
+
+	auto ui = Get<UiController>();
+	m_updateTabConn = ui->OnTabUpdate.Connect([=](TabPage page) { OnUpdateTab(page); });
+}
+
+void MQ2NavigationPlugin::Plugin_Shutdown()
+{
+	if (!m_initialized)
+		return;
+	
+	RemoveCommand("/navigate");
+	RemoveMQ2Data("Navigation");
+
+	Stop();
+
+	// shut down all of the modules
+	for (const auto& m : m_modules)
+	{
+		m.second->Shutdown();
+	}
+
+	// delete all of the modules
+	m_modules.clear();
+
+	ShutdownRenderer();
+	ShutdownHooks();
+	
+	m_initialized = false;
+}
+
+//----------------------------------------------------------------------------
+
+void MQ2NavigationPlugin::InitializeRenderer()
+{
 	g_renderHandler.reset(new RenderHandler());
-	m_render = g_renderHandler;
 
 	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
 	g_imguiRenderer.reset(new ImGuiRenderer(eqhwnd, g_pDevice));
-	g_renderHandler->AddRenderable(g_imguiRenderer);
-	g_navMeshRenderer.reset(new NavMeshRenderer(m_meshLoader.get(), g_pDevice));
-	g_renderHandler->AddRenderable(g_navMeshRenderer);
-
-	m_uiConn = g_imguiRenderer->OnUpdateUI.Connect([this]() { OnUpdateUI(); });
-
-	// add the keybind handler and connect it to our keypress handler
-	g_keybindHandler = std::make_unique<KeybindHandler>();
-	m_keypressConn = g_keybindHandler->OnMovementKeyPressed.Connect(
-		[this]() { OnMovementKeyPressed(); });
-
-	m_meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
-	m_modelLoader->Initialize();
-
-	m_initialized = true;
+	g_renderHandler->AddRenderable(g_imguiRenderer.get());
 }
 
-void MQ2NavigationPlugin::Shutdown()
+void MQ2NavigationPlugin::ShutdownRenderer()
 {
-	if (m_initialized)
-	{
-		Stop();
+	g_renderHandler->RemoveRenderable(g_imguiRenderer.get());
+	g_imguiRenderer.reset();
 
-		m_modelLoader->Shutdown();
-
-		g_keybindHandler.reset();
-
-		g_renderHandler->RemoveRenderable(g_navMeshRenderer);
-		g_navMeshRenderer.reset();
-
-		g_renderHandler->RemoveRenderable(g_imguiRenderer);
-		g_imguiRenderer.reset();
-
-		g_renderHandler.reset();
-
-		ShutdownHooks();
-
-		m_initialized = false;
-	}
+	g_renderHandler.reset();
 }
 
 //----------------------------------------------------------------------------
@@ -291,7 +282,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 	{
 		// reload nav mesh
 		if (!strcmp(buffer, "reload")) {
-			m_meshLoader->LoadNavMesh();
+			Get<NavMeshLoader>()->LoadNavMesh();
 		}
 		else if (!stricmp(buffer, "recordwaypoint") || !stricmp(buffer, "rwp")) {
 			GetArg(buffer, szLine, 2);
@@ -343,19 +334,54 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		EzCommand("/squelch /stick off");
 }
 
+//----------------------------------------------------------------------------
+
+void MQ2NavigationPlugin::UpdateCurrentZone()
+{
+	int zoneId = -1;
+
+	if (PCHARINFO pChar = GetCharInfo())
+	{
+		zoneId = pChar->zoneId;
+
+		zoneId &= 0x7FFF;
+		if (zoneId >= MAX_ZONES)
+			zoneId = -1;
+		if (zoneId == m_zoneId)
+			return;
+	}
+
+	if (m_zoneId != zoneId)
+	{
+		m_zoneId = zoneId;
+
+		if (m_zoneId == -1)
+			DebugSpewAlways("Resetting Zone");
+		else
+			DebugSpewAlways("Switching to zone: %d", m_zoneId);
+
+		mq2nav::LoadWaypoints(m_zoneId);
+
+		for (const auto& m : m_modules)
+		{
+			m.second->SetZoneId(m_zoneId);
+		}
+	}
+}
+
 void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 {
 	// first clear existing state
 	m_isActive = false;
 	m_activePath.reset();
 
-	if (!m_meshLoader->IsNavMeshLoaded())
+	if (!Get<NavMeshLoader>()->IsNavMeshLoaded())
 	{
 		WriteChatf(PLUGIN_MSG "\arCannot navigate - No mesh file loaded.");
 		return;
 	}
 
-	m_activePath = std::make_unique<NavigationPath>(m_meshLoader->GetNavMesh());
+	m_activePath = std::make_unique<NavigationPath>(Get<NavMeshLoader>()->GetNavMesh());
 
 	m_activePath->FindPath(pos);
 	m_isActive = m_activePath->GetPathSize() > 0;
@@ -363,7 +389,7 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 
 bool MQ2NavigationPlugin::IsMeshLoaded() const
 {
-	return m_meshLoader->IsNavMeshLoaded();
+	return Get<NavMeshLoader>()->IsNavMeshLoaded();
 }
 
 void MQ2NavigationPlugin::OnMovementKeyPressed()
@@ -679,7 +705,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
 {
 	float result = -1.f;
 
-	NavigationPath path(m_meshLoader->GetNavMesh());
+	NavigationPath path(Get<NavMeshLoader>()->GetNavMesh());
 	path.FindPath(pos);
 
 	//WriteChatf("MQ2Nav::GetPathLength - num points: %d", numPoints);
@@ -718,7 +744,7 @@ bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
 	bool result = false;
 
 	if (ParseDestination(szLine, destination)) {
-		NavigationPath path(m_meshLoader->GetNavMesh());
+		NavigationPath path(Get<NavMeshLoader>()->GetNavMesh());
 		path.FindPath(destination);
 		result = path.GetPathSize() > 0;
 	}
@@ -744,21 +770,9 @@ void MQ2NavigationPlugin::Stop()
 
 //----------------------------------------------------------------------------
 
-void MQ2NavigationPlugin::OnUpdateUI()
+void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 {
-	// MQ2Nav Tools UI
-	bool show_ui = mq2nav::GetSettings().show_ui;
-	if (!show_ui)
-		return;
-
-	bool do_ui = ImGui::Begin("MQ2Nav Tools", &show_ui, ImVec2(400, 400), -1, 0);
-
-	if (!show_ui) {
-		mq2nav::GetSettings().show_ui = false;
-		mq2nav::SaveSettings(false);
-	}
-
-	if (do_ui)
+	if (tabId == TabPage::Navigation)
 	{
 		if (ImGui::Checkbox("Pause navigation", &m_isPaused)) {
 			if (m_isPaused)
@@ -771,7 +785,7 @@ void MQ2NavigationPlugin::OnUpdateUI()
 				auto dest = m_activePath->GetDestination();
 				ImGui::LabelText("Destination", "(%.2f, %.2f, %.2f)",
 					dest.x, dest.y, dest.z);
-				
+
 				auto charInfo = GetCharInfo();
 				glm::vec3 myPos(charInfo->pSpawn->X, charInfo->pSpawn->Y, charInfo->pSpawn->Z);
 				ImGui::LabelText("Distance", "%.2f", glm::distance(dest, myPos));
@@ -794,59 +808,11 @@ void MQ2NavigationPlugin::OnUpdateUI()
 
 		ImGui::Separator();
 
-		if (g_navMeshRenderer) g_navMeshRenderer->OnUpdateUI();
+		auto navmeshRenderer = Get<NavMeshRenderer>();
+		navmeshRenderer->OnUpdateUI();
 
 		if (m_activePath) m_activePath->OnUpdateUI();
-
-		// "Settings" section (maybe make a separate window?)
-		if (ImGui::CollapsingHeader("Settings"))
-		{
-			bool changed = false;
-			auto& settings = mq2nav::GetSettings();
-
-			enum BreakBehavior {
-				DoNothing = 0,
-				Stop = 1,
-				Pause = 2
-			};
-
-			int current = DoNothing;
-			if (settings.autobreak)
-				current = Stop;
-			else  if (settings.autopause)
-				current = Pause;
-
-			if (ImGui::Combo("Break Behavior", &current, "Disabled\0Stop Navigation\0Pause Navigation"))
-			{
-				settings.autobreak = current == Stop;
-				settings.autopause = current == Pause;
-				changed = true;
-			}
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip(
-					"Auto Break Behavior\n"
-					"-------------------------------------------------\n"
-					"What happens when a movement key is pressed.\n"
-					"  Disable - Auto break is turned off\n"
-					"  Stop - Stop the navigation\n"
-					"  Pause - Pause navigation. /nav pause to unpause");
-
-			if (ImGui::Checkbox("Attempt to get unstuck", &settings.attempt_unstuck))
-				changed = true;
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Automatically try to get unstuck of movement is impeeded.\nThis will do things like jump and click randomly. Use with caution!");
-
-			if (ImGui::Checkbox("Auto update nav mesh", &settings.autoreload))
-				changed = true;
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Automatically reload the navmesh when it is modified");
-		}
-
-		// "Objects" section
-		if (m_modelLoader) m_modelLoader->OnUpdateUI();
 	}
-
-	ImGui::End();
 }
 
 //============================================================================

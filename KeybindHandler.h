@@ -4,16 +4,19 @@
 
 #pragma once
 
-#include "MQ2Navigation.h"
+#include "NavModule.h"
 #include "Signal.h"
 
 //----------------------------------------------------------------------------
 
-class KeybindHandler
+class KeybindHandler : NavModule
 {
 public:
 	KeybindHandler();
-	~KeybindHandler();
+	virtual ~KeybindHandler();
+
+	virtual void Initialize();
+	virtual void Shutdown();
 
 	void ReloadKeybinds();
 
@@ -25,5 +28,3 @@ private:
 
 	bool m_initialized = false;
 };
-
-extern std::unique_ptr<KeybindHandler> g_keybindHandler;

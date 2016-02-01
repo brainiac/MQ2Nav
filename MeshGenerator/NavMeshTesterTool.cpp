@@ -28,6 +28,8 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "imgui_custom/imgui_user.h"
+
 #include "SDL.h"
 #include "SDL_opengl.h"
 #include <gl/glu.h>

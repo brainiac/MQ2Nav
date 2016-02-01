@@ -14,16 +14,16 @@ namespace mq2nav {
 // Utility
 inline bool ValidIngame(bool bCheckDead)
 {
-    // CTD prevention function
-    PSPAWNINFO pChSpawn = (PSPAWNINFO)pCharSpawn;
-    if (GetGameState() != GAMESTATE_INGAME
-        || !pLocalPlayer
-        || !pChSpawn->SpawnID
-        || (bCheckDead && pChSpawn->RespawnTimer > 0))
-    {
-        return false;
-    }
-    return true;
+	// CTD prevention function
+	PSPAWNINFO pChSpawn = (PSPAWNINFO)pCharSpawn;
+	if (GetGameState() != GAMESTATE_INGAME
+		|| !pLocalPlayer
+		|| !pChSpawn->SpawnID
+		|| (bCheckDead && pChSpawn->RespawnTimer > 0))
+	{
+		return false;
+	}
+	return true;
 }
 
 } // namespace mq2nav

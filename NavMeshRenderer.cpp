@@ -6,6 +6,7 @@
 #include "ImGuiRenderer.h"
 #include "MQ2Navigation.h"
 #include "MQ2Nav_Settings.h"
+#include "RenderHandler.h"
 #include "NavMeshLoader.h"
 #include "DebugDrawDX.h"
 
@@ -20,27 +21,38 @@
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
 
-std::shared_ptr<NavMeshRenderer> g_navMeshRenderer;
-
+extern IDirect3DDevice9* g_pDevice;
 
 //----------------------------------------------------------------------------
 
-NavMeshRenderer::NavMeshRenderer(NavMeshLoader* loader, IDirect3DDevice9* device)
-	: m_pDevice(device)
-	, m_meshLoader(loader)
+NavMeshRenderer::NavMeshRenderer()
+	: m_pDevice(g_pDevice)
 	, m_state(new ConfigurableRenderState)
+	, m_primGroup(std::make_unique<RenderGroup>(g_pDevice))
 {
-	auto conn = [this](dtNavMesh* m) { m_navMesh = m; UpdateNavMesh(); };
-	m_meshConn = loader->OnNavMeshChanged.Connect(conn);
-
-	m_primGroup = std::make_unique<RenderGroup>(device);
-	//m_enabled = mq2nav::GetSettings().show_navmesh_overlay;
 }
 
 NavMeshRenderer::~NavMeshRenderer()
 {
 	CleanupObjects();
 }
+
+void NavMeshRenderer::Initialize()
+{
+	m_meshLoader = g_mq2Nav->Get<NavMeshLoader>();
+
+	m_meshConn = m_meshLoader->OnNavMeshChanged.Connect(
+		[this](dtNavMesh* m) { m_navMesh = m; UpdateNavMesh(); });
+
+	g_renderHandler->AddRenderable(this);
+}
+
+void NavMeshRenderer::Shutdown()
+{
+	g_renderHandler->RemoveRenderable(this);
+}
+
+//----------------------------------------------------------------------------
 
 void NavMeshRenderer::InvalidateDeviceObjects()
 {

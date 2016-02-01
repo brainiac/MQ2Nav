@@ -55,5 +55,3 @@ private:
 
 	std::string m_iniFileName;
 };
-
-extern std::shared_ptr<ImGuiRenderer> g_imguiRenderer;

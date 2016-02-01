@@ -85,6 +85,12 @@
     <ClInclude Include="NavMeshLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NavModule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UiController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MQ2Navigation.cpp">
@@ -136,6 +142,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NavMeshLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UiController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

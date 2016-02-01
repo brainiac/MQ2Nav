@@ -5,16 +5,25 @@
 #pragma once
 
 #include "MQ2Plugin.h"
-
+#include "NavModule.h"
 #include "Signal.h"
 
 #include <memory>
 #include <chrono>
+#include <typeinfo>
+#include <unordered_map>
 
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
 
 #define PLUGIN_MSG "\ag[MQ2Nav]\ax "
+
+
+#if !defined(GAMESTATE_ZONING)
+#define GAMESTATE_ZONING 4
+#endif
+
+enum class TabPage;
 
 //----------------------------------------------------------------------------
 
@@ -25,6 +34,9 @@ class NavigationPath;
 class ModelLoader;
 class RenderHandler;
 class NavMeshLoader;
+class UiController;
+class KeybindHandler;
+class ImGuiRenderer;
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
 
@@ -36,13 +48,18 @@ public:
 	MQ2NavigationPlugin();
 	~MQ2NavigationPlugin();
 
+	void Plugin_Initialize();
+	void Plugin_Shutdown();
+
 	// standard plugin interface functions
-	void OnPulse();
-	void OnBeginZone();
-	void OnEndZone();
-	void SetGameState(DWORD GameState);
-	void OnAddGroundItem(PGROUNDITEM pGroundItem);
-	void OnRemoveGroundItem(PGROUNDITEM pGroundItem);
+	void Plugin_OnPulse();
+	void Plugin_OnBeginZone();
+	void Plugin_OnEndZone();
+	void Plugin_SetGameState(DWORD GameState);
+	void Plugin_OnAddGroundItem(PGROUNDITEM pGroundItem);
+	void Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem);
+
+	bool IsInitialized() const { return m_initialized; }
 
 	// Handler for /navigate
 	void Command_Navigate(PSPAWNINFO pChar, PCHAR szLine);
@@ -50,7 +67,24 @@ public:
 	// Handler for "Navigation" TLO
 	BOOL Data_Navigate(PCHAR szName, MQ2TYPEVAR& Dest);
 
-	//----------------------------------------------------------------------------
+	//------------------------------------------------------------------------
+	// modules
+
+	template <typename T>
+	void AddModule()
+	{
+		m_modules.emplace(std::move(std::make_pair(
+			typeid(T).hash_code(),
+			std::unique_ptr<NavModule>(new T()))));
+	}
+
+	template <typename T>
+	T* Get() const
+	{
+		return static_cast<T*>(m_modules.at(typeid(T).hash_code()).get());
+	}
+
+	//------------------------------------------------------------------------
 	// constants
 
 	static const int MAX_POLYS = 4028;
@@ -82,14 +116,12 @@ public:
 	// Begin navigating to a point
 	void BeginNavigation(const glm::vec3& pos);
 
-	NavMeshLoader* GetMeshLoader() const { return m_meshLoader.get(); }
-
 private:
-	void Initialize();
-	void Shutdown();
+	void InitializeRenderer();
+	void ShutdownRenderer();
 
 	void UpdateCurrentZone();
-	void OnUpdateUI();
+	void OnUpdateTab(TabPage tabId);
 
 	//----------------------------------------------------------------------------
 
@@ -113,11 +145,7 @@ private:
 
 private:
 	std::unique_ptr<MQ2NavigationType> m_navigationType;
-	std::shared_ptr<RenderHandler> m_render;
 
-	// our nav mesh and active path
-	std::unique_ptr<NavMeshLoader> m_meshLoader;
-	std::unique_ptr<ModelLoader> m_modelLoader;
 	std::unique_ptr<NavigationPath> m_activePath;
 
 	Signal<>::ScopedConnection m_uiConn;
@@ -150,8 +178,15 @@ private:
 	clock::time_point m_pathfindTimer = clock::now();
 
 	Signal<>::ScopedConnection m_keypressConn;
+	Signal<TabPage>::ScopedConnection m_updateTabConn;
+
+	std::unordered_map<size_t, std::unique_ptr<NavModule>> m_modules;
 };
 
+
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
+
+extern std::unique_ptr<RenderHandler> g_renderHandler;
+extern std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
 
 //============================================================================

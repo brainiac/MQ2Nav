@@ -21,7 +21,7 @@ NavigationPath::NavigationPath(dtNavMesh* navMesh, bool renderPaths)
 	{
 		m_line = std::make_shared<NavigationLine>(this);
 		m_line->SetVisible(mq2nav::GetSettings().show_nav_path);
-		g_renderHandler->AddRenderable(m_line);
+		g_renderHandler->AddRenderable(m_line.get());
 
 	}
 }
@@ -30,7 +30,7 @@ NavigationPath::~NavigationPath()
 {
 	if (m_line)
 	{
-		g_renderHandler->RemoveRenderable(m_line);
+		g_renderHandler->RemoveRenderable(m_line.get());
 	}
 }
 
