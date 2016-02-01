@@ -12,7 +12,7 @@ enum class TabPage {
 	Settings,
 	Theme,
 	Tools,
-	Debug,
+
 
 	Max
 };

@@ -63,7 +63,10 @@ void NavMeshRenderer::CleanupObjects()
 {
 	StopLoad();
 
+	m_primGroup->Reset();
 	m_primGroup->InvalidateDeviceObjects();
+
+	m_primGroup.reset(new RenderGroup(g_pDevice));
 }
 
 bool NavMeshRenderer::CreateDeviceObjects()
@@ -86,7 +89,7 @@ void NavMeshRenderer::Render(Renderable::RenderPhase phase)
 			}
 			else
 			{
-				StopLoad();
+				CleanupObjects();
 				InvalidateDeviceObjects();
 			}
 

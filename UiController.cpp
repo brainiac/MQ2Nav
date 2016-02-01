@@ -18,7 +18,6 @@ namespace
 		"Settings",
 		"Theme",
 		"Tools",
-		"Debug"
 	};
 }
 
