@@ -774,6 +774,8 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 {
 	if (tabId == TabPage::Navigation)
 	{
+		ImGui::TextColored(ImColor(255, 255, 0), "Type /nav ui to toggle this window");
+
 		if (ImGui::Checkbox("Pause navigation", &m_isPaused)) {
 			if (m_isPaused)
 				MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
