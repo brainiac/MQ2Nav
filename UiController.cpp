@@ -142,4 +142,9 @@ void UiController::PerformUpdateTab(TabPage page)
 	{
 		mq2nav::RenderWaypointsUI();
 	}
+
+	else if (page == TabPage::Theme)
+	{
+		ImGui::ShowStyleEditor();
+	}
 }
