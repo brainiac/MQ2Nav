@@ -293,9 +293,9 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 				std::string waypointName(buffer);
 				GetArg(buffer, szLine, 3);
 				std::string waypointTag(buffer);
-				WriteChatf(PLUGIN_MSG "recording waypoint: '%s' with tag: %s", waypointName.c_str(), waypointTag.c_str());
+				WriteChatf(PLUGIN_MSG "Recording waypoint: '%s' with tag: %s", waypointName.c_str(), waypointTag.c_str());
 				if (mq2nav::AddWaypoint(waypointName, waypointTag)) {
-					WriteChatf(PLUGIN_MSG "overwrote previous waypoint: '%s'", waypointName.c_str());
+					WriteChatf(PLUGIN_MSG "Overwrote previous waypoint: '%s'", waypointName.c_str());
 				}
 			}
 		}

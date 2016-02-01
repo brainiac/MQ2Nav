@@ -140,6 +140,6 @@ void UiController::PerformUpdateTab(TabPage page)
 
 	else if (page == TabPage::Waypoints)
 	{
-
+		mq2nav::RenderWaypointsUI();
 	}
 }

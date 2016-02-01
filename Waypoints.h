@@ -21,15 +21,15 @@ class Waypoint
 public:
 	Waypoint() {}
 
-	Waypoint(const glm::vec3& location_, const std::string& tag_)
-		: location(location_), tag(tag_) {}
+	Waypoint(const std::string& name_, const glm::vec3& location_, const std::string& description_)
+		: location(location_), description(description_), name(name_) {}
 
-	std::string getDescription() const;
-
-	bool readFromDescription(const std::string& description);
+	std::string Serialize() const;
+	bool Deserialize(const std::string& name, const std::string& data);
 
 	glm::vec3 location = { 0, 0, 0 };
-	std::string tag;
+	std::string name;
+	std::string description;
 };
 
 // Load/Save waypoints from .ini file
@@ -42,7 +42,6 @@ bool GetWaypoint(const std::string& name, Waypoint& wp);
 // returns true if waypoint was replaced, false if it was inserted
 bool AddWaypoint(const std::string& name, const std::string& tag);
 
-typedef std::map<std::string, Waypoint> WaypointMap;
-extern WaypointMap g_currentZoneWaypoints;
+void RenderWaypointsUI();
 
 } // namespace mq2nav
