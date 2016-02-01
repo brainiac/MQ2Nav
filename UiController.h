@@ -10,9 +10,8 @@ enum class TabPage {
 	Navigation,
 	Waypoints,
 	Settings,
-	Theme,
 	Tools,
-
+	Theme,
 
 	Max
 };

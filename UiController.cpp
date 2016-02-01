@@ -16,8 +16,8 @@ namespace
 		"Navigation",
 		"Waypoints",
 		"Settings",
-		"Theme",
 		"Tools",
+		"Theme",
 	};
 }
 
