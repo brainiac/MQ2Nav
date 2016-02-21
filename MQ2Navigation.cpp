@@ -24,7 +24,6 @@
 #pragma comment (lib, "d3d9.lib")
 #pragma comment (lib, "d3dx9.lib")
 
-
 //============================================================================
 
 std::unique_ptr<RenderHandler> g_renderHandler;

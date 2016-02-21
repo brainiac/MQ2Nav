@@ -12,7 +12,6 @@
 #include <imgui.h>
 #include "imgui_custom/imgui_column_headers.h"
 
-#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -23,6 +22,11 @@
 
 #include <DebugDraw.h>
 #include <d3d9types.h>
+
+#include <filesystem>
+#include <fstream>
+
+using namespace std::tr2;
 
 float GetDoorScale(PDOOR door)
 {
@@ -406,8 +410,8 @@ void ModelLoader::DumpDoors()
 	std::string filename = std::string(gszINIPath) + "\\MQ2Nav";
 
 	// make sure directory exists so we can write to it!
-	boost::system::error_code ec;
-	boost::filesystem::create_directory(filename, ec);
+	std::error_code ec;
+	sys::create_directory(filename, ec);
 
 	// filename for the door file
 	const char* zoneName = GetShortZone(m_zoneId);
