@@ -123,10 +123,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IntDir>Intermediate\$(Configuration)\$(ProjectName)\</IntDir>
     <TargetName>MeshGenerator</TargetName>
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IntDir>Intermediate\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir>.\Intermediate\</IntDir>
     <TargetName>MeshGenerator</TargetName>
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>..\Debug\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -142,6 +145,7 @@
       <DisableSpecificWarnings>4091</DisableSpecificWarnings>
       <MinimalRebuild>false</MinimalRebuild>
       <StructMemberAlignment>1Byte</StructMemberAlignment>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
