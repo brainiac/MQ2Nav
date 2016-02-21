@@ -50,26 +50,22 @@ const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x
 //----------------------------------------------------------------------------
 // eqgame.exe offsets
 
-#define __GetMouseDataRel_x                                     0x62Fe85
-INITIALIZE_EQGAME_OFFSET(__GetMouseDataRel);
+DWORD __GetMouseDataRel = 0;
 
 const char* GetMouseDataRel_Mask = "xx????x????xxxxxxxxxxxxxxxxxxxxxxxx????xx????xx????xxxxxxxxxxxxx?xxxxxx????x";
 const unsigned char* GetMouseDataRel_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x53\x33\xdb\x53\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\xc7\x44\x24\x10\x80\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x8b\x08\x6a\x14\x50\x8b\x41\x28\xff\xd0\x85\xc0\x79\x00\x8d\x43\x07\x5b\x81\xc4\x00\x00\x00\x00\xc3";
 
-#define __ProcessMouseEvent_x                                   0x56EDC0
-INITIALIZE_EQGAME_OFFSET(__ProcessMouseEvent);
+DWORD __ProcessMouseEvent = 0;
 
 const char* ProcessMouseEvent_Mask = "xxxx????xxxxxxxxxxx????xxxxxxx?xxxx?xxxxx????xx????xxxx????xx????xx????xx????x?x????xxxxxxxx";
 const unsigned char* ProcessMouseEvent_Pattern = (const unsigned char*)"\x83\xec\x14\xa1\x00\x00\x00\x00\x8b\x80\xc8\x05\x00\x00\x53\x56\x33\xdb\xbe\x00\x00\x00\x00\x88\x5c\x24\x0b\x3b\xc6\x74\x00\x83\xf8\x01\x74\x00\x83\xf8\x05\x0f\x85\x00\x00\x00\x00\xff\x15\x00\x00\x00\x00\x3b\xc3\x0f\x84\x00\x00\x00\x00\x3b\x05\x00\x00\x00\x00\x0f\x85\x00\x00\x00\x00\x39\x1d\x00\x00\x00\x00\x74\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2";
 
-#define __ProcessKeyboardEvent_x                                0x632AE0
-INITIALIZE_EQGAME_OFFSET(__ProcessKeyboardEvent);
+DWORD __ProcessKeyboardEvent = 0;
 
 const char* ProcessKeyboardEvent_Mask = "xx????xxxxxxxxxx????xxx?xx????x?x????xxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????";
 const unsigned char* ProcessKeyboardEvent_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xc7\x44\x24\x04\x20\x00\x00\x00\xff\x15\x00\x00\x00\x00\x85\xc0\x74\x00\x3b\x05\x00\x00\x00\x00\x75\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2\xa1\x00\x00\x00\x00\x8b\x08\x6a\x00\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\x6a\x14\x50\x8b\x41\x28\xff\xd0\x85\xc0\x74\x00\xe8\x00\x00\x00\x00";
 
-#define __FlushDxKeyboard_x                                     0x62FAD0
-INITIALIZE_EQGAME_OFFSET(__FlushDxKeyboard);
+DWORD __FlushDxKeyboard = 0;
 
 const char* FlushDxKeyboard_Mask = "xx????x????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xx????xx????xx????xxxx?x????xxxxx????x";
 const unsigned char* FlushDxKeyboard_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x53\x33\xdb\x53\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\xc7\x44\x24\x10\x20\x00\x00\x00\x8b\x08\x6a\x14\x50\x8b\x41\x28\xff\xd0\x8b\x0d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x88\x1d\x00\x00\x00\x00\x3b\xcb\x5b\x74\x00\xe8\x00\x00\x00\x00\x8b\x04\x24\x81\xc4\x00\x00\x00\x00\xc3";
@@ -77,7 +73,12 @@ const unsigned char* FlushDxKeyboard_Pattern = (const unsigned char*)"\x81\xec\x
 FUNCTION_AT_ADDRESS(int FlushDxKeyboard(), __FlushDxKeyboard);
 
 // Don't need a signature for this, can get it programmatically
+// Unless we're attached to a session of innerspace, then the wndproc is all fubar.
 DWORD __WndProc = 0;
+
+const char* WndProc_Mask = "xxx????xx????xxxx????xxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxx?x????xxx?xx????xxxx????xxx?xxxxxxxxxx????xxxxxx";
+const unsigned char* WndProc_Pattern = (const unsigned char*)"\x6a\xff\x68\x00\x00\x00\x00\x64\xa1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xec\x40\x8b\x0d\x00\x00\x00\x00\x55\x8b\x6c\x24\x5c\x56\x8b\x74\x24\x5c\x57\x8b\x7c\x24\x68\xc7\x44\x24\x0c\x00\x00\x00\x00\x85\xc9\x74\x00\xe8\x00\x00\x00\x00\x84\xc0\x74\x00\x8b\x0d\x00\x00\x00\x00\x57\x55\x56\xe8\x00\x00\x00\x00\x85\xc0\x75\x00\x5f\x5e\x5d\x8b\x4c\x24\x40\x64\x89\x0d\x00\x00\x00\x00\x83\xc4\x4c\xc2\x10\x00";
+
 
 class CRender
 {
@@ -106,7 +107,10 @@ bool GetOffsets()
 		FlushDxKeyboard_Pattern, FlushDxKeyboard_Mask)) == 0)
 		return false;
 
-	if ((__WndProc = GetWindowLongPtr(*(HWND*)EQADDR_HWND, GWLP_WNDPROC)) == 0)
+	//if ((__WndProc = GetWindowLongPtr(*(HWND*)EQADDR_HWND, GWLP_WNDPROC)) == 0)
+	//	return false;
+	if ((__WndProc = FindPattern(FixOffset(0x5A0000), 0x100000,
+		WndProc_Pattern, WndProc_Mask)) == 0)
 		return false;
 
 	return true;
@@ -115,9 +119,14 @@ bool GetOffsets()
 IDirect3DDevice9* GetDeviceFromEverquest()
 {
 	if (CRender* pRender = (CRender*)g_pDrawHandler)
-		return  pRender->pDevice;
+		return pRender->pDevice;
 
 	return nullptr;
+}
+
+inline void UpdateDevice()
+{
+	g_pDevice = GetDeviceFromEverquest();
 }
 
 //----------------------------------------------------------------------------
@@ -138,12 +147,14 @@ public:
 	// d3d9 hooks
 
 	// this is only valid during a d3d9 hook detour
-	IDirect3DDevice9* GetDevice() { return reinterpret_cast<IDirect3DDevice9*>(this); }
+	IDirect3DDevice9* GetThisDevice() { return reinterpret_cast<IDirect3DDevice9*>(this); }
 
 	HRESULT WINAPI Reset_Trampoline(D3DPRESENT_PARAMETERS* pPresentationParameters);
 	HRESULT WINAPI Reset_Detour(D3DPRESENT_PARAMETERS* pPresentationParameters)
 	{
-		if (g_pDevice != GetDevice())
+		UpdateDevice();
+
+		if (g_pDevice != GetThisDevice())
 			return Reset_Trampoline(pPresentationParameters);
 
 		g_deviceAcquired = false;
@@ -170,7 +181,9 @@ public:
 	HRESULT WINAPI EndScene_Trampoline();
 	HRESULT WINAPI EndScene_Detour()
 	{
-		if (GetDevice() != g_pDevice)
+		UpdateDevice();
+
+		if (GetThisDevice() != g_pDevice)
 			return EndScene_Trampoline();
 
 		// When TestCooperativeLevel returns all good, then we can reinitialize.
@@ -178,7 +191,7 @@ public:
 		// poll for the state ourselves.
 		if (!g_deviceAcquired)
 		{
-			HRESULT result = GetDevice()->TestCooperativeLevel();
+			HRESULT result = GetThisDevice()->TestCooperativeLevel();
 
 			if (result == D3D_OK)
 			{
