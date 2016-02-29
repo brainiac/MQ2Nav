@@ -470,12 +470,6 @@ void ModelLoader::Reset()
 	m_models.clear();
 	m_lastDoorTargetId = -1;
 	m_loadedDoorCount = 0;
-
-	for (auto iter = m_modelData.begin(); iter != m_modelData.end(); ++iter)
-	{
-		if (iter->second)
-			g_renderHandler->RemoveRenderable(iter->second.get());
-	}
 	m_modelData.clear();
 }
 
