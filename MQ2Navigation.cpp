@@ -142,6 +142,15 @@ void MQ2NavigationPlugin::Plugin_OnEndZone()
 
 void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
 {
+	if (!m_initialized)
+	{
+		if (m_retryHooks) {
+			m_retryHooks = false;
+			Plugin_Initialize();
+		}
+		return;
+	}
+
 	if (GameState == GAMESTATE_INGAME) {
 		UpdateCurrentZone();
 	}
@@ -164,8 +173,13 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 {
 	if (m_initialized)
 		return;
-	if (!InitializeHooks())
+
+	HookStatus status = InitializeHooks();
+	if (status != HookStatus::Success)
+	{
+		m_retryHooks = (status == HookStatus::MissingDevice);
 		return;
+	}
 
 	mq2nav::LoadSettings();
 

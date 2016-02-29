@@ -24,6 +24,7 @@
 #endif
 
 enum class TabPage;
+enum class HookStatus;
 
 //----------------------------------------------------------------------------
 
@@ -150,6 +151,8 @@ private:
 
 	bool m_initialized = false;
 	int m_zoneId = -1;
+
+	bool m_retryHooks = false;
 
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;

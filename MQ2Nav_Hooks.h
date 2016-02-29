@@ -47,7 +47,14 @@ extern MOUSEINFO2* MouseInfo;
 
 //----------------------------------------------------------------------------
 
-bool InitializeHooks();
+enum class HookStatus {
+	Success,
+	MissingOffset,
+	MissingDevice,
+	AlreadyInstalled,
+};
+
+HookStatus InitializeHooks();
 
 void ShutdownHooks();
 

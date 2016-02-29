@@ -443,15 +443,15 @@ void InstallDetour(DWORD address, const T& detour, const T& trampoline, bool def
 	g_installedHooks[address] = deferred;
 }
 
-bool InitializeHooks()
+HookStatus InitializeHooks()
 {
 	if (g_hooksInstalled)
-		return false;
+		return HookStatus::AlreadyInstalled;
 
 	if (!GetOffsets())
 	{
 		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
-		return false;
+		return HookStatus::MissingOffset;
 	}
 
 	g_dx9Module = LoadLibraryA("EQGraphicsDX9.dll");
@@ -461,7 +461,7 @@ bool InitializeHooks()
 	if (!g_pDevice)
 	{
 		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
-		return false;
+		return HookStatus::MissingDevice;
 	}
 
 	g_pDevice->AddRef();
@@ -501,6 +501,7 @@ bool InitializeHooks()
 		&RenderHooks::EndScene_Trampoline);
 
 	g_hooksInstalled = true;
+	return HookStatus::Success;
 }
 
 static void RemoveDetours()
