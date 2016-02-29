@@ -129,6 +129,9 @@ void UiController::PerformUpdateTab(TabPage page)
 		}
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Automatically reload the navmesh when it is modified");
+
+		if (changed)
+			mq2nav::SaveSettings();
 	}
 
 	else if (page == TabPage::Tools)

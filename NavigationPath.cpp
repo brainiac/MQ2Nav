@@ -4,18 +4,25 @@
 
 #include "NavigationPath.h"
 #include "MQ2Navigation.h"
+#include "NavMeshLoader.h"
 #include "RenderHandler.h"
 #include "MQ2Nav_Settings.h"
 
+#include "DebugDrawDX.h"
 #include "DetourNavMesh.h"
 #include "DetourCommon.h"
 
 
-NavigationPath::NavigationPath(dtNavMesh* navMesh, bool renderPaths)
-	: m_navMesh(navMesh)
-	, m_renderPaths(renderPaths)
+NavigationPath::NavigationPath(bool renderPaths)
+	: m_renderPaths(renderPaths)
 {
 	m_filter.setIncludeFlags(0x01); // walkable surface
+
+	m_useCorridor = mq2nav::GetSettings().debug_use_pathing_corridor;
+
+	auto* loader = g_mq2Nav->Get<NavMeshLoader>();
+	m_navMeshConn = loader->OnNavMeshChanged.Connect([this](dtNavMesh* navMesh) { SetNavMesh(navMesh); });
+	SetNavMesh(loader->GetNavMesh());
 
 	if (m_renderPaths)
 	{
@@ -23,6 +30,8 @@ NavigationPath::NavigationPath(dtNavMesh* navMesh, bool renderPaths)
 		m_line->SetVisible(mq2nav::GetSettings().show_nav_path);
 		g_renderHandler->AddRenderable(m_line.get());
 
+		m_debugDrawGrp = std::make_unique<RenderGroup>(g_pDevice);
+		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
 	}
 }
 
@@ -30,6 +39,7 @@ NavigationPath::~NavigationPath()
 {
 	if (m_line)
 	{
+		g_renderHandler->RemoveRenderable(m_debugDrawGrp.get());
 		g_renderHandler->RemoveRenderable(m_line.get());
 	}
 }
@@ -61,35 +71,46 @@ void NavigationPath::FindPathInternal(const glm::vec3& pos)
 	m_currentPathSize = 0;
 	m_destination = pos;
 
-	m_query.reset(new dtNavMeshQuery);
-	m_query->init(m_navMesh, 10000 /* MAX_NODES */);
-
-	UpdatePath();
+	UpdatePath(true);
 }
 
-static glm::vec3 lastPos;
+void NavigationPath::SetNavMesh(dtNavMesh* navMesh)
+{
+	m_navMesh = navMesh;
 
-void NavigationPath::UpdatePath()
+	m_query.reset();
+	m_corridor.reset();
+
+	if (m_navMesh)
+	{
+		UpdatePath();
+	}
+}
+
+void NavigationPath::UpdatePath(bool force)
 {
 	if (m_navMesh == nullptr)
 		return;
 	if (m_query == nullptr)
-		return;
+	{
+		m_query.reset(new dtNavMeshQuery);
+		m_query->init(m_navMesh, 10000 /* MAX_NODES */);
+	}
 
 	PSPAWNINFO me = GetCharInfo()->pSpawn;
 	if (me == nullptr)
 		return;
 
-	float startOffset[3] = { me->X, me->Z, me->Y };
+	float startOffset[3] = { me->X, me->Feet, me->Y };
 	float endOffset[3] = { m_destination.x, m_destination.z, m_destination.y };
 	float spos[3];
 	float epos[3];
 
 	glm::vec3 thisPos(startOffset[0], startOffset[1], startOffset[2]);
 
-	if (thisPos == lastPos)
+	if (thisPos == m_lastPos && !force)
 		return;
-	lastPos = thisPos;
+	m_lastPos = thisPos;
 
 	m_currentPathCursor = 0;
 	m_currentPathSize = 0;
@@ -106,14 +127,16 @@ void NavigationPath::UpdatePath()
 	dtPolyRef polys[MAX_POLYS];
 	int numPolys = 0;
 
-
-	//if (!m_corridor)
+	if (!m_corridor)
 	{
-		// initialize planning
-		//m_corridor.reset(new dtPathCorridor);
-		//m_corridor->init(MAX_PATH_SIZE);
+		if (m_useCorridor)
+		{
+			// initialize planning
+			m_corridor.reset(new dtPathCorridor);
+			m_corridor->init(MAX_PATH_SIZE);
 
-		//m_corridor->reset(startRef, startOffset);
+			m_corridor->reset(startRef, startOffset);
+		}
 
 		m_query->findNearestPoly(endOffset, m_extents, &m_filter, &endRef, epos);
 
@@ -133,23 +156,62 @@ void NavigationPath::UpdatePath()
 				startOffset[0], startOffset[1], startOffset[2],
 				endOffset[0], endOffset[1], endOffset[2]);
 
-		//m_corridor->setCorridor(endOffset, polys, numPolys);
+		if (m_corridor)
+		{
+			m_corridor->setCorridor(endOffset, polys, numPolys);
+		}
 	}
-	//else
+	else
 	{
 		// this is an update
-		//m_corridor->movePosition(startOffset, m_query.get(), &m_filter);
+		m_corridor->movePosition(startOffset, m_query.get(), &m_filter);
 	}
 
-	//m_corridor->optimizePathTopology(m_query.get(), &m_filter);
+	if (m_corridor)
+	{
+		m_corridor->optimizePathTopology(m_query.get(), &m_filter);
 
-	//m_currentPathSize = m_corridor->findCorners(m_currentPath,
-	//	m_cornerFlags, polys, 10, m_query.get(), &m_filter);
+		m_currentPathSize = m_corridor->findCorners(m_currentPath,
+			m_cornerFlags, polys, 10, m_query.get(), &m_filter);
+	}
+
+	if (m_debugDrawGrp)
+		m_debugDrawGrp->Reset();
 
 	if (numPolys > 0)
 	{
 		m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath,
 			0, 0, &m_currentPathSize, MAX_POLYS, 0);
+
+		// The 0th index is the starting point. Begin by trying to reach the
+		// 2nd point...
+		if (m_currentPathSize > 1)
+			m_currentPathCursor = 1;
+
+		if (m_debugDrawGrp && mq2nav::GetSettings().debug_render_pathing)
+		{
+			DebugDrawDX dd(m_debugDrawGrp.get());
+
+			// draw current position
+			duDebugDrawCross(&dd, me->X, me->Feet, me->Y, 0.5, DXColor(51, 255, 255), 1);
+
+			// Draw the waypoints. Green is next point
+			for (int i = 0; i < m_currentPathSize; ++i)
+			{
+				int color = DXColor(255, 255, 255);
+				if (i < m_currentPathCursor)
+					color = DXColor(0, 102, 204);
+				if (i == m_currentPathCursor)
+					color = DXColor(0, 255, 0);
+				if (i == m_currentPathSize - 1)
+					color = DXColor(255, 0, 0);
+
+				duDebugDrawCross(&dd, m_currentPath[i * 3],
+					m_currentPath[i * 3 + 1],
+					m_currentPath[i * 3 + 2],
+					0.5, color, 1);
+			}
+		}
 	}
 
 	if (m_line && mq2nav::GetSettings().show_nav_path)

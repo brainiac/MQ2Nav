@@ -116,6 +116,10 @@ void MQ2NavigationPlugin::Plugin_OnBeginZone()
 
 	UpdateCurrentZone();
 
+	// stop active path if one exists
+	m_isActive = false;
+	m_activePath.reset();
+
 	for (const auto& m : m_modules)
 	{
 		m.second->OnBeginZone();
@@ -380,9 +384,9 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 		return;
 	}
 
-	m_activePath = std::make_unique<NavigationPath>(Get<NavMeshLoader>()->GetNavMesh());
-
+	m_activePath = std::make_unique<NavigationPath>();
 	m_activePath->FindPath(pos);
+
 	m_isActive = m_activePath->GetPathSize() > 0;
 }
 
@@ -497,36 +501,41 @@ void MQ2NavigationPlugin::StuckCheck()
 	}
 }
 
+static glm::vec3 s_lastFace;
+
 void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 {
 	if (m_isPaused)
 		return;
 
-	gFaceAngle = (atan2(pos.x - GetCharInfo()->pSpawn->X, pos.y - GetCharInfo()->pSpawn->Y)  * 256.0f / PI);
+	PSPAWNINFO pSpawn = GetCharInfo()->pSpawn;
+	
+	gFaceAngle = (atan2(pos.x - pSpawn->X, pos.y - pSpawn->Y)  * 256.0f / PI);
 	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
 	if (gFaceAngle<0.0f) gFaceAngle += 512.0f;
-
 	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)gFaceAngle;
 
 	// This is a sentinel value telling MQ2 to not adjust the face angle
 	gFaceAngle = 10000.0f;
 
-	if (GetCharInfo()->pSpawn->UnderWater == 5 || GetCharInfo()->pSpawn->FeetWet == 5)
+	s_lastFace = pos;
+
+	if (pSpawn->UnderWater == 5 || pSpawn->FeetWet == 5)
 	{
-		FLOAT distance = (FLOAT)GetDistance(GetCharInfo()->pSpawn->X, GetCharInfo()->pSpawn->Y, pos.x, pos.y);
-		GetCharInfo()->pSpawn->CameraAngle = (FLOAT)(atan2(pos.z - GetCharInfo()->pSpawn->Z, distance) * 256.0f / PI);
+		FLOAT distance = (FLOAT)GetDistance(pSpawn->X, pSpawn->Y, pos.x, pos.y);
+		pSpawn->CameraAngle = (FLOAT)(atan2(pos.z - pSpawn->Feet, distance) * 256.0f / PI);
 	}
-	else if (GetCharInfo()->pSpawn->Levitate == 2)
+	else if (pSpawn->Levitate == 2)
 	{
-		if (pos.z < GetCharInfo()->pSpawn->Z - 5)
-			GetCharInfo()->pSpawn->CameraAngle = -45.0f;
-		else if (pos.z > GetCharInfo()->pSpawn->Z + 5)
-			GetCharInfo()->pSpawn->CameraAngle = 45.0f;
+		if (pos.z < pSpawn->Feet)
+			pSpawn->CameraAngle = -45.0f;
+		else if (pos.z > pSpawn->Z + 5)
+			pSpawn->CameraAngle = 45.0f;
 		else
-			GetCharInfo()->pSpawn->CameraAngle = 0.0f;
+			pSpawn->CameraAngle = 0.0f;
 	}
 	else
-		GetCharInfo()->pSpawn->CameraAngle = 0.0f;
+		pSpawn->CameraAngle = 0.0f;
 
 	// this is a sentinel value telling MQ2 to not adjust the look angle
 	gLookAngle = 10000.0f;
@@ -565,6 +574,8 @@ void MQ2NavigationPlugin::AttemptMovement()
 	{
 		DebugSpewAlways("[MQ2Nav] Reached destination at: %.2f %.2f %.2f",
 			dest.x, dest.z, dest.y);
+		WriteChatf(PLUGIN_MSG "\agReached destination at: %.2f %.2f %.2f",
+			dest.x, dest.y, dest.z);
 
 		if (PSPAWNINFO me = GetCharInfo()->pSpawn)
 		{
@@ -587,7 +598,9 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 		glm::vec3 nextPosition = m_activePath->GetNextPosition();
 
-		if (GetDistance(nextPosition.x, nextPosition.z) < WAYPOINT_PROGRESSION_DISTANCE)
+		float distanceFromNextPosition = GetDistance(nextPosition.x, nextPosition.z);
+
+		if (distanceFromNextPosition < WAYPOINT_PROGRESSION_DISTANCE)
 		{
 			m_activePath->Increment();
 
@@ -780,31 +793,69 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 				MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
 		}
 
-		if (ImGui::TreeNode("Pathing State"))
+		if (ImGui::CollapsingHeader("Pathing Debug"))
 		{
-			if (m_activePath) {
-				auto dest = m_activePath->GetDestination();
-				ImGui::LabelText("Destination", "(%.2f, %.2f, %.2f)",
-					dest.x, dest.y, dest.z);
+			bool settingsChanged = false;
+			auto& settings = mq2nav::GetSettings();
 
+			if (ImGui::Checkbox("Render pathing debug draw", &settings.debug_render_pathing))
+				settingsChanged = true;
+			if (ImGui::Checkbox("Use Pathing Corridor (experimental)", &settings.debug_use_pathing_corridor))
+				settingsChanged = true;
+
+			if (settingsChanged)
+				mq2nav::SaveSettings();
+
+			if (m_activePath) 
+			{
 				auto charInfo = GetCharInfo();
-				glm::vec3 myPos(charInfo->pSpawn->X, charInfo->pSpawn->Y, charInfo->pSpawn->Z);
+				glm::vec3 myPos(charInfo->pSpawn->X, charInfo->pSpawn->Z, charInfo->pSpawn->Y);
+				auto dest = m_activePath->GetDestination();
+
+				ImGui::LabelText("Position", "(%.2f, %.2f, %.2f)", myPos.x, myPos.y, myPos.z);
+
+				ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f,",
+					m_currentWaypoint.x, m_currentWaypoint.y, m_currentWaypoint.z);
+				ImGui::LabelText("Distance to Waypoint", "%.2f", glm::distance(m_currentWaypoint, myPos));
+
+				ImGui::LabelText("Destination", "(%.2f, %.2f, %.2f)", dest.x, dest.y, dest.z);
 				ImGui::LabelText("Distance", "%.2f", glm::distance(dest, myPos));
+
+				ImGui::Text("Path Nodes");
+				ImGui::Separator();
+
+				ImGui::BeginChild("PathNodes");
+				for (int i = 0; i < m_activePath->GetPathSize(); ++i)
+				{
+					ImColor color(255, 255, 255);
+
+					if (i == 0)
+						color = ImColor(255, 255, 0);
+					if (i == m_activePath->GetPathIndex())
+						color = ImColor(0, 255, 0);
+					if (i == m_activePath->GetPathSize() - 1)
+						color = ImColor(255, 0, 0);
+
+					auto pos = m_activePath->GetRawPosition(i);
+					ImGui::TextColored(color, "%04d: (%.2f, %.2f, %.2f)", i,
+						pos[0], pos[1], pos[2]);
+				}
+				ImGui::EndChild();
 			}
 			else {
 				ImGui::LabelText("Destination", "<none>");
 				ImGui::LabelText("Distance", "");
 			}
+
+			ImGui::Separator();
 			ImGui::LabelText("Ending Door", "%s", m_pEndingDoor ? m_pEndingDoor->Name : "<none>");
 			ImGui::LabelText("Ending Item", "%s", m_pEndingItem ? m_pEndingItem->Name : "<none>");
 			ImGui::LabelText("Is Active", "%s", m_isActive ? "true" : "false");
 			ImGui::LabelText("Spam Click", "%s", m_bSpamClick ? "true" : "false");
 			ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f)", m_currentWaypoint.x, m_currentWaypoint.y, m_currentWaypoint.z);
 			ImGui::LabelText("Stuck Data", "(%.2f, %.2f) %d", m_stuckX, m_stuckY, m_stuckTimer.time_since_epoch());
-			ImGui::LabelText("Last Click", "%d", m_lastClick.time_since_epoch());
-			ImGui::LabelText("Pathfind Timer", "%d", m_pathfindTimer.time_since_epoch());
-
-			ImGui::TreePop();
+			ImGui::LabelText("Last Click", "%d", m_lastClick.time_since_epoch() / 1000000);
+			ImGui::LabelText("Pathfind Timer", "%d", m_pathfindTimer.time_since_epoch() / 1000000);
 		}
 
 		ImGui::Separator();

@@ -275,6 +275,10 @@ void NavMeshTesterTool::init(Sample* sample)
 
 void NavMeshTesterTool::handleMenu()
 {
+	ImGui::InputFloat3("Start Pos", &m_spos[0]);
+	ImGui::InputFloat3("End Pos", &m_epos[0]);
+
+
 	if (ImGui::RadioButton("Pathfind Follow", m_toolMode == TOOLMODE_PATHFIND_FOLLOW))
 	{
 		m_toolMode = TOOLMODE_PATHFIND_FOLLOW;

@@ -458,6 +458,12 @@ bool InitializeHooks()
 
 	// Grab the Direct3D9 device and add a reference to it
 	g_pDevice = GetDeviceFromEverquest();
+	if (!g_pDevice)
+	{
+		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
+		return false;
+	}
+
 	g_pDevice->AddRef();
 
 	// Detour that enables rendering into the world

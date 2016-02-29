@@ -6,6 +6,7 @@
 
 #include "Renderable.h"
 #include "RenderList.h"
+#include "Signal.h"
 
 #include "DetourNavMeshQuery.h"
 #include "DetourPathCorridor.h"
@@ -27,7 +28,7 @@ class NavigationPath
 	friend class NavigationLine;
 
 public:
-	NavigationPath(dtNavMesh* navMesh, bool renderPaths = true);
+	NavigationPath(bool renderPaths = true);
 	~NavigationPath();
 
 	//----------------------------------------------------------------------------
@@ -48,7 +49,7 @@ public:
 
 	bool FindPath(const glm::vec3& pos);
 
-	void UpdatePath();
+	void UpdatePath(bool force = false);
 
 	void OnUpdateUI();
 
@@ -80,7 +81,12 @@ public:
 private:
 	void FindPathInternal(const glm::vec3& pos);
 
+	void SetNavMesh(dtNavMesh* navMesh);
+
+	std::unique_ptr<RenderGroup> m_debugDrawGrp;
+
 	glm::vec3 m_destination;
+	glm::vec3 m_lastPos;
 
 	float m_currentPath[MAX_POLYS * 3];
 	unsigned char m_cornerFlags[MAX_POLYS];
@@ -88,8 +94,10 @@ private:
 	int m_currentPathCursor = 0;
 	int m_currentPathSize = 0;
 
+	bool m_useCorridor = false;
+
 	// the plugin owns the mesh
-	dtNavMesh* m_navMesh;
+	dtNavMesh* m_navMesh = nullptr;
 
 	// we own the query
 	std::unique_ptr<dtNavMeshQuery> m_query;
@@ -100,6 +108,8 @@ private:
 
 	dtQueryFilter m_filter;
 	float m_extents[3] = { 50, 400, 50 }; // note: X, Z, Y
+
+	Signal<dtNavMesh*>::ScopedConnection m_navMeshConn;
 };
 
 class NavigationLine : public Renderable

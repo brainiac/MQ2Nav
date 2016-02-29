@@ -38,8 +38,6 @@ class UiController;
 class KeybindHandler;
 class ImGuiRenderer;
 
-extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
-
 //----------------------------------------------------------------------------
 
 class MQ2NavigationPlugin

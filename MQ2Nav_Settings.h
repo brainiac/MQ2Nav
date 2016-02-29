@@ -30,6 +30,12 @@ struct SettingsData
 
 	// attempt to get unstuck
 	bool attempt_unstuck = false;
+
+	// render pathing 3d debugging
+	bool debug_render_pathing = false;
+
+	// use corridor method (buggy, not finished...)
+	bool debug_use_pathing_corridor = false;
 };
 SettingsData& GetSettings();
 

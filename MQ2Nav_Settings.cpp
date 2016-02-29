@@ -15,6 +15,20 @@ SettingsData& GetSettings()
 	return g_settings;
 }
 
+static inline bool LoadBoolSetting(const std::string& name, bool default)
+{
+	char szTemp[MAX_STRING] = { 0 };
+
+	GetPrivateProfileString("Settings", name.c_str(), default ? "on" : "off",
+		szTemp, MAX_STRING, INIFileName);
+	return (!strnicmp(szTemp, "on", 3));
+}
+
+static inline void SaveBoolSetting(const std::string& name, bool value)
+{
+	WritePrivateProfileString("Settings", name.c_str(), value ? "on" : "off", INIFileName);
+}
+
 void LoadSettings(bool showMessage/* = true*/)
 {
 	if (showMessage)
@@ -22,43 +36,18 @@ void LoadSettings(bool showMessage/* = true*/)
 		WriteChatf(PLUGIN_MSG "Loading settings...");
 	}
 
-	SettingsData defaults;
-	char szTemp[MAX_STRING] = { 0 };
+	SettingsData defaults, &settings = g_settings;
 
-	GetPrivateProfileString("Settings", "AutoBreak",
-		defaults.autobreak ? "on" : "off",
-		szTemp, MAX_STRING, INIFileName);
-	g_settings.autobreak = (!strnicmp(szTemp, "on", 3));
+	settings.autobreak = LoadBoolSetting("AutoBreak", defaults.autobreak);
+	settings.autopause = LoadBoolSetting("AutoPause", defaults.autopause);
+	settings.autoreload = LoadBoolSetting("AutoReload", defaults.autoreload);
+	settings.show_ui = LoadBoolSetting("ShowUI", defaults.show_ui);
+	settings.show_navmesh_overlay = LoadBoolSetting("ShowNavMesh", defaults.show_navmesh_overlay);
+	settings.show_nav_path = LoadBoolSetting("ShowNavPath", defaults.show_nav_path);
+	settings.attempt_unstuck = LoadBoolSetting("AttemptUnstuck", defaults.attempt_unstuck);
 
-	GetPrivateProfileString("Settings", "AutoPause",
-		defaults.autopause ? "on" : "off",
-		szTemp, MAX_STRING, INIFileName);
-	g_settings.autopause = (!strnicmp(szTemp, "on", 3));
-
-	GetPrivateProfileString("Settings", "AutoReload",
-		defaults.autoreload ? "on" : "off",
-		szTemp, MAX_STRING, INIFileName);
-	g_settings.autoreload = (!strnicmp(szTemp, "on", 3));
-
-	GetPrivateProfileString("Settings", "ShowUI",
-		defaults.show_ui ? "on" : "off",
-		szTemp, MAX_STRING, INIFileName);
-	g_settings.show_ui = (!strnicmp(szTemp, "on", 3));
-
-	GetPrivateProfileString("Settings", "ShowNavMesh",
-		defaults.show_navmesh_overlay ? "on" : "off",
-		szTemp, MAX_STRING, INIFileName);
-	g_settings.show_navmesh_overlay = (!strnicmp(szTemp, "on", 3));
-
-	GetPrivateProfileString("Settings", "ShowNavPath",
-		defaults.show_nav_path ? "on" : "off",
-		szTemp, MAX_STRING, INIFileName);
-	g_settings.show_nav_path = (!strnicmp(szTemp, "on", 3));
-
-	GetPrivateProfileString("Settings", "AttemptUnstuck",
-		defaults.attempt_unstuck ? "on" : "off",
-		szTemp, MAX_STRING, INIFileName);
-	g_settings.attempt_unstuck = (!strnicmp(szTemp, "on", 3));
+	// debug settings
+	settings.debug_render_pathing = LoadBoolSetting("DebugRenderPathing", defaults.debug_render_pathing);
 
 	SaveSettings(false);
 }
@@ -70,24 +59,16 @@ void SaveSettings(bool showMessage/* = true*/)
 		WriteChatf(PLUGIN_MSG "Saving settings...");
 	}
 
-	char szTemp[MAX_STRING] = { 0 };
-
 	// default settings
-	WritePrivateProfileString("Settings", "AutoBreak", g_settings.autobreak ? "on" : "off", INIFileName);
-	WritePrivateProfileString("Settings", "AutoPause", g_settings.autopause ? "on" : "off", INIFileName);
-	WritePrivateProfileString("Settings", "AutoReload", g_settings.autoreload ? "on" : "off", INIFileName);
-	WritePrivateProfileString("Settings", "ShowUI", g_settings.show_ui ? "on" : "off", INIFileName);
-	WritePrivateProfileString("Settings", "ShowNavMesh", g_settings.show_navmesh_overlay ? "on" : "off", INIFileName);
-	WritePrivateProfileString("Settings", "ShowNavPath", g_settings.show_nav_path ? "on" : "off", INIFileName);
+	SaveBoolSetting("AutoBreak", g_settings.autobreak);
+	SaveBoolSetting("AutoPause", g_settings.autopause);
+	SaveBoolSetting("AutoReload", g_settings.autoreload);
+	SaveBoolSetting("ShowUI", g_settings.show_ui);
+	SaveBoolSetting("ShowNavMesh", g_settings.show_navmesh_overlay);
+	SaveBoolSetting("ShowNavPath", g_settings.show_nav_path);
 
-#if 0
-	WritePrivateProfileString("Defaults",   "AllowMove",              ftoa(SET->AllowMove,      szTemp),     INIFileName);
-	WritePrivateProfileString("Defaults",   "AutoPauseMsg",           (uiVerbLevel & V_AUTOPAUSE) == V_AUTOPAUSE             ? "on" : "off",      INIFileName);
-	WritePrivateProfileString("Defaults",   "AutoSave",               SET->AutoSave        ? "on" : "off",   INIFileName);
-	WritePrivateProfileString("Defaults",   "AutoUW",                 SET->AutoUW          ? "on" : "off",   INIFileName);
-	WritePrivateProfileString("Defaults",   "BreakKeyboard",          SET->BreakKB         ? "on" : "off",   INIFileName);
-	WritePrivateProfileString("Defaults",   "BreakMouse",             SET->BreakMouse      ? "on" : "off",   INIFileName);
-#endif
+	// debug settings
+	SaveBoolSetting("DebugRenderPathing", g_settings.debug_render_pathing);
 }
 
 //----------------------------------------------------------------------------
