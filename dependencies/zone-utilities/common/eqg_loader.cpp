@@ -134,7 +134,7 @@ bool EQEmu::EQGLoader::ParseZon(EQEmu::PFS::Archive &archive, std::vector<char> 
 
 		std::shared_ptr<Placeable> p(new Placeable());
 		p->SetName(&buffer[sizeof(zon_header) + plac->loc]);
-		if (plac->id >= 0 && plac->id < models.size()) {
+		if (plac->id >= 0 && plac->id < static_cast<int32_t>(models.size())) {
 			p->SetFileName(model_names[plac->id]);
 		}
 

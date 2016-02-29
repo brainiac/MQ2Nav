@@ -77,6 +77,8 @@
       <MinimalRebuild>false</MinimalRebuild>
       <StructMemberAlignment>1Byte</StructMemberAlignment>
       <AdditionalIncludeDirectories>$(ProjectDir)</AdditionalIncludeDirectories>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <StringPooling>false</StringPooling>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
