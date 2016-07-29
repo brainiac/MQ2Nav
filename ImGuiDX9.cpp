@@ -85,10 +85,12 @@ static void ImGui_ImplDX9_RenderDrawLists(ImDrawData* draw_data)
 
     // Setup orthographic projection matrix
     D3DXMATRIXA16 mat;
+    D3DVIEWPORT9 viewport;
     D3DXMatrixIdentity(&mat);
     g_pd3dDevice->SetTransform(D3DTS_WORLD, &mat);
     g_pd3dDevice->SetTransform(D3DTS_VIEW, &mat);
-    D3DXMatrixOrthoOffCenterLH(&mat, 0.5f, ImGui::GetIO().DisplaySize.x+0.5f, ImGui::GetIO().DisplaySize.y+0.5f, 0.5f, -1.0f, +1.0f);
+    g_pd3dDevice->GetViewport(&viewport);
+    D3DXMatrixOrthoOffCenterLH(&mat, 0.5f, viewport.Width+0.5f, viewport.Height+0.5f, 0.5f, -1.0f, +1.0f);
     g_pd3dDevice->SetTransform(D3DTS_PROJECTION, &mat);
 
     // Render command lists
