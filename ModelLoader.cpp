@@ -375,7 +375,7 @@ void ModelLoader::UpdateModels()
 
 	const char* zoneName = GetShortZone(m_zoneId);
 	CHAR szEQPath[MAX_STRING];
-	GetEQPath(szEQPath);
+	GetEQPath(szEQPath, MAX_STRING);
 
 	auto zoneData = std::make_unique<ZoneData>(szEQPath, zoneName);
 
