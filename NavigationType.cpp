@@ -33,7 +33,7 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 	case Paused:
 		Dest.Type = pBoolType;
 		Dest.DWord = m_nav->IsPaused();
-		break;
+		return true;
 	case MeshLoaded:
 		Dest.Type = pBoolType;
 		Dest.DWord = m_nav->IsMeshLoaded();
