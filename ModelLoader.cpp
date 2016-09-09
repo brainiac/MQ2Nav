@@ -802,7 +802,7 @@ void DumpDataUI(void* ptr, DWORD length)
 {
 	ImGui::Columns(4);
 
-	for (int i = 0; i < length / 4; ++i)
+	for (int i = 0; i < static_cast<int>(length / 4); ++i)
 	{
 		float* p = (float*)ptr;
 		p += i;

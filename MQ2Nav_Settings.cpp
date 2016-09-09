@@ -21,7 +21,7 @@ static inline bool LoadBoolSetting(const std::string& name, bool default)
 
 	GetPrivateProfileString("Settings", name.c_str(), default ? "on" : "off",
 		szTemp, MAX_STRING, INIFileName);
-	return (!strnicmp(szTemp, "on", 3));
+	return (!_strnicmp(szTemp, "on", 3));
 }
 
 static inline void SaveBoolSetting(const std::string& name, bool value)

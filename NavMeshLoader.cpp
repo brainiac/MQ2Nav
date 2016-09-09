@@ -66,8 +66,9 @@ void NavMeshLoader::SetAutoLoad(bool autoLoad)
 // the file does not exist.
 static std::pair<std::shared_ptr<char>, DWORD> ReadFile(const std::string& filename)
 {
-	FILE* file = fopen(filename.c_str(), "rb");
-	if (file != 0)
+	FILE* file = 0;
+	errno_t err = fopen_s(&file, filename.c_str(), "rb");
+	if (!err)
 	{
 		scope_guard g = [file]() { fclose(file); };
 

@@ -11,7 +11,10 @@
 #include <memory>
 #include <vector>
 
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
+
 #include <windows.h>
 #include <d3dx9.h>
 

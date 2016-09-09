@@ -10,7 +10,11 @@
 
 #include <imgui.h>
 
+#ifdef DIRECTINPUT_VERSION
+#undef DIRECTINPUT_VERSION
+#endif
 #define DIRECTINPUT_VERSION 0x0800
+
 #include <dinput.h>
 
 #include <atomic>
@@ -323,8 +327,8 @@ void ProcessMouseEvent_Detour()
 	MouseBlocked = false;
 
 	ImGuiIO& io = ImGui::GetIO();
-	io.MousePos.x = MouseLocation.x;
-	io.MousePos.y = MouseLocation.y;
+	io.MousePos.x = static_cast<float>(MouseLocation.x);
+	io.MousePos.y = static_cast<float>(MouseLocation.y);
 
 	if (!io.WantCaptureMouse)
 	{
@@ -437,9 +441,10 @@ HMODULE g_dx9Module = 0;
 std::map<DWORD, bool> g_installedHooks;
 
 template <typename T>
-void InstallDetour(DWORD address, const T& detour, const T& trampoline, bool deferred = false)
+void InstallDetour(DWORD address, const T& detour, const T& trampoline,
+	PCHAR name, bool deferred = false)
 {
-	AddDetourf(address, detour, trampoline);
+	AddDetourf(address, detour, trampoline, name);
 	g_installedHooks[address] = deferred;
 }
 
@@ -469,36 +474,43 @@ HookStatus InitializeHooks()
 	// Detour that enables rendering into the world
 	InstallDetour(ZoneRender_InjectionOffset,
 		&RenderHooks::ZoneRender_Injection_Detour,
-		&RenderHooks::ZoneRender_Injection_Trampoline);
+		&RenderHooks::ZoneRender_Injection_Trampoline,
+		"ZoneRender_InjectinOffset");
 
 	// Intercepts mouse events
 	InstallDetour(__ProcessMouseEvent,
 		ProcessMouseEvent_Detour,
-		ProcessMouseEvent_Trampoline);
+		ProcessMouseEvent_Trampoline,
+		"__ProcessMouseEvent");
 
 	// Intercepts keyboard events. Unload must be deferred
 	InstallDetour(__ProcessKeyboardEvent,
 		ProcessKeyboardEvent_Detour,
-		ProcessKeyboardEvent_Trampoline);
+		ProcessKeyboardEvent_Trampoline,
+		"__ProcessKeyboardEvent");
 
 	// Hook the window proc, so we can retrieve mouse/keyboard events. Maybe in the future
 	// we use direct input for this too? Seems to work for now.
-	InstallDetour(__WndProc, WndProc_Detour, WndProc_Trampoline);
+	InstallDetour(__WndProc, WndProc_Detour, WndProc_Trampoline, "__WndProc");
 
 	// IDirect3DDevice9 virtual function hooks
 	DWORD* d3dDevice_vftable = *(DWORD**)g_pDevice;
 	InstallDetour(d3dDevice_vftable[0x3],
 		&RenderHooks::TestCooperativeLevel_Detour,
-		&RenderHooks::TestCooperativeLevel_Trampoline);
+		&RenderHooks::TestCooperativeLevel_Trampoline,
+		"d3dDevice_TestCooperativeLevel");
 	InstallDetour(d3dDevice_vftable[0x10],
 		&RenderHooks::Reset_Detour,
-		&RenderHooks::Reset_Trampoline);
+		&RenderHooks::Reset_Trampoline,
+		"d3dDevice_Reset");
 	InstallDetour(d3dDevice_vftable[0x29],
 		&RenderHooks::BeginScene_Detour,
-		&RenderHooks::BeginScene_Trampoline);
+		&RenderHooks::BeginScene_Trampoline,
+		"d3dDevice_BeginScene");
 	InstallDetour(d3dDevice_vftable[0x2a],
 		&RenderHooks::EndScene_Detour,
-		&RenderHooks::EndScene_Trampoline);
+		&RenderHooks::EndScene_Trampoline,
+		"d3dDevice_EndScene");
 
 	g_hooksInstalled = true;
 	return HookStatus::Success;

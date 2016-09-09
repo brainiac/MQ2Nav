@@ -308,6 +308,8 @@ bool NavigationLine::CreateDeviceObjects()
 
 	m_effect->SetTexture("lineTexture", m_lineTexture);
 	m_loaded = true;
+
+	return true;
 }
 
 void NavigationLine::InvalidateDeviceObjects()

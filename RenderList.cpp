@@ -22,7 +22,10 @@ static inline int PrimVertexCount(RenderList::PrimitiveType type)
 		return 3;
 	case RenderList::Prim_Quads:
 		return 4;
+	default: break;
 	}
+
+	return 0;
 }
 
 RenderList::RenderList(IDirect3DDevice9* pDevice, PrimitiveType type)

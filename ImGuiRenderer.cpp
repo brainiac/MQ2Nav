@@ -216,8 +216,8 @@ static void DrawMatrix(D3DXMATRIX& matrix, const char* name)
 			{
 				FLOAT f = matrix(row, col);
 
-				char label[32];
-				sprintf(label, "%.2f", f);
+				char label[32] = { 0 };
+				sprintf_s(label, "%.2f", f);
 				ImGui::Text(label); ImGui::NextColumn();
 			}
 		}

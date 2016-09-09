@@ -34,7 +34,7 @@ std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
 static bool IsInt(char* buffer)
 {
 	if (!*buffer) return false;
-	for (int i = 0; i < strlen(buffer); i++)
+	for (size_t i = 0; i < strlen(buffer); i++)
 		if (!(isdigit(buffer[i]) || buffer[i] == '.' || (buffer[i] == '-' && i == 0))) return false;
 	return true;
 }
@@ -276,12 +276,12 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 
 	GetArg(buffer, szLine, 1);
 
-	if (!stricmp(buffer, "ui")) {
+	if (!_stricmp(buffer, "ui")) {
 		mq2nav::GetSettings().show_ui = !mq2nav::GetSettings().show_ui;
 		mq2nav::SaveSettings(false);
 		return;
 	}
-	else if (!stricmp(buffer, "pause")) {
+	else if (!_stricmp(buffer, "pause")) {
 		m_isPaused = !m_isPaused;
 		return;
 	}
@@ -301,7 +301,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		if (!strcmp(buffer, "reload")) {
 			Get<NavMeshLoader>()->LoadNavMesh();
 		}
-		else if (!stricmp(buffer, "recordwaypoint") || !stricmp(buffer, "rwp")) {
+		else if (!_stricmp(buffer, "recordwaypoint") || !_stricmp(buffer, "rwp")) {
 			GetArg(buffer, szLine, 2);
 			if (0 == *buffer) {
 				WriteChatf(PLUGIN_MSG "Usage: /navigate recordwaypoint <waypoint name> <waypoint tag>");
@@ -316,7 +316,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 				}
 			}
 		}
-		else if (!stricmp(buffer, "help")) {
+		else if (!_stricmp(buffer, "help")) {
 			WriteChatf(PLUGIN_MSG "Usage:");
 			WriteChatf(PLUGIN_MSG "\ag/navigate [save | load]\ax - save/load settings");
 			WriteChatf(PLUGIN_MSG "\ag/navigate reload\ax - reload navmesh");
@@ -331,10 +331,10 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 			WriteChatf(PLUGIN_MSG "\ag/navigate stop\ax - stop navigation");
 			WriteChatf(PLUGIN_MSG "\ag/navigate pause\ax - pause navigation");
 		}
-		else if (!stricmp(buffer, "load")) {
+		else if (!_stricmp(buffer, "load")) {
 			mq2nav::LoadSettings(true);
 		}
-		else if (!stricmp(buffer, "save")) {
+		else if (!_stricmp(buffer, "save")) {
 			mq2nav::SaveSettings(true);
 		}
 		Stop();
@@ -343,7 +343,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 
 	// we were given a destination. Check if we should click once at the end.
 	GetArg(buffer, szLine, 3);
-	m_bSpamClick = strcmp(buffer, "once");
+	m_bSpamClick = (_stricmp(buffer, "once") == 0);
 
 	BeginNavigation(destination);
 
@@ -702,7 +702,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 	else
 	{
 		glm::vec3 tmpDestination(0, 0, 0);
-		
+
 		//DebugSpewAlways("line: %s", szLine);
 		int i = 0;
 		for (; i < 3; ++i) {
@@ -711,7 +711,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 				break;
 			if (!IsInt(item))
 				break;
-			tmpDestination[i] = atof(item);
+			tmpDestination[i] = static_cast<float>(atof(item));
 		}
 		if (i == 3) {
 			//WriteChatf("[MQ2Nav] locating loc: %.1f, %.1f, %.1f", tmpDestination[0], tmpDestination[1], tmpDestination[2]);
@@ -731,7 +731,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
 {
 	float result = -1.f;
 
-	NavigationPath path(Get<NavMeshLoader>()->GetNavMesh());
+	NavigationPath path(Get<NavMeshLoader>()->GetNavMesh() != nullptr);
 	path.FindPath(pos);
 
 	//WriteChatf("MQ2Nav::GetPathLength - num points: %d", numPoints);
@@ -770,7 +770,7 @@ bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
 	bool result = false;
 
 	if (ParseDestination(szLine, destination)) {
-		NavigationPath path(Get<NavMeshLoader>()->GetNavMesh());
+		NavigationPath path(Get<NavMeshLoader>()->GetNavMesh() != nullptr);
 		path.FindPath(destination);
 		result = path.GetPathSize() > 0;
 	}

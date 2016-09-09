@@ -54,6 +54,6 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 
 bool MQ2NavigationType::ToString(MQ2VARPTR VarPtr, PCHAR Destination)
 {
-	strcpy(Destination, "TRUE");
+	strcpy_s(Destination, MAX_STRING, "TRUE");
 	return true;
 }
