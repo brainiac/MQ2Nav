@@ -8,11 +8,33 @@ PreSetup("MQ2Nav");
 PLUGIN_VERSION(2.00);
 #define PLUGIN_NAME "MQ2Nav"
 
+#include <chrono>
 #include <memory>
 
 //----------------------------------------------------------------------------
 
 std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
+
+namespace internal
+{
+	// Chrono's static initialization somehow conflicts with innerspace. No idea why,
+	// but patch the broken function to use our version instead of the standard library's.
+	// The implementation is the same, but it doesn't rely on static initialization.
+
+	static std::chrono::high_resolution_clock::time_point high_resolution_clock_now() noexcept
+	{
+		int64_t freq = _Query_perf_frequency();
+		int64_t ctr = _Query_perf_counter();
+
+		int64_t whole = (ctr / freq) * 1000000000;
+		int64_t part = (ctr % freq) * 1000000000 / freq;
+
+		return std::chrono::high_resolution_clock::time_point(
+			std::chrono::high_resolution_clock::duration(whole + part)
+		);
+	}
+
+} // namespace internal
 
 //----------------------------------------------------------------------------
 
@@ -21,6 +43,13 @@ PLUGIN_API void InitializePlugin()
 	DebugSpewAlways("Initializing MQ2Nav");
 
 	WriteChatf(PLUGIN_MSG "v%1.1f \ay(BETA)\ax by brainiac (\aohttps://github.com/brainiac/MQ2Nav\ax)", MQ2Version);
+
+	// Patch our chrono::system_clock::now() function
+	DetourFunction(reinterpret_cast<PBYTE>(&std::chrono::high_resolution_clock::now),
+		reinterpret_cast<PBYTE>(&internal::high_resolution_clock_now));
+
+	auto sc_now = std::chrono::system_clock::now();
+	auto hrc_now = std::chrono::high_resolution_clock::now();
 
 	g_mq2Nav.reset(new MQ2NavigationPlugin);
 	g_mq2Nav->Plugin_Initialize();
