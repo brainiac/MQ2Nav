@@ -15,15 +15,7 @@ namespace mq2nav {
 inline bool ValidIngame(bool bCheckDead)
 {
 	// CTD prevention function
-	PSPAWNINFO pChSpawn = (PSPAWNINFO)pCharSpawn;
-	if (GetGameState() != GAMESTATE_INGAME
-		|| !pLocalPlayer
-		|| !pChSpawn->SpawnID
-		|| (bCheckDead && pChSpawn->RespawnTimer > 0))
-	{
-		return false;
-	}
-	return true;
+	return (GetGameState() == GAMESTATE_INGAME && GetCharInfo()->pSpawn && GetCharInfo2() && GetCharInfo() && GetCharInfo()->Stunned != 3);
 }
 
 } // namespace mq2nav
