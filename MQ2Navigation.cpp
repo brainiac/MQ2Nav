@@ -118,6 +118,7 @@ void MQ2NavigationPlugin::Plugin_OnBeginZone()
 
 	// stop active path if one exists
 	m_isActive = false;
+	m_isPaused = false;
 	m_activePath.reset();
 
 	for (const auto& m : m_modules)
@@ -282,7 +283,20 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		return;
 	}
 	else if (!_stricmp(buffer, "pause")) {
+		if (!m_isActive) 
+		{
+			WriteChatf(PLUGIN_MSG "Navigation must be active to pause");
+			return;
+		}
 		m_isPaused = !m_isPaused;
+		if (m_isPaused)
+		{
+			WriteChatf(PLUGIN_MSG "Pausing Navigation");
+			MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+		}
+		else
+			WriteChatf(PLUGIN_MSG "Resuming Navigation");
+		
 		return;
 	}
 
@@ -390,6 +404,7 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 {
 	// first clear existing state
 	m_isActive = false;
+	m_isPaused = false;
 	m_activePath.reset();
 
 	if (!Get<NavMeshLoader>()->IsNavMeshLoaded())
@@ -788,6 +803,7 @@ void MQ2NavigationPlugin::Stop()
 
 	m_activePath.reset();
 	m_isActive = false;
+	m_isPaused = false;
 
 	m_pEndingDoor = nullptr;
 	m_pEndingItem = nullptr;
