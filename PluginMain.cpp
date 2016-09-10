@@ -48,9 +48,6 @@ PLUGIN_API void InitializePlugin()
 	DetourFunction(reinterpret_cast<PBYTE>(&std::chrono::high_resolution_clock::now),
 		reinterpret_cast<PBYTE>(&internal::high_resolution_clock_now));
 
-	auto sc_now = std::chrono::system_clock::now();
-	auto hrc_now = std::chrono::high_resolution_clock::now();
-
 	g_mq2Nav.reset(new MQ2NavigationPlugin);
 	g_mq2Nav->Plugin_Initialize();
 
