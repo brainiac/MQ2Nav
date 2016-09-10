@@ -7,6 +7,7 @@
 #include "ImGuiRenderer.h"
 #include "RenderHandler.h"
 #include "FindPattern.h"
+#include "MQ2Nav_Settings.h"
 
 #include <imgui.h>
 
@@ -324,8 +325,14 @@ void ProcessMouseEvent_Detour()
 		return;
 	}
 
-	MouseBlocked = false;
+	if (!mq2nav::GetSettings().show_ui)
+	{
+		ProcessMouseEvent_Trampoline();
+		return;
+	}
 
+	MouseBlocked = false;	
+		
 	ImGuiIO& io = ImGui::GetIO();
 	io.MousePos.x = static_cast<float>(MouseLocation.x);
 	io.MousePos.y = static_cast<float>(MouseLocation.y);
