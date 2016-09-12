@@ -78,7 +78,7 @@ MapGeometryLoader::~MapGeometryLoader()
 	delete [] m_normals;
 	delete [] m_tris;
 }
-		
+
 void MapGeometryLoader::addVertex(float x, float y, float z)
 {
 	if (m_vertCount+1 > vcap)
@@ -310,7 +310,6 @@ bool MapGeometryLoader::load()
 		}
 	}
 
-#if 0
 	for (const auto& group : map_group_placeables)
 	{
 		for (const auto& obj : group->GetPlaceables())
@@ -336,22 +335,22 @@ bool MapGeometryLoader::load()
 					ScaleVertex(v, GetScale(obj));
 					TranslateVertex(v, GetTranslation(obj));
 
-					RotateVertex(v, group->GetRotationX(), 0, 0);
-					RotateVertex(v, 0, group->GetRotationY(), 0);
+					RotateVertex(v, group->GetRotationX() * M_PI / 180, 0, 0);
+					RotateVertex(v, 0, group->GetRotationY() * M_PI / 180, 0);
 
 					glm::vec3 correction = GetTranslation(obj);
 
-					RotateVertex(correction, group->GetRotationX(), 0, 0);
+					RotateVertex(correction, group->GetRotationX() * M_PI / 180, 0, 0);
 
 					TranslateVertex(v, -correction.x, -correction.y, -correction.z);
 
-					RotateVertex(v, obj->GetRotateX(), 0, 0);
-					RotateVertex(v, 0, -obj->GetRotateY(), 0);
-					RotateVertex(v, 0, 0, obj->GetRotateZ());
+					RotateVertex(v, obj->GetRotateX() * M_PI / 180, 0, 0);
+					RotateVertex(v, 0, -obj->GetRotateY() * M_PI / 180, 0);
+					RotateVertex(v, 0, 0, obj->GetRotateZ() * M_PI / 180);
 
 					TranslateVertex(v, correction.x, correction.y, correction.z);
 
-					RotateVertex(v, 0, 0, group->GetRotationZ());
+					RotateVertex(v, 0, 0, group->GetRotationZ() * M_PI / 180);
 
 					ScaleVertex(v, GetScale(group));
 
@@ -363,7 +362,6 @@ bool MapGeometryLoader::load()
 			}
 		}
 	}
-#endif
 
 	//const auto& non_collide_indices = map.GetNonCollideIndices();
 
@@ -438,7 +436,7 @@ void MapGeometryLoader::LoadDoors()
 	// Load the door data
 	//
 	std::string filename = m_meshPath + "\\MQ2Nav\\" + m_zoneName + "_doors.json";
-	
+
 	boost::system::error_code ec;
 	if (!boost::filesystem::is_regular_file(filename, ec))
 		return;
@@ -529,7 +527,7 @@ void MapGeometryLoader::LoadDoors()
 				continue;
 
 			auto& polygon = *iter;
-			AddTriangle(matrix, 
+			AddTriangle(matrix,
 				scale * verts[polygon.verts[0]].pos,
 				scale * verts[polygon.verts[1]].pos,
 				scale * verts[polygon.verts[2]].pos);
