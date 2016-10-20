@@ -88,8 +88,8 @@ const unsigned char* WndProc_Pattern = (const unsigned char*)"\x6a\xff\x68\x00\x
 class CRender
 {
 public:
-	/*0x000*/ BYTE Unknown0x0[0xf08];
-	/*0xf08*/ IDirect3DDevice9 *pDevice; // device pointer
+	/*0x000*/ BYTE Unknown0x0[0xec8];
+	/*0xec8*/ IDirect3DDevice9 *pDevice; // device pointer see .text:100019B4                 mov     ecx, [ecx+0EC8h] // EQGraphicsDX9.dll Wed Oct 12 21:52:41 2016
 };
 
 //----------------------------------------------------------------------------
