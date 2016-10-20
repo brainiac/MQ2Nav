@@ -47,8 +47,10 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 		Dest.Float = m_nav->GetNavigationPathLength(Index);
 		return true;
 	}
+
+	strcpy_s(DataTypeTemp, "NULL");
 	Dest.Type = pStringType;
-	Dest.Ptr = "NULL";
+	Dest.Ptr = &DataTypeTemp[0];
 	return true;
 }
 
