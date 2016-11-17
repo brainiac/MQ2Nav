@@ -514,7 +514,7 @@ void MQ2NavigationPlugin::StuckCheck()
 				&& FindSpeed(GetCharInfo()->pSpawn)
 				&& (GetDistance(m_stuckX, m_stuckY) < FindSpeed(GetCharInfo()->pSpawn) / 600)
 				&& !ClickNearestClosedDoor(25)
-				&& !GetCharInfo()->pSpawn->Levitate
+				&& !GetCharInfo()->pSpawn->mPlayerPhysicsClient.Levitate
 				&& !GetCharInfo()->pSpawn->UnderWater
 				&& !GetCharInfo()->Stunned
 				&& m_isActive)
@@ -552,11 +552,11 @@ void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 	if (pSpawn->UnderWater == 5 || pSpawn->FeetWet == 5)
 	{
 		FLOAT distance = (FLOAT)GetDistance(pSpawn->X, pSpawn->Y, pos.x, pos.y);
-		pSpawn->CameraAngle = (FLOAT)(atan2(pos.z - pSpawn->Feet, distance) * 256.0f / PI);
+		pSpawn->CameraAngle = (FLOAT)(atan2(pos.z - pSpawn->FloorHeight, distance) * 256.0f / PI);
 	}
-	else if (pSpawn->Levitate == 2)
+	else if (pSpawn->mPlayerPhysicsClient.Levitate == 2)
 	{
-		if (pos.z < pSpawn->Feet)
+		if (pos.z < pSpawn->FloorHeight)
 			pSpawn->CameraAngle = -45.0f;
 		else if (pos.z > pSpawn->Z + 5)
 			pSpawn->CameraAngle = 45.0f;

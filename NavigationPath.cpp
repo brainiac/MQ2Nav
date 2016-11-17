@@ -101,7 +101,7 @@ void NavigationPath::UpdatePath(bool force)
 	if (me == nullptr)
 		return;
 
-	float startOffset[3] = { me->X, me->Feet, me->Y };
+	float startOffset[3] = { me->X, me->FloorHeight, me->Y };
 	float endOffset[3] = { m_destination.x, m_destination.z, m_destination.y };
 	float spos[3];
 	float epos[3];
@@ -193,7 +193,7 @@ void NavigationPath::UpdatePath(bool force)
 			DebugDrawDX dd(m_debugDrawGrp.get());
 
 			// draw current position
-			duDebugDrawCross(&dd, me->X, me->Feet, me->Y, 0.5, DXColor(51, 255, 255), 1);
+			duDebugDrawCross(&dd, me->X, me->FloorHeight, me->Y, 0.5, DXColor(51, 255, 255), 1);
 
 			// Draw the waypoints. Green is next point
 			for (int i = 0; i < m_currentPathSize; ++i)
