@@ -338,7 +338,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 
 			WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
 			WriteChatf(PLUGIN_MSG "\ag/navigate target\ax - navigate to target");
-			WriteChatf(PLUGIN_MSG "\ag/navigate id #\ax - navigate to target");
+			WriteChatf(PLUGIN_MSG "\ag/navigate id #\ax - navigate to target with ID = #");
 			WriteChatf(PLUGIN_MSG "\ag/navigate X Y Z\ax - navigate to coordinates");
 			WriteChatf(PLUGIN_MSG "\ag/navigate item [click] [once]\ax - navigate to item (and click it)");
 			WriteChatf(PLUGIN_MSG "\ag/navigate door [click] [once]\ax - navigate to door/object (and click it)");
@@ -656,23 +656,42 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 {
 	bool result = true;
 	CHAR buffer[MAX_STRING] = { 0 };
+	PSPAWNINFO target = NULL;
 	GetArg(buffer, szLine, 1);
 
 	if (!strcmp(buffer, "target")) {
 		if (pTarget) {
-			PSPAWNINFO target = (PSPAWNINFO)pTarget;
+			target = (PSPAWNINFO)pTarget;
 			WriteChatf("[MQ2Nav] locating target: %s", target->Name);
 			destination.x = target->X;
 			destination.y = target->Y;
 			destination.z = target->Z;
 		} else {
 			WriteChatf(PLUGIN_MSG "\agError... you need a target dumbass");
+			result = false;
+			return result;
 		}
 	} else if (!strcmp(buffer, "id")) {
 		GetArg(buffer, szLine, 2);
 		char* pNotNum = NULL;
 		int iValid = strtoul(buffer, &pNotNum, 10);
-		PSPAWNINFO target = (PSPAWNINFO)GetSpawnByID((unsigned long)iValid);
+		if (iValid < 1 || *pNotNum) {
+			WriteChatf(PLUGIN_MSG "\agError... SpawnID must be a positive numerical value.");
+			result = false;
+			return result;
+		}
+		target = (PSPAWNINFO)GetSpawnByID((unsigned long)iValid);
+		if (target) {
+			if (target->SpawnID == ((PSPAWNINFO)pCharSpawn)->SpawnID || target->SpawnID == ((PSPAWNINFO)pLocalPlayer)->SpawnID) {
+				WriteChatf(PLUGIN_MSG "\agError... You cannot use yourself or your mount.");
+				result = false;
+				return result;
+			}
+		} else {
+			WriteChatf(PLUGIN_MSG "\agError... OMG please pick a ID for a valid npc/pc in your zone.");
+			result = false;
+			return result;
+		}
 		WriteChatf("[MQ2Nav] locating target: %s", target->Name);
 		destination.x = target->X;
 		destination.y = target->Y;
