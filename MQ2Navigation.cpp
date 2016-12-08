@@ -338,6 +338,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 
 			WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
 			WriteChatf(PLUGIN_MSG "\ag/navigate target\ax - navigate to target");
+			WriteChatf(PLUGIN_MSG "\ag/navigate id #\ax - navigate to target");
 			WriteChatf(PLUGIN_MSG "\ag/navigate X Y Z\ax - navigate to coordinates");
 			WriteChatf(PLUGIN_MSG "\ag/navigate item [click] [once]\ax - navigate to item (and click it)");
 			WriteChatf(PLUGIN_MSG "\ag/navigate door [click] [once]\ax - navigate to door/object (and click it)");
@@ -657,16 +658,26 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 	CHAR buffer[MAX_STRING] = { 0 };
 	GetArg(buffer, szLine, 1);
 
-	if (!strcmp(buffer, "target") && pTarget)
-	{
-		PSPAWNINFO target = (PSPAWNINFO)pTarget;
-		//WriteChatf("[MQ2Nav] locating target: %s", target->Name);
+	if (!strcmp(buffer, "target")) {
+		if (pTarget) {
+			PSPAWNINFO target = (PSPAWNINFO)pTarget;
+			WriteChatf("[MQ2Nav] locating target: %s", target->Name);
+			destination.x = target->X;
+			destination.y = target->Y;
+			destination.z = target->Z;
+		} else {
+			WriteChatf(PLUGIN_MSG "\agError... you need a target dumbass");
+		}
+	} else if (!strcmp(buffer, "id")) {
+		GetArg(buffer, szLine, 2);
+		char* pNotNum = NULL;
+		int iValid = strtoul(buffer, &pNotNum, 10);
+		PSPAWNINFO target = (PSPAWNINFO)GetSpawnByID((unsigned long)iValid);
+		WriteChatf("[MQ2Nav] locating target: %s", target->Name);
 		destination.x = target->X;
 		destination.y = target->Y;
 		destination.z = target->Z;
-	}
-	else if (!strcmp(buffer, "door") && pDoorTarget)
-	{
+	} else if (!strcmp(buffer, "door") && pDoorTarget) {
 		//WriteChatf("[MQ2Nav] locating door target: %s", pDoorTarget->Name);
 		destination.x = pDoorTarget->X;
 		destination.y = pDoorTarget->Y;
@@ -676,9 +687,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		//TODO: move this somewhere else
 		if (!strcmp(buffer, "click"))
 			m_pEndingDoor = pDoorTarget;
-	}
-	else if (!strcmp(buffer, "item") && pGroundTarget)
-	{
+	} else if (!strcmp(buffer, "item") && pGroundTarget) {
 		//WriteChatf("[MQ2Nav] locating item target: %s", pGroundTarget->Name);
 		destination.x = pGroundTarget->X;
 		destination.y = pGroundTarget->Y;
@@ -688,34 +697,26 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		//TODO: move this somewhere else
 		if (!strcmp(buffer, "click"))
 			m_pEndingItem = pGroundTarget;
-	}
-	else if (!strcmp(buffer, "waypoint") || !strcmp(buffer, "wp"))
-	{
+	} else if (!strcmp(buffer, "waypoint") || !strcmp(buffer, "wp")) {
 		GetArg(buffer, szLine, 2);
 
 		if (0 == *buffer) {
 			WriteChatf(PLUGIN_MSG "usage: /navigate waypoint <waypoint name>");
 			result = false;
-		}
-		else
-		{
+		} else {
 			WriteChatf(PLUGIN_MSG "locating  waypoint: %s", buffer);
 
 			mq2nav::Waypoint wp;
-			if (mq2nav::GetWaypoint(std::string(buffer), wp))
-			{
+			if (mq2nav::GetWaypoint(std::string(buffer), wp)) {
 				destination.x = wp.location.x;
 				destination.y = wp.location.y;
 				destination.z = wp.location.z;
-			}
-			else {
+			} else {
 				WriteChatf(PLUGIN_MSG "waypoint not found!");
 				result = false;
 			}
 		}
-	}
-	else
-	{
+	} else {
 		glm::vec3 tmpDestination(0, 0, 0);
 
 		//DebugSpewAlways("line: %s", szLine);
@@ -731,8 +732,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		if (i == 3) {
 			//WriteChatf("[MQ2Nav] locating loc: %.1f, %.1f, %.1f", tmpDestination[0], tmpDestination[1], tmpDestination[2]);
 			destination = tmpDestination;
-		}
-		else {
+		} else {
 			result = false;
 		}
 	}
