@@ -19,6 +19,7 @@
 
 #include "DetourCommon.h"
 
+#include <boost/lexical_cast.hpp>
 #include <set>
 
 #pragma comment (lib, "d3d9.lib")
@@ -659,51 +660,50 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 	PSPAWNINFO target = NULL;
 	GetArg(buffer, szLine, 1);
 
-	if (strcmp(buffer, "target") == 0)
+	if (!strcmp(buffer, "target"))
 	{
 		if (pTarget)
 		{
 			target = (PSPAWNINFO)pTarget;
-			WriteChatf("[MQ2Nav] locating target: %s", target->Name);
+			WriteChatf(PLUGIN_MSG "locating target: %s", target->Name);
 			destination.x = target->X;
 			destination.y = target->Y;
 			destination.z = target->Z;
 		}
 		else
 		{
-			WriteChatf(PLUGIN_MSG "\agError... you need a target dumbass");
-			result = false;
-			return result;
+			WriteChatf(PLUGIN_MSG "\arYou need a target");
+			return false;
 		}
 	}
 	else if (!strcmp(buffer, "id"))
 	{
 		GetArg(buffer, szLine, 2);
-		char* pNotNum = NULL;
-		int iValid = strtoul(buffer, &pNotNum, 10);
-		if (iValid < 1 || *pNotNum)
-		{
-			WriteChatf(PLUGIN_MSG "\agError... SpawnID must be a positive numerical value.");
-			result = false;
-			return result;
+		DWORD reqId = 0;
+
+		try {
+			reqId = boost::lexical_cast<DWORD>(buffer);
 		}
-		target = (PSPAWNINFO)GetSpawnByID((unsigned long)iValid);
-		if (target)
-		{
-			if (target->SpawnID == ((PSPAWNINFO)pCharSpawn)->SpawnID || target->SpawnID == ((PSPAWNINFO)pLocalPlayer)->SpawnID)
-			{
-				WriteChatf(PLUGIN_MSG "\agError... You cannot use yourself or your mount.");
-				result = false;
-				return result;
-			}
+		catch (const boost::bad_lexical_cast&) {
+			WriteChatf(PLUGIN_MSG "\arbad spawn id");
+			return false;
 		}
-		else
+
+		target = (PSPAWNINFO)GetSpawnByID(reqId);
+		if (!target)
 		{
-			WriteChatf(PLUGIN_MSG "\agError... OMG please pick a ID for a valid npc/pc in your zone.");
-			result = false;
-			return result;
+			WriteChatf(PLUGIN_MSG "\arCould not find spawn matching id %d", reqId);
+			return false;
 		}
-		WriteChatf("[MQ2Nav] locating target: %s", target->Name);
+
+		if (target->SpawnID == ((PSPAWNINFO)pCharSpawn)->SpawnID
+			|| target->SpawnID == ((PSPAWNINFO)pLocalPlayer)->SpawnID)
+		{
+			WriteChatf(PLUGIN_MSG "\arYou cannot use yourself or your mount");
+			return false;
+		}
+
+		WriteChatf(PLUGIN_MSG "locating spawn: %d (%s)", target->SpawnID, target->Name);
 		destination.x = target->X;
 		destination.y = target->Y;
 		destination.z = target->Z;
@@ -742,7 +742,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		}
 		else
 		{
-			WriteChatf(PLUGIN_MSG "locating  waypoint: %s", buffer);
+			WriteChatf(PLUGIN_MSG "locating waypoint: %s", buffer);
 
 			mq2nav::Waypoint wp;
 			if (mq2nav::GetWaypoint(std::string(buffer), wp))
@@ -779,6 +779,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 			result = false;
 		}
 	}
+
 	if (result)
 		m_isPaused = false;
 
