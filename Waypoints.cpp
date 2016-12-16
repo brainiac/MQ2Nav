@@ -232,6 +232,13 @@ void RenderWaypointsUI()
 			}
 		}
 	}
+	ImGui::SameLine();
+	if (ImGui::Button("Navigate")) {
+		if (s_newWaypoint.name.length() > 0)
+		{
+			g_mq2Nav->BeginNavigation(s_newWaypoint.location);
+		}
+	}
 }
 
 } // namespace mq2nav
