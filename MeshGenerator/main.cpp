@@ -19,6 +19,7 @@
 #include <time.h>
 #include <memory>
 
+#include <sstream>
 
 // logger to log to the build context
 class LogContext : public EQEmu::Log::LogBase
@@ -70,6 +71,54 @@ private:
 	BuildContext& m_ctx;
 };
 
+class DebugLog : public EQEmu::Log::LogBase
+{
+public:
+	DebugLog() {}
+
+	virtual void OnRegister(int enabled_logs) {}
+	virtual void OnUnregister() {}
+	virtual void OnMessage(EQEmu::Log::LogType log_type, const std::string &message)
+	{
+		char time_buffer[512];
+		time_t current_time;
+		struct tm *time_info;
+
+		time(&current_time);
+		time_info = localtime(&current_time);
+
+		strftime(time_buffer, 512, "%m/%d/%y %H:%M:%S", time_info);
+		const char* logLevel = "Unknown";
+
+		std::stringstream ss;
+
+		switch (log_type)
+		{
+		case EQEmu::Log::LogTrace:
+			logLevel = "Trace";
+			break;
+		case EQEmu::Log::LogDebug:
+			logLevel = "Debug";
+			break;
+		case EQEmu::Log::LogInfo:
+			logLevel = "Info";
+			break;
+		case EQEmu::Log::LogWarn:
+			logLevel = "Warn";
+			break;
+		case EQEmu::Log::LogError:
+			logLevel = "Error";
+			break;
+		case EQEmu::Log::LogFatal:
+			logLevel = "Fatal";
+			break;
+		}
+
+		ss << time_buffer << " [" << logLevel << "] " << message << "\n";
+		OutputDebugStringA(ss.str().c_str());
+	}
+};
+
 #define DebugHeader "[MeshGen]"
 
 VOID DebugSpewAlways(PCHAR szFormat, ...)
@@ -98,7 +147,10 @@ int main(int argc, char* argv[])
 	eqLogInit(-1);
 	eqLogRegister(std::make_shared<EQEmu::Log::LogFile>(logfilePath));
 	eqLogRegister(std::make_shared<EQEmu::Log::LogStdOut>());
-	//eqLogRegister(std::make_shared<LogContext>(ctx));
+
+#if defined(DEBUG)
+	eqLogRegister(std::make_shared<DebugLog>());
+#endif
 
 	std::string startingZone;
 	if (argc > 1)
