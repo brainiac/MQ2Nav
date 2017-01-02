@@ -16,6 +16,7 @@ MQ2NavigationType::MQ2NavigationType(MQ2NavigationPlugin* nav_)
 	TypeMember(MeshLoaded);
 	TypeMember(PathExists);
 	TypeMember(PathLength);
+	TypeMember(TargetID);
 }
 
 MQ2NavigationType::~MQ2NavigationType()
@@ -45,6 +46,10 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 	case PathLength:
 		Dest.Type = pFloatType;
 		Dest.Float = m_nav->GetNavigationPathLength(Index);
+		return true;
+	case TargetID:
+		Dest.Type = pIntType;
+		Dest.DWord = m_nav->GetTargetID();
 		return true;
 	}
 

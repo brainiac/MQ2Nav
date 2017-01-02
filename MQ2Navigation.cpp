@@ -117,6 +117,7 @@ void MQ2NavigationPlugin::Plugin_OnBeginZone()
 	UpdateCurrentZone();
 
 	// stop active path if one exists
+	m_targetID = -1;
 	m_isActive = false;
 	m_isPaused = false;
 	m_activePath.reset();
@@ -666,6 +667,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 			destination.x = target->X;
 			destination.y = target->Y;
 			destination.z = target->Z;
+			m_targetID = target->SpawnID;
 		} else {
 			WriteChatf(PLUGIN_MSG "\agError... you need a target dumbass");
 			result = false;
@@ -696,6 +698,7 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		destination.x = target->X;
 		destination.y = target->Y;
 		destination.z = target->Z;
+		m_targetID = target->SpawnID;
 	} else if (!strcmp(buffer, "door") && pDoorTarget) {
 		//WriteChatf("[MQ2Nav] locating door target: %s", pDoorTarget->Name);
 		destination.x = pDoorTarget->X;
@@ -823,6 +826,7 @@ void MQ2NavigationPlugin::Stop()
 	m_activePath.reset();
 	m_isActive = false;
 	m_isPaused = false;
+	m_targetID = -1;
 
 	m_pEndingDoor = nullptr;
 	m_pEndingItem = nullptr;

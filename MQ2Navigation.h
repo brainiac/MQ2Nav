@@ -98,7 +98,7 @@ public:
 	static const int PATHFINDING_DELAY_MS = 200;
 
 	//----------------------------------------------------------------------------
-
+	int GetTargetID() const { return m_targetID; }
 	bool IsActive() const { return m_isActive; }
 	bool IsPaused() const { return m_isPaused; }
 	bool IsMeshLoaded() const;
@@ -151,6 +151,9 @@ private:
 
 	bool m_initialized = false;
 	int m_zoneId = -1;
+
+	// set the target id
+	int m_targetID = -1;
 
 	bool m_retryHooks = false;
 

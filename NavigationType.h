@@ -20,7 +20,8 @@ public:
 		Paused = 2,
 		MeshLoaded = 3,
 		PathExists = 4,
-		PathLength = 5,
+		PathLength = 5, 
+		TargetID = 6,
 	};
 
 	MQ2NavigationType(MQ2NavigationPlugin* nav_);
