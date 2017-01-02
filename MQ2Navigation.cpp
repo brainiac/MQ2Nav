@@ -19,6 +19,7 @@
 
 #include "DetourCommon.h"
 
+#include <boost/lexical_cast.hpp>
 #include <set>
 
 #pragma comment (lib, "d3d9.lib")
@@ -660,46 +661,58 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 	PSPAWNINFO target = NULL;
 	GetArg(buffer, szLine, 1);
 
-	if (!strcmp(buffer, "target")) {
-		if (pTarget) {
+	if (!strcmp(buffer, "target"))
+	{
+		if (pTarget)
+		{
 			target = (PSPAWNINFO)pTarget;
-			WriteChatf("[MQ2Nav] locating target: %s", target->Name);
+			WriteChatf(PLUGIN_MSG "locating target: %s", target->Name);
 			destination.x = target->X;
 			destination.y = target->Y;
 			destination.z = target->Z;
 			m_targetID = target->SpawnID;
-		} else {
-			WriteChatf(PLUGIN_MSG "\agError... you need a target dumbass");
-			result = false;
-			return result;
 		}
-	} else if (!strcmp(buffer, "id")) {
+		else
+		{
+			WriteChatf(PLUGIN_MSG "\arYou need a target");
+			return false;
+		}
+	}
+	else if (!strcmp(buffer, "id"))
+	{
 		GetArg(buffer, szLine, 2);
-		char* pNotNum = NULL;
-		int iValid = strtoul(buffer, &pNotNum, 10);
-		if (iValid < 1 || *pNotNum) {
-			WriteChatf(PLUGIN_MSG "\agError... SpawnID must be a positive numerical value.");
-			result = false;
-			return result;
+		DWORD reqId = 0;
+
+		try {
+			reqId = boost::lexical_cast<DWORD>(buffer);
 		}
-		target = (PSPAWNINFO)GetSpawnByID((unsigned long)iValid);
-		if (target) {
-			if (target->SpawnID == ((PSPAWNINFO)pCharSpawn)->SpawnID || target->SpawnID == ((PSPAWNINFO)pLocalPlayer)->SpawnID) {
-				WriteChatf(PLUGIN_MSG "\agError... You cannot use yourself or your mount.");
-				result = false;
-				return result;
-			}
-		} else {
-			WriteChatf(PLUGIN_MSG "\agError... OMG please pick a ID for a valid npc/pc in your zone.");
-			result = false;
-			return result;
+		catch (const boost::bad_lexical_cast&) {
+			WriteChatf(PLUGIN_MSG "\arbad spawn id");
+			return false;
 		}
-		WriteChatf("[MQ2Nav] locating target: %s", target->Name);
+
+		target = (PSPAWNINFO)GetSpawnByID(reqId);
+		if (!target)
+		{
+			WriteChatf(PLUGIN_MSG "\arCould not find spawn matching id %d", reqId);
+			return false;
+		}
+
+		if (target->SpawnID == ((PSPAWNINFO)pCharSpawn)->SpawnID
+			|| target->SpawnID == ((PSPAWNINFO)pLocalPlayer)->SpawnID)
+		{
+			WriteChatf(PLUGIN_MSG "\arYou cannot use yourself or your mount");
+			return false;
+		}
+
+		WriteChatf(PLUGIN_MSG "locating spawn: %d (%s)", target->SpawnID, target->Name);
 		destination.x = target->X;
 		destination.y = target->Y;
 		destination.z = target->Z;
 		m_targetID = target->SpawnID;
-	} else if (!strcmp(buffer, "door") && pDoorTarget) {
+	}
+	else if (!strcmp(buffer, "door") && pDoorTarget)
+	{
 		//WriteChatf("[MQ2Nav] locating door target: %s", pDoorTarget->Name);
 		destination.x = pDoorTarget->X;
 		destination.y = pDoorTarget->Y;
@@ -709,7 +722,9 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		//TODO: move this somewhere else
 		if (!strcmp(buffer, "click"))
 			m_pEndingDoor = pDoorTarget;
-	} else if (!strcmp(buffer, "item") && pGroundTarget) {
+	}
+	else if (!strcmp(buffer, "item") && pGroundTarget)
+	{
 		//WriteChatf("[MQ2Nav] locating item target: %s", pGroundTarget->Name);
 		destination.x = pGroundTarget->X;
 		destination.y = pGroundTarget->Y;
@@ -719,26 +734,34 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		//TODO: move this somewhere else
 		if (!strcmp(buffer, "click"))
 			m_pEndingItem = pGroundTarget;
-	} else if (!strcmp(buffer, "waypoint") || !strcmp(buffer, "wp")) {
+	}
+	else if (!strcmp(buffer, "waypoint") || !strcmp(buffer, "wp"))
+	{
 		GetArg(buffer, szLine, 2);
 
 		if (0 == *buffer) {
 			WriteChatf(PLUGIN_MSG "usage: /navigate waypoint <waypoint name>");
 			result = false;
-		} else {
-			WriteChatf(PLUGIN_MSG "locating  waypoint: %s", buffer);
+		}
+		else
+		{
+			WriteChatf(PLUGIN_MSG "locating waypoint: %s", buffer);
 
 			mq2nav::Waypoint wp;
-			if (mq2nav::GetWaypoint(std::string(buffer), wp)) {
+			if (mq2nav::GetWaypoint(std::string(buffer), wp))
+			{
 				destination.x = wp.location.x;
 				destination.y = wp.location.y;
 				destination.z = wp.location.z;
-			} else {
+			}
+			else {
 				WriteChatf(PLUGIN_MSG "waypoint not found!");
 				result = false;
 			}
 		}
-	} else {
+	}
+	else
+	{
 		glm::vec3 tmpDestination(0, 0, 0);
 
 		//DebugSpewAlways("line: %s", szLine);
@@ -754,10 +777,12 @@ bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
 		if (i == 3) {
 			//WriteChatf("[MQ2Nav] locating loc: %.1f, %.1f, %.1f", tmpDestination[0], tmpDestination[1], tmpDestination[2]);
 			destination = tmpDestination;
-		} else {
+		}
+		else {
 			result = false;
 		}
 	}
+
 	if (result)
 		m_isPaused = false;
 
@@ -824,9 +849,9 @@ void MQ2NavigationPlugin::Stop()
 	}
 
 	m_activePath.reset();
+	m_targetID = -1;
 	m_isActive = false;
 	m_isPaused = false;
-	m_targetID = -1;
 
 	m_pEndingDoor = nullptr;
 	m_pEndingItem = nullptr;
