@@ -85,12 +85,12 @@ static void ImGui_ImplSdl_RenderDrawLists(ImDrawData* draw_data)
     glPopAttrib();
 }
 
-static const char* ImGui_ImplSdl_GetClipboardText()
+static const char* ImGui_ImplSdl_GetClipboardText(void*)
 {
 	return SDL_GetClipboardText();
 }
 
-static void ImGui_ImplSdl_SetClipboardText(const char* text)
+static void ImGui_ImplSdl_SetClipboardText(void*, const char* text)
 {
     SDL_SetClipboardText(text);
 }

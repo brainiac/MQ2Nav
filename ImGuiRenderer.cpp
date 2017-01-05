@@ -315,7 +315,7 @@ void RenderInputUI()
 		// Clicks? Clicks!
 		PMOUSECLICK clicks = EQADDR_MOUSECLICK;
 
-		ImGui::SetNextTreeNodeOpened(true, ImGuiSetCond_Once);
+		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
 		if (ImGui::TreeNode("##clicks", "EQ Mouse Clicks"))
 		{
 			ImGui::Columns(3);
@@ -335,7 +335,7 @@ void RenderInputUI()
 			ImGui::TreePop();
 		}
 
-		ImGui::SetNextTreeNodeOpened(true, ImGuiSetCond_Once);
+		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
 		if (ImGui::TreeNode("##position", "EQ Mouse State"))
 		{
 			ImGui::LabelText("Position", "(%d, %d)", MouseState->x, MouseState->y);
@@ -346,7 +346,7 @@ void RenderInputUI()
 			ImGui::TreePop();
 		}
 
-		ImGui::SetNextTreeNodeOpened(true, ImGuiSetCond_Once);
+		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
 		if (ImGui::TreeNode("##mouseinfo", "EQ Mouse Info"))
 		{
 			int pos[2] = { EQADDR_MOUSE->X, EQADDR_MOUSE->Y };

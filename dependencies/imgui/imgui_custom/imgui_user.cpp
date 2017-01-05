@@ -4,10 +4,20 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+enum ImGuiAlign_
+{
+	ImGuiAlign_Left = 1 << 0,
+	ImGuiAlign_Center = 1 << 1,
+	ImGuiAlign_Right = 1 << 2,
+	ImGuiAlign_Top = 1 << 3,
+	ImGuiAlign_VCenter = 1 << 4,
+	ImGuiAlign_Default = ImGuiAlign_Left | ImGuiAlign_Top
+};
+
 static void RenderTextOverlay(ImVec2 pos, const ImVec4& color, ImGuiAlign_ alignment,
 	const char* text, const char* text_end)
 {
-	ImGuiState& g = *GImGui;
+	auto& g = *GImGui;
 
 	if (!text_end)
 		text_end = text + strlen(text); // FIXME-OPT
@@ -55,7 +65,7 @@ void ImGui::RenderText(const ImVec2& pos, const ImVec4& color, const char* fmt, 
 	va_list args;
 	va_start(args, fmt);
 
-	ImGuiState& g = *GImGui;
+	auto& g = *GImGui;
 	const char* text_end = g.TempBuffer + ImFormatStringV(g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args);
 
 	RenderTextOverlay(pos, color, ImGuiAlign_Left, g.TempBuffer, text_end);
@@ -66,7 +76,7 @@ void ImGui::RenderText(int x, int y, const ImVec4& color, const char* fmt, ...)
 	va_list args;
 	va_start(args, fmt);
 
-	ImGuiState& g = *GImGui;
+	auto& g = *GImGui;
 	const char* text_end = g.TempBuffer + ImFormatStringV(g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args);
 
 	RenderTextOverlay(ImVec2((float)x, (float)y), color, ImGuiAlign_Left, g.TempBuffer, text_end);
@@ -77,7 +87,7 @@ void ImGui::RenderTextCentered(const ImVec2& pos, const ImVec4& color, const cha
 	va_list args;
 	va_start(args, fmt);
 
-	ImGuiState& g = *GImGui;
+	auto& g = *GImGui;
 	const char* text_end = g.TempBuffer + ImFormatStringV(g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args);
 
 	RenderTextOverlay(pos, color, ImGuiAlign_Center, g.TempBuffer, text_end);
@@ -88,7 +98,7 @@ void ImGui::RenderTextCentered(int x, int y, const ImVec4& color, const char* fm
 	va_list args;
 	va_start(args, fmt);
 
-	ImGuiState& g = *GImGui;
+	auto& g = *GImGui;
 	const char* text_end = g.TempBuffer + ImFormatStringV(g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args);
 
 	RenderTextOverlay(ImVec2((float)x, (float)y), color, ImGuiAlign_Center, g.TempBuffer, text_end);
@@ -99,7 +109,7 @@ void ImGui::RenderTextRight(const ImVec2& pos, const ImVec4& color, const char* 
 	va_list args;
 	va_start(args, fmt);
 
-	ImGuiState& g = *GImGui;
+	auto& g = *GImGui;
 	const char* text_end = g.TempBuffer + ImFormatStringV(g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args);
 
 	RenderTextOverlay(pos, color, ImGuiAlign_Right, g.TempBuffer, text_end);
@@ -110,7 +120,7 @@ void ImGui::RenderTextRight(int x, int y, const ImVec4& color, const char* fmt, 
 	va_list args;
 	va_start(args, fmt);
 
-	ImGuiState& g = *GImGui;
+	auto& g = *GImGui;
 	const char* text_end = g.TempBuffer + ImFormatStringV(g.TempBuffer, IM_ARRAYSIZE(g.TempBuffer), fmt, args);
 
 	RenderTextOverlay(ImVec2((float)x, (float)y), color, ImGuiAlign_Right, g.TempBuffer, text_end);

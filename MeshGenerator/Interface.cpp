@@ -11,6 +11,7 @@
 #include "resource.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include "imgui_impl_sdl.h"
 #include "imgui_custom/imgui_user.h"
 
@@ -1002,9 +1003,8 @@ void Interface::SetTheme(Theme theme, bool force)
 		style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(1.00f, 0.47f, 0.41f, 0.60f);
 		style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(1.00f, 0.16f, 0.00f, 1.00f);
 		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(1.00f, 0.99f, 0.54f, 0.43f);
-		style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.82f, 0.92f, 1.00f, 0.90f);
+		style.Colors[ImGuiCol_PopupBg] = ImVec4(0.82f, 0.92f, 1.00f, 0.90f);
 		style.Alpha = 1.0f;
-		style.WindowFillAlphaDefault = 1.0f;
 		style.FrameRounding = 4;
 	}
 	else if (theme == DarkTheme1)
@@ -1050,14 +1050,13 @@ void Interface::SetTheme(Theme theme, bool force)
 		style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.86f, 0.93f, 0.89f, 0.63f);
 		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.92f, 0.18f, 0.29f, 1.00f);
 		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.92f, 0.18f, 0.29f, 0.43f);
-		style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.47f, 0.77f, 0.83f, 0.72f);
+		style.Colors[ImGuiCol_PopupBg] = ImVec4(0.47f, 0.77f, 0.83f, 0.72f);
 		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.22f, 0.27f, 0.73f);
 		style.WindowMinSize = ImVec2(160, 20);
 		style.FramePadding = ImVec2(4, 2);
 		style.ItemSpacing = ImVec2(6, 2);
 		style.ItemInnerSpacing = ImVec2(6, 4);
 		style.Alpha = 0.95f;
-		style.WindowFillAlphaDefault = 1.0f;
 		style.WindowRounding = 4.0f;
 		style.FrameRounding = 2.0f;
 		style.IndentSpacing = 6.0f;
@@ -1110,7 +1109,7 @@ void Interface::SetTheme(Theme theme, bool force)
 		style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
 		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.49f, 0.49f, 0.49f, 1.00f);
 		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.35f, 0.35f, 0.35f, 1.00f);
-		style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.16f, 0.16f, 0.16f, 0.72f);
+		style.Colors[ImGuiCol_PopupBg] = ImVec4(0.16f, 0.16f, 0.16f, 0.72f);
 		style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(0.20f, 0.20f, 0.20f, 0.65f);
 		style.WindowPadding = ImVec2(20, 10);
 		style.WindowMinSize = ImVec2(160, 20);
@@ -1118,7 +1117,6 @@ void Interface::SetTheme(Theme theme, bool force)
 		style.ItemSpacing = ImVec2(8, 4);
 		style.ItemInnerSpacing = ImVec2(6, 4);
 		style.Alpha = 0.95f;
-		style.WindowFillAlphaDefault = 0.95f;
 		style.WindowRounding = 2.0f;
 		style.FrameRounding = 2.0f;
 		style.IndentSpacing = 6;
@@ -1162,7 +1160,7 @@ void Interface::SetTheme(Theme theme, bool force)
 		style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
 		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
 		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.00f, 0.00f, 1.00f, 0.55f);
-		style.Colors[ImGuiCol_TooltipBg] = ImVec4(0.05f, 0.05f, 0.10f, 0.90f);
+		style.Colors[ImGuiCol_PopupBg] = ImVec4(0.05f, 0.05f, 0.10f, 0.90f);
 	}
 	#pragma endregion
 }
