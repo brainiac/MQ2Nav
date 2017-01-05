@@ -810,7 +810,8 @@ void Interface::ShowZonePickerDialog()
 						const std::string& shortName = zonePair.second;
 
 						bool selected = false;
-						ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns);
+						if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_MenuItem))
+							selected = true;
 						ImGui::NextColumn();
 						ImGui::SetColumnOffset(-1, 300);
 						ImGui::Text(shortName.c_str());
@@ -846,7 +847,8 @@ void Interface::ShowZonePickerDialog()
 					std::string displayName = longName + " (" + shortName + ")";
 					lastZone = shortName;
 					bool selected = false;
-					ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns);
+					if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_MenuItem))
+						selected = true;
 					ImGui::NextColumn();
 					ImGui::SetColumnOffset(-1, 300);
 					ImGui::Text(shortName.c_str());
