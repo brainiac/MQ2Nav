@@ -152,11 +152,6 @@
     </Natvis>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config">
-      <Filter>Resource Files</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="MeshGenerator.ico">
       <Filter>Resource Files</Filter>
     </Image>
@@ -165,5 +160,8 @@
     <ResourceCompile Include="MeshGenerator.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

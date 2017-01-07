@@ -71,7 +71,6 @@
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Recast</RootNamespace>
     <ProjectName>recast</ProjectName>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

@@ -14,15 +14,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="Zones.ini">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="DoorAdjustments.txt">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MQ2Nav_Settings.h">
