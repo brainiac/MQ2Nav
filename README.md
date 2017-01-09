@@ -1,6 +1,8 @@
 MQ2Nav
 ======
 
+![build status](https://ci.appveyor.com/api/projects/status/github/brainiac/MQ2Nav?svg=true)
+
 **This plugin is a work in progress!!**
 
 Navigation Mesh plugin for [MacroQuest2](http://www.macroquest2.com). This is based on the origin MQ2Navigation plugin, but has been heavily rewritten to take advantage of newer libraries that are available. The plugin also includes a 3d overlay to display navigation meshes as well as a debugging UI provided by [imgui](https://github.com/ocornut/imgui/). 
