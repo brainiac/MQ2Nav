@@ -7,8 +7,8 @@
 #include "ImGuiRenderer.h"
 #include "Waypoints.h"
 
+#define IMGUI_INCLUDE_IMGUI_USER_H
 #include <imgui.h>
-#include "imgui_custom/imgui_user.h"
 
 namespace
 {
@@ -71,8 +71,7 @@ void UiController::PerformUpdateUI()
 		return;
 	}
 
-	ImGui::TabLabels(static_cast<int>(TabPage::Max), s_tabNames, m_selectedTab,
-		nullptr, true, nullptr);
+	ImGui::TabLabels(static_cast<int>(TabPage::Max), s_tabNames, m_selectedTab);
 	TabPage selectedTab = static_cast<TabPage>(m_selectedTab);
 
 	ImGui::Separator();
