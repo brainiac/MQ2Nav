@@ -126,6 +126,7 @@ void ImGui::RenderTextRight(int x, int y, const ImVec4& color, const char* fmt, 
 	RenderTextOverlay(ImVec2((float)x, (float)y), color, ImGuiAlign_Right, g.TempBuffer, text_end);
 }
 
+/*
 bool ImGui::TabLabels(int numTabs, const char** tabLabels, int& selectedIndex, const char** tabLabelTooltips, bool autoLayout, int *pOptionalHoveredIndex)
 {
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -203,3 +204,4 @@ bool ImGui::TabLabels(int numTabs, const char** tabLabels, int& selectedIndex, c
 
 	return selection_changed;
 }
+*/

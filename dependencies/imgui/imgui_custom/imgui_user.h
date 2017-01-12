@@ -18,5 +18,5 @@ namespace ImGui
 
 	void RenderTextRight(int x, int y, const ImVec4& color, const char* fmt, ...);
 
-	bool TabLabels(int numTabs, const char** tabLabels, int& selectedIndex, const char** tabLabelTooltips, bool autoLayout, int *pOptionalHoveredIndex);
+	//bool TabLabels(int numTabs, const char** tabLabels, int& selectedIndex, const char** tabLabelTooltips, bool autoLayout, int *pOptionalHoveredIndex);
 }
