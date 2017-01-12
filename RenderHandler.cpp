@@ -71,15 +71,15 @@ void RenderHandler::AddRenderable(Renderable* renderable)
 
 void RenderHandler::RemoveRenderable(Renderable* renderable)
 {
-	assert(std::find(m_renderables.begin(), m_renderables.end(), renderable) != m_renderables.end());
+	auto iter = std::find(m_renderables.begin(), m_renderables.end(), renderable);
+	assert(iter != m_renderables.end());
 
 	if (m_deviceAcquired)
 	{
 		renderable->InvalidateDeviceObjects();
 	}
 
-	m_renderables.erase(std::remove(m_renderables.begin(), m_renderables.end(), renderable),
-		m_renderables.end());
+	m_renderables.erase(iter);
 }
 
 void RenderHandler::PerformRender(Renderable::RenderPhase phase)

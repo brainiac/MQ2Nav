@@ -11,7 +11,7 @@
 #include <imgui.h>
 
 #include <memory>
-#include <vector>
+#include <list>
 
 class RenderHooks;
 
@@ -41,7 +41,7 @@ private:
 private:
 	bool m_deviceAcquired = false; // implies that g_pDevice is valid to use
 
-	std::vector<Renderable*> m_renderables;
+	std::list<Renderable*> m_renderables;
 };
 
 // utility function to reset the state of the current direct3d9 device
