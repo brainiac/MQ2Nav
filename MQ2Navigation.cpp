@@ -72,7 +72,7 @@ void ClickDoor(PDOOR pDoor)
 	click.Y1 = click.Y + randclickY;
 	click.X1 = click.X + randclickX;
 	click.Z1 = click.Z + randclickZ;
-	pSwitch->UseSwitch(GetCharInfo()->pSpawn->SpawnID, 0xFFFFFFFF, 0, (DWORD)&click);
+	pSwitch->UseSwitch(GetCharInfo()->pSpawn->SpawnID, 0xFFFFFFFF, 0, (CVector3*)&click);
 }
 
 static void ClickGroundItem(PGROUNDITEM pGroundItem)

@@ -377,6 +377,8 @@ void ModelLoader::UpdateModels()
 	CHAR szEQPath[MAX_STRING];
 	GetEQPath(szEQPath, MAX_STRING);
 
+	// this uses a lot of cpu, spin it off into its own thread so it
+	// doesn't block themain thread.
 	auto zoneData = std::make_unique<ZoneData>(szEQPath, zoneName);
 
 	if (!zoneData->IsLoaded())
@@ -753,10 +755,10 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
 	ImGui::Separator();
 
 	ImGui::Text("ID: %d Type: %d State: %d", door->ID, door->Type, door->State);
-	if (door->ZonePoint != -1)
+	if (door->SpellID != -1)
 	{
-		const char* zone = GetTeleportName(door->ZonePoint);
-		ImGui::TextColored(ImColor(255, 255, 0), "Zone Point: %s (%d)", zone, door->ZonePoint);
+		const char* zone = GetTeleportName(door->SpellID);
+		ImGui::TextColored(ImColor(255, 255, 0), "Zone Point: %s (%d)", zone, door->SpellID);
 	}
 
 	ImGui::DragFloat3("Position", &door->Y);
