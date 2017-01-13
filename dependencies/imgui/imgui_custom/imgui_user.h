@@ -20,3 +20,9 @@ namespace ImGui
 
 	//bool TabLabels(int numTabs, const char** tabLabels, int& selectedIndex, const char** tabLabelTooltips, bool autoLayout, int *pOptionalHoveredIndex);
 }
+
+
+namespace ImGuiEx
+{
+	void SetupImGuiStyle2();
+}

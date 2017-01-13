@@ -10,6 +10,8 @@
 #define IMGUI_INCLUDE_IMGUI_USER_H
 #include <imgui.h>
 
+#include <imgui_custom/imgui_user.h>
+
 namespace
 {
 	static const char* s_tabNames[TabPage::Max] = {
@@ -26,6 +28,8 @@ namespace
 void UiController::Initialize()
 {
 	m_uiConn = g_imguiRenderer->OnUpdateUI.Connect([this]() { PerformUpdateUI(); });
+
+	//ImGuiEx::SetupImGuiStyle2();
 }
 
 void UiController::Shutdown()
