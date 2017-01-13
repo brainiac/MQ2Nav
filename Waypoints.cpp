@@ -12,6 +12,11 @@ namespace mq2nav {
 
 typedef std::vector<Waypoint> Waypoints;
 Waypoints g_waypoints;
+std::string g_zoneName;
+std::string g_shortZone;
+int g_currentZone = 0;
+
+bool DeleteWaypoint(const std::string& name);
 
 std::string Waypoint::Serialize() const
 {
@@ -49,41 +54,55 @@ bool Waypoint::Deserialize(const std::string& name, const std::string& data)
 
 //----------------------------------------------------------------------------
 
-std::string g_zoneName;
-int g_currentZone = 0;
-
 void LoadWaypoints(int zoneId)
 {
-	PCHAR currentZone = GetShortZone(zoneId);
+	g_shortZone = GetShortZone(zoneId);
 	g_zoneName = GetFullZone(zoneId);
 	g_currentZone = zoneId;
 
-	WriteChatf(PLUGIN_MSG "Loading waypoints for zone: %s", currentZone);
+	WriteChatf(PLUGIN_MSG "Loading waypoints for zone: %s", g_shortZone.c_str());
 	g_waypoints.clear();
 
 	CHAR pchKeys[MAX_STRING * 10] = { 0 };
 	CHAR pchValue[MAX_STRING];
 	Waypoint wp;
 
-	if (GetPrivateProfileString(currentZone, NULL, "", pchKeys, MAX_STRING * 10, INIFileName))
+	if (GetPrivateProfileString(g_shortZone.c_str(), NULL, "", pchKeys, MAX_STRING * 10, INIFileName))
 	{
 		PCHAR pKeys = pchKeys;
-		while (pKeys[0])
+		while (pKeys[0] || pKeys[1])
 		{
-			GetPrivateProfileString(currentZone, pKeys, "", pchValue, MAX_STRING, INIFileName);
+			GetPrivateProfileString(g_shortZone.c_str(), pKeys, "", pchValue, MAX_STRING, INIFileName);
 
 			std::string name(pKeys);
+			bool valid = true;
 
-			bool exists = std::find_if(g_waypoints.begin(), g_waypoints.end(),
-				[&name](const Waypoint& wp) { return wp.name == name; }) != g_waypoints.end();
-
-			if (!exists && (pchValue[0] != 0) && wp.Deserialize(name, pchValue))
+			// empty/invalid character, delete it
+			if (name.empty())
 			{
-				g_waypoints.emplace_back(std::move(wp));
+				valid = false;
 			}
-			else {
-				WriteChatf(PLUGIN_MSG "Invalid waypoint entry: %s", pKeys);
+			else
+			{
+				bool exists = std::find_if(g_waypoints.begin(), g_waypoints.end(),
+					[&name](const Waypoint& wp) { return wp.name == name; }) != g_waypoints.end();
+
+				if (!exists && (pchValue[0] != 0) && wp.Deserialize(name, pchValue))
+				{
+					g_waypoints.push_back(wp);
+				}
+				else
+				{
+					WriteChatf(PLUGIN_MSG "Invalid waypoint entry: %s", pKeys);
+					valid = false;
+				}
 			}
+
+			if (!valid)
+			{
+				DeleteWaypoint(name);
+			}
+
 			pKeys += strlen(pKeys) + 1;
 		}
 	}
@@ -95,17 +114,12 @@ void LoadWaypoints(int zoneId)
 	});
 }
 
-void SaveWaypoints(int zoneId)
+void SaveWaypoint(const Waypoint& wp)
 {
-	PCHAR currentZone = GetShortZone(zoneId);
+	std::string& serialized = wp.Serialize();
 
-	for (const auto& elem : g_waypoints)
-	{
-		std::string& serialized = elem.Serialize();
-
-		WritePrivateProfileString(currentZone, elem.name.c_str(),
-			serialized.c_str(), INIFileName);
-	}
+	WritePrivateProfileString(g_shortZone.c_str(), wp.name.c_str(),
+		serialized.c_str(), INIFileName);
 }
 
 bool GetWaypoint(const std::string& name, Waypoint& wp)
@@ -129,7 +143,7 @@ bool DeleteWaypoint(const std::string& name)
 
 	g_waypoints.erase(iter);
 
-	SaveWaypoints(g_currentZone);
+	WritePrivateProfileString(g_shortZone.c_str(), name.c_str(), NULL, INIFileName);
 	return true;
 }
 
@@ -158,7 +172,7 @@ bool AddWaypoint(const Waypoint& waypoint)
 	});
 
 	// save data
-	SaveWaypoints(g_currentZone);
+	SaveWaypoint(waypoint);
 
 	return exists;
 }
@@ -263,14 +277,14 @@ void RenderWaypointsUI()
 	ImVec2 availSize = ImGui::GetContentRegionAvail();
 
 	static float leftPaneSize = 150.0;
-	static float rightPaneSize = availSize.x - leftPaneSize;
+	static float rightPaneSize = availSize.x - leftPaneSize - 1;
 	DrawSplitter(false, 5.0, &leftPaneSize, &rightPaneSize, 50, 250);
 
 	// the current waypoint being edited
 
 	// Left Pane
 	{
-		ImGui::BeginChild("WaypointsList", ImVec2(leftPaneSize, ImGui::GetContentRegionAvail().y), true);
+		ImGui::BeginChild("WaypointsList", ImVec2(leftPaneSize, ImGui::GetContentRegionAvail().y - 1), true);
 		ImGuiListClipper clipper(g_waypoints.size(), ImGui::GetTextLineHeightWithSpacing());
 		while (clipper.Step())
 		{
@@ -303,29 +317,38 @@ void RenderWaypointsUI()
 
 	// Right Pane
 	{
-		ImGui::BeginChild("WaypointsView", ImGui::GetContentRegionAvail());
-		ImGui::BeginChild("TopPart", ImVec2(0, -ImGui::GetItemsLineHeightWithSpacing()));
+		ImVec2 rightPaneContentSize = ImGui::GetContentRegionAvail();
+		ImGui::BeginChild("WaypointsView", ImVec2(rightPaneContentSize.x, rightPaneContentSize.y - 5));
+		ImGui::BeginChild("TopPart", ImVec2(0, -(ImGui::GetItemsLineHeightWithSpacing() + 1)));
 
 		ImGui::Text("Waypoint Name");
+		ImGui::PushItemWidth(-1);
 		ImGui::InputText("##Name", editWaypointName, 256);
+		ImGui::PopItemWidth();
 
 		ImGui::Text("Position");
-		ImGui::InputFloat3("##Location", &editWaypoint.location.x);
+		ImGui::PushItemWidth(-44);
+		glm::vec3 tempPos = editWaypoint.location;
+		std::swap(tempPos.x, tempPos.y);
+		ImGui::InputFloat3("##Location", &tempPos.x);
+		ImGui::PopItemWidth();
+
+		ImGui::SameLine(ImGui::GetWindowWidth() - 41);
+		if (ImGui::Button("/loc", ImVec2(40, 0))) {
+			editWaypoint.location = { pCharacterSpawn->X, pCharacterSpawn->Y, pCharacterSpawn->Z };
+		}
 
 		ImGui::Text("Description");
+		ImGui::PushItemWidth(-1);
 		if (ImGui::InputTextMultiline("##Description", editWaypointDescription, 256,
 			ImVec2(0, ImGui::GetTextLineHeightWithSpacing() * 3)))
 		{
 			editWaypoint.description = editWaypointDescription;
 		}
+		ImGui::PopItemWidth();
 
-		if (ImGui::Button("Use Current Loc")) {
-			editWaypoint.location = { pCharacterSpawn->X, pCharacterSpawn->Y, pCharacterSpawn->Z };
-		}
-
-
-		ImGui::SameLine();
-		if (ImGui::Button("Navigate")) {
+		if (ImGui::Button("Navigate to Waypoint"))
+		{
 			if (editWaypoint.name.length() > 0)
 			{
 				g_mq2Nav->BeginNavigation(editWaypoint.location);
