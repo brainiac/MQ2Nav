@@ -38,8 +38,8 @@ void LoadWaypoints(int zoneId);
 // Returns true and fills in wp if waypoint with name is found
 bool GetWaypoint(const std::string& name, Waypoint& wp);
 
-// returns true if waypoint was replaced, false if it was inserted
-bool AddWaypoint(const std::string& name, const std::string& tag);
+// Add a new waypoint to the current zone
+bool AddWaypoint(const Waypoint& waypoint);
 
 void RenderWaypointsUI();
 

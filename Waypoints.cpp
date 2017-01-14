@@ -177,23 +177,6 @@ bool AddWaypoint(const Waypoint& waypoint)
 	return exists;
 }
 
-// returns true if waypoint was replaced, false if it was inserted
-bool AddWaypoint(const std::string& name, const std::string& description)
-{
-	bool exists = false;
-	PSPAWNINFO pCharacterSpawn = GetCharInfo() ? GetCharInfo()->pSpawn : NULL;
-
-	if (pCharacterSpawn != nullptr)
-	{
-		// get coords
-		glm::vec3 playerLoc = { pCharacterSpawn->X, pCharacterSpawn->Y, pCharacterSpawn->Z };
-
-		AddWaypoint(Waypoint{ name, playerLoc, description });
-	}
-
-	return exists;
-}
-
 void DrawSplitter(bool split_vertically, float thickness, float* size0, float* size1, float min_size0, float min_size1)
 {
 	ImVec2 backup_pos = ImGui::GetCursorPos();
@@ -351,7 +334,10 @@ void RenderWaypointsUI()
 		{
 			if (editWaypoint.name.length() > 0)
 			{
-				g_mq2Nav->BeginNavigation(editWaypoint.location);
+				std::string command = "waypoint \"" + editWaypoint.name + "\"";
+
+				DestinationInfo info = ParseDestination(command.c_str(), NotifyType::None);
+				g_mq2Nav->BeginNavigation(info);
 			}
 		}
 

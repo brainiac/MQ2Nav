@@ -41,6 +41,48 @@ class ImGuiRenderer;
 
 //----------------------------------------------------------------------------
 
+enum class DestinationType
+{
+	None,
+	Location,
+	Door,
+	GroundItem,
+	Spawn,
+	Waypoint,
+};
+
+enum class ClickType
+{
+	None,
+	Once
+};
+
+enum class NotifyType
+{
+	None,
+	Errors,
+	All
+};
+
+struct DestinationInfo
+{
+	std::string command;
+	glm::vec3 eqDestinationPos;
+
+	DestinationType type = DestinationType::None;
+
+	PSPAWNINFO pSpawn = nullptr;
+	PDOOR pDoor = nullptr;
+	PGROUNDITEM pGroundItem = nullptr;
+	ClickType clickType = ClickType::None;
+
+	bool valid = false;
+};
+
+DestinationInfo ParseDestination(const char* szLine, NotifyType notify = NotifyType::Errors);
+
+//----------------------------------------------------------------------------
+
 class MQ2NavigationPlugin
 {
 public:
@@ -113,7 +155,7 @@ public:
 	float GetNavigationPathLength(PCHAR szLine);
 
 	// Begin navigating to a point
-	void BeginNavigation(const glm::vec3& pos);
+	void BeginNavigation(const DestinationInfo& dest);
 
 private:
 	void InitializeRenderer();
@@ -123,8 +165,6 @@ private:
 	void OnUpdateTab(TabPage tabId);
 
 	//----------------------------------------------------------------------------
-
-	bool ParseDestination(PCHAR szLine, glm::vec3& destination);
 
 	float GetNavigationPathLength(const glm::vec3& pos);
 
@@ -157,9 +197,6 @@ private:
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;
 	PGROUNDITEM m_pEndingItem = nullptr;
-
-	// navigation endpoint behaviors
-	bool m_bSpamClick = false;
 
 	// whether the current path is active or not
 	bool m_isActive = false;

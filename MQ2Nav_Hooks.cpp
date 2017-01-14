@@ -435,6 +435,27 @@ LRESULT __stdcall WndProc_Detour(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 	return WndProc_Trampoline(hWnd, msg, wParam, lParam);
 }
 
+#define EQSWITCH_USESWTICH_LOGGING 0
+#if EQSWITCH_USESWTICH_LOGGING
+class EQSwitch_Detour
+{
+public:
+	void UseSwitch_Detour(UINT SpawnID, int KeyID, int PickSkill, const CVector3* hitloc = 0)
+	{
+		if (!hitloc)
+			DebugSpewAlways("UseSwitch: SpawnID=%d KeyID=%d PickSkill=%d hitloc=null",
+				SpawnID, KeyID, PickSkill);
+		else
+			DebugSpewAlways("UseSwitch: SpawnID=%d KeyID=%d PickSkill=%d hitloc=(%.2f, %.2f, %.2f)",
+				SpawnID, KeyID, PickSkill, hitloc->X, hitloc->Y, hitloc->Z);
+
+		UseSwitch_Trampoline(SpawnID, KeyID, PickSkill, hitloc);
+	}
+	void UseSwitch_Trampoline(UINT SpawnID, int KeyId, int PickSkill, const CVector3* hitlock = 0);
+};
+DETOUR_TRAMPOLINE_EMPTY(void EQSwitch_Detour::UseSwitch_Trampoline(UINT, int, int, const CVector3*));
+#endif
+
 //----------------------------------------------------------------------------
 
 // have detours been installed already?
@@ -518,6 +539,13 @@ HookStatus InitializeHooks()
 		&RenderHooks::EndScene_Detour,
 		&RenderHooks::EndScene_Trampoline,
 		"d3dDevice_EndScene");
+
+#if EQSWITCH_USESWTICH_LOGGING
+	InstallDetour(EQSwitch__UseSwitch,
+		&EQSwitch_Detour::UseSwitch_Detour,
+		&EQSwitch_Detour::UseSwitch_Trampoline,
+		"EQSwitch__UseSwitch");
+#endif
 
 	g_hooksInstalled = true;
 	return HookStatus::Success;

@@ -32,14 +32,6 @@ std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
 
 //============================================================================
 
-static bool IsInt(char* buffer)
-{
-	if (!*buffer) return false;
-	for (size_t i = 0; i < strlen(buffer); i++)
-		if (!(isdigit(buffer[i]) || buffer[i] == '.' || (buffer[i] == '-' && i == 0))) return false;
-	return true;
-}
-
 static void NavigateCommand(PSPAWNINFO pChar, PCHAR szLine)
 {
 	if (g_mq2Nav)
@@ -54,30 +46,41 @@ static BOOL NavigateData(PCHAR szName, MQ2TYPEVAR& Dest)
 	return FALSE;
 }
 
+static void ClickSwitch(CVector3 pos, EQSwitch* pSwitch)
+{
+	int randclickY = (rand() % 10) - 5;
+	int randclickX = (rand() % 10) - 5;
+	int randclickZ = (rand() % 10) - 5;
+
+	CVector3 click;
+	pos.Y = pos.Y + (randclickY * 0.1);
+	pos.X = pos.X + (randclickX * 0.1);
+	pos.Z = pos.Z + (randclickZ * 0.1);
+
+	pSwitch->UseSwitch(GetCharInfo()->pSpawn->SpawnID, 0xFFFFFFFF, 0, &pos);
+}
+
 void ClickDoor(PDOOR pDoor)
 {
-	EQSwitch *pSwitch = (EQSwitch *)pDoor;
-	srand((unsigned int)time(0));
-	int randclickY = rand() % 5;
-	int randclickX = rand() % 5;
-	int randclickZ = rand() % 5;
+	CVector3 click;
+	click.Y = pDoor->X;
+	click.X = pDoor->Y;
+	click.Z = pDoor->Z;
 	
-	SWITCHCLICK click;
-	click.Y = pDoor->Y + randclickY;
-	click.X = pDoor->X + randclickX;
-	click.Z = pDoor->Z + randclickZ;
-	randclickY = rand() % 5;
-	randclickX = rand() % 5;
-	randclickZ = rand() % 5;
-	click.Y1 = click.Y + randclickY;
-	click.X1 = click.X + randclickX;
-	click.Z1 = click.Z + randclickZ;
-	pSwitch->UseSwitch(GetCharInfo()->pSpawn->SpawnID, 0xFFFFFFFF, 0, (CVector3*)&click);
+	ClickSwitch(click, (EQSwitch*)pDoor);
 }
 
 static void ClickGroundItem(PGROUNDITEM pGroundItem)
 {
+	CHAR szName[MAX_STRING] = { 0 };
+	GetFriendlyNameForGroundItem(pGroundItem, szName, sizeof(szName));
 
+	CHAR Command[MAX_STRING] = { 0 };
+	sprintf_s(Command, "/itemtarget \"%s\"", szName);
+	HideDoCommand((PSPAWNINFO)pLocalPlayer, Command, FALSE);
+
+	sprintf_s(Command, "/click left item");
+	HideDoCommand((PSPAWNINFO)pLocalPlayer, Command, FALSE);
 }
 
 //============================================================================
@@ -106,7 +109,7 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 	{
 		AttemptMovement();
 		StuckCheck();
-		AttemptClick();
+		//AttemptClick();
 	}
 }
 
@@ -169,6 +172,11 @@ void MQ2NavigationPlugin::Plugin_OnAddGroundItem(PGROUNDITEM pGroundItem)
 
 void MQ2NavigationPlugin::Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 {
+	// if the item we targetted for navigation has been removed, clear it out
+	if (m_pEndingItem == pGroundItem)
+	{
+		m_pEndingItem = nullptr;
+	}
 }
 
 void MQ2NavigationPlugin::Plugin_Initialize()
@@ -278,12 +286,16 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 
 	GetArg(buffer, szLine, 1);
 
+	// parse /nav ui
 	if (!_stricmp(buffer, "ui")) {
 		mq2nav::GetSettings().show_ui = !mq2nav::GetSettings().show_ui;
 		mq2nav::SaveSettings(false);
 		return;
 	}
-	else if (!_stricmp(buffer, "pause")) {
+	
+	// parse /nav pause
+	if (!_stricmp(buffer, "pause"))
+	{
 		if (!m_isActive) 
 		{
 			WriteChatf(PLUGIN_MSG "Navigation must be active to pause");
@@ -301,70 +313,89 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		return;
 	}
 
-	m_pEndingDoor = nullptr;
-	m_pEndingItem = nullptr;
-
-	//DebugSpewAlways("MQ2Nav::NavigateCommand - start with arg: %s", szLine);
-	glm::vec3 destination;
-	bool haveDestination = ParseDestination(szLine, destination);
-
-	//DebugSpewAlways("MQ2Nav::NavigateCommand - have destination: %d", haveDestination ? 1 : 0);
-
-	if (!haveDestination)
+	// parse /nav stop
+	if (!_stricmp(buffer, "stop"))
 	{
-		// reload nav mesh
-		if (!strcmp(buffer, "reload")) {
-			Get<NavMeshLoader>()->LoadNavMesh();
-		}
-		else if (!_stricmp(buffer, "recordwaypoint") || !_stricmp(buffer, "rwp")) {
-			GetArg(buffer, szLine, 2);
-			if (0 == *buffer) {
-				WriteChatf(PLUGIN_MSG "Usage: /navigate recordwaypoint <waypoint name> <waypoint tag>");
-			}
-			else {
-				std::string waypointName(buffer);
-				GetArg(buffer, szLine, 3);
-				std::string waypointTag(buffer);
-				WriteChatf(PLUGIN_MSG "Recording waypoint: '%s' with tag: %s", waypointName.c_str(), waypointTag.c_str());
-				if (mq2nav::AddWaypoint(waypointName, waypointTag)) {
-					WriteChatf(PLUGIN_MSG "Overwrote previous waypoint: '%s'", waypointName.c_str());
-				}
-			}
-		}
-		else if (!_stricmp(buffer, "help")) {
-			WriteChatf(PLUGIN_MSG "Usage:");
-			WriteChatf(PLUGIN_MSG "\ag/navigate [save | load]\ax - save/load settings");
-			WriteChatf(PLUGIN_MSG "\ag/navigate reload\ax - reload navmesh");
-			WriteChatf(PLUGIN_MSG "\ag/navigate recordwaypoint <waypoint name> <waypoint tag>\ax - create a waypoint");
+		if (m_isActive)
+			Stop();
+		else
+			WriteChatf(PLUGIN_MSG "\arNo navigation path currently active");
 
-			WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
-			WriteChatf(PLUGIN_MSG "\ag/navigate target\ax - navigate to target");
-			WriteChatf(PLUGIN_MSG "\ag/navigate id #\ax - navigate to target with ID = #");
-			WriteChatf(PLUGIN_MSG "\ag/navigate X Y Z\ax - navigate to coordinates");
-			WriteChatf(PLUGIN_MSG "\ag/navigate item [click] [once]\ax - navigate to item (and click it)");
-			WriteChatf(PLUGIN_MSG "\ag/navigate door [click] [once]\ax - navigate to door/object (and click it)");
-			WriteChatf(PLUGIN_MSG "\ag/navigate waypoint <waypoint>\ax - navigate to waypoint");
-			WriteChatf(PLUGIN_MSG "\ag/navigate stop\ax - stop navigation");
-			WriteChatf(PLUGIN_MSG "\ag/navigate pause\ax - pause navigation");
-		}
-		else if (!_stricmp(buffer, "load")) {
-			mq2nav::LoadSettings(true);
-		}
-		else if (!_stricmp(buffer, "save")) {
-			mq2nav::SaveSettings(true);
-		}
-		Stop();
 		return;
 	}
 
-	// we were given a destination. Check if we should click once at the end.
-	GetArg(buffer, szLine, 3);
-	m_bSpamClick = (_stricmp(buffer, "once") == 0);
+	// parse /nav reload
+	if (!_stricmp(buffer, "reload"))
+	{
+		Get<NavMeshLoader>()->LoadNavMesh();
+		return;
+	}
+
+	// parse /nav recordwaypoint or /nav rwp
+	if (!_stricmp(buffer, "recordwaypoint") || !_stricmp(buffer, "rwp"))
+	{
+		GetArg(buffer, szLine, 2);
+		std::string waypointName(buffer);
+		GetArg(buffer, szLine, 3);
+		std::string desc(buffer);
+
+		if (waypointName.empty())
+		{
+			WriteChatf(PLUGIN_MSG "Usage: /nav rwp <waypoint name> <waypoint description>");
+			return;
+		}
+
+		if (PSPAWNINFO pChar = (GetCharInfo() ? GetCharInfo()->pSpawn : NULL))
+		{
+			glm::vec3 loc = { pChar->X, pChar->Y, pChar->Z };
+
+			mq2nav::AddWaypoint(mq2nav::Waypoint{ waypointName, loc, desc });
+			WriteChatf(PLUGIN_MSG "Recorded waypoint: %s at %.2f %.2f %.2f", waypointName.c_str(), loc.y, loc.x, loc.z);
+		}
+
+		return;
+	}
+
+	// parse /nav load
+	if (!_stricmp(buffer, "load"))
+	{
+		mq2nav::LoadSettings(true);
+		return;
+	}
+	
+	// parse /nav save
+	if (!_stricmp(buffer, "save"))
+	{
+		mq2nav::SaveSettings(true);
+		return;
+	}
+
+	// parse /nav help
+	if (!_stricmp(buffer, "help"))
+	{
+		WriteChatf(PLUGIN_MSG "Usage:");
+		WriteChatf(PLUGIN_MSG "\ag/navigate [save | load]\ax - save/load settings");
+		WriteChatf(PLUGIN_MSG "\ag/navigate reload\ax - reload navmesh");
+		WriteChatf(PLUGIN_MSG "\ag/navigate recordwaypoint <waypoint name> <waypoint tag>\ax - create a waypoint");
+
+		WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
+		WriteChatf(PLUGIN_MSG "\ag/navigate target\ax - navigate to target");
+		WriteChatf(PLUGIN_MSG "\ag/navigate id #\ax - navigate to target with ID = #");
+		WriteChatf(PLUGIN_MSG "\ag/navigate X Y Z\ax - navigate to coordinates");
+		WriteChatf(PLUGIN_MSG "\ag/navigate item [click] [once]\ax - navigate to item (and click it)");
+		WriteChatf(PLUGIN_MSG "\ag/navigate door [click] [once]\ax - navigate to door/object (and click it)");
+		WriteChatf(PLUGIN_MSG "\ag/navigate waypoint <waypoint>\ax - navigate to waypoint");
+		WriteChatf(PLUGIN_MSG "\ag/navigate stop\ax - stop navigation");
+		WriteChatf(PLUGIN_MSG "\ag/navigate pause\ax - pause navigation");
+		return;
+	}
+	
+	// all thats left is a navigation command. leave if it isn't a valid one.
+	DestinationInfo destination = ParseDestination(szLine, NotifyType::All);
+	if (!destination.valid)
+		return;
 
 	BeginNavigation(destination);
-
-	if (m_isActive)
-		EzCommand("/squelch /stick off");
 }
 
 //----------------------------------------------------------------------------
@@ -402,12 +433,17 @@ void MQ2NavigationPlugin::UpdateCurrentZone()
 	}
 }
 
-void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
+void MQ2NavigationPlugin::BeginNavigation(const DestinationInfo& destInfo)
 {
 	// first clear existing state
 	m_isActive = false;
 	m_isPaused = false;
+	m_pEndingDoor = nullptr;
+	m_pEndingItem = nullptr;
 	m_activePath.reset();
+
+	if (!destInfo.valid)
+		return;
 
 	if (!Get<NavMeshLoader>()->IsNavMeshLoaded())
 	{
@@ -415,10 +451,21 @@ void MQ2NavigationPlugin::BeginNavigation(const glm::vec3& pos)
 		return;
 	}
 
+	if (destInfo.clickType != ClickType::None)
+	{
+		m_pEndingDoor = destInfo.pDoor;
+		m_pEndingItem = destInfo.pGroundItem;
+	}
+
 	m_activePath = std::make_unique<NavigationPath>();
-	m_activePath->FindPath(pos);
+	m_activePath->FindPath(destInfo.eqDestinationPos);
 
 	m_isActive = m_activePath->GetPathSize() > 0;
+
+	if (m_isActive)
+	{
+		EzCommand("/squelch /stick off");
+	}
 }
 
 bool MQ2NavigationPlugin::IsMeshLoaded() const
@@ -445,7 +492,7 @@ void MQ2NavigationPlugin::OnMovementKeyPressed()
 
 void MQ2NavigationPlugin::AttemptClick()
 {
-	if (!m_isActive && !m_bSpamClick)
+	if (!m_isActive)
 		return;
 
 	// don't execute if we've got an item on the cursor.
@@ -593,28 +640,19 @@ void MQ2NavigationPlugin::AttemptMovement()
 	// if no active path, then leave
 	if (!m_isActive) return;
 
-	//WriteChatf(PLUGIN_MSG "AttemptMovement - cursor = %d, size = %d, isActive = %d",
-	//	m_activePath->GetPathIndex() , m_activePath->GetPathSize(), m_isActive ? 1 : 0);
 	const glm::vec3& dest = m_activePath->GetDestination();
-	float distanceToTarget = GetDistance(dest.x, dest.z);
-	//PSPAWNINFO me = GetCharInfo()->pSpawn;
-	//WriteChatf(PLUGIN_MSG "Distance from target: %.2f. I am at: %.2f %.2f %.2f", distanceToTarget,
-	//	me->X, me->Y, me->Z);
+	float distanceToTarget = GetDistance(dest.x, dest.y);
 
 	if (m_activePath->IsAtEnd())
 	{
-		DebugSpewAlways("[MQ2Nav] Reached destination at: %.2f %.2f %.2f",
-			dest.x, dest.z, dest.y);
 		WriteChatf(PLUGIN_MSG "\agReached destination at: %.2f %.2f %.2f",
-			dest.x, dest.y, dest.z);
+			dest.y, dest.x, dest.z);
 
-		if (PSPAWNINFO me = GetCharInfo()->pSpawn)
+		LookAt(dest);
+
+		if (m_pEndingItem || m_pEndingDoor)
 		{
-			if (distanceToTarget < ENDPOINT_STOP_DISTANCE
-				&& !m_bSpamClick)
-			{
-				LookAt(dest);
-			}
+			AttemptClick();
 		}
 
 		Stop();
@@ -653,136 +691,277 @@ void MQ2NavigationPlugin::AttemptMovement()
 	}
 }
 
-bool MQ2NavigationPlugin::ParseDestination(PCHAR szLine, glm::vec3& destination)
+PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 {
-	bool result = true;
+	PDOOR pDoor = pDoorTarget;
+
+	// short circuit if the argument is "click"
+	GetArg(buffer, szLine, argIndex);
+
+	int len = strlen(buffer);
+	if (len == 0 || !_stricmp(buffer, "click"))
+		return pDoor;
+
+	// follows similarly to DoorTarget
+	if (!ppSwitchMgr || !pSwitchMgr) return pDoor;
+	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
+
+	// look up door by id
+	if (!_stricmp(buffer, "id"))
+	{
+		argIndex++;
+		GetArg(buffer, szLine, argIndex++);
+
+		// bad param - no id provided
+		if (!buffer[0])
+			return nullptr;
+
+		int id = atoi(buffer);
+		for (int i = 0; i < pDoorTable->NumEntries; i++)
+		{
+			if (pDoorTable->pDoor[i]->ID == id)
+				return pDoorTable->pDoor[i];
+		}
+
+		return nullptr;
+	}
+
+	// its not id and its not click. Its probably the name of the door!
+	// find the closest door that matches. If text is 'nearest' then pick
+	// the nearest door.
+	float distance = FLT_MAX;
+	bool searchAny = !_stricmp(buffer, "nearest");
+	int id = -1;
+	argIndex++;
+
+	PSPAWNINFO pSpawn = GetCharInfo()->pSpawn;
+
+	for (int i = 0; i < pDoorTable->NumEntries; i++)
+	{
+		PDOOR door = pDoorTable->pDoor[i];
+		// check if name matches and if it falls within the zfilter
+		if ((searchAny || !_strnicmp(door->Name, buffer, len))
+			&& ((gZFilter >= 10000.0f) || ((pDoor->Z <= pSpawn->Z + gZFilter)
+				&& (pDoor->Z >= pSpawn->Z - gZFilter))))
+		{
+			id = door->ID;
+			float d = Get3DDistance(pSpawn->X, pSpawn->Y, pSpawn->Z,
+				door->X, door->Y, door->Z);
+			if (d < distance)
+			{
+				pDoor = door;
+				distance = d;
+			}
+		}
+	}
+
+	return pDoor;
+}
+
+DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
+{
 	CHAR buffer[MAX_STRING] = { 0 };
-	PSPAWNINFO target = NULL;
 	GetArg(buffer, szLine, 1);
 
-	if (!strcmp(buffer, "target"))
+	DestinationInfo result;
+	result.command = szLine;
+
+	if (!GetCharInfo() || !GetCharInfo()->pSpawn)
+	{
+		if (notify == NotifyType::Errors || notify == NotifyType::All)
+			WriteChatf(PLUGIN_MSG "\arCan only navigate when in game!");
+		return result;
+	}
+
+	// parse /nav target
+	if (!_stricmp(buffer, "target"))
 	{
 		if (pTarget)
 		{
-			target = (PSPAWNINFO)pTarget;
-			WriteChatf(PLUGIN_MSG "locating target: %s", target->Name);
-			destination.x = target->X;
-			destination.y = target->Y;
-			destination.z = target->Z;
+			PSPAWNINFO target = (PSPAWNINFO)pTarget;
+
+			result.pSpawn = target;
+			result.eqDestinationPos = { target->X, target->Y, target->Z };
+			result.valid = true;
+
+			if (notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "Navigating to target: %s", target->Name);
 		}
-		else
-		{
+		else if (notify == NotifyType::Errors || notify == NotifyType::All)
 			WriteChatf(PLUGIN_MSG "\arYou need a target");
-			return false;
-		}
+
+		return result;
 	}
-	else if (!strcmp(buffer, "id"))
+	
+	// parse /nav id #
+	if (!_stricmp(buffer, "id"))
 	{
 		GetArg(buffer, szLine, 2);
 		DWORD reqId = 0;
 
-		try {
-			reqId = boost::lexical_cast<DWORD>(buffer);
-		}
-		catch (const boost::bad_lexical_cast&) {
-			WriteChatf(PLUGIN_MSG "\arbad spawn id");
-			return false;
+		try { reqId = boost::lexical_cast<DWORD>(buffer); }
+		catch (const boost::bad_lexical_cast&)
+		{
+			if (notify == NotifyType::Errors || notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "\arBad spawn id!");
+			return result;
 		}
 
-		target = (PSPAWNINFO)GetSpawnByID(reqId);
+		PSPAWNINFO target = (PSPAWNINFO)GetSpawnByID(reqId);
 		if (!target)
 		{
-			WriteChatf(PLUGIN_MSG "\arCould not find spawn matching id %d", reqId);
-			return false;
+			if (notify == NotifyType::Errors || notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "\arCould not find spawn matching id %d", reqId);
+			return result;
 		}
 
-		if (target->SpawnID == ((PSPAWNINFO)pCharSpawn)->SpawnID
-			|| target->SpawnID == ((PSPAWNINFO)pLocalPlayer)->SpawnID)
+		if (notify == NotifyType::All)
+			WriteChatf(PLUGIN_MSG "Navigating to spawn: %s (%d)", target->Name, target->SpawnID);
+
+		result.eqDestinationPos = { target->X, target->Y, target->Z };
+		result.pSpawn = target;
+		result.type = DestinationType::Spawn;
+		result.valid = true;
+
+		return result;
+	}
+
+	// parse /nav spawn <text>
+	if (!_stricmp(buffer, "spawn"))
+	{
+		SEARCHSPAWN sSpawn;
+		ClearSearchSpawn(&sSpawn);
+
+		PCHAR text = GetNextArg(szLine, 2);
+		ParseSearchSpawn(text, &sSpawn);
+
+		if (PSPAWNINFO pSpawn = SearchThroughSpawns(&sSpawn, (PSPAWNINFO)pCharSpawn))
 		{
-			WriteChatf(PLUGIN_MSG "\arYou cannot use yourself or your mount");
-			return false;
-		}
+			result.eqDestinationPos = { pSpawn->X, pSpawn->Y, pSpawn->Z };
+			result.pSpawn = pSpawn;
+			result.type = DestinationType::Spawn;
+			result.valid = true;
 
-		WriteChatf(PLUGIN_MSG "locating spawn: %d (%s)", target->SpawnID, target->Name);
-		destination.x = target->X;
-		destination.y = target->Y;
-		destination.z = target->Z;
-	}
-	else if (!strcmp(buffer, "door") && pDoorTarget)
-	{
-		//WriteChatf("[MQ2Nav] locating door target: %s", pDoorTarget->Name);
-		destination.x = pDoorTarget->X;
-		destination.y = pDoorTarget->Y;
-		destination.z = pDoorTarget->Z;
-		GetArg(buffer, szLine, 2);
-
-		//TODO: move this somewhere else
-		if (!strcmp(buffer, "click"))
-			m_pEndingDoor = pDoorTarget;
-	}
-	else if (!strcmp(buffer, "item") && pGroundTarget)
-	{
-		//WriteChatf("[MQ2Nav] locating item target: %s", pGroundTarget->Name);
-		destination.x = pGroundTarget->X;
-		destination.y = pGroundTarget->Y;
-		destination.z = pGroundTarget->Z;
-		GetArg(buffer, szLine, 2);
-
-		//TODO: move this somewhere else
-		if (!strcmp(buffer, "click"))
-			m_pEndingItem = pGroundTarget;
-	}
-	else if (!strcmp(buffer, "waypoint") || !strcmp(buffer, "wp"))
-	{
-		GetArg(buffer, szLine, 2);
-
-		if (0 == *buffer) {
-			WriteChatf(PLUGIN_MSG "usage: /navigate waypoint <waypoint name>");
-			result = false;
+			if (notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "Navigating to spawn: %s (%d)", pSpawn->Name, pSpawn->SpawnID);
 		}
 		else
 		{
-			WriteChatf(PLUGIN_MSG "locating waypoint: %s", buffer);
-
-			mq2nav::Waypoint wp;
-			if (mq2nav::GetWaypoint(std::string(buffer), wp))
-			{
-				destination.x = wp.location.x;
-				destination.y = wp.location.y;
-				destination.z = wp.location.z;
-			}
-			else {
-				WriteChatf(PLUGIN_MSG "waypoint not found!");
-				result = false;
-			}
+			if (notify == NotifyType::Errors || notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "\arCould not find spawn matching search '%s'", szLine);
 		}
+
+		return result;
 	}
-	else
+
+	// parse /nav door [click [once]]
+	if (!_stricmp(buffer, "door") || !_stricmp(buffer, "item"))
 	{
-		glm::vec3 tmpDestination(0, 0, 0);
+		int idx = 2;
 
-		//DebugSpewAlways("line: %s", szLine);
-		int i = 0;
-		for (; i < 3; ++i) {
-			char* item = GetArg(buffer, szLine, i + 1);
-			if (NULL == item)
-				break;
-			if (!IsInt(item))
-				break;
-			tmpDestination[i] = static_cast<float>(atof(item));
+		if (!_stricmp(buffer, "door"))
+		{
+			PDOOR theDoor = ParseDoorTarget(buffer, szLine, idx);
+
+			if (!theDoor)
+			{
+				if (notify == NotifyType::Errors || notify == NotifyType::All)
+					WriteChatf(PLUGIN_MSG "\arNo door found or bad door target!");
+				return result;
+			}
+
+			result.type = DestinationType::Door;
+			result.pDoor = theDoor;
+			result.eqDestinationPos = { theDoor->X, theDoor->Y, theDoor->Z };
+			result.valid = true;
+
+			if (notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "Navigating to door: %s", theDoor->Name);
 		}
-		if (i == 3) {
-			//WriteChatf("[MQ2Nav] locating loc: %.1f, %.1f, %.1f", tmpDestination[0], tmpDestination[1], tmpDestination[2]);
-			destination = tmpDestination;
+		else
+		{
+			if (!pGroundTarget)
+			{
+				if (notify == NotifyType::Errors || notify == NotifyType::All)
+					WriteChatf(PLUGIN_MSG "\arNo ground item target!");
+				return result;
+			}
+
+			result.type = DestinationType::GroundItem;
+			result.pGroundItem = pGroundTarget;
+			result.eqDestinationPos = { pGroundTarget->X, pGroundTarget->Y, pGroundTarget->Z };
+			result.valid = true;
+
+			if (notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "Navigating to ground item: %s", pGroundTarget->Name);
 		}
-		else {
-			result = false;
+
+		// check for click and once
+		GetArg(buffer, szLine, idx++);
+
+		if (!_stricmp(buffer, "click"))
+		{
+			result.clickType = ClickType::Once;
 		}
+
+		return result;
 	}
 
-	if (result)
-		m_isPaused = false;
+	// parse /nav waypoint
+	if (!_stricmp(buffer, "waypoint") || !_stricmp(buffer, "wp"))
+	{
+		GetArg(buffer, szLine, 2);
 
+		mq2nav::Waypoint wp;
+		if (mq2nav::GetWaypoint(buffer, wp))
+		{
+			result.type = DestinationType::Waypoint;
+			result.eqDestinationPos = { wp.location.x, wp.location.y, wp.location.z };
+			result.valid = true;
+
+			if (notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "Navigating to waypoint: %s", buffer);
+		}
+		else if (notify == NotifyType::Errors || notify == NotifyType::All)
+			WriteChatf(PLUGIN_MSG "\arWaypoint '%s' not found!", buffer);
+
+		return result;
+	}
+
+	// parse /nav x y z
+	{
+		glm::vec3 tmpDestination;
+
+		int i = 0;
+		for (; i < 3; ++i)
+		{
+			char* item = GetArg(buffer, szLine, i + 1);
+			if (!item)
+				break;
+
+			try { tmpDestination[i] = boost::lexical_cast<double>(item); }
+			catch (const boost::bad_lexical_cast&) { break; }
+		}
+		if (i == 3)
+		{
+			WriteChatf(PLUGIN_MSG "Navigating to loc: %.2f, %.2f, %.2f",
+				tmpDestination.x, tmpDestination.y, tmpDestination.z);
+
+			// swap the x/y coordinates for silly eq coordinate system
+			std::swap(tmpDestination.x, tmpDestination.y);
+
+			result.type = DestinationType::Location;
+			result.eqDestinationPos = tmpDestination;
+			result.valid = true;
+		}
+		else if (notify == NotifyType::Errors || notify == NotifyType::All)
+			WriteChatf(PLUGIN_MSG "\arInvalid location: %s", szLine);
+
+		return result;
+	}
+
+	if (notify == NotifyType::Errors || notify == NotifyType::All)
+		WriteChatf(PLUGIN_MSG "\arInvalid nav destination: %s", szLine);
 	return result;
 }
 
@@ -815,22 +994,24 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
 float MQ2NavigationPlugin::GetNavigationPathLength(PCHAR szLine)
 {
 	float result = -1.f;
-	glm::vec3 destination;
 
-	if (ParseDestination(szLine, destination)) {
-		result = GetNavigationPathLength(destination);
+	DestinationInfo dest = ParseDestination(szLine);
+	if (dest.valid)
+	{
+		result = GetNavigationPathLength(dest.eqDestinationPos);
 	}
+
 	return result;
 }
 
 bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
 {
-	glm::vec3 destination;
 	bool result = false;
-
-	if (ParseDestination(szLine, destination)) {
+	DestinationInfo dest = ParseDestination(szLine);
+	if (dest.valid)
+	{
 		NavigationPath path(Get<NavMeshLoader>()->GetNavMesh() != nullptr);
-		path.FindPath(destination);
+		path.FindPath(dest.eqDestinationPos);
 		result = path.GetPathSize() > 0;
 	}
 
@@ -862,6 +1043,14 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 	{
 		ImGui::TextColored(ImColor(255, 255, 0), "Type /nav ui to toggle this window");
 
+		auto charInfo = GetCharInfo();
+		if (!charInfo)
+			return;
+
+		glm::vec3 myPos(charInfo->pSpawn->Y, charInfo->pSpawn->X, charInfo->pSpawn->Z);
+		ImGui::Text("Loc: %.2f %.2f %.2f", myPos.x, myPos.y, myPos.z);
+
+
 		if (ImGui::Checkbox("Pause navigation", &m_isPaused)) {
 			if (m_isPaused)
 				MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
@@ -882,11 +1071,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 			if (m_activePath) 
 			{
-				auto charInfo = GetCharInfo();
-				glm::vec3 myPos(charInfo->pSpawn->X, charInfo->pSpawn->Z, charInfo->pSpawn->Y);
 				auto dest = m_activePath->GetDestination();
-
-				ImGui::LabelText("Position", "(%.2f, %.2f, %.2f)", myPos.x, myPos.y, myPos.z);
 
 				ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f,",
 					m_currentWaypoint.x, m_currentWaypoint.y, m_currentWaypoint.z);
@@ -925,7 +1110,6 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 			ImGui::LabelText("Ending Door", "%s", m_pEndingDoor ? m_pEndingDoor->Name : "<none>");
 			ImGui::LabelText("Ending Item", "%s", m_pEndingItem ? m_pEndingItem->Name : "<none>");
 			ImGui::LabelText("Is Active", "%s", m_isActive ? "true" : "false");
-			ImGui::LabelText("Spam Click", "%s", m_bSpamClick ? "true" : "false");
 			ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f)", m_currentWaypoint.x, m_currentWaypoint.y, m_currentWaypoint.z);
 			ImGui::LabelText("Stuck Data", "(%.2f, %.2f) %d", m_stuckX, m_stuckY, m_stuckTimer.time_since_epoch());
 			ImGui::LabelText("Last Click", "%d", m_lastClick.time_since_epoch() / 1000000);
