@@ -187,7 +187,7 @@ bool NavMeshLoader::LoadNavMesh()
 
 static const int NAVMESHSET_MAGIC = 'M' << 24 | 'S' << 16 | 'E' << 8 | 'T';
 
-static const int NAVMESHSET_VERSION = 2;
+static const int NAVMESHSET_VERSION = 3;
 
 // header (the same across all versions)
 struct NavMeshSetHeader

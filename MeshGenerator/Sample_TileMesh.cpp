@@ -205,7 +205,7 @@ Sample_TileMesh::~Sample_TileMesh()
 }
 
 static const int NAVMESHSET_MAGIC = 'M'<<24 | 'S'<<16 | 'E'<<8 | 'T'; //'MSET';
-static const int NAVMESHSET_VERSION = 2;
+static const int NAVMESHSET_VERSION = 3;
 
 struct NavMeshSetHeader
 {
