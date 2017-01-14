@@ -1,0 +1,4 @@
+2.6.3
+
+This is a default FreeType's configuration (nothing changed in the source tree).
+Built with Visual Studio 2015 Update 2, MT crt.
