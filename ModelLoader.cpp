@@ -33,6 +33,16 @@ float GetDoorScale(PDOOR door)
 	return (float)door->ScaleFactor / 100.0f;
 }
 
+#if defined(Teleport_Table_x) && defined(Teleport_Table_Size_x)
+
+#define INITIALIZE_EQGAME_OFFSET(var) DWORD var = (((DWORD)var##_x - 0x400000) + baseAddress)
+INITIALIZE_EQGAME_OFFSET(Teleport_Table_Size);
+INITIALIZE_EQGAME_OFFSET(Teleport_Table);
+#define USE_TP_COORDS
+
+#endif
+
+
 #pragma region Object Model Debug Rendering
 
 bool s_visibleOverride = false;
@@ -264,8 +274,33 @@ private:
 
 //----------------------------------------------------------------------------
 
+#define RENDER_MODELS  0
+
 const char* GetTeleportName(DWORD id)
 {
+#if defined(USE_TP_COORDS)
+	struct tp_coords
+	{
+		DWORD    Index;
+		FLOAT    Y;
+		FLOAT    X;
+		FLOAT    Z;
+		FLOAT    Heading;
+		DWORD    ZoneId;
+		DWORD    FilterId;
+		DWORD    VehicalId;
+	};
+	DWORD TableSize = *(DWORD*)Teleport_Table_Size;
+	tp_coords *tp = (tp_coords*)Teleport_Table;
+
+	if (id < TableSize)
+	{
+		DWORD zoneId = tp[id].ZoneId & 0x7fff;
+
+		return GetShortZone(zoneId);
+	}
+#endif
+
 	return "UNKNOWN";
 }
 
