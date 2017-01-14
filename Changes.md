@@ -12,6 +12,7 @@ MQ2Nav Changelog
 
 * Due to changes in structure member alignment (needed to stay compatible with latest MQ2), old navmeshes will not load correctly. As a result, the navmesh compat version has been bumped up, so loading older meshes will give you an error.
 
+* Adjust the default value of MaxClimb to 5.2
 
 2.0.0
 -----
