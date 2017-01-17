@@ -17,7 +17,10 @@
 #include <d3d9.h>
 #include <d3dx9.h>
 
+#include <imgui.h>
 #include <memory>
+
+#define DEBUG_NAVIGATION_LINES 1
 
 //----------------------------------------------------------------------------
 
@@ -54,7 +57,10 @@ public:
 	void OnUpdateUI();
 
 	// Check if we are at the end if our path
-	inline bool IsAtEnd() const { return m_currentPathCursor >= m_currentPathSize; }
+	inline bool IsAtEnd() const
+	{
+		return m_currentPathCursor >= m_currentPathSize || m_currentPathSize <= 0;
+	}
 
 	inline glm::vec3 GetNextPosition() const
 	{
@@ -107,7 +113,7 @@ private:
 	std::shared_ptr<NavigationLine> m_line;
 
 	dtQueryFilter m_filter;
-	float m_extents[3] = { 50, 400, 50 }; // note: X, Z, Y
+	float m_extents[3] = { 2, 4, 2 }; // note: X, Z, Y
 
 	Signal<dtNavMesh*>::ScopedConnection m_navMeshConn;
 };
@@ -130,14 +136,15 @@ public:
 
 	void GenerateBuffers();
 
+#if DEBUG_NAVIGATION_LINES
+	void RenderUI();
+#endif
+
 private:
 	NavigationPath* m_path;
 
 	std::string m_shaderFile;
 	ID3DXEffect* m_effect = nullptr;
-
-	std::string m_textureFile;
-	IDirect3DTexture9* m_lineTexture = nullptr;
 
 	// The vertex structure we'll be using for line drawing. Each line is defined as two vertices,
 	// and the vertex shader will create a quad from these two vertices. However, since the vertex
@@ -147,18 +154,19 @@ private:
 	{
 		D3DXVECTOR3 pos;
 		D3DXVECTOR3 otherPos;
-		D3DXVECTOR4 texOffset;
-		D3DXVECTOR3 thickness;
+		D3DXVECTOR3 adjPos; // position of previous or next line segment, depending on the vertex
+		FLOAT thickness;
+		FLOAT adjHint;
 
 		static const DWORD FVF = D3DFVF_XYZ | D3DFVF_NORMAL |
 			D3DFVF_TEX2 | // D3DFVF_TEX2 specifies we have two sets of texture coordinates.
-			D3DFVF_TEXCOORDSIZE4(0) | // This specifies that the first (0th) tex coord set has size 4 floats.
-			D3DFVF_TEXCOORDSIZE3(1); // Specifies that second tex coord set has size 2 floats.
+			D3DFVF_TEXCOORDSIZE3(0) | // This specifies that the first (0th) tex coord set has size 3 floats.
+			D3DFVF_TEXCOORDSIZE1(1) | // Specifies that second tex coord set has size 2 floats.
+			D3DFVF_TEXCOORDSIZE1(2); // hint towards where the adjacent coord is
 	};
 
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;
 	IDirect3DVertexDeclaration9* m_vDeclaration = nullptr;
-	D3DMATERIAL9 m_material;
 
 	struct RenderCommand
 	{
@@ -172,4 +180,17 @@ private:
 	bool m_needsUpdate = false;
 	float m_thickness = 0.25f;
 	bool m_visible = true;
+
+	struct RenderStyle {
+		ImColor render_color = { 255, 0, 0 };
+		float width = 1.0;
+		bool enabled = true;
+
+		RenderStyle(ImColor rc, float w)
+			: render_color(rc)
+			, width(w) {}
+		RenderStyle() {}
+	};
+
+	std::vector<RenderStyle> m_renderPasses;
 };

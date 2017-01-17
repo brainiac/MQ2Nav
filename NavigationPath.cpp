@@ -231,9 +231,10 @@ void NavigationPath::OnUpdateUI()
 		m_line->SetVisible(showPath);
 	}
 
-	//float thickness = m_line->GetThickness();
-	//if (ImGui::DragFloat("Path Thickness", &thickness, 0.01f, 0.0f, FLT_MAX))
-	//	m_line->SetThickness(thickness);
+#if DEBUG_NAVIGATION_LINES
+	if (m_line)
+		m_line->RenderUI();
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -243,13 +244,10 @@ NavigationLine::NavigationLine(NavigationPath* path)
 {
 	// temp!
 	m_shaderFile = std::string(gszINIPath) + "\\MQ2Nav\\VolumeLines.fx";
-	m_textureFile = std::string(gszINIPath) + "\\MQ2Nav\\LineTexture.png";
 
-	ZeroMemory(&m_material, sizeof(m_material));
-	m_material.Diffuse.r = 1.0f;
-	m_material.Diffuse.g = 1.0f;
-	m_material.Diffuse.b = 1.0f;
-	m_material.Diffuse.a = 1.0f;
+	m_renderPasses.push_back(RenderStyle{ ImColor(0, 0, 0, 200), 0.9f });
+	m_renderPasses.push_back(RenderStyle{ ImColor(52, 152, 219, 200), 0.5f });
+	m_renderPasses.push_back(RenderStyle{ ImColor(241, 196, 15, 200), 0.5f });
 }
 
 NavigationLine::~NavigationLine()
@@ -264,15 +262,6 @@ bool NavigationLine::CreateDeviceObjects()
 
 	ID3DXBuffer* errors = 0;
 	HRESULT hr;
-
-	hr = D3DXCreateTextureFromFileA(g_pDevice, m_textureFile.c_str(), &m_lineTexture);
-	if (FAILED(hr))
-	{
-		DebugSpewAlways("Failed to load texture!");
-
-		InvalidateDeviceObjects();
-		return false;
-	}
 
 	hr = D3DXCreateEffectFromFileA(g_pDevice, m_shaderFile.c_str(),
 		NULL, NULL, 0, NULL, &m_effect, &errors);
@@ -294,8 +283,9 @@ bool NavigationLine::CreateDeviceObjects()
 	{
 		{ 0,  0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION,  0 },
 		{ 0, 12,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,  0 },
-		{ 0, 24,  D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  0 },
-		{ 0, 40,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  1 },
+		{ 0, 24,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  0 },
+		{ 0, 36,  D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  1 },
+		{ 0, 40,  D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  2 },
 		D3DDECL_END()
 	};
 
@@ -306,9 +296,7 @@ bool NavigationLine::CreateDeviceObjects()
 		return false;
 	}
 
-	m_effect->SetTexture("lineTexture", m_lineTexture);
 	m_loaded = true;
-
 	return true;
 }
 
@@ -318,12 +306,6 @@ void NavigationLine::InvalidateDeviceObjects()
 	{
 		m_effect->Release();
 		m_effect = nullptr;
-	}
-
-	if (m_lineTexture)
-	{
-		m_lineTexture->Release();
-		m_lineTexture = nullptr;
 	}
 
 	if (m_vertexBuffer)
@@ -367,15 +349,31 @@ void NavigationLine::Render(RenderPhase phase)
 	m_effect->SetMatrix("mWV", &mWV);
 	m_effect->SetMatrix("mWVP", &mWVP);
 
+	DWORD depthTest = 0, depthFunc = 0;
+	g_pDevice->GetRenderState(D3DRS_ZENABLE, &depthTest);
+	g_pDevice->GetRenderState(D3DRS_ZFUNC, &depthFunc);
+
+	g_pDevice->SetVertexDeclaration(m_vDeclaration);
+	g_pDevice->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
+
 	UINT passes = 0;
 	m_effect->Begin(&passes, 0);
 
 	for (int iPass = 0; iPass < passes; iPass++)
 	{
+
+		RenderStyle style;
+		if (iPass < m_renderPasses.size())
+			style = m_renderPasses[iPass];
+
+		if (!style.enabled)
+			continue;
+
 		m_effect->BeginPass(iPass);
 
-		g_pDevice->SetVertexDeclaration(m_vDeclaration);
-		g_pDevice->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
+		m_effect->SetVector("lineColor", (D3DXVECTOR4*)&style.render_color);
+		m_effect->SetFloat("lineWidth", style.width);
+		m_effect->CommitChanges();
 
 		// render
 		for (auto& cmd : m_commands)
@@ -386,7 +384,11 @@ void NavigationLine::Render(RenderPhase phase)
 
 		m_effect->EndPass();
 	}
+
 	m_effect->End();
+
+	g_pDevice->SetRenderState(D3DRS_ZENABLE, depthTest);
+	g_pDevice->SetRenderState(D3DRS_ZFUNC, depthFunc);
 }
 
 void NavigationLine::GenerateBuffers()
@@ -445,25 +447,43 @@ void NavigationLine::GenerateBuffers()
 		v1.y = pt[1].x;
 		v1.z = pt[1].y + 1;
 
+		// following point
+		D3DXVECTOR3 nextPos;
+		int nextIdx = i < size - 2 ? 2 : 1;
+		nextPos.x = pt[nextIdx].z;
+		nextPos.y = pt[nextIdx].x;
+		nextPos.z = pt[nextIdx].y + 1;
+
+		// previous point
+		D3DXVECTOR3 prevPos;
+		int prevIdx = i > 0 ? -1 : 0;
+		prevPos.x = pt[prevIdx].z;
+		prevPos.y = pt[prevIdx].x;
+		prevPos.z = pt[prevIdx].y + 1;
+
 		vertexDest[index + 0].pos = v0;
-		vertexDest[index + 1].pos = v1;
-		vertexDest[index + 2].pos = v0;
-		vertexDest[index + 3].pos = v1;
-
 		vertexDest[index + 0].otherPos = v1;
+		vertexDest[index + 0].thickness = -m_thickness;
+		vertexDest[index + 0].adjPos = prevPos;
+		vertexDest[index + 0].adjHint = prevIdx;
+
+		vertexDest[index + 1].pos = v1;
 		vertexDest[index + 1].otherPos = v0;
+		vertexDest[index + 1].thickness = m_thickness;
+		vertexDest[index + 1].adjPos = nextPos;
+		vertexDest[index + 1].adjHint = nextIdx - 1;
+
+		vertexDest[index + 2].pos = v0;
 		vertexDest[index + 2].otherPos = v1;
+		vertexDest[index + 2].thickness = m_thickness;
+		vertexDest[index + 2].adjPos = prevPos;
+		vertexDest[index + 2].adjHint = prevIdx;
+
+		vertexDest[index + 3].pos = v1;
 		vertexDest[index + 3].otherPos = v0;
-
-		vertexDest[index + 0].thickness = D3DXVECTOR3(-m_thickness, 0.f, m_thickness * 0.5f);
-		vertexDest[index + 1].thickness = D3DXVECTOR3(m_thickness, 0.f, m_thickness * 0.5f);
-		vertexDest[index + 2].thickness = D3DXVECTOR3(m_thickness, 0.f, m_thickness * 0.5f);
-		vertexDest[index + 3].thickness = D3DXVECTOR3(-m_thickness, 0.f, m_thickness * 0.5f);
-
-		vertexDest[index + 0].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.f, 0.f);
-		vertexDest[index + 1].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.25f, 0.f);
-		vertexDest[index + 2].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.f, 0.25f);
-		vertexDest[index + 3].texOffset = D3DXVECTOR4(m_thickness, m_thickness, 0.25f, 0.25f);
+		vertexDest[index + 3].thickness = -m_thickness;
+		vertexDest[index + 3].adjPos = nextPos;
+		vertexDest[index + 3].adjHint = nextIdx - 1;
 
 		m_commands[i].StartVertex = index;
 		m_commands[i].PrimitiveCount = 2; // 2 triangles in a strip
@@ -497,5 +517,32 @@ void NavigationLine::SetVisible(bool visible)
 			InvalidateDeviceObjects();
 	}
 }
+
+#if DEBUG_NAVIGATION_LINES
+void NavigationLine::RenderUI()
+{
+	ImGui::PushID(this);
+	if (ImGui::CollapsingHeader("Navigation Line Debug"))
+	{
+		int size = m_renderPasses.size();
+		if (ImGui::InputInt("Render Passes", &size));
+			m_renderPasses.resize(size);
+
+		for (int i = 0; i < m_renderPasses.size(); ++i)
+		{
+			ImGui::PushID(i);
+			auto& config = m_renderPasses[i];
+			ImGui::Checkbox("Enabled", &config.enabled);
+			ImGui::ColorEditMode(ImGuiColorEditMode_RGB);
+			ImGui::ColorEdit4("Color", (float*)&config.render_color);
+			ImGui::InputFloat("Width", &config.width);
+
+			ImGui::PopID();
+		}
+	}
+
+	ImGui::PopID();
+}
+#endif
 
 //----------------------------------------------------------------------------

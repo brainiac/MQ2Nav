@@ -1069,7 +1069,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 			if (settingsChanged)
 				mq2nav::SaveSettings();
 
-			if (m_activePath) 
+			if (m_activePath)
 			{
 				auto dest = m_activePath->GetDestination();
 
