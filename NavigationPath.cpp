@@ -447,6 +447,7 @@ void NavigationLine::GenerateBuffers()
 		v1.y = pt[1].x;
 		v1.z = pt[1].y + 1;
 
+
 		// following point
 		D3DXVECTOR3 nextPos;
 		int nextIdx = i < size - 2 ? 2 : 1;

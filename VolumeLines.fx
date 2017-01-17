@@ -90,6 +90,7 @@ technique VolumeLine
 		AlphaBlendEnable = true;
 		SrcBlend = SRCALPHA;
 		DestBlend = INVSRCALPHA;
+		CullMode = None;
 
 		ZWriteEnable = false;
 		ZEnable = true;
@@ -104,6 +105,7 @@ technique VolumeLine
 		AlphaBlendEnable = true;
 		SrcBlend = SrcAlpha;
 		DestBlend = InvSrcAlpha;
+		CullMode = None;
 
 		ZWriteEnable = false;
 		ZEnable = true;
@@ -119,6 +121,7 @@ technique VolumeLine
 		AlphaBlendEnable = true;
 		SrcBlend = SrcAlpha;
 		DestBlend = InvSrcAlpha;
+		CullMode = None;
 
 		ZWriteEnable = false;
 		ZEnable = true;
