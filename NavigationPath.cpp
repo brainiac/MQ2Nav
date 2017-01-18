@@ -12,17 +12,43 @@
 #include "DetourNavMesh.h"
 #include "DetourCommon.h"
 
+//----------------------------------------------------------------------------
+// constants
 
-NavigationPath::NavigationPath(bool renderPaths)
-	: m_renderPaths(renderPaths)
+const int MAX_POLYS = 4028 * 4;
+
+const int MAX_NODES = 2048 * 4;
+
+const int MAX_PATH_SIZE = 2048 * 4;
+
+//----------------------------------------------------------------------------
+
+NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
+	: m_renderPaths(false)
 {
-	m_filter.setIncludeFlags(0x01); // walkable surface
-
-	m_useCorridor = mq2nav::GetSettings().debug_use_pathing_corridor;
-
 	auto* loader = g_mq2Nav->Get<NavMeshLoader>();
 	m_navMeshConn = loader->OnNavMeshChanged.Connect([this](dtNavMesh* navMesh) { SetNavMesh(navMesh); });
-	SetNavMesh(loader->GetNavMesh());
+	m_navMesh = loader->GetNavMesh();
+
+	m_filter.setIncludeFlags(0x01); // walkable surface
+	m_useCorridor = mq2nav::GetSettings().debug_use_pathing_corridor;
+
+	SetDestination(dest);
+}
+
+NavigationPath::~NavigationPath()
+{
+	SetShowNavigationPaths(false);
+}
+
+//----------------------------------------------------------------------------
+
+void NavigationPath::SetShowNavigationPaths(bool renderPaths)
+{
+	if (m_renderPaths == renderPaths)
+		return;
+
+	m_renderPaths = renderPaths;
 
 	if (m_renderPaths)
 	{
@@ -33,45 +59,36 @@ NavigationPath::NavigationPath(bool renderPaths)
 		m_debugDrawGrp = std::make_unique<RenderGroup>(g_pDevice);
 		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
 	}
-}
-
-NavigationPath::~NavigationPath()
-{
-	if (m_line)
+	else
 	{
 		g_renderHandler->RemoveRenderable(m_debugDrawGrp.get());
 		g_renderHandler->RemoveRenderable(m_line.get());
+
+		m_line.reset();
+		m_debugDrawGrp.reset();
 	}
 }
 
-//----------------------------------------------------------------------------
-
-bool NavigationPath::FindPath(const glm::vec3& pos)
+void NavigationPath::SetDestination(const std::shared_ptr<DestinationInfo>& info)
 {
-	if (nullptr != m_navMesh)
-	{
-		// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
-		FindPathInternal(pos);
-
-		if (m_currentPathSize > 0)
-		{
-			// DebugSpewAlways("FindPath - cursor = %d, size = %d", m_currentPathCursor , m_currentPathSize);
-			return true;
-		}
-	}
-	return false;
+	m_destinationInfo = info;
 }
 
-void NavigationPath::FindPathInternal(const glm::vec3& pos)
+bool NavigationPath::FindPath()
 {
-	if (nullptr == m_navMesh)
-		return;
+	if (!m_navMesh)
+		return false;
 
+	if (!m_destinationInfo || !m_destinationInfo->valid)
+		return false;
+
+	// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
 	m_currentPathCursor = 0;
 	m_currentPathSize = 0;
-	m_destination = pos;
 
 	UpdatePath(true);
+
+	return m_currentPathSize > 0;
 }
 
 void NavigationPath::SetNavMesh(dtNavMesh* navMesh)
@@ -89,7 +106,7 @@ void NavigationPath::SetNavMesh(dtNavMesh* navMesh)
 
 void NavigationPath::UpdatePath(bool force)
 {
-	if (m_navMesh == nullptr)
+	if (m_navMesh == nullptr || m_destinationInfo == nullptr)
 		return;
 	if (m_query == nullptr)
 	{
@@ -100,6 +117,8 @@ void NavigationPath::UpdatePath(bool force)
 	PSPAWNINFO me = GetCharInfo()->pSpawn;
 	if (me == nullptr)
 		return;
+
+	m_destination = m_destinationInfo->eqDestinationPos;
 
 	float startOffset[3] = { me->X, me->FloorHeight, me->Y };
 	float endOffset[3] = { m_destination.x, m_destination.z, m_destination.y };
@@ -171,8 +190,17 @@ void NavigationPath::UpdatePath(bool force)
 	{
 		m_corridor->optimizePathTopology(m_query.get(), &m_filter);
 
-		m_currentPathSize = m_corridor->findCorners(m_currentPath,
-			m_cornerFlags, polys, 10, m_query.get(), &m_filter);
+		if (!m_currentPath)
+		{
+			m_currentPath = std::unique_ptr<float[]>(new float[MAX_POLYS * 3]);
+		}
+		if (!m_cornerFlags)
+		{
+			m_cornerFlags = std::unique_ptr<uint8_t[]>(new uint8_t[MAX_POLYS]);
+		}
+
+		m_currentPathSize = m_corridor->findCorners(m_currentPath.get(),
+			m_cornerFlags.get(), polys, 10, m_query.get(), &m_filter);
 	}
 
 	if (m_debugDrawGrp)
@@ -180,7 +208,12 @@ void NavigationPath::UpdatePath(bool force)
 
 	if (numPolys > 0)
 	{
-		m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath,
+		if (!m_currentPath)
+		{
+			m_currentPath = std::unique_ptr<float[]>(new float[MAX_POLYS * 3]);
+		}
+
+		m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath.get(),
 			0, 0, &m_currentPathSize, MAX_POLYS, 0);
 
 		// The 0th index is the starting point. Begin by trying to reach the
@@ -220,21 +253,48 @@ void NavigationPath::UpdatePath(bool force)
 	}
 }
 
-void NavigationPath::OnUpdateUI()
+float NavigationPath::GetPathTraversalDistance() const
+{
+	float result = 0.f;
+
+	if (!m_destinationInfo || !m_destinationInfo->valid)
+		return -1.f;
+
+	for (int i = 0; i < m_currentPathSize - 1; ++i)
+	{
+		const float* first = GetRawPosition(i);
+		const float* second = GetRawPosition(i + 1);
+
+		// accumulate the distance
+		result += dtVdist(first, second);
+	}
+	
+	return result;
+}
+
+void NavigationPath::RenderUI()
 {
 	bool showPath = mq2nav::GetSettings().show_nav_path;
 	if (ImGui::Checkbox("Show navigation path", &showPath))
 	{
+		SetShowNavigationPaths(showPath);
+
 		mq2nav::GetSettings().show_nav_path = showPath;
 		mq2nav::SaveSettings(false);
 
-		m_line->SetVisible(showPath);
+		if (m_line)
+			m_line->SetVisible(showPath);
 	}
 
 #if DEBUG_NAVIGATION_LINES
 	if (m_line)
 		m_line->RenderUI();
 #endif
+}
+
+glm::vec3 NavigationPath::GetDestination() const
+{
+	return m_destinationInfo ? m_destinationInfo->eqDestinationPos : glm::vec3();
 }
 
 //----------------------------------------------------------------------------

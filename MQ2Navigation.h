@@ -79,7 +79,8 @@ struct DestinationInfo
 	bool valid = false;
 };
 
-DestinationInfo ParseDestination(const char* szLine, NotifyType notify = NotifyType::Errors);
+std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine,
+	NotifyType notify = NotifyType::Errors);
 
 //----------------------------------------------------------------------------
 
@@ -145,9 +146,6 @@ public:
 	bool IsPaused() const { return m_isPaused; }
 	bool IsMeshLoaded() const;
 
-	// Load navigation mesh for the current zone
-	bool LoadNavigationMesh();
-
 	// Check if a point is pathable (given a coordinate string)
 	bool CanNavigateToPoint(PCHAR szLine);
 
@@ -155,7 +153,7 @@ public:
 	float GetNavigationPathLength(PCHAR szLine);
 
 	// Begin navigating to a point
-	void BeginNavigation(const DestinationInfo& dest);
+	void BeginNavigation(const std::shared_ptr<DestinationInfo>& dest);
 
 private:
 	void InitializeRenderer();
@@ -166,7 +164,7 @@ private:
 
 	//----------------------------------------------------------------------------
 
-	float GetNavigationPathLength(const glm::vec3& pos);
+	float GetNavigationPathLength(const std::shared_ptr<DestinationInfo>& pos);
 
 	void AttemptClick();
 	bool ClickNearestClosedDoor(float cDistance = 30);
@@ -180,12 +178,10 @@ private:
 
 	void OnMovementKeyPressed();
 
-	void UpdateNavigationDisplay();
-
 private:
 	std::unique_ptr<MQ2NavigationType> m_navigationType;
 
-	std::unique_ptr<NavigationPath> m_activePath;
+	std::shared_ptr<NavigationPath> m_activePath;
 
 	Signal<>::ScopedConnection m_uiConn;
 

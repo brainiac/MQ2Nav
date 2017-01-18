@@ -391,8 +391,8 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 	}
 	
 	// all thats left is a navigation command. leave if it isn't a valid one.
-	DestinationInfo destination = ParseDestination(szLine, NotifyType::All);
-	if (!destination.valid)
+	auto destination = ParseDestination(szLine, NotifyType::All);
+	if (!destination->valid)
 		return;
 
 	BeginNavigation(destination);
@@ -433,8 +433,10 @@ void MQ2NavigationPlugin::UpdateCurrentZone()
 	}
 }
 
-void MQ2NavigationPlugin::BeginNavigation(const DestinationInfo& destInfo)
+void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>& destInfo)
 {
+	assert(destInfo);
+
 	// first clear existing state
 	m_isActive = false;
 	m_isPaused = false;
@@ -442,7 +444,7 @@ void MQ2NavigationPlugin::BeginNavigation(const DestinationInfo& destInfo)
 	m_pEndingItem = nullptr;
 	m_activePath.reset();
 
-	if (!destInfo.valid)
+	if (!destInfo->valid)
 		return;
 
 	if (!Get<NavMeshLoader>()->IsNavMeshLoaded())
@@ -451,16 +453,18 @@ void MQ2NavigationPlugin::BeginNavigation(const DestinationInfo& destInfo)
 		return;
 	}
 
-	if (destInfo.clickType != ClickType::None)
+	if (destInfo->clickType != ClickType::None)
 	{
-		m_pEndingDoor = destInfo.pDoor;
-		m_pEndingItem = destInfo.pGroundItem;
+		m_pEndingDoor = destInfo->pDoor;
+		m_pEndingItem = destInfo->pGroundItem;
 	}
 
-	m_activePath = std::make_unique<NavigationPath>();
-	m_activePath->FindPath(destInfo.eqDestinationPos);
-
-	m_isActive = m_activePath->GetPathSize() > 0;
+	m_activePath = std::make_shared<NavigationPath>(destInfo);
+	if (m_activePath->FindPath())
+	{
+		m_activePath->SetShowNavigationPaths(true);
+		m_isActive = m_activePath->GetPathSize() > 0;
+	}
 
 	if (m_isActive)
 	{
@@ -758,13 +762,13 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 	return pDoor;
 }
 
-DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
+std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType notify)
 {
 	CHAR buffer[MAX_STRING] = { 0 };
 	GetArg(buffer, szLine, 1);
 
-	DestinationInfo result;
-	result.command = szLine;
+	std::shared_ptr<DestinationInfo> result = std::make_shared<DestinationInfo>();
+	result->command = szLine;
 
 	if (!GetCharInfo() || !GetCharInfo()->pSpawn)
 	{
@@ -780,9 +784,9 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 		{
 			PSPAWNINFO target = (PSPAWNINFO)pTarget;
 
-			result.pSpawn = target;
-			result.eqDestinationPos = { target->X, target->Y, target->Z };
-			result.valid = true;
+			result->pSpawn = target;
+			result->eqDestinationPos = { target->X, target->Y, target->Z };
+			result->valid = true;
 
 			if (notify == NotifyType::All)
 				WriteChatf(PLUGIN_MSG "Navigating to target: %s", target->Name);
@@ -818,10 +822,10 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 		if (notify == NotifyType::All)
 			WriteChatf(PLUGIN_MSG "Navigating to spawn: %s (%d)", target->Name, target->SpawnID);
 
-		result.eqDestinationPos = { target->X, target->Y, target->Z };
-		result.pSpawn = target;
-		result.type = DestinationType::Spawn;
-		result.valid = true;
+		result->eqDestinationPos = { target->X, target->Y, target->Z };
+		result->pSpawn = target;
+		result->type = DestinationType::Spawn;
+		result->valid = true;
 
 		return result;
 	}
@@ -837,10 +841,10 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 
 		if (PSPAWNINFO pSpawn = SearchThroughSpawns(&sSpawn, (PSPAWNINFO)pCharSpawn))
 		{
-			result.eqDestinationPos = { pSpawn->X, pSpawn->Y, pSpawn->Z };
-			result.pSpawn = pSpawn;
-			result.type = DestinationType::Spawn;
-			result.valid = true;
+			result->eqDestinationPos = { pSpawn->X, pSpawn->Y, pSpawn->Z };
+			result->pSpawn = pSpawn;
+			result->type = DestinationType::Spawn;
+			result->valid = true;
 
 			if (notify == NotifyType::All)
 				WriteChatf(PLUGIN_MSG "Navigating to spawn: %s (%d)", pSpawn->Name, pSpawn->SpawnID);
@@ -870,10 +874,10 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 				return result;
 			}
 
-			result.type = DestinationType::Door;
-			result.pDoor = theDoor;
-			result.eqDestinationPos = { theDoor->X, theDoor->Y, theDoor->Z };
-			result.valid = true;
+			result->type = DestinationType::Door;
+			result->pDoor = theDoor;
+			result->eqDestinationPos = { theDoor->X, theDoor->Y, theDoor->Z };
+			result->valid = true;
 
 			if (notify == NotifyType::All)
 				WriteChatf(PLUGIN_MSG "Navigating to door: %s", theDoor->Name);
@@ -887,10 +891,10 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 				return result;
 			}
 
-			result.type = DestinationType::GroundItem;
-			result.pGroundItem = pGroundTarget;
-			result.eqDestinationPos = { pGroundTarget->X, pGroundTarget->Y, pGroundTarget->Z };
-			result.valid = true;
+			result->type = DestinationType::GroundItem;
+			result->pGroundItem = pGroundTarget;
+			result->eqDestinationPos = { pGroundTarget->X, pGroundTarget->Y, pGroundTarget->Z };
+			result->valid = true;
 
 			if (notify == NotifyType::All)
 				WriteChatf(PLUGIN_MSG "Navigating to ground item: %s", pGroundTarget->Name);
@@ -901,7 +905,7 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 
 		if (!_stricmp(buffer, "click"))
 		{
-			result.clickType = ClickType::Once;
+			result->clickType = ClickType::Once;
 		}
 
 		return result;
@@ -915,9 +919,9 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 		mq2nav::Waypoint wp;
 		if (mq2nav::GetWaypoint(buffer, wp))
 		{
-			result.type = DestinationType::Waypoint;
-			result.eqDestinationPos = { wp.location.x, wp.location.y, wp.location.z };
-			result.valid = true;
+			result->type = DestinationType::Waypoint;
+			result->eqDestinationPos = { wp.location.x, wp.location.y, wp.location.z };
+			result->valid = true;
 
 			if (notify == NotifyType::All)
 				WriteChatf(PLUGIN_MSG "Navigating to waypoint: %s", buffer);
@@ -950,9 +954,9 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 			// swap the x/y coordinates for silly eq coordinate system
 			std::swap(tmpDestination.x, tmpDestination.y);
 
-			result.type = DestinationType::Location;
-			result.eqDestinationPos = tmpDestination;
-			result.valid = true;
+			result->type = DestinationType::Location;
+			result->eqDestinationPos = tmpDestination;
+			result->valid = true;
 		}
 		else if (notify == NotifyType::Errors || notify == NotifyType::All)
 			WriteChatf(PLUGIN_MSG "\arInvalid location: %s", szLine);
@@ -965,40 +969,24 @@ DestinationInfo ParseDestination(const char* szLine, NotifyType notify)
 	return result;
 }
 
-float MQ2NavigationPlugin::GetNavigationPathLength(const glm::vec3& pos)
+float MQ2NavigationPlugin::GetNavigationPathLength(const std::shared_ptr<DestinationInfo>& info)
 {
-	float result = -1.f;
+	NavigationPath path(info);
 
-	NavigationPath path(Get<NavMeshLoader>()->GetNavMesh() != nullptr);
-	path.FindPath(pos);
+	if (path.FindPath())
+		return path.GetPathTraversalDistance();
 
-	//WriteChatf("MQ2Nav::GetPathLength - num points: %d", numPoints);
-	int numPoints = path.GetPathSize();
-	if (numPoints > 0)
-	{
-		result = 0;
-
-		for (int i = 0; i < numPoints - 1; ++i)
-		{
-			const float* first = path.GetRawPosition(i);
-			const float* second = path.GetRawPosition(i + 1);
-
-			float segment = dtVdist(first, second);
-			result += segment;
-			//WriteChatf("MQ2Nav::GetPathLength - segment #%d length: %f - total: %f", i, segment, result);
-		}
-	}
-	return result;
+	return -1;
 }
 
 float MQ2NavigationPlugin::GetNavigationPathLength(PCHAR szLine)
 {
 	float result = -1.f;
 
-	DestinationInfo dest = ParseDestination(szLine);
-	if (dest.valid)
+	auto dest = ParseDestination(szLine);
+	if (dest->valid)
 	{
-		result = GetNavigationPathLength(dest.eqDestinationPos);
+		result = GetNavigationPathLength(dest);
 	}
 
 	return result;
@@ -1007,12 +995,15 @@ float MQ2NavigationPlugin::GetNavigationPathLength(PCHAR szLine)
 bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
 {
 	bool result = false;
-	DestinationInfo dest = ParseDestination(szLine);
-	if (dest.valid)
+	auto dest = ParseDestination(szLine);
+	if (dest->valid)
 	{
-		NavigationPath path(Get<NavMeshLoader>()->GetNavMesh() != nullptr);
-		path.FindPath(dest.eqDestinationPos);
-		result = path.GetPathSize() > 0;
+		NavigationPath path(dest);
+
+		if (path.FindPath())
+		{
+			result = path.GetPathSize() > 0;
+		}
 	}
 
 	return result;
@@ -1121,7 +1112,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 		auto navmeshRenderer = Get<NavMeshRenderer>();
 		navmeshRenderer->OnUpdateUI();
 
-		if (m_activePath) m_activePath->OnUpdateUI();
+		if (m_activePath) m_activePath->RenderUI();
 	}
 }
 

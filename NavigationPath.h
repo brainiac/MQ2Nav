@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "MQ2Navigation.h"
 #include "Renderable.h"
 #include "RenderList.h"
 #include "Signal.h"
@@ -25,52 +26,63 @@
 //----------------------------------------------------------------------------
 
 class NavigationLine;
+class DestinationInfo;
 
 class NavigationPath
 {
 	friend class NavigationLine;
 
 public:
-	NavigationPath(bool renderPaths = true);
+	NavigationPath(const std::shared_ptr<DestinationInfo>& dest);
 	~NavigationPath();
 
-	//----------------------------------------------------------------------------
-	// constants
+	void SetDestination(const std::shared_ptr<DestinationInfo>& info);
+	std::shared_ptr<DestinationInfo> GetDestinationInfo() const { return m_destinationInfo; }
 
-	static const int MAX_POLYS = 4028 * 4;
+	// try to find a path to the current destination. Returns true if a path has been found.
+	bool FindPath();
 
-	static const int MAX_NODES = 2048 * 4;
-
-	static const int MAX_PATH_SIZE = 2048 * 4;
-
-	//----------------------------------------------------------------------------
-
-	const glm::vec3& GetDestination() const { return m_destination; }
-
-	int GetPathSize() const { return m_currentPathSize; }
-	int GetPathIndex() const { return m_currentPathCursor; }
-
-	bool FindPath(const glm::vec3& pos);
-
+	// trigger a recalculation of the path towards the destination.
 	void UpdatePath(bool force = false);
 
-	void OnUpdateUI();
+	// trigger render of the debug ui
+	void RenderUI();
+
+	void SetShowNavigationPaths(bool renderPaths);
+
+	//----------------------------------------------------------------------------
+
+	// get the destination point this path is navigating to.
+	glm::vec3 GetDestination() const;
+
+	// get the full length of the path as traversed
+	float GetPathTraversalDistance() const;
+
+	// Get the number of nodes in the path and the index of the current node
+	// along that path.
+	int GetPathSize() const { return m_currentPathSize; }
+	int GetPathIndex() const { return m_currentPathCursor; }
 
 	// Check if we are at the end if our path
 	inline bool IsAtEnd() const
 	{
-		return m_currentPathCursor >= m_currentPathSize || m_currentPathSize <= 0;
+		return m_currentPathCursor >= m_currentPathSize
+			|| m_currentPathSize <= 0;
 	}
 
 	inline glm::vec3 GetNextPosition() const
 	{
 		return GetPosition(m_currentPathCursor);
 	}
+
+	// get the coordinates of a point in a raw float3 form
 	inline const float* GetRawPosition(int index) const
 	{
 		assert(index < m_currentPathSize);
 		return &m_currentPath[index * 3];
 	}
+
+	// get the coordinates in silly eq coordinates
 	inline glm::vec3 GetPosition(int index) const
 	{
 		const float* rawcoord = GetRawPosition(index);
@@ -85,28 +97,29 @@ public:
 	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
 
 private:
-	void FindPathInternal(const glm::vec3& pos);
-
 	void SetNavMesh(dtNavMesh* navMesh);
+
+	std::shared_ptr<DestinationInfo> m_destinationInfo;
 
 	std::unique_ptr<RenderGroup> m_debugDrawGrp;
 
 	glm::vec3 m_destination;
 	glm::vec3 m_lastPos;
 
-	float m_currentPath[MAX_POLYS * 3];
-	unsigned char m_cornerFlags[MAX_POLYS];
-
 	int m_currentPathCursor = 0;
 	int m_currentPathSize = 0;
 
-	bool m_useCorridor = false;
 
 	// the plugin owns the mesh
 	dtNavMesh* m_navMesh = nullptr;
 
 	// we own the query
 	std::unique_ptr<dtNavMeshQuery> m_query;
+
+	bool m_useCorridor = false;
+	// used by corridor
+	std::unique_ptr<float[]> m_currentPath;
+	std::unique_ptr<uint8_t[]> m_cornerFlags;
 	std::unique_ptr<dtPathCorridor> m_corridor;
 
 	bool m_renderPaths;
@@ -117,6 +130,8 @@ private:
 
 	Signal<dtNavMesh*>::ScopedConnection m_navMeshConn;
 };
+
+//----------------------------------------------------------------------------
 
 class NavigationLine : public Renderable
 {
