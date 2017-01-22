@@ -56,9 +56,6 @@
     <ClCompile Include="Sample.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
-    <ClCompile Include="Sample_Debug.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
     <ClCompile Include="Sample_TileMesh.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
@@ -115,9 +112,6 @@
     <ClInclude Include="Sample.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
-    <ClInclude Include="Sample_Debug.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
     <ClInclude Include="Sample_TileMesh.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
@@ -140,6 +134,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\ZoneData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\NavMeshData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

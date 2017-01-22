@@ -30,11 +30,11 @@
     <ClCompile Include="PerfTimer.cpp" />
     <ClCompile Include="Sample.cpp" />
     <ClCompile Include="SampleInterfaces.cpp" />
-    <ClCompile Include="Sample_Debug.cpp" />
     <ClCompile Include="Sample_TileMesh.cpp" />
     <ClCompile Include="ValueHistory.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\NavMeshData.h" />
     <ClInclude Include="..\ZoneData.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
@@ -52,7 +52,6 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="Sample.h" />
     <ClInclude Include="SampleInterfaces.h" />
-    <ClInclude Include="Sample_Debug.h" />
     <ClInclude Include="Sample_TileMesh.h" />
     <ClInclude Include="ValueHistory.h" />
   </ItemGroup>
@@ -135,7 +134,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -164,7 +163,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>

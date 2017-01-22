@@ -7,7 +7,6 @@
 #include "RecastDebugDraw.h"
 #include "InputGeom.h"
 #include "Sample_TileMesh.h"
-#include "Sample_Debug.h"
 #include "resource.h"
 
 #include <imgui.h>
@@ -15,7 +14,18 @@
 #include "imgui_impl_sdl.h"
 #include "imgui_custom/imgui_user.h"
 
+#include <imgui/fonts/font_fontawesome_ttf.h>
+#include <imgui/fonts/font_roboto_regular_ttf.h>
+#include <imgui/fonts/font_materialicons_ttf.h>
+#include <imgui/fonts/IconsFontAwesome.h>
+#include <imgui/fonts/IconsMaterialDesign.h>
+
+#include <imgui/imgui_custom/ImGuiUtils.h>
+#include <imgui/addons/imguidock/imguidock.h>
 #include <gl/GLU.h>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -26,12 +36,36 @@
 #pragma warning(push)
 #pragma warning(disable: 4244)
 
+
 //============================================================================
 
 static const int32_t MAX_LOG_MESSAGES = 1000;
 
 static bool IsKeyboardBlocked() {
 	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
+}
+
+static void ConfigureFonts()
+{
+	ImGuiIO& io = ImGui::GetIO();
+
+	// font: Roboto Regular @ 16px
+	io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
+		GetRobotoRegularCompressedSize(), 16.0);
+
+	// font: FontAwesome
+	ImFontConfig faConfig;
+	faConfig.MergeMode = true;
+	static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+	io.Fonts->AddFontFromMemoryCompressedTTF(GetFontAwesomeCompressedData(),
+		GetFontAwesomeCompressedSize(), 14.0f, &faConfig, icon_ranges);
+
+	// font: Material Design Icons
+	ImFontConfig mdConfig;
+	mdConfig.MergeMode = true;
+	static const ImWchar md_icon_ranges[] = { ICON_MIN_MD, ICON_MAX_MD, 0 };
+	io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
+		GetMaterialIconsCompressedSize(), 13.0f, &mdConfig, md_icon_ranges);
 }
 
 //============================================================================
@@ -42,7 +76,6 @@ Interface::Interface(const std::string& defaultZone)
 	, m_resetCamera(true)
 	, m_width(1600), m_height(900)
 	, m_progress(0.0)
-	, m_showPreview(true)
 	, m_showLog(false)
 	, m_nextZoneToLoad(defaultZone)
 {
@@ -57,7 +90,9 @@ Interface::Interface(const std::string& defaultZone)
 	m_iniFile = fullPath;
 
 	InitializeWindow();
-	SetTheme(m_currentTheme, true);
+
+	//SetTheme(m_currentTheme, true);
+	ImGui::SetupImGuiStyle(true, 0.8f);
 }
 
 Interface::~Interface()
@@ -65,15 +100,12 @@ Interface::~Interface()
 	DestroyWindow();
 }
 
-unsigned int GetDroidSansCompressedSize();
-const unsigned int* GetDroidSansCompressedData();
-
 bool Interface::InitializeWindow()
 {
 	// Init SDL
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 	{
-		printf("Could not initialise SDL\n");
+		printf("Could not initialize SDL\n");
 		return false;
 	}
 
@@ -84,10 +116,8 @@ bool Interface::InitializeWindow()
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-//#ifndef WIN32
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-//#endif
 	
 	SDL_Rect vr;
 	SDL_GetDisplayBounds(0, &vr);
@@ -111,12 +141,12 @@ bool Interface::InitializeWindow()
 		}
 	}
 
-	ImGui_ImplSdl_Init(m_window);
-
 	ImGuiIO& io = ImGui::GetIO();
 	io.IniFilename = m_iniFile.c_str();
-	io.Fonts->AddFontFromMemoryCompressedTTF(GetDroidSansCompressedData(),
-		GetDroidSansCompressedSize(), 16);
+
+	ImGui_ImplSdl_Init(m_window);
+
+	ConfigureFonts();
 
 	glEnable(GL_CULL_FACE);
 
@@ -152,19 +182,11 @@ int Interface::RunMainLoop()
 
 	while (!m_done)
 	{
-		// Handle input events.
-		HandleEvents();
-
-		ImGui_ImplSdl_NewFrame(m_window);
-
+		// fractional time since last update
 		Uint32 time = SDL_GetTicks();
-		float dt = (time - m_lastTime) / 1000.0f;
+		m_timeDelta = (time - m_lastTime) / 1000.0f;
 		m_lastTime = time;
-
-		m_time += dt;
-		m_timeDelta = dt;
-
-		RenderInterface();
+		m_time += m_timeDelta;
 
 		glViewport(0, 0, m_width, m_height);
 		glClearColor(0.3f, 0.3f, 0.32f, 1.0f);
@@ -178,83 +200,47 @@ int Interface::RunMainLoop()
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		gluPerspective(50.0f, (float)m_width / (float)m_height, 1.0f, m_camr);
+
+		// set up modelview matrix
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
-		glRotatef(m_rx, 1, 0, 0);
-		glRotatef(m_ry, 0, 1, 0);
-		glTranslatef(-m_camx, -m_camy, -m_camz);
+		glRotatef(m_r.x, 1, 0, 0);
+		glRotatef(m_r.y, 0, 1, 0);
+		glTranslatef(-m_cam.x, -m_cam.y, -m_cam.z);
+		glGetFloatv(GL_MODELVIEW_MATRIX, glm::value_ptr(m_model));
+
+		//glm::mat4 m2 = glm::mat4x4{ 1.0f };
+		//m2 = glm::rotate(m2, glm::radians(m_r.x), glm::vec3{ 1.0f, 0.0f, 0.0f });
+		//m2 = glm::rotate(m2, glm::radians(m_r.y), glm::vec3{ 0.0f, 1.0f, 0.0f });
+		//m_model = glm::translate(m2, -m_cam);
 
 		// Get hit ray position and direction.
-		glGetDoublev(GL_PROJECTION_MATRIX, m_proj);
-		glGetDoublev(GL_MODELVIEW_MATRIX, m_model);
-		glGetIntegerv(GL_VIEWPORT, m_view);
-		GLdouble x, y, z;
+		glGetFloatv(GL_PROJECTION_MATRIX, glm::value_ptr(m_proj));
+		glGetIntegerv(GL_VIEWPORT, glm::value_ptr(m_view));
 
-		if (m_showPreview)
+		m_rays = glm::unProject(glm::vec3{ m_m.x, m_m.y, 0.0f }, m_model, m_proj, m_view);
+		m_raye = glm::unProject(glm::vec3{ m_m.x, m_m.y, 1.0f }, m_model, m_proj, m_view);
+
+		// Handle input events.
+		HandleEvents();
+
+		ImGui_ImplSdl_NewFrame(m_window);
+		RenderInterface();
+
 		{
-			gluUnProject(m_mx, m_my, 0.0f, m_model, m_proj, m_view, &x, &y, &z);
-			m_rays[0] = (float)x;
-			m_rays[1] = (float)y;
-			m_rays[2] = (float)z;
-
-			gluUnProject(m_mx, m_my, 1.0f, m_model, m_proj, m_view, &x, &y, &z);
-			m_raye[0] = (float)x;
-			m_raye[1] = (float)y;
-			m_raye[2] = (float)z;
-
-			// Handle keyboard movement.
-			if (!IsKeyboardBlocked())
-			{
-				const Uint8* keystate = SDL_GetKeyboardState(NULL);
-				m_moveW = rcClamp(m_moveW + dt * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
-				m_moveS = rcClamp(m_moveS + dt * 4 * (keystate[SDL_SCANCODE_S] ? 1 : -1), 0.0f, 1.0f);
-				m_moveA = rcClamp(m_moveA + dt * 4 * (keystate[SDL_SCANCODE_A] ? 1 : -1), 0.0f, 1.0f);
-				m_moveD = rcClamp(m_moveD + dt * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
-				m_moveUp = rcClamp(m_moveUp + dt * 4 * (keystate[SDL_SCANCODE_SPACE] ? 1 : -1), 0.0f, 1.0f);
-				m_moveDown = rcClamp(m_moveDown + dt * 4 * (keystate[SDL_SCANCODE_C] ? 1 : -1), 0.0f, 1.0f);
-
-				float keybSpeed = 250.0f;
-				if (SDL_GetModState() & KMOD_SHIFT)
-					keybSpeed *= 10.0f;
-
-				float movex = (m_moveD - m_moveA) * keybSpeed * dt;
-				float movey = (m_moveS - m_moveW) * keybSpeed * dt;
-				float movez = (m_moveUp - m_moveDown) * keybSpeed * dt;
-
-				//  0  1  2  3
-				//  4  5  6  7
-				//  8  9 10 11
-				// 12 13 14 15
-
-				m_camx += movex * (float)m_model[0];
-				m_camy += movex * (float)m_model[4];
-				m_camz += movex * (float)m_model[8];
-
-				m_camx += movey * (float)m_model[2];
-				m_camy += movey * (float)m_model[6];
-				m_camz += movey * (float)m_model[10];
-
-				m_camy += movez;
-			}
-
 			std::lock_guard<std::mutex> lock(m_renderMutex);
+
+			UpdateCamera();
 
 			glEnable(GL_FOG);
 			m_mesh->handleRender();
 			glDisable(GL_FOG);
+
+			glEnable(GL_DEPTH_TEST);
+
+			ImGui::Render();
+			SDL_GL_SwapWindow(m_window);
 		}
-
-		// Perform the camera reset if requested
-		if (m_resetCamera)
-		{
-			ResetCamera();
-			m_resetCamera = false;
-		}
-
-		glEnable(GL_DEPTH_TEST);
-
-		ImGui::Render();
-		SDL_GL_SwapWindow(m_window);
 
 		// Do additional work here after rendering
 
@@ -327,6 +313,26 @@ void Interface::HandleEvents()
 			{
 				m_done = true;
 			}
+			else
+			{
+				switch (event.key.keysym.scancode)
+				{
+				case SDL_SCANCODE_W:
+				case SDL_SCANCODE_S:
+				case SDL_SCANCODE_A:
+				case SDL_SCANCODE_D:
+				case SDL_SCANCODE_SPACE:
+				case SDL_SCANCODE_C:
+					UpdateMovementState(true);
+					break;
+
+				default: break;
+				}
+			}
+			break;
+
+		case SDL_KEYUP:
+			UpdateMovementState(false);
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
@@ -340,10 +346,10 @@ void Interface::HandleEvents()
 
 				// Rotate view
 				m_rotate = true;
-				m_origx = m_mx;
-				m_origy = m_my;
-				m_origrx = m_rx;
-				m_origry = m_ry;
+				m_orig.x = m_m.x;
+				m_orig.y = m_m.y;
+				m_origr.x = m_r.x;
+				m_origr.y = m_r.y;
 			}
 			else if (event.button.button == SDL_BUTTON_LEFT)
 			{
@@ -352,7 +358,7 @@ void Interface::HandleEvents()
 				{
 					// Hit test mesh.
 					float t;
-					if (m_geom->raycastMesh(m_rays, m_raye, t))
+					if (m_geom->raycastMesh(glm::value_ptr(m_rays), glm::value_ptr(m_raye), t))
 					{
 						if (SDL_GetModState() & KMOD_CTRL)
 						{
@@ -370,7 +376,7 @@ void Interface::HandleEvents()
 							bool shift = (SDL_GetModState() & KMOD_SHIFT) ? true : false;
 
 							//if (!message)
-							m_mesh->handleClick(m_rays, pos, shift);
+							m_mesh->handleClick((float*)&m_rays, pos, shift);
 						}
 					}
 					else
@@ -400,14 +406,14 @@ void Interface::HandleEvents()
 			if (ImGui::GetIO().WantCaptureMouse)
 				break;
 
-			m_mx = event.motion.x;
-			m_my = m_height - 1 - event.motion.y;
+			m_m.x = event.motion.x;
+			m_m.y = m_height - 1 - event.motion.y;
 			if (m_rotate)
 			{
-				int dx = m_mx - m_origx;
-				int dy = m_my - m_origy;
-				m_rx = m_origrx - dy*0.25f;
-				m_ry = m_origry + dx*0.25f;
+				int dx = m_m.x - m_orig.x;
+				int dy = m_m.y - m_orig.y;
+				m_r.x = m_origr.x - dy*0.25f;
+				m_r.y = m_origr.y + dx*0.25f;
 			}
 			break;
 
@@ -422,9 +428,54 @@ void Interface::HandleEvents()
 	}
 }
 
+void Interface::UpdateMovementState(bool keydown)
+{
+
+}
+
+void Interface::UpdateCamera()
+{
+	// Perform the camera reset if requested
+	if (m_resetCamera)
+	{
+		ResetCamera();
+		m_resetCamera = false;
+	}
+
+	const Uint8* keystate = SDL_GetKeyboardState(NULL);
+	m_moveW = rcClamp(m_moveW + m_timeDelta * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
+	m_moveS = rcClamp(m_moveS + m_timeDelta * 4 * (keystate[SDL_SCANCODE_S] ? 1 : -1), 0.0f, 1.0f);
+	m_moveA = rcClamp(m_moveA + m_timeDelta * 4 * (keystate[SDL_SCANCODE_A] ? 1 : -1), 0.0f, 1.0f);
+	m_moveD = rcClamp(m_moveD + m_timeDelta * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
+	m_moveUp = rcClamp(m_moveUp + m_timeDelta * 4 * (keystate[SDL_SCANCODE_SPACE] ? 1 : -1), 0.0f, 1.0f);
+	m_moveDown = rcClamp(m_moveDown + m_timeDelta * 4 * (keystate[SDL_SCANCODE_C] ? 1 : -1), 0.0f, 1.0f);
+
+	float keybSpeed = 250.0f;
+	if (SDL_GetModState() & KMOD_SHIFT)
+		keybSpeed *= 10.0f;
+
+	glm::vec3 dp{ m_moveD - m_moveA, m_moveS - m_moveW, m_moveUp - m_moveDown };
+	dp *= m_timeDelta * keybSpeed;
+
+	//  0  1  2  3
+	//  4  5  6  7
+	//  8  9 10 11
+	// 12 13 14 15
+
+	m_cam.x += dp.x * m_model[0][0];
+	m_cam.x += dp.y * m_model[0][2];
+
+	m_cam.y += dp.x * m_model[1][0];
+	m_cam.y += dp.y * m_model[1][2];
+	m_cam.y += dp.z;
+
+	m_cam.z += dp.x * m_model[2][0];
+	m_cam.z += dp.y * m_model[2][2];
+}
+
 void Interface::RenderInterface()
 {
-	m_mesh->handleRenderOverlay((double*)m_proj, (double*)m_model, (int*)m_view);
+	m_mesh->handleRenderOverlay(m_proj, m_model, m_view);
 
 	bool showMenu = true;
 
@@ -498,27 +549,14 @@ void Interface::RenderInterface()
 			{
 				if (ImGui::MenuItem("Show Log", 0, m_showLog))
 					m_showLog = !m_showLog;
-				if (ImGui::MenuItem("Show Preview", 0, m_showPreview))
-					m_showPreview = !m_showPreview;
 				if (ImGui::MenuItem("Show Tools", "Ctrl+T", m_showTools))
 					m_showTools = !m_showTools;
 
 				ImGui::Separator();
 
-				if (ImGui::BeginMenu("Theme"))
-				{
-					if (ImGui::MenuItem("Default", 0, m_currentTheme == DefaultTheme))
-						SetTheme(DefaultTheme);
-					if (ImGui::MenuItem("Light", 0, m_currentTheme == LightTheme))
-						SetTheme(LightTheme);
-					if (ImGui::MenuItem("DarkTheme1", 0, m_currentTheme == DarkTheme1))
-						SetTheme(DarkTheme1);
-					if (ImGui::MenuItem("DarkTheme2", 0, m_currentTheme == DarkTheme2))
-						SetTheme(DarkTheme2);
-					if (ImGui::MenuItem("DarkTheme3", 0, m_currentTheme == DarkTheme3))
-						SetTheme(DarkTheme3);
-					ImGui::EndMenu();
-				}
+				if (ImGui::MenuItem("Show ImGui Demo", 0, m_showDemo))
+					m_showDemo = !m_showDemo;
+
 				ImGui::EndMenu();
 			}
 			ImGui::EndMainMenuBar();
@@ -550,24 +588,39 @@ void Interface::RenderInterface()
 
 		ShowSettingsDialog();
 		ShowZonePickerDialog();
+		if (m_showDemo)
+			ImGui::ShowTestWindow(&m_showDemo);
 	}
 
 	// start the properties dialog
-	ImGui::SetNextWindowPos(ImVec2(10, 40));
-	ImGui::SetNextWindowSize(ImVec2(300, m_height - 20));
-	if (ImGui::Begin("Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
-	{
-		ImGui::LabelText("Zone", m_zoneDisplayName.c_str());
+	ImGui::SetNextWindowPos(ImVec2(0, 21));
+	ImGui::SetNextWindowSize(ImVec2(315, m_height - 21));
 
-		float camPos[3] = { m_camz, m_camx, m_camy };
-		if (ImGui::InputFloat3("Position", camPos, -2))
-		{
-			m_camx = camPos[1];
-			m_camy = camPos[2];
-			m_camz = camPos[0];
-		}
+	const float oldWindowRounding = ImGui::GetStyle().WindowRounding;
+	ImGui::GetStyle().WindowRounding = 0;
+
+	bool show = ImGui::Begin("##Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+		| ImGuiWindowFlags_NoTitleBar);
+
+	ImGui::GetStyle().WindowRounding = oldWindowRounding;
+
+	if (show)	
+	{
+		// show zone name
+		if (!m_zoneLoaded)
+			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
+		else
+			ImGui::TextColored(ImColor(0, 255, 0), m_zoneDisplayName.c_str());
 
 		ImGui::Separator();
+
+		float camPos[3] = { m_cam.z, m_cam.x, m_cam.y };
+		if (ImGui::InputFloat3("Position", camPos, 2))
+		{
+			m_cam.x = camPos[1];
+			m_cam.y = camPos[2];
+			m_cam.z = camPos[0];
+		}
 
 		if (m_geom)
 		{
@@ -589,26 +642,13 @@ void Interface::RenderInterface()
 			}
 			else
 			{
-				ImVec4 col = ImColor(255, 255, 255);
-				if (tt > tm) {
-					col = ImColor(255, 0, 0);
-				}
-				ImGui::TextColored(col, "Tile Limit: %d", tm);
-
-				if (ImGui::Button("Build Mesh"))
+				if (ImGui::Button(ICON_MD_BUILD " Build Mesh"))
 					m_mesh->handleBuild();
-
-				ImGui::SameLine();
-
-				col = ImColor(0, 255, 0);
-				if (tt > tm) {
-					col = ImColor(255, 0, 0);
-				}
-				ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, tw, th);
 
 				if (!m_mesh->isBuildingTiles() && m_mesh->getNavMesh() != nullptr)
 				{
-					if (ImGui::Button("Save Mesh"))
+					ImGui::SameLine();
+					if (ImGui::Button(ICON_FA_FLOPPY_O " Save Mesh"))
 						SaveMesh();
 				}
 
@@ -636,10 +676,7 @@ void Interface::RenderInterface()
 				}
 			}
 
-
-
-			ImGui::LabelText("Verts", "%.1fk", loader->getVertCount() / 1000.0f);
-			ImGui::LabelText("Tris", "%.1fk", loader->getTriCount() / 1000.0f);
+			ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
 
 
 			ImGui::Separator();
@@ -658,13 +695,15 @@ void Interface::RenderInterface()
 		ImGui::End();
 	}
 
-	if (m_geom && m_showTools)
+	if (m_showTools)
 	{
-		ImGui::SetNextWindowPos(ImVec2(m_width - 300 - 10, 10));
-		ImGui::SetNextWindowSize(ImVec2(300, 600));
-
-		ImGui::Begin("Tools", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-		m_mesh->handleTools();
+		ImGui::SetNextWindowPos(ImVec2(m_width - 300 - 10, 10), ImGuiSetCond_Once);
+		ImGui::SetNextWindowSize(ImVec2(300, 600), ImGuiSetCond_Once);
+		ImGui::Begin("Tools", &m_showTools, 0);
+		if (!m_zoneLoaded)
+			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded");
+		else
+			m_mesh->handleTools();
 		ImGui::End();
 	}
 
@@ -676,7 +715,7 @@ void Interface::RenderInterface()
 		ImGui::SetNextWindowPos(ImVec2(logXPos, m_height - 200 - 10), ImGuiSetCond_Once);
 		ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiSetCond_Once);
 	
-		ImGui::Begin("Log");
+		ImGui::Begin("Log", &m_showLog);
 		ImGui::BeginChild("log contents");
 
 		ImGuiListClipper clipper(m_context->getLogCount(), ImGui::GetTextLineHeightWithSpacing());
@@ -896,12 +935,13 @@ void Interface::ResetCamera()
 		m_camr = sqrtf(rcSqr(bmax[0] - bmin[0]) +
 			rcSqr(bmax[1] - bmin[1]) +
 			rcSqr(bmax[2] - bmin[2])) / 2;
-		m_camx = (bmax[0] + bmin[0]) / 2 + m_camr;
-		m_camy = (bmax[1] + bmin[1]) / 2 + m_camr;
-		m_camz = (bmax[2] + bmin[2]) / 2 + m_camr;
+		m_cam.x = (bmax[0] + bmin[0]) / 2 + m_camr;
+		m_cam.y = (bmax[1] + bmin[1]) / 2 + m_camr;
+		m_cam.z = (bmax[2] + bmin[2]) / 2 + m_camr;
+
 		m_camr *= 3;
-		m_rx = 45;
-		m_ry = -45;
+		m_r.x = 45;
+		m_r.y = -45;
 
 		glFogf(GL_FOG_START, m_camr * 0.2f);
 		glFogf(GL_FOG_END, m_camr * 1.25f);
@@ -924,7 +964,6 @@ void Interface::Halt()
 void Interface::LoadGeometry(const std::string& zoneShortName)
 {
 	std::unique_lock<std::mutex> lock(m_renderMutex);
-	m_geom.reset();
 
 	Halt();
 
@@ -937,6 +976,9 @@ void Interface::LoadGeometry(const std::string& zoneShortName)
 		ss << "Failed to load zone: " << m_eqConfig.GetLongNameForShortName(zoneShortName);
 
 		m_failedZoneMsg = ss.str();
+		m_geom.reset();
+		m_mesh->handleMeshChanged(nullptr);
+		m_zoneLoaded = false;
 		return;
 	}
 
@@ -950,17 +992,15 @@ void Interface::LoadGeometry(const std::string& zoneShortName)
 	m_zoneDisplayName = ss.str();
 	m_expansionExpanded.clear();
 
-	if (m_geom)
-	{
-		// Update the window title
-		std::stringstream ss;
-		ss << "EQ Navigation (" << m_zoneLongname << ")";
-		std::string windowTitle = ss.str();
-		SDL_SetWindowTitle(m_window, windowTitle.c_str());
+	// Update the window title
+	ss.clear();
+	ss << "MQ2Nav MeshGenerator (" << m_zoneLongname << ")";
+	std::string windowTitle = ss.str();
+	SDL_SetWindowTitle(m_window, windowTitle.c_str());
 
-		m_mesh->handleMeshChanged(m_geom.get());
-		m_resetCamera = true;
-	}
+	m_mesh->handleMeshChanged(m_geom.get());
+	m_resetCamera = true;
+	m_zoneLoaded = true;
 }
 
 void Interface::SetTheme(Theme theme, bool force)

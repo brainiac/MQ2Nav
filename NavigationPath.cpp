@@ -7,6 +7,7 @@
 #include "NavMeshLoader.h"
 #include "RenderHandler.h"
 #include "MQ2Nav_Settings.h"
+#include "NavMeshData.h"
 
 #include "DebugDrawDX.h"
 #include "DetourNavMesh.h"
@@ -30,7 +31,9 @@ NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
 	m_navMeshConn = loader->OnNavMeshChanged.Connect([this](dtNavMesh* navMesh) { SetNavMesh(navMesh); });
 	m_navMesh = loader->GetNavMesh();
 
-	m_filter.setIncludeFlags(0x01); // walkable surface
+	m_filter.setIncludeFlags(PolyFlags::All);
+	m_filter.setExcludeFlags(PolyFlags::Disabled);
+
 	m_useCorridor = mq2nav::GetSettings().debug_use_pathing_corridor;
 
 	SetDestination(dest);

@@ -144,7 +144,7 @@ void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMeshQuery* 
 			}
 			else
 			{
-				if (p->getArea() == 0) // Treat zero area type as default.
+				if (p->getArea() == 63) // Treat zero area type as default.
 					col = duRGBA(0,192,255,64);
 				else
 					col = duIntToCol(p->getArea(), 64);

@@ -23,22 +23,22 @@
 #include "RecastDebugDraw.h"
 #include "DetourDebugDraw.h"
 
+#include "../NavMeshData.h"
+
 #include "SDL.h"
 #include "SDL_opengl.h"
 #include "imgui.h"
 #include "imgui_custom/imgui_user.h"
-#include <gl/glu.h>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <float.h>
 
-OffMeshConnectionTool::OffMeshConnectionTool() :
-	m_sample(0),
-	m_hitPosSet(0),
-	m_bidir(true),
-	m_oldFlags(0)
+OffMeshConnectionTool::OffMeshConnectionTool()
 {
 }
 
@@ -108,14 +108,15 @@ void OffMeshConnectionTool::handleClick(const float* /*s*/, const float* p, bool
 		// Create	
 		if (!m_hitPosSet)
 		{
-			rcVcopy(m_hitPos, p);
+			rcVcopy(glm::value_ptr(m_hitPos), p);
 			m_hitPosSet = true;
 		}
 		else
 		{
-			const unsigned char area = SAMPLE_POLYAREA_JUMP;
-			const unsigned short flags = SAMPLE_POLYFLAGS_JUMP; 
-			geom->addOffMeshConnection(m_hitPos, p, m_sample->getAgentRadius(), m_bidir ? 1 : 0, area, flags);
+			const uint8_t area = PolyArea::Jump;
+			const uint16_t flags = PolyFlags::Jump;
+			geom->addOffMeshConnection(glm::value_ptr(m_hitPos), p, m_sample->getAgentRadius(),
+				m_bidir ? 1 : 0, area, flags);
 			m_hitPosSet = false;
 		}
 	}
@@ -147,27 +148,26 @@ void OffMeshConnectionTool::handleRender()
 		geom->drawOffMeshConnections(&dd, true);
 }
 
-void OffMeshConnectionTool::handleRenderOverlay(double* proj, double* model, int* view)
+void OffMeshConnectionTool::handleRenderOverlay(const glm::mat4& proj,
+	const glm::mat4& model, const glm::ivec4& view)
 {
-	GLdouble x, y, z;
-	
 	// Draw start and end point labels
-	if (m_hitPosSet && gluProject((GLdouble)m_hitPos[0], (GLdouble)m_hitPos[1], (GLdouble)m_hitPos[2],
-								model, proj, view, &x, &y, &z))
+	if (m_hitPosSet)
 	{
-		ImGui::RenderText((int)x + 5, -((int)y - 5), ImVec4(0, 0, 0, 220), "Start");
+		glm::vec3 pos = glm::project(m_hitPos, model, proj, view);
+
+		ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
 	}
 	
 	// Tool help
-	const int h = view[3];
 	if (!m_hitPosSet)
 	{
-		ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
 			"LMB: Create new connection.  SHIFT+LMB: Delete existing connection, click close to start or end point.");
 	}
 	else
 	{
-		ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
 			"LMB: Set connection end point and finish.");
 	}
 }

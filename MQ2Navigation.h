@@ -106,9 +106,6 @@ public:
 	// Handler for /navigate
 	void Command_Navigate(PSPAWNINFO pChar, PCHAR szLine);
 
-	// Handler for "Navigation" TLO
-	BOOL Data_Navigate(PCHAR szName, MQ2TYPEVAR& Dest);
-
 	//------------------------------------------------------------------------
 	// modules
 
@@ -155,6 +152,9 @@ public:
 	// Begin navigating to a point
 	void BeginNavigation(const std::shared_ptr<DestinationInfo>& dest);
 
+	// Get the currently active path
+	std::shared_ptr<NavigationPath> GetCurrentPath();
+
 private:
 	void InitializeRenderer();
 	void ShutdownRenderer();
@@ -179,8 +179,6 @@ private:
 	void OnMovementKeyPressed();
 
 private:
-	std::unique_ptr<MQ2NavigationType> m_navigationType;
-
 	std::shared_ptr<NavigationPath> m_activePath;
 
 	Signal<>::ScopedConnection m_uiConn;

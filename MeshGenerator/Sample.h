@@ -22,6 +22,8 @@
 #include "Recast.h"
 #include "SampleInterfaces.h"
 
+#include <glm/glm.hpp>
+
 class BuildContext;
 
 /// Tool types.
@@ -39,26 +41,6 @@ enum SampleToolType
 	MAX_TOOLS
 };
 
-/// These are just sample areas to use consistent values across the samples.
-/// The use should specify these base on his needs.
-enum SamplePolyAreas
-{
-	SAMPLE_POLYAREA_GROUND,
-	SAMPLE_POLYAREA_WATER,
-	SAMPLE_POLYAREA_ROAD,
-	SAMPLE_POLYAREA_DOOR,
-	SAMPLE_POLYAREA_GRASS,
-	SAMPLE_POLYAREA_JUMP,
-};
-enum SamplePolyFlags
-{
-	SAMPLE_POLYFLAGS_WALK		= 0x01,		// Ability to walk (ground, grass, road)
-	SAMPLE_POLYFLAGS_SWIM		= 0x02,		// Ability to swim (water).
-	SAMPLE_POLYFLAGS_DOOR		= 0x04,		// Ability to move through doors.
-	SAMPLE_POLYFLAGS_JUMP		= 0x08,		// Ability to jump.
-	SAMPLE_POLYFLAGS_DISABLED	= 0x10,		// Disabled polygon
-	SAMPLE_POLYFLAGS_ALL		= 0xffff	// All abilities.
-};
 
 enum SamplePartitionType
 {
@@ -76,7 +58,8 @@ struct SampleTool
 	virtual void handleMenu() = 0;
 	virtual void handleClick(const float* s, const float* p, bool shift) = 0;
 	virtual void handleRender() = 0;
-	virtual void handleRenderOverlay(double* proj, double* model, int* view) = 0;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) = 0;
 	virtual void handleToggle() = 0;
 	virtual void handleStep() = 0;
 	virtual void handleUpdate(const float dt) = 0;
@@ -87,7 +70,8 @@ struct SampleToolState {
 	virtual void init(class Sample* sample) = 0;
 	virtual void reset() = 0;
 	virtual void handleRender() = 0;
-	virtual void handleRenderOverlay(double* proj, double* model, int* view) = 0;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) = 0;
 	virtual void handleUpdate(const float dt) = 0;
 };
 
@@ -138,7 +122,7 @@ public:
 	virtual void handleToggle();
 	virtual void handleStep();
 	virtual void handleRender();
-	virtual void handleRenderOverlay(double* proj, double* model, int* view);
+	virtual void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 	virtual void handleMeshChanged(class InputGeom* geom);
 	virtual bool handleBuild();
 	virtual void handleUpdate(const float dt);
@@ -160,7 +144,7 @@ public:
 	void initToolStates(Sample* sample);
 	void resetToolStates();
 	void renderToolStates();
-	void renderOverlayToolStates(double* proj, double* model, int* view);
+	void renderOverlayToolStates(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 
 	void resetCommonSettings();
 	void handleCommonSettings();

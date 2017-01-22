@@ -26,13 +26,17 @@
 #include "DetourDebugDraw.h"
 #include "DetourCommon.h"
 
+#include "../NavMeshData.h"
+
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui_custom/imgui_user.h"
 
 #include "SDL.h"
 #include "SDL_opengl.h"
-#include <gl/glu.h>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <math.h>
 #include <stdio.h>
@@ -236,8 +240,8 @@ NavMeshTesterTool::NavMeshTesterTool() :
 	m_pathIterNum(0),
 	m_steerPointCount(0)
 {
-	m_filter.setIncludeFlags(SAMPLE_POLYFLAGS_ALL ^ SAMPLE_POLYFLAGS_DISABLED);
-	m_filter.setExcludeFlags(0);
+	m_filter.setIncludeFlags(PolyFlags::All);
+	m_filter.setExcludeFlags(PolyFlags::Disabled);
 
 	m_polyPickExt[0] = 2;
 	m_polyPickExt[1] = 4;
@@ -261,12 +265,12 @@ void NavMeshTesterTool::init(Sample* sample)
 	if (m_navQuery)
 	{
 		// Change costs.
-		m_filter.setAreaCost(SAMPLE_POLYAREA_GROUND, 1.0f);
-		m_filter.setAreaCost(SAMPLE_POLYAREA_WATER, 10.0f);
-		m_filter.setAreaCost(SAMPLE_POLYAREA_ROAD, 1.0f);
-		m_filter.setAreaCost(SAMPLE_POLYAREA_DOOR, 1.0f);
-		m_filter.setAreaCost(SAMPLE_POLYAREA_GRASS, 2.0f);
-		m_filter.setAreaCost(SAMPLE_POLYAREA_JUMP, 1.5f);
+		m_filter.setAreaCost(PolyArea::Ground, 1.0f);
+		m_filter.setAreaCost(PolyArea::Water, 10.0f);
+		m_filter.setAreaCost(PolyArea::Road, 1.0f);
+		m_filter.setAreaCost(PolyArea::Door, 1.0f);
+		m_filter.setAreaCost(PolyArea::Grass, 2.0f);
+		m_filter.setAreaCost(PolyArea::Jump, 1.5f);
 	}
 	
 	m_neighbourhoodRadius = sample->getAgentRadius() * 20.0f;
@@ -360,7 +364,7 @@ void NavMeshTesterTool::handleMenu()
 	
 	if (ImGui::Button("Set Random Start"))
 	{
-		dtStatus status = m_navQuery->findRandomPoint(&m_filter, frand, &m_startRef, m_spos);
+		dtStatus status = m_navQuery->findRandomPoint(&m_filter, frand, &m_startRef, glm::value_ptr(m_spos));
 		if (dtStatusSucceed(status))
 		{
 			m_sposSet = true;
@@ -372,7 +376,8 @@ void NavMeshTesterTool::handleMenu()
 	{
 		if (m_sposSet)
 		{
-			dtStatus status = m_navQuery->findRandomPointAroundCircle(m_startRef, m_spos, m_randomRadius, &m_filter, frand, &m_endRef, m_epos);
+			dtStatus status = m_navQuery->findRandomPointAroundCircle(m_startRef,
+				glm::value_ptr(m_spos), m_randomRadius, &m_filter, frand, &m_endRef, glm::value_ptr(m_epos));
 			if (dtStatusSucceed(status))
 			{
 				m_eposSet = true;
@@ -409,7 +414,8 @@ void NavMeshTesterTool::handleMenu()
 			{
 				float pt[3];
 				dtPolyRef ref;
-				dtStatus status = m_navQuery->findRandomPointAroundCircle(m_startRef, m_spos, m_randomRadius, &m_filter, frand, &ref, pt);
+				dtStatus status = m_navQuery->findRandomPointAroundCircle(m_startRef,
+					glm::value_ptr(m_spos), m_randomRadius, &m_filter, frand, &ref, pt);
 				if (dtStatusSucceed(status))
 				{
 					dtVcopy(&m_randPoints[m_nrandPoints*3], pt);
@@ -425,24 +431,24 @@ void NavMeshTesterTool::handleMenu()
 
 	ImGui::Indent();
 
-	if (ImGui::RadioButton("Walk", (m_filter.getIncludeFlags() & SAMPLE_POLYFLAGS_WALK) != 0))
+	if (ImGui::RadioButton("Walk", (m_filter.getIncludeFlags() & PolyFlags::Walk) != 0))
 	{
-		m_filter.setIncludeFlags(m_filter.getIncludeFlags() ^ SAMPLE_POLYFLAGS_WALK);
+		m_filter.setIncludeFlags(m_filter.getIncludeFlags() ^ PolyFlags::Walk);
 		recalc();
 	}
-	if (ImGui::RadioButton("Swim", (m_filter.getIncludeFlags() & SAMPLE_POLYFLAGS_SWIM) != 0))
+	if (ImGui::RadioButton("Swim", (m_filter.getIncludeFlags() & PolyFlags::Swim) != 0))
 	{
-		m_filter.setIncludeFlags(m_filter.getIncludeFlags() ^ SAMPLE_POLYFLAGS_SWIM);
+		m_filter.setIncludeFlags(m_filter.getIncludeFlags() ^ PolyFlags::Swim);
 		recalc();
 	}
-	if (ImGui::RadioButton("Door", (m_filter.getIncludeFlags() & SAMPLE_POLYFLAGS_DOOR) != 0))
+	if (ImGui::RadioButton("Door", (m_filter.getIncludeFlags() & PolyFlags::Door) != 0))
 	{
-		m_filter.setIncludeFlags(m_filter.getIncludeFlags() ^ SAMPLE_POLYFLAGS_DOOR);
+		m_filter.setIncludeFlags(m_filter.getIncludeFlags() ^ PolyFlags::Door);
 		recalc();
 	}
-	if (ImGui::RadioButton("Jump", (m_filter.getIncludeFlags() & SAMPLE_POLYFLAGS_JUMP) != 0))
+	if (ImGui::RadioButton("Jump", (m_filter.getIncludeFlags() & PolyFlags::Jump) != 0))
 	{
-		m_filter.setIncludeFlags(m_filter.getIncludeFlags() ^ SAMPLE_POLYFLAGS_JUMP);
+		m_filter.setIncludeFlags(m_filter.getIncludeFlags() ^ PolyFlags::Jump);
 		recalc();
 	}
 	ImGui::Unindent();
@@ -452,24 +458,24 @@ void NavMeshTesterTool::handleMenu()
 	ImGui::Text("Exclude Flags");
 	
 	ImGui::Indent();
-	if (ImGui::RadioButton("Walk", (m_filter.getExcludeFlags() & SAMPLE_POLYFLAGS_WALK) != 0))
+	if (ImGui::RadioButton("Walk", (m_filter.getExcludeFlags() & PolyFlags::Walk) != 0))
 	{
-		m_filter.setExcludeFlags(m_filter.getExcludeFlags() ^ SAMPLE_POLYFLAGS_WALK);
+		m_filter.setExcludeFlags(m_filter.getExcludeFlags() ^ PolyFlags::Walk);
 		recalc();
 	}
-	if (ImGui::RadioButton("Swim", (m_filter.getExcludeFlags() & SAMPLE_POLYFLAGS_SWIM) != 0))
+	if (ImGui::RadioButton("Swim", (m_filter.getExcludeFlags() & PolyFlags::Swim) != 0))
 	{
-		m_filter.setExcludeFlags(m_filter.getExcludeFlags() ^ SAMPLE_POLYFLAGS_SWIM);
+		m_filter.setExcludeFlags(m_filter.getExcludeFlags() ^ PolyFlags::Swim);
 		recalc();
 	}
-	if (ImGui::RadioButton("Door", (m_filter.getExcludeFlags() & SAMPLE_POLYFLAGS_DOOR) != 0))
+	if (ImGui::RadioButton("Door", (m_filter.getExcludeFlags() & PolyFlags::Door) != 0))
 	{
-		m_filter.setExcludeFlags(m_filter.getExcludeFlags() ^ SAMPLE_POLYFLAGS_DOOR);
+		m_filter.setExcludeFlags(m_filter.getExcludeFlags() ^ PolyFlags::Door);
 		recalc();
 	}
-	if (ImGui::RadioButton("Jump", (m_filter.getExcludeFlags() & SAMPLE_POLYFLAGS_JUMP) != 0))
+	if (ImGui::RadioButton("Jump", (m_filter.getExcludeFlags() & PolyFlags::Jump) != 0))
 	{
-		m_filter.setExcludeFlags(m_filter.getExcludeFlags() ^ SAMPLE_POLYFLAGS_JUMP);
+		m_filter.setExcludeFlags(m_filter.getExcludeFlags() ^ PolyFlags::Jump);
 		recalc();
 	}
 	ImGui::Unindent();
@@ -482,12 +488,12 @@ void NavMeshTesterTool::handleClick(const float* /*s*/, const float* p, bool shi
 	if (shift)
 	{
 		m_sposSet = true;
-		dtVcopy(m_spos, p);
+		dtVcopy(glm::value_ptr(m_spos), p);
 	}
 	else
 	{
 		m_eposSet = true;
-		dtVcopy(m_epos, p);
+		dtVcopy(glm::value_ptr(m_epos), p);
 	}
 	recalc();
 }
@@ -510,7 +516,8 @@ void NavMeshTesterTool::handleToggle()
 
 	if (m_pathIterNum == 0)
 	{
-		m_navQuery->findPath(m_startRef, m_endRef, m_spos, m_epos, &m_filter, m_polys, &m_npolys, MAX_POLYS);
+		m_navQuery->findPath(m_startRef, m_endRef, glm::value_ptr(m_spos), glm::value_ptr(m_epos),
+			&m_filter, m_polys, &m_npolys, MAX_POLYS);
 		m_nsmoothPath = 0;
 
 		m_pathIterPolyCount = m_npolys;
@@ -520,8 +527,9 @@ void NavMeshTesterTool::handleToggle()
 		if (m_pathIterPolyCount)
 		{
 			// Iterate over the path to find smooth path on the detail mesh surface.
-			m_navQuery->closestPointOnPoly(m_startRef, m_spos, m_iterPos, 0);
-			m_navQuery->closestPointOnPoly(m_pathIterPolys[m_pathIterPolyCount-1], m_epos, m_targetPos, 0);
+			m_navQuery->closestPointOnPoly(m_startRef, glm::value_ptr(m_spos), m_iterPos, 0);
+			m_navQuery->closestPointOnPoly(m_pathIterPolys[m_pathIterPolyCount-1],
+				glm::value_ptr(m_epos), m_targetPos, 0);
 			
 			m_nsmoothPath = 0;
 			
@@ -662,13 +670,13 @@ void NavMeshTesterTool::handleUpdate(const float /*dt*/)
 			{
 				// In case of partial path, make sure the end point is clamped to the last polygon.
 				float epos[3];
-				dtVcopy(epos, m_epos);
+				dtVcopy(epos, glm::value_ptr(m_epos));
 				if (m_polys[m_npolys-1] != m_endRef)
-				m_navQuery->closestPointOnPoly(m_polys[m_npolys-1], m_epos, epos, 0);
+				m_navQuery->closestPointOnPoly(m_polys[m_npolys-1], glm::value_ptr(m_epos), epos, 0);
 
-				m_navQuery->findStraightPath(m_spos, epos, m_polys, m_npolys,
-											 m_straightPath, m_straightPathFlags,
-											 m_straightPathPolys, &m_nstraightPath, MAX_POLYS, DT_STRAIGHTPATH_ALL_CROSSINGS);
+				m_navQuery->findStraightPath(glm::value_ptr(m_spos), epos, m_polys, m_npolys,
+					m_straightPath, m_straightPathFlags, m_straightPathPolys, &m_nstraightPath,
+					MAX_POLYS, DT_STRAIGHTPATH_ALL_CROSSINGS);
 			}
 			 
 			m_pathFindStatus = DT_FAILURE;
@@ -695,12 +703,12 @@ void NavMeshTesterTool::recalc()
 		return;
 	
 	if (m_sposSet)
-		m_navQuery->findNearestPoly(m_spos, m_polyPickExt, &m_filter, &m_startRef, 0);
+		m_navQuery->findNearestPoly(glm::value_ptr(m_spos), m_polyPickExt, &m_filter, &m_startRef, 0);
 	else
 		m_startRef = 0;
 	
 	if (m_eposSet)
-		m_navQuery->findNearestPoly(m_epos, m_polyPickExt, &m_filter, &m_endRef, 0);
+		m_navQuery->findNearestPoly(glm::value_ptr(m_epos), m_polyPickExt, &m_filter, &m_endRef, 0);
 	else
 		m_endRef = 0;
 	
@@ -717,7 +725,8 @@ void NavMeshTesterTool::recalc()
 				   m_filter.getIncludeFlags(), m_filter.getExcludeFlags()); 
 #endif
 
-			m_navQuery->findPath(m_startRef, m_endRef, m_spos, m_epos, &m_filter, m_polys, &m_npolys, MAX_POLYS);
+			m_navQuery->findPath(m_startRef, m_endRef, glm::value_ptr(m_spos), glm::value_ptr(m_epos),
+				&m_filter, m_polys, &m_npolys, MAX_POLYS);
 
 			m_nsmoothPath = 0;
 
@@ -729,8 +738,8 @@ void NavMeshTesterTool::recalc()
 				int npolys = m_npolys;
 				
 				float iterPos[3], targetPos[3];
-				m_navQuery->closestPointOnPoly(m_startRef, m_spos, iterPos, 0);
-				m_navQuery->closestPointOnPoly(polys[npolys-1], m_epos, targetPos, 0);
+				m_navQuery->closestPointOnPoly(m_startRef, glm::value_ptr(m_spos), iterPos, 0);
+				m_navQuery->closestPointOnPoly(polys[npolys-1], glm::value_ptr(m_epos), targetPos, 0);
 				
 				static const float STEP_SIZE = 0.5f;
 				static const float SLOP = 0.01f;
@@ -861,19 +870,20 @@ void NavMeshTesterTool::recalc()
 				   m_spos[0],m_spos[1],m_spos[2], m_epos[0],m_epos[1],m_epos[2],
 				   m_filter.getIncludeFlags(), m_filter.getExcludeFlags()); 
 #endif
-			m_navQuery->findPath(m_startRef, m_endRef, m_spos, m_epos, &m_filter, m_polys, &m_npolys, MAX_POLYS);
+			m_navQuery->findPath(m_startRef, m_endRef, glm::value_ptr(m_spos),
+				glm::value_ptr(m_epos), &m_filter, m_polys, &m_npolys, MAX_POLYS);
 			m_nstraightPath = 0;
 			if (m_npolys)
 			{
 				// In case of partial path, make sure the end point is clamped to the last polygon.
 				float epos[3];
-				dtVcopy(epos, m_epos);
+				dtVcopy(epos, glm::value_ptr(m_epos));
 				if (m_polys[m_npolys-1] != m_endRef)
-					m_navQuery->closestPointOnPoly(m_polys[m_npolys-1], m_epos, epos, 0);
+					m_navQuery->closestPointOnPoly(m_polys[m_npolys-1], glm::value_ptr(m_epos), epos, 0);
 				
-				m_navQuery->findStraightPath(m_spos, epos, m_polys, m_npolys,
-											 m_straightPath, m_straightPathFlags,
-											 m_straightPathPolys, &m_nstraightPath, MAX_POLYS, m_straightPathOptions);
+				m_navQuery->findStraightPath(glm::value_ptr(m_spos), epos, m_polys, m_npolys,
+					m_straightPath, m_straightPathFlags, m_straightPathPolys, &m_nstraightPath,
+					MAX_POLYS, m_straightPathOptions);
 			}
 		}
 		else
@@ -894,7 +904,8 @@ void NavMeshTesterTool::recalc()
 			m_npolys = 0;
 			m_nstraightPath = 0;
 			
-			m_pathFindStatus = m_navQuery->initSlicedFindPath(m_startRef, m_endRef, m_spos, m_epos, &m_filter, DT_FINDPATH_ANY_ANGLE);
+			m_pathFindStatus = m_navQuery->initSlicedFindPath(m_startRef, m_endRef, glm::value_ptr(m_spos),
+				glm::value_ptr(m_epos), &m_filter, DT_FINDPATH_ANY_ANGLE);
 		}
 		else
 		{
@@ -918,17 +929,20 @@ void NavMeshTesterTool::recalc()
 			m_straightPath[0] = m_spos[0];
 			m_straightPath[1] = m_spos[1];
 			m_straightPath[2] = m_spos[2];
-			m_navQuery->raycast(m_startRef, m_spos, m_epos, &m_filter, &t, m_hitNormal, m_polys, &m_npolys, MAX_POLYS);
+
+			m_navQuery->raycast(m_startRef, glm::value_ptr(m_spos), glm::value_ptr(m_epos),
+				&m_filter, &t, m_hitNormal, m_polys, &m_npolys, MAX_POLYS);
+
 			if (t > 1)
 			{
 				// No hit
-				dtVcopy(m_hitPos, m_epos);
+				dtVcopy(m_hitPos, glm::value_ptr(m_epos));
 				m_hitResult = false;
 			}
 			else
 			{
 				// Hit
-				dtVlerp(m_hitPos, m_spos, m_epos, t);
+				dtVlerp(m_hitPos, glm::value_ptr(m_spos), glm::value_ptr(m_epos), t);
 				m_hitResult = true;
 			}
 			// Adjust height.
@@ -952,7 +966,8 @@ void NavMeshTesterTool::recalc()
 				   m_filter.getIncludeFlags(), m_filter.getExcludeFlags()); 
 #endif
 			m_distanceToWall = 0.0f;
-			m_navQuery->findDistanceToWall(m_startRef, m_spos, 100.0f, &m_filter, &m_distanceToWall, m_hitPos, m_hitNormal);
+			m_navQuery->findDistanceToWall(m_startRef, glm::value_ptr(m_spos), 100.0f, &m_filter,
+				&m_distanceToWall, m_hitPos, m_hitNormal);
 		}
 	}
 	else if (m_toolMode == TOOLMODE_FIND_POLYS_IN_CIRCLE)
@@ -967,8 +982,8 @@ void NavMeshTesterTool::recalc()
 				   m_spos[0],m_spos[1],m_spos[2], dist,
 				   m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
 #endif
-			m_navQuery->findPolysAroundCircle(m_startRef, m_spos, dist, &m_filter,
-											  m_polys, m_parent, 0, &m_npolys, MAX_POLYS);
+			m_navQuery->findPolysAroundCircle(m_startRef, glm::value_ptr(m_spos), dist, &m_filter,
+				m_polys, m_parent, 0, &m_npolys, MAX_POLYS);
 
 		}
 	}
@@ -1005,7 +1020,7 @@ void NavMeshTesterTool::recalc()
 				   m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
 #endif
 			m_navQuery->findPolysAroundShape(m_startRef, m_queryPoly, 4, &m_filter,
-											 m_polys, m_parent, 0, &m_npolys, MAX_POLYS);
+				m_polys, m_parent, 0, &m_npolys, MAX_POLYS);
 		}
 	}
 	else if (m_toolMode == TOOLMODE_FIND_LOCAL_NEIGHBOURHOOD)
@@ -1017,8 +1032,8 @@ void NavMeshTesterTool::recalc()
 				   m_spos[0],m_spos[1],m_spos[2], m_neighbourhoodRadius,
 				   m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
 #endif
-			m_navQuery->findLocalNeighbourhood(m_startRef, m_spos, m_neighbourhoodRadius, &m_filter,
-											   m_polys, m_parent, &m_npolys, MAX_POLYS);
+			m_navQuery->findLocalNeighbourhood(m_startRef, glm::value_ptr(m_spos),
+				m_neighbourhoodRadius, &m_filter, m_polys, m_parent, &m_npolys, MAX_POLYS);
 		}
 	}
 }
@@ -1064,9 +1079,9 @@ void NavMeshTesterTool::handleRender()
 	
 	dd.depthMask(false);
 	if (m_sposSet)
-		drawAgent(m_spos, agentRadius, agentHeight, agentClimb, startCol);
+		drawAgent(glm::value_ptr(m_spos), agentRadius, agentHeight, agentClimb, startCol);
 	if (m_eposSet)
-		drawAgent(m_epos, agentRadius, agentHeight, agentClimb, endCol);
+		drawAgent(glm::value_ptr(m_epos), agentRadius, agentHeight, agentClimb, endCol);
 	dd.depthMask(true);
 	
 	if (!m_navMesh)
@@ -1323,7 +1338,7 @@ void NavMeshTesterTool::handleRender()
 				
 				// Skip too distant segments.
 				float tseg;
-				float distSqr = dtDistancePtSegSqr2D(m_spos, s, s+3, tseg);
+				float distSqr = dtDistancePtSegSqr2D(glm::value_ptr(m_spos), s, s+3, tseg);
 				if (distSqr > dtSqr(m_neighbourhoodRadius))
 					continue;
 				
@@ -1346,7 +1361,7 @@ void NavMeshTesterTool::handleRender()
 				else
 				{
 					unsigned int col = duRGBA(192,32,16,192);
-					if (dtTriArea2D(m_spos, s, s+3) < 0.0f)
+					if (dtTriArea2D(glm::value_ptr(m_spos), s, s+3) < 0.0f)
 						col = duRGBA(96,32,16,192);
 					
 					dd.vertex(p0[0],p0[1]+agentClimb,p0[2],col);
@@ -1364,7 +1379,8 @@ void NavMeshTesterTool::handleRender()
 		if (m_sposSet)
 		{
 			dd.depthMask(false);
-			duDebugDrawCircle(&dd, m_spos[0], m_spos[1]+agentHeight/2, m_spos[2], m_neighbourhoodRadius, duRGBA(64,16,0,220), 2.0f);
+			duDebugDrawCircle(&dd, m_spos[0], m_spos[1]+agentHeight/2, m_spos[2],
+				m_neighbourhoodRadius, duRGBA(64,16,0,220), 2.0f);
 			dd.depthMask(true);
 		}
 	}
@@ -1386,26 +1402,25 @@ void NavMeshTesterTool::handleRender()
 	}
 }
 
-void NavMeshTesterTool::handleRenderOverlay(double* proj, double* model, int* view)
+void NavMeshTesterTool::handleRenderOverlay(const glm::mat4& proj,
+	const glm::mat4& model, const glm::ivec4& view)
 {
-	GLdouble x, y, z;
-	
 	// Draw start and end point labels
-	if (m_sposSet && gluProject((GLdouble)m_spos[0], (GLdouble)m_spos[1], (GLdouble)m_spos[2],
-								model, proj, view, &x, &y, &z))
+	if (m_sposSet)
 	{
-		ImGui::RenderTextCentered((int)x + 5, -((int)y - 5), ImVec4(0, 0, 0, 220), "Start");
+		glm::vec3 pos = glm::project(m_spos, model, proj, view);
+
+		ImGui::RenderTextCentered((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
 	}
-	if (m_eposSet && gluProject((GLdouble)m_epos[0], (GLdouble)m_epos[1], (GLdouble)m_epos[2],
-								model, proj, view, &x, &y, &z))
+	if (m_eposSet)
 	{
-		ImGui::RenderTextCentered((int)x + 5, -((int)y - 5), ImVec4(0, 0, 0, 220), "End");
+		glm::vec3 pos = glm::project(m_epos, model, proj, view);
+
+		ImGui::RenderTextCentered((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "End");
 	}
 	
 	// Tool help
-	const int h = view[3];
-
-	ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
+	ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
 		"LMB+SHIFT: Set start location  LMB: Set end location");
 }
 

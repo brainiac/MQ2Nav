@@ -36,16 +36,17 @@ public:
 	NavMeshPruneTool();
 	~NavMeshPruneTool();
 	
-	virtual int type() { return TOOL_NAVMESH_PRUNE; }
-	virtual void init(Sample* sample);
-	virtual void reset();
-	virtual void handleMenu();
-	virtual void handleClick(const float* s, const float* p, bool shift);
-	virtual void handleToggle();
-	virtual void handleStep();
-	virtual void handleUpdate(const float dt);
-	virtual void handleRender();
-	virtual void handleRenderOverlay(double* proj, double* model, int* view);
+	virtual int type() override { return TOOL_NAVMESH_PRUNE; }
+	virtual void init(Sample* sample) override;
+	virtual void reset() override;
+	virtual void handleMenu() override;
+	virtual void handleClick(const float* s, const float* p, bool shift) override;
+	virtual void handleToggle() override;
+	virtual void handleStep() override;
+	virtual void handleUpdate(const float dt) override;
+	virtual void handleRender() override;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) override;
 };
 
 #endif // NAVMESHPRUNETOOL_H

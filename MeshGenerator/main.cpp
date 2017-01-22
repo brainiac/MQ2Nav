@@ -8,7 +8,6 @@
 #include "RecastDebugDraw.h"
 #include "InputGeom.h"
 #include "Sample_TileMesh.h"
-#include "Sample_Debug.h"
 
 #include "Interface.h"
 

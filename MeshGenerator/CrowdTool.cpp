@@ -26,11 +26,15 @@
 #include "DetourNode.h"
 #include "SampleInterfaces.h"
 
+#include "../NavMeshData.h"
+
 #include "SDL.h"
 #include "SDL_opengl.h"
 #include "imgui.h"
 #include "imgui_custom/imgui_user.h"
-#include <gl/GLU.h>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <math.h>
 #include <stdio.h>
@@ -151,7 +155,7 @@ void CrowdToolState::init(class Sample* sample)
 		crowd->init(MAX_AGENTS, m_sample->getAgentRadius(), nav);
 		
 		// Make polygons with 'disabled' flag invalid.
-		crowd->getEditableFilter(0)->setExcludeFlags(SAMPLE_POLYFLAGS_DISABLED);
+		crowd->getEditableFilter(0)->setExcludeFlags(PolyFlags::Disabled);
 		
 		// Setup local avoidance params to different qualities.
 		dtObstacleAvoidanceParams params;
@@ -513,15 +517,15 @@ void CrowdToolState::handleRender()
 }
 
 
-void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
+void CrowdToolState::handleRenderOverlay(const glm::mat4& proj,
+	const glm::mat4& model, const glm::ivec4& view)
 {
-	GLdouble x, y, z;
-	
+	glm::vec3 pos = glm::project(m_targetPos, model, proj, view);
+
 	// Draw start and end point labels
-	if (m_targetRef && gluProject((GLdouble)m_targetPos[0], (GLdouble)m_targetPos[1], (GLdouble)m_targetPos[2],
-								  model, proj, view, &x, &y, &z))
+	if (m_targetRef)
 	{
-		ImGui::RenderTextCentered((int)x, -((int)y + 25), ImVec4(0, 0, 0, 220), "TARGET");
+		ImGui::RenderTextCentered((int)pos.x, -((int)pos.y + 25), ImVec4(0, 0, 0, 220), "TARGET");
 	}
 	
 	if (m_toolParams.m_showNodes)
@@ -541,13 +545,12 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 						const dtNode* node = pool->getNodeAtIdx(j+1);
 						if (!node) continue;
 
-						if (gluProject((GLdouble)node->pos[0],(GLdouble)node->pos[1]+off,(GLdouble)node->pos[2],
-									   model, proj, view, &x, &y, &z))
-						{
-							const float heuristic = node->total;// - node->cost;
+						pos = glm::project(glm::vec3{ node->pos[0], node->pos[1] + off, node->pos[2] },
+							model, proj, view);
 
-							ImGui::RenderTextCentered((int)x, -((int)y + 15), ImVec4(0, 0, 0, 220), "%.2f", heuristic);
-						}
+						const float heuristic = node->total;// - node->cost;
+						ImGui::RenderTextCentered((int)pos.x, -((int)pos.y + 15), ImVec4(0, 0, 0, 220),
+							"%.2f", heuristic);
 					}
 				}
 			}
@@ -563,14 +566,12 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 			{
 				const dtCrowdAgent* ag = crowd->getAgent(i);
 				if (!ag->active) continue;
-				const float* pos = ag->npos;
-				const float h = ag->params.height;
-				if (gluProject((GLdouble)pos[0], (GLdouble)pos[1]+h, (GLdouble)pos[2],
-							   model, proj, view, &x, &y, &z))
-				{
-					ImGui::RenderTextCentered((int)x, -((int)y + 15), ImVec4(0, 0, 0, 220), "%d", i);
-				}
-			}			
+
+				pos = glm::project(glm::vec3{ ag->npos[0], ag->npos[1] + ag->params.height, ag->npos[2] },
+					model, proj, view);
+
+				ImGui::RenderTextCentered((int)pos.x, -((int)pos.y + 15), ImVec4(0, 0, 0, 220), "%d", i);
+			}
 		}
 	}
 	if (m_agentDebug.idx != -1)
@@ -592,12 +593,12 @@ void CrowdToolState::handleRenderOverlay(double* proj, double* model, int* view)
 					{
 						const dtCrowdAgent* nei = crowd->getAgent(ag->neis[j].idx);
 						if (!nei->active) continue;
-						
-						if (gluProject((GLdouble)nei->npos[0], (GLdouble)nei->npos[1]+radius, (GLdouble)nei->npos[2],
-									   model, proj, view, &x, &y, &z))
-						{
-							ImGui::RenderText((int)x, -((int)y + 15), ImVec4(255, 255, 255, 220), ".3f", ag->neis[j].dist);
-						}
+
+						pos = glm::project(glm::vec3{ nei->npos[0], nei->npos[1] + radius, nei->npos[2] },
+							model, proj, view);
+
+						ImGui::RenderText((int)pos.x, -((int)pos.y + 15), ImVec4(255, 255, 255, 220),
+							".3f", ag->neis[j].dist);
 					}
 				}
 			}
@@ -657,7 +658,7 @@ void CrowdToolState::addAgent(const float* p)
 	if (idx != -1)
 	{
 		if (m_targetRef)
-			crowd->requestMoveTarget(idx, m_targetRef, m_targetPos);
+			crowd->requestMoveTarget(idx, m_targetRef, glm::value_ptr(m_targetPos));
 		
 		// Init trail
 		AgentTrail* trail = &m_trails[idx];
@@ -727,13 +728,13 @@ void CrowdToolState::setMoveTarget(const float* p, bool adjust)
 	}
 	else
 	{
-		navquery->findNearestPoly(p, ext, filter, &m_targetRef, m_targetPos);
+		navquery->findNearestPoly(p, ext, filter, &m_targetRef, glm::value_ptr(m_targetPos));
 		
 		if (m_agentDebug.idx != -1)
 		{
 			const dtCrowdAgent* ag = crowd->getAgent(m_agentDebug.idx);
 			if (ag && ag->active)
-				crowd->requestMoveTarget(m_agentDebug.idx, m_targetRef, m_targetPos);
+				crowd->requestMoveTarget(m_agentDebug.idx, m_targetRef, glm::value_ptr(m_targetPos));
 		}
 		else
 		{
@@ -741,7 +742,7 @@ void CrowdToolState::setMoveTarget(const float* p, bool adjust)
 			{
 				const dtCrowdAgent* ag = crowd->getAgent(i);
 				if (!ag->active) continue;
-				crowd->requestMoveTarget(i, m_targetRef, m_targetPos);
+				crowd->requestMoveTarget(i, m_targetRef, glm::value_ptr(m_targetPos));
 			}
 		}
 	}
@@ -1008,7 +1009,7 @@ void CrowdTool::handleClick(const float* s, const float* p, bool shift)
 				unsigned short flags = 0;
 				if (dtStatusSucceed(nav->getPolyFlags(ref, &flags)))
 				{
-					flags ^= SAMPLE_POLYFLAGS_DISABLED;
+					flags ^= PolyFlags::Disabled;
 					nav->setPolyFlags(ref, flags);
 				}
 			}
@@ -1042,11 +1043,8 @@ void CrowdTool::handleRender()
 {
 }
 
-void CrowdTool::handleRenderOverlay(double* proj, double* model, int* view)
+void CrowdTool::handleRenderOverlay(const glm::mat4& /*proj*/, const glm::mat4& /*model*/, const glm::ivec4& view)
 {
-	rcIgnoreUnused(model);
-	rcIgnoreUnused(proj);
-
 	// Tool help
 	const int h = view[3];
 	int ty = h-40;

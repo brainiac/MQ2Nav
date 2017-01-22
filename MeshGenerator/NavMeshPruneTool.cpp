@@ -16,14 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <float.h>
-#include "SDL.h"
-#include "SDL_opengl.h"
-#include "imgui.h"
-#include "imgui_custom/imgui_user.h"
 #include "NavMeshPruneTool.h"
 #include "InputGeom.h"
 #include "Sample.h"
@@ -31,6 +23,18 @@
 #include "DetourCommon.h"
 #include "DetourAssert.h"
 #include "DetourDebugDraw.h"
+
+#include "../NavMeshData.h"
+
+#include <SDL.h>
+#include <SDL_opengl.h>
+#include <imgui.h>
+#include <imgui_custom/imgui_user.h>
+
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <float.h>
 
 #ifdef WIN32
 #	define snprintf _snprintf
@@ -213,7 +217,7 @@ static void disableUnvisitedPolys(dtNavMesh* nav, NavmeshFlags* flags)
 			{
 				unsigned short f = 0;
 				nav->getPolyFlags(ref, &f);
-				nav->setPolyFlags(ref, f | SAMPLE_POLYFLAGS_DISABLED);
+				nav->setPolyFlags(ref, f | +PolyFlags::Disabled);
 			}
 		}
 	}
@@ -342,14 +346,10 @@ void NavMeshPruneTool::handleRender()
 
 }
 
-void NavMeshPruneTool::handleRenderOverlay(double* proj, double* model, int* view)
+void NavMeshPruneTool::handleRenderOverlay(const glm::mat4& /*proj*/,
+	const glm::mat4& /*model*/, const glm::ivec4& view)
 {
-	rcIgnoreUnused(model);
-	rcIgnoreUnused(proj);
-
 	// Tool help
-	const int h = view[3];
-
-	ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
+	ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
 		"LMB: Click fill area.");
 }

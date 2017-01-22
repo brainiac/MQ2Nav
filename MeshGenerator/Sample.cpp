@@ -107,7 +107,8 @@ void Sample::handleRender()
 	duDebugDrawBoxWire(&dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
 }
 
-void Sample::handleRenderOverlay(double* /*proj*/, double* /*model*/, int* /*view*/)
+void Sample::handleRenderOverlay(const glm::mat4& /*proj*/,
+	const glm::mat4& /*model*/, const glm::ivec4& /*view*/)
 {
 }
 
@@ -154,50 +155,7 @@ void Sample::resetCommonSettings()
 
 void Sample::handleCommonSettings()
 {
-	ImGui::Text("Rasterization");
-	ImGui::SliderFloat("Cell Size", &m_cellSize, 0.1f, 1.0f);
-	ImGui::SliderFloat("Cell Height", &m_cellHeight, 0.1f, 1.0f);
 
-	if (m_geom)
-	{
-		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
-		int gw = 0, gh = 0;
-		rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
-
-		ImGui::LabelText("Voxels", "%d x %d", gw, gh);
-	}
-
-	ImGui::Separator();
-	ImGui::Text("Agent");
-	
-	ImGui::SliderFloat("Height", &m_agentHeight, 0.1f, 15.0f, "%.1f");
-	ImGui::SliderFloat("Radius", &m_agentRadius, 0.1f, 15.0f, "%.1f");
-	ImGui::SliderFloat("Max Climb", &m_agentMaxClimb, 0.1f, 15.0f, "%.1f");
-	ImGui::SliderFloat("Max Slope", &m_agentMaxSlope, 0.0f, 90.0f, "%.0f");
-
-	ImGui::Separator();
-	ImGui::Text("Region");
-	ImGui::SliderFloat("Min Region Size", &m_regionMinSize, 0.0f, 150.0f, "%.0f");
-	ImGui::SliderFloat("Merged Region Size", &m_regionMergeSize, 0.0f, 150.0f, "%.0f");
-
-	ImGui::Separator();
-	ImGui::Text("Partitioning");
-	const char *partition_types[] = { "Watershed", "Monotone", "Layers" };
-	ImGui::Combo("Type", &m_partitionType, partition_types, 3);
-
-	ImGui::Separator();
-	ImGui::Text("Polygonization");
-	ImGui::SliderFloat("Max Edge Length", &m_edgeMaxLen, 0.0f, 50.0f, "%.0f");
-	ImGui::SliderFloat("Max Edge Error", &m_edgeMaxError, 0.1f, 3.0f, "%.1f");
-	ImGui::SliderFloat("Verts Per Poly", &m_vertsPerPoly, 3.0f, 12.0f, "%.0f");
-
-	ImGui::Separator();
-	ImGui::Text("Detail Mesh");
-	ImGui::SliderFloat("Sample Distance", &m_detailSampleDist, 0.0f, 32.0f, "%.0f");
-	ImGui::SliderFloat("Max Sample Error", &m_detailSampleMaxError, 0.0f, 16.0f, "%.0f");
-
-	ImGui::Separator();
 }
 
 void Sample::handleClick(const float* s, const float* p, bool shift)
@@ -267,7 +225,8 @@ void Sample::renderToolStates()
 	}
 }
 
-void Sample::renderOverlayToolStates(double* proj, double* model, int* view)
+void Sample::renderOverlayToolStates(const glm::mat4& proj,
+	const glm::mat4& model, const glm::ivec4& view)
 {
 	for (int i = 0; i < MAX_TOOLS; i++)
 	{

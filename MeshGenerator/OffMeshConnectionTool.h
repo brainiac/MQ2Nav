@@ -16,35 +16,36 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef OFFMESHCONNECTIONTOOL_H
-#define OFFMESHCONNECTIONTOOL_H
+#pragma once
 
 #include "Sample.h"
+
+#include <cstdint>
 
 // Tool to create off-mesh connection for InputGeom
 
 class OffMeshConnectionTool : public SampleTool
 {
-	Sample* m_sample;
-	float m_hitPos[3];
-	bool m_hitPosSet;
-	bool m_bidir;
-	unsigned char m_oldFlags;
-	
 public:
 	OffMeshConnectionTool();
 	~OffMeshConnectionTool();
 	
-	virtual int type() { return TOOL_OFFMESH_CONNECTION; }
-	virtual void init(Sample* sample);
-	virtual void reset();
-	virtual void handleMenu();
-	virtual void handleClick(const float* s, const float* p, bool shift);
-	virtual void handleToggle();
-	virtual void handleStep();
-	virtual void handleUpdate(const float dt);
-	virtual void handleRender();
-	virtual void handleRenderOverlay(double* proj, double* model, int* view);
-};
+	virtual int type() override { return TOOL_OFFMESH_CONNECTION; }
+	virtual void init(Sample* sample) override;
+	virtual void reset() override;
+	virtual void handleMenu() override;
+	virtual void handleClick(const float* s, const float* p, bool shift) override;
+	virtual void handleToggle() override;
+	virtual void handleStep() override;
+	virtual void handleUpdate(const float dt) override;
+	virtual void handleRender() override;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) override;
 
-#endif // OFFMESHCONNECTIONTOOL_H
+private:
+	Sample* m_sample = nullptr;
+	glm::vec3 m_hitPos;
+	bool m_hitPosSet = false;
+	bool m_bidir = true;
+	int8_t m_oldFlags = 0;
+};

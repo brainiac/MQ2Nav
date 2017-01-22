@@ -69,9 +69,8 @@ protected:
 	int m_maxPolysPerTile;
 	float m_tileSize;
 	
-	unsigned int m_tileCol;
-	float m_tileBmin[3];
-	float m_tileBmax[3];
+	uint32_t m_tileCol;
+	glm::vec3 m_tileBmin, m_tileBmax;
 	float m_tileBuildTime;
 	float m_tileMemUsage;
 	int m_tileTriCount;
@@ -98,14 +97,15 @@ public:
 	bool LoadMesh(const std::string& outputPath);
 
 	void ResetMesh();
-	
-	virtual void handleSettings();
-	virtual void handleTools();
-	virtual void handleDebugMode();
-	virtual void handleRender();
-	virtual void handleRenderOverlay(double* proj, double* model, int* view);
-	virtual void handleMeshChanged(class InputGeom* geom);
-	virtual bool handleBuild();
+
+	virtual void handleSettings() override;
+	virtual void handleTools() override;
+	virtual void handleDebugMode() override;
+	virtual void handleRender() override;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) override;
+	virtual void handleMeshChanged(class InputGeom* geom) override;
+	virtual bool handleBuild() override;
 	
 	void getTilePos(const float* pos, int& tx, int& ty);
 	

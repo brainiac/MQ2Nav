@@ -16,12 +16,13 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef NAVMESHTESTERTOOL_H
-#define NAVMESHTESTERTOOL_H
+#pragma once
 
 #include "Sample.h"
 #include "DetourNavMesh.h"
 #include "DetourNavMeshQuery.h"
+
+#include <glm/glm.hpp>
 
 class NavMeshTesterTool : public SampleTool
 {
@@ -50,8 +51,8 @@ class NavMeshTesterTool : public SampleTool
 
 	int m_straightPathOptions;
 	
-	static const int MAX_POLYS = 4196;
-	static const int MAX_SMOOTH = 2048;
+	static const int MAX_POLYS = 4196 * 10;
+	static const int MAX_SMOOTH = 2048 * 10;
 	
 	dtPolyRef m_startRef;
 	dtPolyRef m_endRef;
@@ -72,16 +73,17 @@ class NavMeshTesterTool : public SampleTool
 	int m_nrandPoints;
 	bool m_randPointsInCircle;
 	
-	float m_spos[3];
-	float m_epos[3];
+	bool m_sposSet;
+	glm::vec3 m_spos;
+	bool m_eposSet;
+	glm::vec3 m_epos;
+
 	float m_hitPos[3];
 	float m_hitNormal[3];
 	bool m_hitResult;
 	float m_distanceToWall;
 	float m_neighbourhoodRadius;
 	float m_randomRadius;
-	bool m_sposSet;
-	bool m_eposSet;
 
 	int m_pathIterNum;
 	dtPolyRef m_pathIterPolys[MAX_POLYS]; 
@@ -96,19 +98,18 @@ public:
 	NavMeshTesterTool();
 	~NavMeshTesterTool();
 
-	virtual int type() { return TOOL_NAVMESH_TESTER; }
-	virtual void init(Sample* sample);
-	virtual void reset();
-	virtual void handleMenu();
-	virtual void handleClick(const float* s, const float* p, bool shift);
-	virtual void handleToggle();
-	virtual void handleStep();
-	virtual void handleUpdate(const float dt);
-	virtual void handleRender();
-	virtual void handleRenderOverlay(double* proj, double* model, int* view);
+	virtual int type() override { return TOOL_NAVMESH_TESTER; }
+	virtual void init(Sample* sample) override;
+	virtual void reset() override;
+	virtual void handleMenu() override;
+	virtual void handleClick(const float* s, const float* p, bool shift) override;
+	virtual void handleToggle() override;
+	virtual void handleStep() override;
+	virtual void handleUpdate(const float dt) override;
+	virtual void handleRender() override;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) override;
 
 	void recalc();
 	void drawAgent(const float* pos, float r, float h, float c, const unsigned int col);
 };
-
-#endif // NAVMESHTESTERTOOL_H

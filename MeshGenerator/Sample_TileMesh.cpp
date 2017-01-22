@@ -31,11 +31,15 @@
 #include "ConvexVolumeTool.h"
 #include "CrowdTool.h"
 
+#include "../NavMeshData.h"
+
 #include "SDL.h"
 #include "SDL_opengl.h"
 #include "imgui.h"
 #include "imgui_custom/imgui_user.h"
-#include <gl/GLU.h>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <ppl.h>
 #include <agents.h>
@@ -76,22 +80,10 @@ inline unsigned int ilog2(unsigned int v)
 
 class NavMeshTileTool : public SampleTool
 {
-	Sample_TileMesh* m_sample;
-	float m_hitPos[3];
-	bool m_hitPosSet;
-	
+
 public:
-
-	NavMeshTileTool() :
-		m_sample(0),
-		m_hitPosSet(false)
-	{
-		m_hitPos[0] = m_hitPos[1] = m_hitPos[2] = 0;
-	}
-
-	virtual ~NavMeshTileTool()
-	{
-	}
+	NavMeshTileTool() {}
+	virtual ~NavMeshTileTool() {}
 
 	virtual int type() { return TOOL_TILE_EDIT; }
 
@@ -122,13 +114,13 @@ public:
 	virtual void handleClick(const float* /*s*/, const float* p, bool shift)
 	{
 		m_hitPosSet = true;
-		rcVcopy(m_hitPos,p);
+		rcVcopy(glm::value_ptr(m_hitPos), p);
 		if (m_sample)
 		{
 			if (shift)
-				m_sample->removeTile(m_hitPos);
+				m_sample->removeTile(glm::value_ptr(m_hitPos));
 			else
-				m_sample->buildTile(m_hitPos);
+				m_sample->buildTile(glm::value_ptr(m_hitPos));
 		}
 	}
 
@@ -157,16 +149,20 @@ public:
 		}
 	}
 	
-	virtual void handleRenderOverlay(double* proj, double* model, int* view)
+	virtual void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view)
 	{
-		GLdouble x, y, z;
-		if (m_hitPosSet && gluProject((GLdouble)m_hitPos[0], (GLdouble)m_hitPos[1], (GLdouble)m_hitPos[2],
-									  model, proj, view, &x, &y, &z))
+		if (m_hitPosSet)
 		{
-			int tx=0, ty=0;
-			m_sample->getTilePos(m_hitPos, tx, ty);
+			glm::dvec3 hitPos2{ m_hitPos };
+			glm::dmat4x4 model2{ model };
+			glm::dmat4x4 proj2{ proj };
 
-			ImGui::RenderText((int)x + 5, -((int)y - 5), ImVec4(0, 0, 0, 220), "(%d,%d)", tx, ty);
+			glm::dvec3 pos = glm::project(hitPos2, model2, proj2, view);
+			int tx = 0, ty = 0;
+
+
+			m_sample->getTilePos(glm::value_ptr(m_hitPos), tx, ty);
+			ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "(%d,%d)", tx, ty);
 		}
 		
 		// Tool help
@@ -175,6 +171,11 @@ public:
 		ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
 			"LMB: Rebuild hit tile.  Shift+LMB: Clear hit tile.");
 	}
+
+private:
+	Sample_TileMesh* m_sample = nullptr;
+	glm::vec3 m_hitPos;
+	bool m_hitPosSet = false;
 };
 
 Sample_TileMesh::Sample_TileMesh() :
@@ -190,8 +191,6 @@ Sample_TileMesh::Sample_TileMesh() :
 	m_tileTriCount(0)
 {
 	resetCommonSettings();
-	memset(m_tileBmin, 0, sizeof(m_tileBmin));
-	memset(m_tileBmax, 0, sizeof(m_tileBmax));
 	
 	m_outputPath = new char[MAX_PATH];
 	setTool(new NavMeshTileTool);
@@ -261,6 +260,10 @@ void Sample_TileMesh::saveAll(const char* path, const dtNavMesh* mesh)
 
 		fwrite(tile->data, tile->dataSize, 1, fp);
 	}
+
+	// todo: save params
+
+	// todo: save convex volumes
 
 	fclose(fp);
 }
@@ -377,48 +380,75 @@ void Sample_TileMesh::getTileStatistics(int& width, int& height, int& maxTiles) 
 
 void Sample_TileMesh::handleSettings()
 {
-	if (ImGui::CollapsingHeader("Mesh Generation", 0, true, true))
+	if (ImGui::CollapsingHeader("Mesh Properties", 0, true, true))
 	{
-		ImGui::Text("Tiling");
-		ImGui::SliderFloat("TileSize", &m_tileSize, 16.0f, 1024.0f, "%.0f");
+		if (ImGui::TreeNodeEx("Tiling", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+			int tt = m_tilesWidth*m_tilesHeight;
 
-		if (m_geom)
-		{
-			const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-			const glm::vec3& bmax = m_geom->getMeshBoundsMax();
-			int gw = 0, gh = 0;
-			rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
-			const int ts = (int)m_tileSize;
-			m_tilesWidth = (gw + ts - 1) / ts;
-			m_tilesHeight = (gh + ts - 1) / ts;
-			m_tilesCount = m_tilesWidth * m_tilesHeight;
+			ImVec4 col = ImColor(255, 255, 255);
+			if (tt > m_maxTiles) {
+				col = ImColor(255, 0, 0);
+			}
+			ImGui::TextColored(col, "Tile Limit: %d", m_maxTiles);
+			ImGui::SameLine();
 
-			// Max tiles and max polys affect how the tile IDs are caculated.
-			// There are 22 bits available for identifying a tile and a polygon.
-			int tileBits = rcMin((int)ilog2(nextPow2(m_tilesCount)), 14);
-			if (tileBits > 14) tileBits = 14;
-			int polyBits = 22 - tileBits;
-			m_maxTiles = 1 << tileBits;
-			m_maxPolysPerTile = 1 << polyBits;
+			col = ImColor(0, 255, 0);
+			if (tt > m_maxTiles) {
+				col = ImColor(255, 0, 0);
+			}
+			ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, m_tilesWidth, m_tilesHeight);
+
+			ImGui::SliderFloat("TileSize", &m_tileSize, 16.0f, 1024.0f, "%.0f");
+
+			if (m_geom)
+			{
+				const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+				const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+				int gw = 0, gh = 0;
+				rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
+				const int ts = (int)m_tileSize;
+				m_tilesWidth = (gw + ts - 1) / ts;
+				m_tilesHeight = (gh + ts - 1) / ts;
+				m_tilesCount = m_tilesWidth * m_tilesHeight;
+
+				// Max tiles and max polys affect how the tile IDs are caculated.
+				// There are 22 bits available for identifying a tile and a polygon.
+				int tileBits = rcMin((int)ilog2(nextPow2(m_tilesCount)), 14);
+				if (tileBits > 14) tileBits = 14;
+				int polyBits = 22 - tileBits;
+				m_maxTiles = 1 << tileBits;
+				m_maxPolysPerTile = 1 << polyBits;
+			}
+			else
+			{
+				m_maxTiles = 0;
+				m_maxPolysPerTile = 0;
+				m_tilesWidth = 0;
+				m_tilesHeight = 0;
+				m_tilesCount = 0;
+			}
+
+			ImGui::SliderFloat("Cell Size", &m_cellSize, 0.1f, 1.0f);
+			ImGui::SliderFloat("Cell Height", &m_cellHeight, 0.1f, 1.0f);
+
+			//if (m_geom)
+			//{
+			//	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+			//	const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+			//	int gw = 0, gh = 0;
+			//	rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
+
+			//	ImGui::LabelText("Voxels", "%d x %d", gw, gh);
+			//}
 		}
-		else
-		{
-			m_maxTiles = 0;
-			m_maxPolysPerTile = 0;
-			m_tilesWidth = 0;
-			m_tilesHeight = 0;
-			m_tilesCount = 0;
+		if (ImGui::TreeNodeEx("Agent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+			ImGui::SliderFloat("Height", &m_agentHeight, 0.1f, 15.0f, "%.1f");
+			ImGui::SliderFloat("Radius", &m_agentRadius, 0.1f, 15.0f, "%.1f");
+			ImGui::SliderFloat("Max Climb", &m_agentMaxClimb, 0.1f, 15.0f, "%.1f");
+			ImGui::SliderFloat("Max Slope", &m_agentMaxSlope, 0.0f, 90.0f, "%.0f");
 		}
 
-		ImGui::Separator();
-		Sample::handleCommonSettings();
-
-		if (m_geom)
-		{
-
-			// custom bounding box controls
-			ImGui::Text("Bounding Box");
-
+		if (m_geom && ImGui::TreeNodeEx("Bounding Box", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
 			glm::vec3 min = m_geom->getMeshBoundsMin();
 			glm::vec3 max = m_geom->getMeshBoundsMax();
 
@@ -436,6 +466,28 @@ void Sample_TileMesh::handleSettings()
 			{
 				m_geom->resetMeshBounds();
 			}
+		}
+
+		if (ImGui::CollapsingSubHeader("Advanced Options"))
+		{
+			if (ImGui::TreeNodeEx("Region", ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+				ImGui::SliderFloat("Min Region Size", &m_regionMinSize, 0.0f, 150.0f, "%.0f");
+				ImGui::SliderFloat("Merged Region Size", &m_regionMergeSize, 0.0f, 150.0f, "%.0f");
+			}
+			if (ImGui::TreeNodeEx("Partitioning", ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+				const char *partition_types[] = { "Watershed", "Monotone", "Layers" };
+				ImGui::Combo("Type", &m_partitionType, partition_types, 3);
+			}
+			if (ImGui::TreeNodeEx("Polygonization", ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+				ImGui::SliderFloat("Max Edge Length", &m_edgeMaxLen, 0.0f, 50.0f, "%.0f");
+				ImGui::SliderFloat("Max Edge Error", &m_edgeMaxError, 0.1f, 3.0f, "%.1f");
+				ImGui::SliderFloat("Verts Per Poly", &m_vertsPerPoly, 3.0f, 12.0f, "%.0f");
+			}
+			if (ImGui::TreeNodeEx("Detail Mesh", ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+				ImGui::SliderFloat("Sample Distance", &m_detailSampleDist, 0.0f, 32.0f, "%.0f");
+				ImGui::SliderFloat("Max Sample Error", &m_detailSampleMaxError, 0.0f, 16.0f, "%.0f");
+			}
+			ImGui::Separator();
 		}
 	}
 }
@@ -464,10 +516,10 @@ void Sample_TileMesh::handleTools()
 	{
 		setTool(new ConvexVolumeTool);
 	}
-	if (ImGui::RadioButton("Create Crowds", type == TOOL_CROWD))
-	{
-		setTool(new CrowdTool);
-	}
+	//if (ImGui::RadioButton("Create Crowds", type == TOOL_CROWD))
+	//{
+	//	setTool(new CrowdTool);
+	//}
 	
 	ImGui::Separator();
 
@@ -616,7 +668,7 @@ void Sample_TileMesh::handleRender()
 			duDebugDrawNavMeshPortals(&dd, *m_navMesh);
 		if (m_drawMode == DRAWMODE_NAVMESH_NODES)
 			duDebugDrawNavMeshNodes(&dd, *m_navQuery);
-		duDebugDrawNavMeshPolysWithFlags(&dd, *m_navMesh, SAMPLE_POLYFLAGS_DISABLED, duRGBA(0,0,0,128));
+		duDebugDrawNavMeshPolysWithFlags(&dd, *m_navMesh, PolyFlags::Disabled, duRGBA(0,0,0,128));
 	}
 	
 	
@@ -689,24 +741,23 @@ void Sample_TileMesh::handleRender()
 	glDepthMask(GL_TRUE);
 }
 
-void Sample_TileMesh::handleRenderOverlay(double* proj, double* model, int* view)
+void Sample_TileMesh::handleRenderOverlay(const glm::mat4& proj,
+	const glm::mat4& model, const glm::ivec4& view)
 {
-	GLdouble x, y, z;
-	
 	// Draw start and end point labels
-	if (m_tileBuildTime > 0.0f
-		&& gluProject(
-			(GLdouble)(m_tileBmin[0]+m_tileBmax[0])/2,
-			(GLdouble)(m_tileBmin[1]+m_tileBmax[1])/2,
-			(GLdouble)(m_tileBmin[2]+m_tileBmax[2])/2,
-			model, proj, view, &x, &y, &z))
+	if (m_tileBuildTime > 0.0f)
 	{
-		ImGui::RenderText((int)x, -((int)y - 25), ImVec4(0, 0, 0, 220),
+		glm::vec3 pos = glm::project((m_tileBmin + m_tileBmax) / 2.0f,
+			model, proj, view);
+		ImGui::RenderText((int)pos.x, -((int)pos.y - 25), ImVec4(0, 0, 0, 220),
 			"%.3fms / %dTris / %.1fkB", m_tileBuildTime, m_tileTriCount, m_tileMemUsage);
 	}
-	
+
 	if (m_tool)
+	{
 		m_tool->handleRenderOverlay(proj, model, view);
+	}
+
 	renderOverlayToolStates(proj, model, view);
 }
 
@@ -802,21 +853,22 @@ void Sample_TileMesh::buildTile(const float* pos)
 	m_ctx->resetLog();
 	
 	int dataSize = 0;
-	unsigned char* data = buildTileMesh(tx, ty, m_tileBmin, m_tileBmax, dataSize);
+	unsigned char* data = buildTileMesh(tx, ty, glm::value_ptr(m_tileBmin),
+		glm::value_ptr(m_tileBmax), dataSize);
 
 	// Remove any previous data (navmesh owns and deletes the data).
-	m_navMesh->removeTile(m_navMesh->getTileRefAt(tx,ty,0),0,0);
+	m_navMesh->removeTile(m_navMesh->getTileRefAt(tx, ty, 0), 0, 0);
 
 	// Add tile, or leave the location empty.
 	if (data)
 	{
 		// Let the navmesh own the data.
-		dtStatus status = m_navMesh->addTile(data,dataSize,DT_TILE_FREE_DATA,0,0);
+		dtStatus status = m_navMesh->addTile(data, dataSize, DT_TILE_FREE_DATA, 0, 0);
 		if (dtStatusFailed(status))
 			dtFree(data);
 	}
 	
-	m_ctx->dumpLog("Build Tile (%d,%d):", tx,ty);
+	m_ctx->dumpLog("Build Tile (%d,%d):", tx, ty);
 }
 
 void Sample_TileMesh::getTilePos(const float* pos, int& tx, int& ty)
@@ -966,7 +1018,8 @@ void Sample_TileMesh::buildAllTiles(bool async)
 				m_tileBmax[2] = bmin[2] + (y + 1)*tcs;
 
 				int dataSize = 0;
-				unsigned char* data = buildTileMesh(x, y, m_tileBmin, m_tileBmax, dataSize);
+				uint8_t* data = buildTileMesh(x, y, glm::value_ptr(m_tileBmin),
+					glm::value_ptr(m_tileBmax), dataSize);
 
 				if (data)
 				{
@@ -1297,21 +1350,21 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 		for (int i = 0; i < pmesh->npolys; ++i)
 		{
 			if (pmesh->areas[i] == RC_WALKABLE_AREA)
-				pmesh->areas[i] = SAMPLE_POLYAREA_GROUND;
+				pmesh->areas[i] = PolyArea::Ground;
 			
-			if (pmesh->areas[i] == SAMPLE_POLYAREA_GROUND ||
-				pmesh->areas[i] == SAMPLE_POLYAREA_GRASS ||
-				pmesh->areas[i] == SAMPLE_POLYAREA_ROAD)
+			if (pmesh->areas[i] == PolyArea::Ground ||
+				pmesh->areas[i] == PolyArea::Grass ||
+				pmesh->areas[i] == PolyArea::Road)
 			{
-				pmesh->flags[i] = SAMPLE_POLYFLAGS_WALK;
+				pmesh->flags[i] = PolyFlags::Walk;
 			}
-			else if (pmesh->areas[i] == SAMPLE_POLYAREA_WATER)
+			else if (pmesh->areas[i] == PolyArea::Water)
 			{
-				pmesh->flags[i] = SAMPLE_POLYFLAGS_SWIM;
+				pmesh->flags[i] = PolyFlags::Swim;
 			}
-			else if (pmesh->areas[i] == SAMPLE_POLYAREA_DOOR)
+			else if (pmesh->areas[i] == PolyArea::Door)
 			{
-				pmesh->flags[i] = SAMPLE_POLYFLAGS_WALK | SAMPLE_POLYFLAGS_DOOR;
+				pmesh->flags[i] = PolyFlags::Walk | PolyFlags::Door;
 			}
 		}
 		

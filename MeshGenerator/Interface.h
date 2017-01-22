@@ -7,6 +7,7 @@
 #include "PerfTimer.h"
 
 #include <SDL.h>
+#include <glm/glm.hpp>
 
 #include <cstdio>
 #include <map>
@@ -45,10 +46,6 @@ private:
 
 	void RenderInterface();
 
-	void HandleEvents();
-
-	static DWORD WINAPI BuildThread(LPVOID lpParam);
-	void BuildThreadImpl();
 
 	// Load a zone's geometry given its shortname.
 	void LoadGeometry(const std::string& zoneShortName);
@@ -66,6 +63,12 @@ private:
 	// Menu Item Handling
 	void OpenMesh();
 	void SaveMesh();
+
+	// input event handling
+	void HandleEvents();
+
+	void UpdateMovementState(bool keydown);
+	void UpdateCamera();
 
 private:
 	EQConfig m_eqConfig;
@@ -97,24 +100,26 @@ private:
 	int m_width, m_height;
 	float m_progress;
 	std::string m_activityMessage;
-	bool m_showPreview;
 	bool m_showLog;
 	bool m_showSample;
 	bool m_showTools = false;
 	bool m_showFailedToOpenDialog = false;
 
-	GLdouble m_proj[16];
-	GLdouble m_model[16];
-	GLint m_view[4];
+	glm::mat4 m_proj;
+	glm::mat4 m_model;
+	glm::ivec4 m_view;
+	glm::vec3 m_rays; // ray start
+	glm::vec3 m_raye; // ray end
+	glm::vec2 m_origr;
+	glm::ivec2 m_orig;
+	glm::vec2 m_r;
 
-	float m_rays[3], m_raye[3];
-	float m_origrx = 0, m_origry = 0;
-	int m_origx = 0, m_origy = 0;
-	float m_rx = 45;
-	float m_ry = -45;
-	float m_moveW = 0, m_moveS = 0, m_moveA = 0, m_moveD = 0;
+	float m_moveW = 0, m_moveS = 0;
+	float m_moveA = 0, m_moveD = 0;
 	float m_moveUp = 0, m_moveDown = 0;
-	float m_camx = 0, m_camy = 0, m_camz = 0;
+	float m_moveSpeed = 0.0f;
+
+	glm::vec3 m_cam;
 	float m_camr = 10;
 
 	uint32_t m_lastTime = 0;
@@ -123,10 +128,10 @@ private:
 
 	// mesh hittest
 	bool m_mposSet = false;
-	float m_mpos[3] = { 0,0,0 };
+	glm::vec3 m_mpos;
 
 	// events
-	int m_mx = 0, m_my = 0;
+	glm::vec2 m_m;
 	bool m_rotate = false;
 	bool m_done = false;
 
@@ -135,9 +140,11 @@ private:
 
 	// maps display
 	std::map<std::string, bool> m_expansionExpanded;
-	std::string m_zoneDisplayName = "<none>";
+	std::string m_zoneDisplayName;
+	bool m_zoneLoaded = false;
 	bool m_showZonePickerDialog = false;
 	bool m_showSettingsDialog = false;
+	bool m_showDemo = false;
 
 	// zone to load on next pass
 	std::string m_nextZoneToLoad;

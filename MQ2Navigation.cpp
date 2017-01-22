@@ -38,14 +38,6 @@ static void NavigateCommand(PSPAWNINFO pChar, PCHAR szLine)
 		g_mq2Nav->Command_Navigate(pChar, szLine);
 }
 
-static BOOL NavigateData(PCHAR szName, MQ2TYPEVAR& Dest)
-{
-	if (g_mq2Nav)
-		return g_mq2Nav->Data_Navigate(szName, Dest);
-
-	return FALSE;
-}
-
 static void ClickSwitch(CVector3 pos, EQSwitch* pSwitch)
 {
 	int randclickY = (rand() % 10) - 5;
@@ -87,7 +79,6 @@ static void ClickGroundItem(PGROUNDITEM pGroundItem)
 
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
-	: m_navigationType(new MQ2NavigationType(this))
 {
 }
 
@@ -220,7 +211,8 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	Plugin_SetGameState(gGameState);
 
 	AddCommand("/navigate", NavigateCommand);
-	AddMQ2Data("Navigation", NavigateData);
+
+	InitializeMQ2NavMacroData();
 
 	auto ui = Get<UiController>();
 	m_updateTabConn = ui->OnTabUpdate.Connect([=](TabPage page) { OnUpdateTab(page); });
@@ -232,7 +224,7 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 		return;
 	
 	RemoveCommand("/navigate");
-	RemoveMQ2Data("Navigation");
+	ShutdownMQ2NavMacroData();
 
 	Stop();
 
@@ -271,13 +263,6 @@ void MQ2NavigationPlugin::ShutdownRenderer()
 }
 
 //----------------------------------------------------------------------------
-
-BOOL MQ2NavigationPlugin::Data_Navigate(PCHAR szName, MQ2TYPEVAR& Dest)
-{
-	Dest.DWord = 1;
-	Dest.Type = m_navigationType.get();
-	return true;
-}
 
 void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 {
@@ -948,8 +933,9 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 		}
 		if (i == 3)
 		{
-			WriteChatf(PLUGIN_MSG "Navigating to loc: %.2f, %.2f, %.2f",
-				tmpDestination.x, tmpDestination.y, tmpDestination.z);
+			if (notify == NotifyType::All)
+				WriteChatf(PLUGIN_MSG "Navigating to loc: %.2f, %.2f, %.2f",
+					tmpDestination.x, tmpDestination.y, tmpDestination.z);
 
 			// swap the x/y coordinates for silly eq coordinate system
 			std::swap(tmpDestination.x, tmpDestination.y);

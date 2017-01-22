@@ -16,20 +16,24 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <float.h>
-#include "SDL.h"
-#include "SDL_opengl.h"
-#include "imgui.h"
-#include "imgui_custom/imgui_user.h"
 #include "ConvexVolumeTool.h"
 #include "InputGeom.h"
 #include "Sample.h"
 #include "Recast.h"
 #include "RecastDebugDraw.h"
 #include "DetourDebugDraw.h"
+
+#include "../NavMeshData.h"
+
+#include "SDL.h"
+#include "SDL_opengl.h"
+#include "imgui.h"
+#include "imgui_custom/imgui_user.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <float.h>
 
 #ifdef WIN32
 #	define snprintf _snprintf
@@ -100,7 +104,7 @@ static int pointInPoly(int nvert, const float* verts, const float* p)
 
 ConvexVolumeTool::ConvexVolumeTool() :
 	m_sample(0),
-	m_areaType(SAMPLE_POLYAREA_GRASS),
+	m_areaType(PolyArea::Ground),
 	m_polyOffset(0.0f),
 	m_boxHeight(6.0f),
 	m_boxDescent(1.0f),
@@ -135,14 +139,21 @@ void ConvexVolumeTool::handleMenu()
 	ImGui::Text("Area Type");
 
 	ImGui::Indent();
-	if (ImGui::RadioButton("Grass", m_areaType == SAMPLE_POLYAREA_GRASS))
-		m_areaType = SAMPLE_POLYAREA_GRASS;
-	if (ImGui::RadioButton("Road", m_areaType == SAMPLE_POLYAREA_ROAD))
-		m_areaType = SAMPLE_POLYAREA_ROAD;
-	if (ImGui::RadioButton("Water", m_areaType == SAMPLE_POLYAREA_WATER))
-		m_areaType = SAMPLE_POLYAREA_WATER;
-	if (ImGui::RadioButton("Door", m_areaType == SAMPLE_POLYAREA_DOOR))
-		m_areaType = SAMPLE_POLYAREA_DOOR;
+
+	if (ImGui::RadioButton("Ground", m_areaType == PolyArea::Ground))
+		m_areaType = PolyArea::Ground;
+	if (ImGui::RadioButton("Unwalkable", m_areaType == PolyArea::Unwalkable))
+		m_areaType = PolyArea::Unwalkable;
+#if 0
+	if (ImGui::RadioButton("Grass", m_areaType == PolyArea::Grass))
+		m_areaType = PolyArea::Grass;
+	if (ImGui::RadioButton("Road", m_areaType == PolyArea::Road))
+		m_areaType = PolyArea::Road;
+	if (ImGui::RadioButton("Water", m_areaType == PolyArea::Water))
+		m_areaType = PolyArea::Water;
+	if (ImGui::RadioButton("Door", m_areaType == PolyArea::Door))
+		m_areaType = PolyArea::Door;
+#endif
 	ImGui::Unindent();
 
 	ImGui::Separator();
@@ -182,9 +193,10 @@ void ConvexVolumeTool::handleClick(const float* /*s*/, const float* p, bool shif
 	else
 	{
 		// Create
+		bool alt = (SDL_GetModState() & KMOD_ALT) != 0;
 
 		// If clicked on that last pt, create the shape.
-		if (m_npts && rcVdistSqr(p, &m_pts[(m_npts-1)*3]) < rcSqr(0.2f))
+		if (m_npts && (alt || rcVdistSqr(p, &m_pts[(m_npts-1)*3]) < rcSqr(0.2f)))
 		{
 			if (m_nhull > 2)
 			{
@@ -204,11 +216,11 @@ void ConvexVolumeTool::handleClick(const float* /*s*/, const float* p, bool shif
 					float offset[MAX_PTS*2*3];
 					int noffset = rcOffsetPoly(verts, m_nhull, m_polyOffset, offset, MAX_PTS*2);
 					if (noffset > 0)
-						geom->addConvexVolume(offset, noffset, minh, maxh, (unsigned char)m_areaType);
+						geom->addConvexVolume(offset, noffset, minh, maxh, (uint8_t)m_areaType);
 				}
 				else
 				{
-					geom->addConvexVolume(verts, m_nhull, minh, maxh, (unsigned char)m_areaType);
+					geom->addConvexVolume(verts, m_nhull, minh, maxh, (uint8_t)m_areaType);
 				}
 			}
 			
@@ -281,20 +293,20 @@ void ConvexVolumeTool::handleRender()
 	dd.end();	
 }
 
-void ConvexVolumeTool::handleRenderOverlay(double* /*proj*/, double* /*model*/, int* view)
+void ConvexVolumeTool::handleRenderOverlay(const glm::mat4& /*proj*/,
+	const glm::mat4& /*model*/, const glm::ivec4& view)
 {
 	// Tool help
-	const int h = view[3];
 	if (!m_npts)
 	{
-		ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
 			"LMB: Create new shape.  SHIFT+LMB: Delete existing shape (click inside a shape).");
 	}
 	else
 	{
-		ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
-			"Click LMB to add new points. Click on the red point to finish the shape.");
-		ImGui::RenderTextRight(-330, -(h - 60), ImVec4(255, 255, 255, 192),
+		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
+			"Click LMB to add new points. Alt+Click to finish the shape.");
+		ImGui::RenderTextRight(-330, -(view[3] - 60), ImVec4(255, 255, 255, 192),
 			"The shape will be convex hull of all added points.");
 	}
 }

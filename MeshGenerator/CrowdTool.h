@@ -25,6 +25,8 @@
 #include "ValueHistory.h"
 #include "DetourCrowd.h"
 
+#include <glm/glm.hpp>
+
 // Tool to create crowds.
 
 struct CrowdToolParams
@@ -57,7 +59,7 @@ class CrowdToolState : public SampleToolState
 	dtNavMesh* m_nav;
 	dtCrowd* m_crowd;
 	
-	float m_targetPos[3];
+	glm::vec3 m_targetPos;
 	dtPolyRef m_targetRef;
 
 	dtCrowdAgentDebugInfo m_agentDebug;
@@ -83,11 +85,12 @@ public:
 	CrowdToolState();
 	virtual ~CrowdToolState();
 	
-	virtual void init(class Sample* sample);
-	virtual void reset();
-	virtual void handleRender();
-	virtual void handleRenderOverlay(double* proj, double* model, int* view);
-	virtual void handleUpdate(const float dt);
+	virtual void init(class Sample* sample) override;
+	virtual void reset() override;
+	virtual void handleRender() override;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) override;
+	virtual void handleUpdate(const float dt) override;
 
 	inline bool isRunning() const { return m_run; }
 	inline void setRunning(const bool s) { m_run = s; }
@@ -125,16 +128,17 @@ public:
 	CrowdTool();
 	virtual ~CrowdTool();
 	
-	virtual int type() { return TOOL_CROWD; }
-	virtual void init(Sample* sample);
-	virtual void reset();
-	virtual void handleMenu();
-	virtual void handleClick(const float* s, const float* p, bool shift);
-	virtual void handleToggle();
-	virtual void handleStep();
-	virtual void handleUpdate(const float dt);
-	virtual void handleRender();
-	virtual void handleRenderOverlay(double* proj, double* model, int* view);
+	virtual int type() override { return TOOL_CROWD; }
+	virtual void init(Sample* sample) override;
+	virtual void reset() override;
+	virtual void handleMenu() override;
+	virtual void handleClick(const float* s, const float* p, bool shift) override;
+	virtual void handleToggle() override;
+	virtual void handleStep() override;
+	virtual void handleUpdate(const float dt) override;
+	virtual void handleRender() override;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) override;
 };
 
 #endif // CROWDTOOL_H

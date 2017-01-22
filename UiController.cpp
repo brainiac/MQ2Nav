@@ -28,8 +28,6 @@ namespace
 void UiController::Initialize()
 {
 	m_uiConn = g_imguiRenderer->OnUpdateUI.Connect([this]() { PerformUpdateUI(); });
-
-	//ImGuiEx::SetupImGuiStyle2();
 }
 
 void UiController::Shutdown()
