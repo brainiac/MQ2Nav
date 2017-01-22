@@ -268,3 +268,30 @@ void ImGuiEx::SetupImGuiStyle2()
 	static ImVec3 color_for_pops = ImVec3(33.f / 255.f, 46.f / 255.f, 60.f / 255.f);
 	imgui_easy_theming(color_for_text, color_for_head, color_for_area, color_for_body, color_for_pops);
 }
+
+
+bool ImGui::CollapsingSubHeader(const char* label, bool* p_open, ImGuiTreeNodeFlags flags)
+{
+	ImGui::PushStyleColor(ImGuiCol_Header, ImColor(96, 96, 96, 128));
+	ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImColor(96, 96, 96, 196));
+	ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImColor(96, 96, 96, 255));
+
+	bool result = ImGui::CollapsingHeader(label, p_open, flags);
+
+	ImGui::PopStyleColor(3);
+
+	return result;
+}
+
+bool ImGui::CollapsingSubHeader(const char* label, ImGuiTreeNodeFlags flags)
+{
+	ImGui::PushStyleColor(ImGuiCol_Header, ImColor(96, 96, 96, 128));
+	ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImColor(96, 96, 96, 196));
+	ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImColor(96, 96, 96, 255));
+
+	bool result = ImGui::CollapsingHeader(label, flags);
+
+	ImGui::PopStyleColor(3);
+
+	return result;
+}

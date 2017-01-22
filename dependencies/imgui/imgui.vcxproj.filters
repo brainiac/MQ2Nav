@@ -15,6 +15,9 @@
     <Filter Include="Source Files\custom">
       <UniqueIdentifier>{f7e5fa4f-f315-45e4-ba95-d034ae74f4f3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\fonts">
+      <UniqueIdentifier>{e25ec19d-72a0-4337-8882-215c55fb4ae6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="imgui.cpp">
@@ -31,6 +34,21 @@
     </ClCompile>
     <ClCompile Include="imgui_custom\imgui_column_headers.cpp">
       <Filter>Source Files\custom</Filter>
+    </ClCompile>
+    <ClCompile Include="fonts\font_droidsans_ttf.cpp">
+      <Filter>Source Files\fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="fonts\font_fontawesome_ttf.cpp">
+      <Filter>Source Files\fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="fonts\font_roboto_medium_ttf.cpp">
+      <Filter>Source Files\fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="fonts\font_materialicons_ttf.cpp">
+      <Filter>Source Files\fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="fonts\font_roboto_regular_ttf.cpp">
+      <Filter>Source Files\fonts</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -56,6 +74,9 @@
       <Filter>Header Files\custom</Filter>
     </ClInclude>
     <ClInclude Include="imgui_custom\imgui_user.h">
+      <Filter>Header Files\custom</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_custom\ImGuiUtils.h">
       <Filter>Header Files\custom</Filter>
     </ClInclude>
   </ItemGroup>
