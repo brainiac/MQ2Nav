@@ -13,12 +13,13 @@ MQ2Nav Changelog
 * Adjusted the defaults of a couple navmesh parameters for better path finding behavior:
   * Reduced MaxClimb to 5.2 to avoid getting stuck on the edge of tall objects
   * Increased MaxSlope to 75 to allow traversal over steeper terrain.
-* Fixed /nav x y z
-* Added /nav spawn <text> - takes same parameters of Spawn TLO to do a spawn search
-* Fixed issues with clicking items and doors when using /nav item or /nav door
-* Added new forms of /nav commands, see the wiki: https://github.com/brainiac/MQ2Nav/wiki/Command-Reference
+* Fixed various /nav commands and made many improvements:
+  * Fixed /nav x y z
+  * Added /nav spawn <text> - takes same parameters of Spawn TLO to do a spawn search
+  * Fixed issues with clicking items and doors when using /nav item or /nav door
+  * Added new forms of /nav commands, see the wiki: https://github.com/brainiac/MQ2Nav/wiki/Command-Reference
 * Remove spam click behavior of /nav item/door as it didn't work right anyways
-
+* Improvements to how the active navigation path line is rendered.
 
 2.0.0
 -----
