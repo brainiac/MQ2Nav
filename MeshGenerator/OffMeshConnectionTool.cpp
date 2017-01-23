@@ -22,21 +22,12 @@
 #include "Recast.h"
 #include "RecastDebugDraw.h"
 #include "DetourDebugDraw.h"
-
 #include "../NavMeshData.h"
 
-#include "SDL.h"
-#include "SDL_opengl.h"
-#include "imgui.h"
-#include "imgui_custom/imgui_user.h"
-
+#include <imgui/imgui.h>
+#include <imgui/imgui_custom/imgui_user.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <float.h>
 
 OffMeshConnectionTool::OffMeshConnectionTool()
 {
@@ -138,7 +129,7 @@ void OffMeshConnectionTool::handleRender()
 {
 	DebugDrawGL dd;
 	const float s = m_sample->getAgentRadius();
-	
+
 	if (m_hitPosSet)
 		duDebugDrawCross(&dd, m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2], s, duRGBA(0,0,0,128), 2.0f);
 
@@ -157,7 +148,7 @@ void OffMeshConnectionTool::handleRenderOverlay(const glm::mat4& proj,
 
 		ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
 	}
-	
+
 	// Tool help
 	if (!m_hitPosSet)
 	{

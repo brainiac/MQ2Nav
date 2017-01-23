@@ -94,7 +94,7 @@ static std::string OpenFileDialog(const char* defaultPath, const char* message)
 	{
 		return resultString;
 	}
-	
+
 	SetDefaultPath(fileOpenDialog, defaultPath);
 
 	wchar_t* title = nullptr;
@@ -109,7 +109,7 @@ static std::string OpenFileDialog(const char* defaultPath, const char* message)
 	{
 		::IShellItem* shellItem = nullptr;
 		result = fileOpenDialog->GetResult(&shellItem);
-		
+
 		wchar_t* filePath = nullptr;
 		shellItem->GetDisplayName(::SIGDN_FILESYSPATH, &filePath);
 

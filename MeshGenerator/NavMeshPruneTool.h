@@ -31,7 +31,7 @@ class NavMeshPruneTool : public SampleTool
 public:
 	NavMeshPruneTool();
 	virtual ~NavMeshPruneTool();
-	
+
 	virtual int type() override { return TOOL_NAVMESH_PRUNE; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;

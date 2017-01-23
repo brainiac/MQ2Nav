@@ -15,7 +15,7 @@
 #include <map>
 #include <tuple>
 
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 class MapGeometryLoader
 {

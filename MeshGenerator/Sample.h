@@ -98,22 +98,22 @@ protected:
 	float m_detailSampleDist;
 	float m_detailSampleMaxError;
 	int m_partitionType;
-	
+
 	SampleTool* m_tool;
 	SampleToolState* m_toolStates[MAX_TOOLS];
-	
+
 	BuildContext* m_ctx;
-	
+
 public:
 	Sample();
 	virtual ~Sample();
-	
+
 	void setContext(BuildContext* ctx) { m_ctx = ctx; }
-	
+
 	void setTool(SampleTool* tool);
 	SampleToolState* getToolState(int type) { return m_toolStates[type]; }
 	void setToolState(int type, SampleToolState* s) { m_toolStates[type] = s; }
-	
+
 	virtual void handleSettings();
 	virtual void handleTools();
 	virtual void handleDebugMode();
@@ -135,7 +135,7 @@ public:
 	virtual float getAgentClimb() { return m_agentMaxClimb; }
 	virtual const float* getBoundsMin();
 	virtual const float* getBoundsMax();
-	
+
 	inline unsigned char getNavMeshDrawFlags() const { return m_navMeshDrawFlags; }
 	inline void setNavMeshDrawFlags(unsigned char flags) { m_navMeshDrawFlags = flags; }
 

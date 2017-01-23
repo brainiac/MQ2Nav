@@ -30,7 +30,7 @@ class ConvexVolumeTool : public SampleTool
 public:
 	ConvexVolumeTool();
 	virtual ~ConvexVolumeTool();
-	
+
 	virtual int type() override { return TOOL_CONVEX_VOLUME; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;

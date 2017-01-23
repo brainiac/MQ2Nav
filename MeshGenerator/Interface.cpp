@@ -3,17 +3,15 @@
 #include "pch.h"
 #include "Interface.h"
 
-
 #include "RecastDebugDraw.h"
 #include "InputGeom.h"
 #include "Sample_TileMesh.h"
+#include "imgui_impl_sdl.h"
 #include "resource.h"
 
-#include <imgui.h>
-#include <imgui_internal.h>
-#include "imgui_impl_sdl.h"
-#include "imgui_custom/imgui_user.h"
-
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
+#include <imgui/imgui_custom/imgui_user.h>
 #include <imgui/fonts/font_fontawesome_ttf.h>
 #include <imgui/fonts/font_roboto_regular_ttf.h>
 #include <imgui/fonts/font_materialicons_ttf.h>
@@ -118,7 +116,7 @@ bool Interface::InitializeWindow()
 
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-	
+
 	SDL_Rect vr;
 	SDL_GetDisplayBounds(0, &vr);
 
@@ -603,7 +601,7 @@ void Interface::RenderInterface()
 
 	ImGui::GetStyle().WindowRounding = oldWindowRounding;
 
-	if (show)	
+	if (show)
 	{
 		// show zone name
 		if (!m_zoneLoaded)
@@ -713,7 +711,7 @@ void Interface::RenderInterface()
 
 		ImGui::SetNextWindowPos(ImVec2(logXPos, m_height - 200 - 10), ImGuiSetCond_Once);
 		ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiSetCond_Once);
-	
+
 		ImGui::Begin("Log", &m_showLog);
 		ImGui::BeginChild("log contents");
 

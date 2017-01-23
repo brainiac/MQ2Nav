@@ -87,9 +87,9 @@ void Sample::handleRender()
 {
 	if (!m_geom)
 		return;
-	
+
 	DebugDrawGL dd;
-		
+
 	// Draw mesh
 	duDebugDrawTriMesh(&dd,
 		m_geom->getMeshLoader()->getVerts(),

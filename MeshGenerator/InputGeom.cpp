@@ -23,16 +23,16 @@ static bool intersectSegmentTriangle(const float* sp, const float* sq,
 	rcVsub(ab, b, a);
 	rcVsub(ac, c, a);
 	rcVsub(qp, sp, sq);
-	
+
 	// Compute triangle normal. Can be precalculated or cached if
 	// intersecting multiple segments against the same triangle
 	rcVcross(norm, ab, ac);
-	
+
 	// Compute denominator d. If d <= 0, segment is parallel to or points
 	// away from triangle, so exit early
 	float d = rcVdot(qp, norm);
 	if (d <= 0.0f) return false;
-	
+
 	// Compute intersection t value of pq with plane of triangle. A ray
 	// intersects iff 0 <= t. Segment intersects iff 0 <= t <= 1. Delay
 	// dividing by d until intersection has been found to pierce triangle
@@ -40,17 +40,17 @@ static bool intersectSegmentTriangle(const float* sp, const float* sq,
 	t = rcVdot(ap, norm);
 	if (t < 0.0f) return false;
 	if (t > d) return false; // For segment; exclude this code line for a ray test
-	
+
 	// Compute barycentric coordinate components and test if within bounds
 	rcVcross(e, qp, ap);
 	v = rcVdot(ac, e);
 	if (v < 0.0f || v > d) return false;
 	w = -rcVdot(ab, e);
 	if (w < 0.0f || v + w > d) return false;
-	
+
 	// Segment/ray intersects triangle. Perform delayed division
 	t /= d;
-	
+
 	return true;
 }
 
@@ -105,7 +105,7 @@ bool InputGeom::loadMesh(rcContext* ctx)
 	m_chunkyMesh.reset();
 	m_offMeshConCount = 0;
 	m_volumeCount = 0;
-	
+
 	m_loader.reset(new MapGeometryLoader(m_zoneShortName, m_eqPath, m_meshPath));
 	if (!m_loader->load())
 	{
@@ -144,14 +144,14 @@ static bool isectSegAABB(const float* sp, const float* sq,
 	const float* amin, const float* amax, float& tmin, float& tmax)
 {
 	static const float EPS = 1e-6f;
-	
+
 	float d[3];
 	d[0] = sq[0] - sp[0];
 	d[1] = sq[1] - sp[1];
 	d[2] = sq[2] - sp[2];
 	tmin = 0.0;
 	tmax = 1.0f;
-	
+
 	for (int i = 0; i < 3; i++)
 	{
 		if (fabsf(d[i]) < EPS)
@@ -170,7 +170,7 @@ static bool isectSegAABB(const float* sp, const float* sq,
 			if (tmin > tmax) return false;
 		}
 	}
-	
+
 	return true;
 }
 
@@ -188,16 +188,16 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 	p[1] = src[2] + (dst[2]-src[2])*btmin;
 	q[0] = src[0] + (dst[0]-src[0])*btmax;
 	q[1] = src[2] + (dst[2]-src[2])*btmax;
-	
+
 	int cid[512];
 	const int ncid = rcGetChunksOverlappingSegment(m_chunkyMesh.get(), p, q, cid, 512);
 	if (!ncid)
 		return false;
-	
+
 	tmin = 1.0f;
 	bool hit = false;
 	const float* verts = m_loader->getVerts();
-	
+
 	for (int i = 0; i < ncid; ++i)
 	{
 		const rcChunkyTriMeshNode& node = m_chunkyMesh->nodes[cid[i]];
@@ -219,7 +219,7 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 			}
 		}
 	}
-	
+
 	return hit;
 }
 #pragma endregion
@@ -266,10 +266,10 @@ void InputGeom::drawOffMeshConnections(duDebugDraw* dd, bool hilight)
 
 		dd->vertex(v[0],v[1],v[2], baseColor);
 		dd->vertex(v[0],v[1]+0.2f,v[2], baseColor);
-		
+
 		dd->vertex(v[3],v[4],v[5], baseColor);
 		dd->vertex(v[3],v[4]+0.2f,v[5], baseColor);
-		
+
 		duAppendCircle(dd, v[0],v[1]+0.1f,v[2], m_offMeshConRads[i], baseColor);
 		duAppendCircle(dd, v[3],v[4]+0.1f,v[5], m_offMeshConRads[i], baseColor);
 
@@ -278,7 +278,7 @@ void InputGeom::drawOffMeshConnections(duDebugDraw* dd, bool hilight)
 			duAppendArc(dd, v[0],v[1],v[2], v[3],v[4],v[5], 0.25f,
 						(m_offMeshConDirs[i]&1) ? 0.6f : 0.0f, 0.6f, conColor);
 		}
-	}	
+	}
 	dd->end();
 
 	dd->depthMask(true);
@@ -310,7 +310,7 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 	dd->depthMask(false);
 
 	dd->begin(DU_DRAW_TRIS);
-	
+
 	for (int i = 0; i < m_volumeCount; ++i)
 	{
 		const ConvexVolume* vol = &m_volumes[i];
@@ -323,7 +323,7 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 			dd->vertex(vol->verts[0][0],vol->hmax,vol->verts[2][0], col);
 			dd->vertex(vb[0],vol->hmax,vb[2], col);
 			dd->vertex(va[0],vol->hmax,va[2], col);
-			
+
 			dd->vertex(va[0],vol->hmin,va[2], duDarkenCol(col));
 			dd->vertex(va[0],vol->hmax,va[2], col);
 			dd->vertex(vb[0],vol->hmax,vb[2], col);
@@ -333,7 +333,7 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 			dd->vertex(vb[0],vol->hmin,vb[2], duDarkenCol(col));
 		}
 	}
-	
+
 	dd->end();
 
 	dd->begin(DU_DRAW_LINES, 2.0f);

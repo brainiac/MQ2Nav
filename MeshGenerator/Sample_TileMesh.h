@@ -62,13 +62,13 @@ protected:
 		DRAWMODE_POLYMESH_DETAIL,
 		MAX_DRAWMODE
 	};
-		
+
 	DrawMode m_drawMode;
-	
+
 	int m_maxTiles;
 	int m_maxPolysPerTile;
 	float m_tileSize;
-	
+
 	uint32_t m_tileCol;
 	glm::vec3 m_tileBmin, m_tileBmax;
 	float m_tileBuildTime;
@@ -88,7 +88,7 @@ protected:
 
 	void saveAll(const char* path, const dtNavMesh* mesh);
 	dtNavMesh* loadAll(const char* path);
-	
+
 public:
 	Sample_TileMesh();
 	virtual ~Sample_TileMesh();
@@ -106,9 +106,9 @@ public:
 		const glm::mat4& model, const glm::ivec4& view) override;
 	virtual void handleMeshChanged(class InputGeom* geom) override;
 	virtual bool handleBuild() override;
-	
+
 	void getTilePos(const float* pos, int& tx, int& ty);
-	
+
 	void buildTile(const float* pos);
 	void removeTile(const float* pos);
 	void removeAllTiles();

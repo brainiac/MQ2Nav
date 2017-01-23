@@ -39,7 +39,7 @@ public:
 
 	void ShowZonePickerDialog();
 	void ShowSettingsDialog();
-	
+
 private:
 	bool InitializeWindow();
 	void DestroyWindow();

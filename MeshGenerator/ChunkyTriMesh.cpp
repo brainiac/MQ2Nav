@@ -56,16 +56,16 @@ static void calcExtends(const BoundsItem* items, const int /*nitems*/,
 {
 	bmin[0] = items[imin].bmin[0];
 	bmin[1] = items[imin].bmin[1];
-	
+
 	bmax[0] = items[imin].bmax[0];
 	bmax[1] = items[imin].bmax[1];
-	
+
 	for (int i = imin+1; i < imax; ++i)
 	{
 		const BoundsItem& it = items[i];
 		if (it.bmin[0] < bmin[0]) bmin[0] = it.bmin[0];
 		if (it.bmin[1] < bmin[1]) bmin[1] = it.bmin[1];
-		
+
 		if (it.bmax[0] > bmax[0]) bmax[0] = it.bmax[0];
 		if (it.bmax[1] > bmax[1]) bmax[1] = it.bmax[1];
 	}
@@ -82,21 +82,21 @@ static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int tri
 {
 	int inum = imax - imin;
 	int icur = curNode;
-	
+
 	if (curNode > maxNodes)
 		return;
 
 	rcChunkyTriMeshNode& node = nodes[curNode++];
-	
+
 	if (inum <= trisPerChunk)
 	{
 		// Leaf
 		calcExtends(items, nitems, imin, imax, node.bmin, node.bmax);
-		
+
 		// Copy triangles.
 		node.i = curTri;
 		node.n = inum;
-		
+
 		for (int i = imin; i < imax; ++i)
 		{
 			const int* src = &inTris[items[i].i*3];
@@ -111,10 +111,10 @@ static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int tri
 	{
 		// Split
 		calcExtends(items, nitems, imin, imax, node.bmin, node.bmax);
-		
+
 		int	axis = longestAxis(node.bmax[0] - node.bmin[0],
 							   node.bmax[1] - node.bmin[1]);
-		
+
 		if (axis == 0)
 		{
 			// Sort along x-axis
@@ -125,14 +125,14 @@ static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int tri
 			// Sort along y-axis
 			qsort(items+imin, inum, sizeof(BoundsItem), compareItemY);
 		}
-		
+
 		int isplit = imin+inum/2;
-		
+
 		// Left
 		subdivide(items, nitems, imin, isplit, trisPerChunk, curNode, nodes, maxNodes, curTri, outTris, inTris);
 		// Right
 		subdivide(items, nitems, isplit, imax, trisPerChunk, curNode, nodes, maxNodes, curTri, outTris, inTris);
-		
+
 		int iescape = curNode - icur;
 		// Negative index means escape.
 		node.i = -iescape;
@@ -162,22 +162,22 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 		for (int j = 1; j < 3; ++j)
 		{
 			const float* v = &verts[t[j]*3];
-			if (v[0] < it.bmin[0]) it.bmin[0] = v[0]; 
-			if (v[2] < it.bmin[1]) it.bmin[1] = v[2]; 
+			if (v[0] < it.bmin[0]) it.bmin[0] = v[0];
+			if (v[2] < it.bmin[1]) it.bmin[1] = v[2];
 
-			if (v[0] > it.bmax[0]) it.bmax[0] = v[0]; 
-			if (v[2] > it.bmax[1]) it.bmax[1] = v[2]; 
+			if (v[0] > it.bmax[0]) it.bmax[0] = v[0];
+			if (v[2] > it.bmax[1]) it.bmax[1] = v[2];
 		}
 	}
 
 	int curTri = 0;
 	int curNode = 0;
 	subdivide(items, ntris, 0, ntris, trisPerChunk, curNode, cm->nodes, nchunks*4, curTri, cm->tris, tris);
-	
+
 	delete [] items;
-	
+
 	cm->nnodes = curNode;
-	
+
 	// Calc max tris per node.
 	cm->maxTrisPerChunk = 0;
 	for (int i = 0; i < cm->nnodes; ++i)
@@ -188,7 +188,7 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 		if (node.n > cm->maxTrisPerChunk)
 			cm->maxTrisPerChunk = node.n;
 	}
-	 
+
 	return true;
 }
 
@@ -214,7 +214,7 @@ int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm,
 		const rcChunkyTriMeshNode* node = &cm->nodes[i];
 		const bool overlap = checkOverlapRect(bmin, bmax, node->bmin, node->bmax);
 		const bool isLeafNode = node->i >= 0;
-		
+
 		if (isLeafNode && overlap)
 		{
 			if (n < maxIds)
@@ -223,7 +223,7 @@ int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm,
 				n++;
 			}
 		}
-		
+
 		if (overlap || isLeafNode)
 			i++;
 		else
@@ -232,7 +232,7 @@ int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm,
 			i += escapeIndex;
 		}
 	}
-	
+
 	return n;
 }
 
@@ -248,7 +248,7 @@ static bool checkOverlapSegment(const float p[2], const float q[2],
 	float d[2];
 	d[0] = q[0] - p[0];
 	d[1] = q[1] - p[1];
-	
+
 	for (int i = 0; i < 2; i++)
 	{
 		if (fabsf(d[i]) < EPSILON)
@@ -284,7 +284,7 @@ int rcGetChunksOverlappingSegment(const rcChunkyTriMesh* cm,
 		const rcChunkyTriMeshNode* node = &cm->nodes[i];
 		const bool overlap = checkOverlapSegment(p, q, node->bmin, node->bmax);
 		const bool isLeafNode = node->i >= 0;
-		
+
 		if (isLeafNode && overlap)
 		{
 			if (n < maxIds)
@@ -293,7 +293,7 @@ int rcGetChunksOverlappingSegment(const rcChunkyTriMesh* cm,
 				n++;
 			}
 		}
-		
+
 		if (overlap || isLeafNode)
 			i++;
 		else
@@ -302,6 +302,6 @@ int rcGetChunksOverlappingSegment(const rcChunkyTriMesh* cm,
 			i += escapeIndex;
 		}
 	}
-	
+
 	return n;
 }

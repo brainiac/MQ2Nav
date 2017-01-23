@@ -29,7 +29,7 @@ class OffMeshConnectionTool : public SampleTool
 public:
 	OffMeshConnectionTool();
 	~OffMeshConnectionTool();
-	
+
 	virtual int type() override { return TOOL_OFFMESH_CONNECTION; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;

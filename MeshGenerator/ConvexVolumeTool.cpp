@@ -230,7 +230,7 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 		}
 		else
 		{
-			// Add new point 
+			// Add new point
 			if (m_npts < MAX_PTS)
 			{
 				m_pts[m_npts++] = p;

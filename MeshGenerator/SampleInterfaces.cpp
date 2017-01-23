@@ -19,7 +19,7 @@ public:
 	GLCheckerTexture() : m_texId(0)
 	{
 	}
-	
+
 	~GLCheckerTexture()
 	{
 		if (m_texId != 0)
@@ -34,7 +34,7 @@ public:
 			const unsigned int col1 = duRGBA(255,255,255,255);
 			static const int TSIZE = 64;
 			unsigned int data[TSIZE*TSIZE];
-			
+
 			glGenTextures(1, &m_texId);
 			glBindTexture(GL_TEXTURE_2D, m_texId);
 
@@ -49,7 +49,7 @@ public:
 				size /= 2;
 				level++;
 			}
-			
+
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		}
