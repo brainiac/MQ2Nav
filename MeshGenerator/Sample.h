@@ -16,8 +16,7 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef RECASTSAMPLE_H
-#define RECASTSAMPLE_H
+#pragma once
 
 #include "Recast.h"
 #include "SampleInterfaces.h"
@@ -26,7 +25,7 @@
 
 class BuildContext;
 
-/// Tool types.
+// Tool types.
 enum SampleToolType
 {
 	TOOL_NONE = 0,
@@ -56,13 +55,13 @@ struct SampleTool
 	virtual void init(class Sample* sample) = 0;
 	virtual void reset() = 0;
 	virtual void handleMenu() = 0;
-	virtual void handleClick(const float* s, const float* p, bool shift) = 0;
+	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) = 0;
 	virtual void handleRender() = 0;
 	virtual void handleRenderOverlay(const glm::mat4& proj,
 		const glm::mat4& model, const glm::ivec4& view) = 0;
 	virtual void handleToggle() = 0;
 	virtual void handleStep() = 0;
-	virtual void handleUpdate(const float dt) = 0;
+	virtual void handleUpdate(float dt) = 0;
 };
 
 struct SampleToolState {
@@ -118,14 +117,14 @@ public:
 	virtual void handleSettings();
 	virtual void handleTools();
 	virtual void handleDebugMode();
-	virtual void handleClick(const float* s, const float* p, bool shift);
+	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift);
 	virtual void handleToggle();
 	virtual void handleStep();
 	virtual void handleRender();
 	virtual void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 	virtual void handleMeshChanged(class InputGeom* geom);
 	virtual bool handleBuild();
-	virtual void handleUpdate(const float dt);
+	virtual void handleUpdate(float dt);
 
 	virtual class InputGeom* getInputGeom() { return m_geom; }
 	virtual class dtNavMesh* getNavMesh() { return m_navMesh; }
@@ -140,7 +139,7 @@ public:
 	inline unsigned char getNavMeshDrawFlags() const { return m_navMeshDrawFlags; }
 	inline void setNavMeshDrawFlags(unsigned char flags) { m_navMeshDrawFlags = flags; }
 
-	void updateToolStates(const float dt);
+	void updateToolStates(float dt);
 	void initToolStates(Sample* sample);
 	void resetToolStates();
 	void renderToolStates();
@@ -149,6 +148,3 @@ public:
 	void resetCommonSettings();
 	void handleCommonSettings();
 };
-
-
-#endif // RECASTSAMPLE_H

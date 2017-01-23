@@ -35,9 +35,6 @@
     <ClCompile Include="ConvexVolumeTool.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
-    <ClCompile Include="CrowdTool.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
     <ClCompile Include="InputGeom.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
@@ -50,9 +47,6 @@
     <ClCompile Include="OffMeshConnectionTool.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
-    <ClCompile Include="PerfTimer.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
     <ClCompile Include="Sample.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
@@ -60,9 +54,6 @@
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
     <ClCompile Include="SampleInterfaces.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="ValueHistory.cpp">
       <Filter>Source Files\RecastDemo</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
@@ -91,9 +82,6 @@
     <ClInclude Include="ConvexVolumeTool.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
-    <ClInclude Include="CrowdTool.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
     <ClInclude Include="InputGeom.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
@@ -106,9 +94,6 @@
     <ClInclude Include="OffMeshConnectionTool.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
-    <ClInclude Include="PerfTimer.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
     <ClInclude Include="Sample.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
@@ -116,9 +101,6 @@
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
     <ClInclude Include="SampleInterfaces.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="ValueHistory.h">
       <Filter>Header Files\RecastDemo</Filter>
     </ClInclude>
     <ClInclude Include="Interface.h">

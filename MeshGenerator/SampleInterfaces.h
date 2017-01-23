@@ -16,18 +16,16 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef SAMPLEINTERFACES_H
-#define SAMPLEINTERFACES_H
+#pragma once
 
 #include "DebugDraw.h"
 #include "Recast.h"
 #include "RecastDump.h"
-#include "PerfTimer.h"
 
 // These are example implementations of various interfaces used in Recast and Detour.
 
 
-/// OpenGL debug draw implementation.
+// OpenGL debug draw implementation.
 class DebugDrawGL : public duDebugDraw
 {
 public:
@@ -41,7 +39,7 @@ public:
 	virtual void end();
 };
 
-/// stdio file implementation.
+// stdio file implementation.
 class FileIO : public duFileIO
 {
 	FILE* m_fp;
@@ -56,6 +54,3 @@ public:
 	virtual bool write(const void* ptr, const size_t size);
 	virtual bool read(void* ptr, const size_t size);
 };
-
-#endif // SAMPLEINTERFACES_H
-

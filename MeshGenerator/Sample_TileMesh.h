@@ -124,6 +124,8 @@ public:
 
 	void setOutputPath(const char* output_path);
 
+	void UpdateTileSizes();
+
 	deleted_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
 };
 

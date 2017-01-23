@@ -16,37 +16,37 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef NAVMESHPRUNETOOL_H
-#define NAVMESHPRUNETOOL_H
+#pragma once
 
 #include "Sample.h"
 
-// Prune navmesh to accessible locations from a point.
+#include <glm/glm.hpp>
+#include <memory>
 
+class NavmeshFlags;
+
+// Prune navmesh to accessible locations from a point.
 class NavMeshPruneTool : public SampleTool
 {
-	Sample* m_sample;
-	
-	class NavmeshFlags* m_flags;
-
-	float m_hitPos[3];
-	bool m_hitPosSet;
-	
 public:
 	NavMeshPruneTool();
-	~NavMeshPruneTool();
+	virtual ~NavMeshPruneTool();
 	
 	virtual int type() override { return TOOL_NAVMESH_PRUNE; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;
 	virtual void handleMenu() override;
-	virtual void handleClick(const float* s, const float* p, bool shift) override;
-	virtual void handleToggle() override;
-	virtual void handleStep() override;
-	virtual void handleUpdate(const float dt) override;
+	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) override;
+	virtual void handleToggle() override {}
+	virtual void handleStep() override {}
+	virtual void handleUpdate(float dt) override {}
 	virtual void handleRender() override;
 	virtual void handleRenderOverlay(const glm::mat4& proj,
 		const glm::mat4& model, const glm::ivec4& view) override;
-};
 
-#endif // NAVMESHPRUNETOOL_H
+private:
+	Sample* m_sample = nullptr;
+	std::unique_ptr<NavmeshFlags> m_flags;
+	glm::vec3 m_hitPos;
+	bool m_hitPosSet = false;
+};

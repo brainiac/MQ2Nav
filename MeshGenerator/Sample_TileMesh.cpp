@@ -29,7 +29,6 @@
 #include "NavMeshPruneTool.h"
 #include "OffMeshConnectionTool.h"
 #include "ConvexVolumeTool.h"
-#include "CrowdTool.h"
 
 #include "../NavMeshData.h"
 
@@ -111,10 +110,11 @@ public:
 		}
 	}
 
-	virtual void handleClick(const float* /*s*/, const float* p, bool shift)
+	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
 	{
 		m_hitPosSet = true;
-		rcVcopy(glm::value_ptr(m_hitPos), p);
+		m_hitPos = p;
+
 		if (m_sample)
 		{
 			if (shift)
@@ -128,22 +128,22 @@ public:
 
 	virtual void handleStep() {}
 
-	virtual void handleUpdate(const float /*dt*/) {}
+	virtual void handleUpdate(float /*dt*/) {}
 	
 	virtual void handleRender()
 	{
 		if (m_hitPosSet)
 		{
 			const float s = m_sample->getAgentRadius();
-			glColor4ub(0,0,0,128);
+			glColor4ub(0, 0, 0, 128);
 			glLineWidth(2.0f);
 			glBegin(GL_LINES);
-			glVertex3f(m_hitPos[0]-s,m_hitPos[1]+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0]+s,m_hitPos[1]+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]-s+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+s+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2]-s);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2]+s);
+			glVertex3f(m_hitPos[0] - s, m_hitPos[1] + 0.1f, m_hitPos[2]);
+			glVertex3f(m_hitPos[0] + s, m_hitPos[1] + 0.1f, m_hitPos[2]);
+			glVertex3f(m_hitPos[0], m_hitPos[1] - s + 0.1f, m_hitPos[2]);
+			glVertex3f(m_hitPos[0], m_hitPos[1] + s + 0.1f, m_hitPos[2]);
+			glVertex3f(m_hitPos[0], m_hitPos[1] + 0.1f, m_hitPos[2] - s);
+			glVertex3f(m_hitPos[0], m_hitPos[1] + 0.1f, m_hitPos[2] + s);
 			glEnd();
 			glLineWidth(1.0f);
 		}
@@ -194,6 +194,8 @@ Sample_TileMesh::Sample_TileMesh() :
 	
 	m_outputPath = new char[MAX_PATH];
 	setTool(new NavMeshTileTool);
+
+	UpdateTileSizes();
 }
 
 Sample_TileMesh::~Sample_TileMesh()
@@ -378,55 +380,70 @@ void Sample_TileMesh::getTileStatistics(int& width, int& height, int& maxTiles) 
 	maxTiles = m_maxTiles;
 }
 
+void Sample_TileMesh::UpdateTileSizes()
+{
+	if (m_geom)
+	{
+		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+		int gw = 0, gh = 0;
+		rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
+		const int ts = (int)m_tileSize;
+		m_tilesWidth = (gw + ts - 1) / ts;
+		m_tilesHeight = (gh + ts - 1) / ts;
+		m_tilesCount = m_tilesWidth * m_tilesHeight;
+
+		// Max tiles and max polys affect how the tile IDs are caculated.
+		// There are 22 bits available for identifying a tile and a polygon.
+#ifdef DT_POLYREF64
+		int tileBits = DT_TILE_BITS;
+		int polyBits = DT_POLY_BITS;
+		m_maxTiles = 1 << tileBits;
+		m_maxPolysPerTile = 1 << polyBits;
+#else
+		int tileBits = rcMin((int)ilog2(nextPow2(m_tilesCount)), 14);
+		if (tileBits > 14) tileBits = 14;
+		int polyBits = 22 - tileBits;
+		m_maxTiles = 1 << tileBits;
+		m_maxPolysPerTile = 1 << polyBits;
+#endif
+	}
+	else
+	{
+		m_maxTiles = 0;
+		m_maxPolysPerTile = 0;
+		m_tilesWidth = 0;
+		m_tilesHeight = 0;
+		m_tilesCount = 0;
+	}
+}
+
 void Sample_TileMesh::handleSettings()
 {
 	if (ImGui::CollapsingHeader("Mesh Properties", 0, true, true))
 	{
+		int tt = m_tilesWidth*m_tilesHeight;
+
+		ImVec4 col = ImColor(255, 255, 255);
+#ifndef DT_POLYREF64
+		if (tt > m_maxTiles) {
+			col = ImColor(255, 0, 0);
+		}
+		ImGui::TextColored(col, "Tile Limit: %d", m_maxTiles);
+		ImGui::SameLine();
+		col = ImColor(0, 255, 0);
+		if (tt > m_maxTiles) {
+			col = ImColor(255, 0, 0);
+		}
+#endif
+		ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, m_tilesWidth, m_tilesHeight);
+
+
 		if (ImGui::TreeNodeEx("Tiling", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
-			int tt = m_tilesWidth*m_tilesHeight;
-
-			ImVec4 col = ImColor(255, 255, 255);
-			if (tt > m_maxTiles) {
-				col = ImColor(255, 0, 0);
-			}
-			ImGui::TextColored(col, "Tile Limit: %d", m_maxTiles);
-			ImGui::SameLine();
-
-			col = ImColor(0, 255, 0);
-			if (tt > m_maxTiles) {
-				col = ImColor(255, 0, 0);
-			}
-			ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, m_tilesWidth, m_tilesHeight);
 
 			ImGui::SliderFloat("TileSize", &m_tileSize, 16.0f, 1024.0f, "%.0f");
 
-			if (m_geom)
-			{
-				const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-				const glm::vec3& bmax = m_geom->getMeshBoundsMax();
-				int gw = 0, gh = 0;
-				rcCalcGridSize(&bmin[0], &bmax[0], m_cellSize, &gw, &gh);
-				const int ts = (int)m_tileSize;
-				m_tilesWidth = (gw + ts - 1) / ts;
-				m_tilesHeight = (gh + ts - 1) / ts;
-				m_tilesCount = m_tilesWidth * m_tilesHeight;
-
-				// Max tiles and max polys affect how the tile IDs are caculated.
-				// There are 22 bits available for identifying a tile and a polygon.
-				int tileBits = rcMin((int)ilog2(nextPow2(m_tilesCount)), 14);
-				if (tileBits > 14) tileBits = 14;
-				int polyBits = 22 - tileBits;
-				m_maxTiles = 1 << tileBits;
-				m_maxPolysPerTile = 1 << polyBits;
-			}
-			else
-			{
-				m_maxTiles = 0;
-				m_maxPolysPerTile = 0;
-				m_tilesWidth = 0;
-				m_tilesHeight = 0;
-				m_tilesCount = 0;
-			}
+			UpdateTileSizes();
 
 			ImGui::SliderFloat("Cell Size", &m_cellSize, 0.1f, 1.0f);
 			ImGui::SliderFloat("Cell Height", &m_cellHeight, 0.1f, 1.0f);
@@ -462,7 +479,7 @@ void Sample_TileMesh::handleSettings()
 			m_geom->setMeshBoundsMin(min);
 			m_geom->setMeshBoundsMax(max);
 
-			if (ImGui::Button("Reset Bounds"))
+			if (ImGui::Button("Reset Bounding Box"))
 			{
 				m_geom->resetMeshBounds();
 			}
@@ -516,10 +533,6 @@ void Sample_TileMesh::handleTools()
 	{
 		setTool(new ConvexVolumeTool);
 	}
-	//if (ImGui::RadioButton("Create Crowds", type == TOOL_CROWD))
-	//{
-	//	setTool(new CrowdTool);
-	//}
 	
 	ImGui::Separator();
 
@@ -795,11 +808,11 @@ bool Sample_TileMesh::handleBuild()
 	}
 
 	dtNavMeshParams params;
-	rcVcopy(params.orig, &m_geom->getMeshBoundsMin()[0]);
+	rcVcopy(params.orig, glm::value_ptr(m_geom->getMeshBoundsMin()));
 	params.tileWidth = m_tileSize*m_cellSize;
 	params.tileHeight = m_tileSize*m_cellSize;
-	params.maxTiles = m_maxTiles;
-	params.maxPolys = m_maxPolysPerTile;
+	params.maxTiles = m_tilesWidth * m_tilesHeight;
+	params.maxPolys = m_maxPolysPerTile * params.maxTiles;
 	
 	dtStatus status;
 	

@@ -34,10 +34,10 @@ public:
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;
 	virtual void handleMenu() override;
-	virtual void handleClick(const float* s, const float* p, bool shift) override;
+	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) override;
 	virtual void handleToggle() override;
 	virtual void handleStep() override;
-	virtual void handleUpdate(const float dt) override;
+	virtual void handleUpdate(float dt) override;
 	virtual void handleRender() override;
 	virtual void handleRenderOverlay(const glm::mat4& proj,
 		const glm::mat4& model, const glm::ivec4& view) override;

@@ -16,42 +16,43 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef CONVEXVOLUMETOOL_H
-#define CONVEXVOLUMETOOL_H
+#pragma once
 
 #include "Sample.h"
+#include "../NavMeshData.h"
+
+#include <glm/glm.hpp>
 
 // Tool to create convex volumess for InputGeom
 
 class ConvexVolumeTool : public SampleTool
 {
-	Sample* m_sample;
-	int m_areaType;
-	float m_polyOffset;
-	float m_boxHeight;
-	float m_boxDescent;
-	
-	static const int MAX_PTS = 12;
-	float m_pts[MAX_PTS*3];
-	int m_npts;
-	int m_hull[MAX_PTS];
-	int m_nhull;
-	
 public:
 	ConvexVolumeTool();
-	~ConvexVolumeTool();
+	virtual ~ConvexVolumeTool();
 	
 	virtual int type() override { return TOOL_CONVEX_VOLUME; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;
 	virtual void handleMenu() override;
-	virtual void handleClick(const float* s, const float* p, bool shift) override;
+	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) override;
 	virtual void handleToggle() override;
 	virtual void handleStep() override;
-	virtual void handleUpdate(const float dt) override;
+	virtual void handleUpdate(float dt) override;
 	virtual void handleRender() override;
 	virtual void handleRenderOverlay(const glm::mat4& proj,
 		const glm::mat4& model, const glm::ivec4& view) override;
-};
 
-#endif // CONVEXVOLUMETOOL_H
+private:
+	Sample* m_sample = nullptr;
+	int m_areaType = PolyArea::Ground;
+	float m_polyOffset = 0.0f;
+	float m_boxHeight = 6.0f;
+	float m_boxDescent = 1.0f;
+
+	static const int MAX_PTS = 12;
+	glm::vec3 m_pts[MAX_PTS];
+	int m_npts = 0;
+	int m_hull[MAX_PTS];
+	int m_nhull = 0;
+};

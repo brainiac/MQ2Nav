@@ -369,14 +369,13 @@ void Interface::HandleEvents()
 						}
 						else
 						{
-							float pos[3];
+							glm::vec3 pos;
 							pos[0] = m_rays[0] + (m_raye[0] - m_rays[0])*t;
 							pos[1] = m_rays[1] + (m_raye[1] - m_rays[1])*t;
 							pos[2] = m_rays[2] + (m_raye[2] - m_rays[2])*t;
-							bool shift = (SDL_GetModState() & KMOD_SHIFT) ? true : false;
+							bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
 
-							//if (!message)
-							m_mesh->handleClick((float*)&m_rays, pos, shift);
+							m_mesh->handleClick(m_rays, pos, shift);
 						}
 					}
 					else
@@ -1317,27 +1316,26 @@ int BuildContext::getLogCount() const
 void BuildContext::doResetTimers()
 {
 	for (int i = 0; i < RC_MAX_TIMERS; ++i)
-		m_accTime[i] = -1;
+		m_accTime[i] = std::chrono::nanoseconds();
 }
 
 void BuildContext::doStartTimer(const rcTimerLabel label)
 {
-	m_startTime[label] = getPerfTime();
+	m_startTime[label] = std::chrono::steady_clock::now();
 }
 
 void BuildContext::doStopTimer(const rcTimerLabel label)
 {
-	const TimeVal endTime = getPerfTime();
-	const int deltaTime = static_cast<int>(endTime - m_startTime[label]);
-	if (m_accTime[label] == -1)
-		m_accTime[label] = deltaTime;
-	else
-		m_accTime[label] += deltaTime;
+	auto endTime = std::chrono::steady_clock::now();
+	auto deltaTime = endTime - m_startTime[label];
+
+	m_accTime[label] += deltaTime;
 }
 
 int BuildContext::doGetAccumulatedTime(const rcTimerLabel label) const
 {
-	return m_accTime[label];
+	return std::chrono::duration_cast<std::chrono::microseconds>(
+		m_accTime[label]).count();
 }
 
 #pragma warning(pop)

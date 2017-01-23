@@ -10,7 +10,8 @@ MQ2Nav Changelog
 * Revamp the Waypoints UI, fixing several bugs
   * Added option to delete and rename waypoints
   * Fixed the order of the x,y,z coordinates in waypoints UI to match /loc
-* Due to changes in structure member alignment (needed to stay compatible with latest MQ2), old navmeshes will not load correctly. As a result, the navmesh compat version has been bumped up, so loading older meshes will give you an error.
+* Tile size limit has been removed. Tiles are now indexed by 64-bit integer so the tile limit is so high now that you'll run out of memory before you hit it.
+* Due to many changes to the internal structure of the navmesh, old navmeshes will not load correctly. As a result, the navmesh compat version has been bumped up, so loading older meshes will give you an error.
 * Adjusted the defaults of a couple navmesh parameters for better path finding behavior:
   * Reduced MaxClimb to 4.0 to avoid getting stuck on the edge of tall objects
   * Increased MaxSlope to 75 to allow traversal over steeper terrain.

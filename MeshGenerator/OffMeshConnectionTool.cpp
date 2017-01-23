@@ -73,7 +73,7 @@ void OffMeshConnectionTool::handleMenu()
 		m_bidir = true;
 }
 
-void OffMeshConnectionTool::handleClick(const float* /*s*/, const float* p, bool shift)
+void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
 {
 	if (!m_sample) return;
 	InputGeom* geom = m_sample->getInputGeom();
@@ -89,7 +89,7 @@ void OffMeshConnectionTool::handleClick(const float* /*s*/, const float* p, bool
 		for (int i = 0; i < geom->getOffMeshConnectionCount()*2; ++i)
 		{
 			const float* v = &verts[i*3];
-			float d = rcVdistSqr(p, v);
+			float d = rcVdistSqr(glm::value_ptr(p), v);
 			if (d < nearestDist)
 			{
 				nearestDist = d;
@@ -105,22 +105,21 @@ void OffMeshConnectionTool::handleClick(const float* /*s*/, const float* p, bool
 	}
 	else
 	{
-		// Create	
+		// Create
 		if (!m_hitPosSet)
 		{
-			rcVcopy(glm::value_ptr(m_hitPos), p);
+			m_hitPos = p;
 			m_hitPosSet = true;
 		}
 		else
 		{
 			const uint8_t area = PolyArea::Jump;
 			const uint16_t flags = PolyFlags::Jump;
-			geom->addOffMeshConnection(glm::value_ptr(m_hitPos), p, m_sample->getAgentRadius(),
-				m_bidir ? 1 : 0, area, flags);
+			geom->addOffMeshConnection(glm::value_ptr(m_hitPos), glm::value_ptr(p),
+				m_sample->getAgentRadius(), m_bidir ? 1 : 0, area, flags);
 			m_hitPosSet = false;
 		}
 	}
-	
 }
 
 void OffMeshConnectionTool::handleToggle()
@@ -131,7 +130,7 @@ void OffMeshConnectionTool::handleStep()
 {
 }
 
-void OffMeshConnectionTool::handleUpdate(const float /*dt*/)
+void OffMeshConnectionTool::handleUpdate(float /*dt*/)
 {
 }
 

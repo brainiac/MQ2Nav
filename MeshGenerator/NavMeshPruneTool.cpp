@@ -23,59 +23,13 @@
 #include "DetourCommon.h"
 #include "DetourAssert.h"
 #include "DetourDebugDraw.h"
-
 #include "../NavMeshData.h"
 
-#include <SDL.h>
-#include <SDL_opengl.h>
 #include <imgui.h>
 #include <imgui_custom/imgui_user.h>
+#include <glm/gtc/type_ptr.hpp>
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <float.h>
-
-#ifdef WIN32
-#	define snprintf _snprintf
-#endif
-
-
-
-// Copy/paste from Recast int array
-class PolyRefArray
-{
-	dtPolyRef* m_data;
-	int m_size, m_cap;
-	inline PolyRefArray(const PolyRefArray&);
-	inline PolyRefArray& operator=(const PolyRefArray&);
-public:
-	
-	inline PolyRefArray() : m_data(0), m_size(0), m_cap(0) {}
-	inline PolyRefArray(int n) : m_data(0), m_size(0), m_cap(0) { resize(n); }
-	inline ~PolyRefArray() { dtFree(m_data); }
-	void resize(int n)
-	{
-		if (n > m_cap)
-		{
-			if (!m_cap) m_cap = n;
-			while (m_cap < n) m_cap *= 2;
-			dtPolyRef* newData = (dtPolyRef*)dtAlloc(m_cap*sizeof(dtPolyRef), DT_ALLOC_TEMP);
-			if (m_size && newData) memcpy(newData, m_data, m_size*sizeof(dtPolyRef));
-			dtFree(m_data);
-			m_data = newData;
-		}
-		m_size = n;
-	}
-	inline void push(dtPolyRef item) { resize(m_size+1); m_data[m_size-1] = item; }
-	inline dtPolyRef pop() { if (m_size > 0) m_size--; return m_data[m_size]; }
-	inline const dtPolyRef& operator[](int i) const { return m_data[i]; }
-	inline dtPolyRef& operator[](int i) { return m_data[i]; }
-	inline int size() const { return m_size; }
-};
-
-
-
+#include <vector>
 
 class NavmeshFlags
 {
@@ -86,7 +40,7 @@ class NavmeshFlags
 		int nflags;
 		dtPolyRef base;
 	};
-	
+
 	const dtNavMesh* m_nav;
 	TileFlags* m_tiles;
 	int m_ntiles;
@@ -96,14 +50,14 @@ public:
 		m_nav(0), m_tiles(0), m_ntiles(0)
 	{
 	}
-	
+
 	~NavmeshFlags()
 	{
 		for (int i = 0; i < m_ntiles; ++i)
 			m_tiles[i].purge();
 		dtFree(m_tiles);
 	}
-	
+
 	bool init(const dtNavMesh* nav)
 	{
 		m_ntiles = nav->getMaxTiles();
@@ -115,7 +69,7 @@ public:
 			return false;
 		}
 		memset(m_tiles, 0, sizeof(TileFlags)*m_ntiles);
-		
+
 		// Alloc flags for each tile.
 		for (int i = 0; i < nav->getMaxTiles(); ++i)
 		{
@@ -132,12 +86,12 @@ public:
 				memset(tf->flags, 0, tf->nflags);
 			}
 		}
-		
+
 		m_nav = nav;
-		
+
 		return false;
 	}
-	
+
 	inline void clearAllFlags()
 	{
 		for (int i = 0; i < m_ntiles; ++i)
@@ -147,7 +101,7 @@ public:
 				memset(tf->flags, 0, tf->nflags);
 		}
 	}
-	
+
 	inline unsigned char getFlags(dtPolyRef ref)
 	{
 		dtAssert(m_nav);
@@ -167,38 +121,42 @@ public:
 		m_nav->decodePolyId(ref, salt, it, ip);
 		m_tiles[it].flags[ip] = flags;
 	}
-	
 };
 
-static void floodNavmesh(dtNavMesh* nav, NavmeshFlags* flags, dtPolyRef start, unsigned char flag)
+static void floodNavmesh(dtNavMesh* nav, NavmeshFlags* flags, dtPolyRef start, uint8_t flag)
 {
 	// If already visited, skip.
 	if (flags->getFlags(start))
 		return;
-		
-	PolyRefArray openList;
-	openList.push(start);
 
-	while (openList.size())
+	std::vector<dtPolyRef> openList;
+	openList.push_back(start);
+
+	while (!openList.empty())
 	{
-		const dtPolyRef ref = openList.pop();
+		const dtPolyRef ref = openList.back();
+		openList.pop_back();
+
 		// Get current poly and tile.
 		// The API input has been cheked already, skip checking internal data.
-		const dtMeshTile* tile = 0;
-		const dtPoly* poly = 0;
+		const dtMeshTile* tile = nullptr;
+		const dtPoly* poly = nullptr;
 		nav->getTileAndPolyByRefUnsafe(ref, &tile, &poly);
 
 		// Visit linked polygons.
-		for (unsigned int i = poly->firstLink; i != DT_NULL_LINK; i = tile->links[i].next)
+		for (auto i = poly->firstLink; i != DT_NULL_LINK; i = tile->links[i].next)
 		{
 			const dtPolyRef neiRef = tile->links[i].ref;
+
 			// Skip invalid and already visited.
 			if (!neiRef || flags->getFlags(neiRef))
 				continue;
+
 			// Mark as visited
 			flags->setFlags(neiRef, flag);
+
 			// Visit neighbours
-			openList.push(neiRef);
+			openList.push_back(neiRef);
 		}
 	}
 }
@@ -207,7 +165,8 @@ static void disableUnvisitedPolys(dtNavMesh* nav, NavmeshFlags* flags)
 {
 	for (int i = 0; i < nav->getMaxTiles(); ++i)
 	{
-		const dtMeshTile* tile = ((const dtNavMesh*)nav)->getTile(i);
+		const dtMeshTile* tile = const_cast<const dtNavMesh*>(nav)->getTile(i);
+
 		if (!tile->header) continue;
 		const dtPolyRef base = nav->getPolyRefBase(tile);
 		for (int j = 0; j < tile->header->polyCount; ++j)
@@ -215,7 +174,7 @@ static void disableUnvisitedPolys(dtNavMesh* nav, NavmeshFlags* flags)
 			const dtPolyRef ref = base | (unsigned int)j;
 			if (!flags->getFlags(ref))
 			{
-				unsigned short f = 0;
+				uint16_t f = 0;
 				nav->getPolyFlags(ref, &f);
 				nav->setPolyFlags(ref, f | +PolyFlags::Disabled);
 			}
@@ -223,15 +182,14 @@ static void disableUnvisitedPolys(dtNavMesh* nav, NavmeshFlags* flags)
 	}
 }
 
-NavMeshPruneTool::NavMeshPruneTool() :
-	m_flags(0),
-	m_hitPosSet(false)
+//----------------------------------------------------------------------------
+
+NavMeshPruneTool::NavMeshPruneTool()
 {
 }
 
 NavMeshPruneTool::~NavMeshPruneTool()
 {
-	delete m_flags;
 }
 
 void NavMeshPruneTool::init(Sample* sample)
@@ -242,8 +200,7 @@ void NavMeshPruneTool::init(Sample* sample)
 void NavMeshPruneTool::reset()
 {
 	m_hitPosSet = false;
-	delete m_flags;
-	m_flags = 0;
+	m_flags.reset();
 }
 
 void NavMeshPruneTool::handleMenu()
@@ -256,20 +213,16 @@ void NavMeshPruneTool::handleMenu()
 	{
 		m_flags->clearAllFlags();
 	}
-	
+
 	if (ImGui::Button("Prune Unselected"))
 	{
-		disableUnvisitedPolys(nav, m_flags);
-		delete m_flags;
-		m_flags = 0;
+		disableUnvisitedPolys(nav, m_flags.get());
+		m_flags.reset();
 	}
 }
 
-void NavMeshPruneTool::handleClick(const float* s, const float* p, bool shift)
+void NavMeshPruneTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, bool /*shift*/)
 {
-	rcIgnoreUnused(s);
-	rcIgnoreUnused(shift);
-
 	if (!m_sample) return;
 	InputGeom* geom = m_sample->getInputGeom();
 	if (!geom) return;
@@ -277,34 +230,22 @@ void NavMeshPruneTool::handleClick(const float* s, const float* p, bool shift)
 	if (!nav) return;
 	dtNavMeshQuery* query = m_sample->getNavMeshQuery();
 	if (!query) return;
-	
-	dtVcopy(m_hitPos, p);
+
+	m_hitPos = p;
 	m_hitPosSet = true;
-	
+
 	if (!m_flags)
 	{
-		m_flags = new NavmeshFlags;
+		m_flags = std::make_unique<NavmeshFlags>();
 		m_flags->init(nav);
 	}
-	
-	const float ext[3] = {2,4,2};
+
+	const float ext[3] = { 2,4,2 };
 	dtQueryFilter filter;
 	dtPolyRef ref = 0;
-	query->findNearestPoly(p, ext, &filter, &ref, 0);
+	query->findNearestPoly(glm::value_ptr(p), ext, &filter, &ref, 0);
 
-	floodNavmesh(nav, m_flags, ref, 1);
-}
-
-void NavMeshPruneTool::handleToggle()
-{
-}
-
-void NavMeshPruneTool::handleStep()
-{
-}
-
-void NavMeshPruneTool::handleUpdate(const float /*dt*/)
-{
+	floodNavmesh(nav, m_flags.get(), ref, 1);
 }
 
 void NavMeshPruneTool::handleRender()
@@ -314,14 +255,14 @@ void NavMeshPruneTool::handleRender()
 	if (m_hitPosSet)
 	{
 		const float s = m_sample->getAgentRadius();
-		const unsigned int col = duRGBA(255,255,255,255);
+		const unsigned int col = duRGBA(255, 255, 255, 255);
 		dd.begin(DU_DRAW_LINES);
-		dd.vertex(m_hitPos[0]-s,m_hitPos[1],m_hitPos[2], col);
-		dd.vertex(m_hitPos[0]+s,m_hitPos[1],m_hitPos[2], col);
-		dd.vertex(m_hitPos[0],m_hitPos[1]-s,m_hitPos[2], col);
-		dd.vertex(m_hitPos[0],m_hitPos[1]+s,m_hitPos[2], col);
-		dd.vertex(m_hitPos[0],m_hitPos[1],m_hitPos[2]-s, col);
-		dd.vertex(m_hitPos[0],m_hitPos[1],m_hitPos[2]+s, col);
+		dd.vertex(m_hitPos[0] - s, m_hitPos[1], m_hitPos[2], col);
+		dd.vertex(m_hitPos[0] + s, m_hitPos[1], m_hitPos[2], col);
+		dd.vertex(m_hitPos[0], m_hitPos[1] - s, m_hitPos[2], col);
+		dd.vertex(m_hitPos[0], m_hitPos[1] + s, m_hitPos[2], col);
+		dd.vertex(m_hitPos[0], m_hitPos[1], m_hitPos[2] - s, col);
+		dd.vertex(m_hitPos[0], m_hitPos[1], m_hitPos[2] + s, col);
 		dd.end();
 	}
 
@@ -338,7 +279,7 @@ void NavMeshPruneTool::handleRender()
 				const dtPolyRef ref = base | (unsigned int)j;
 				if (m_flags->getFlags(ref))
 				{
-					duDebugDrawNavMeshPoly(&dd, *nav, ref, duRGBA(255,255,255,128));
+					duDebugDrawNavMeshPoly(&dd, *nav, ref, duRGBA(255, 255, 255, 128));
 				}
 			}
 		}

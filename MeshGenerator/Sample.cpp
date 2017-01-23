@@ -158,22 +158,28 @@ void Sample::handleCommonSettings()
 
 }
 
-void Sample::handleClick(const float* s, const float* p, bool shift)
+void Sample::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
 {
 	if (m_tool)
+	{
 		m_tool->handleClick(s, p, shift);
+	}
 }
 
 void Sample::handleToggle()
 {
 	if (m_tool)
+	{
 		m_tool->handleToggle();
+	}
 }
 
 void Sample::handleStep()
 {
 	if (m_tool)
+	{
 		m_tool->handleStep();
+	}
 }
 
 bool Sample::handleBuild()
@@ -181,20 +187,25 @@ bool Sample::handleBuild()
 	return true;
 }
 
-void Sample::handleUpdate(const float dt)
+void Sample::handleUpdate(float dt)
 {
 	if (m_tool)
+	{
 		m_tool->handleUpdate(dt);
+	}
+
 	updateToolStates(dt);
 }
 
 
-void Sample::updateToolStates(const float dt)
+void Sample::updateToolStates(float dt)
 {
 	for (int i = 0; i < MAX_TOOLS; i++)
 	{
 		if (m_toolStates[i])
+		{
 			m_toolStates[i]->handleUpdate(dt);
+		}
 	}
 }
 
@@ -203,7 +214,9 @@ void Sample::initToolStates(Sample* sample)
 	for (int i = 0; i < MAX_TOOLS; i++)
 	{
 		if (m_toolStates[i])
+		{
 			m_toolStates[i]->init(sample);
+		}
 	}
 }
 
@@ -212,7 +225,9 @@ void Sample::resetToolStates()
 	for (int i = 0; i < MAX_TOOLS; i++)
 	{
 		if (m_toolStates[i])
+		{
 			m_toolStates[i]->reset();
+		}
 	}
 }
 
@@ -221,7 +236,9 @@ void Sample::renderToolStates()
 	for (int i = 0; i < MAX_TOOLS; i++)
 	{
 		if (m_toolStates[i])
+		{
 			m_toolStates[i]->handleRender();
+		}
 	}
 }
 
@@ -231,6 +248,8 @@ void Sample::renderOverlayToolStates(const glm::mat4& proj,
 	for (int i = 0; i < MAX_TOOLS; i++)
 	{
 		if (m_toolStates[i])
+		{
 			m_toolStates[i]->handleRenderOverlay(proj, model, view);
+		}
 	}
 }

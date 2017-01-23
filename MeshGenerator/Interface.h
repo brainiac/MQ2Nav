@@ -4,7 +4,6 @@
 
 #include "EQConfig.h"
 #include "Recast.h"
-#include "PerfTimer.h"
 
 #include <SDL.h>
 #include <glm/glm.hpp>
@@ -17,6 +16,7 @@
 #include <deque>
 #include <mutex>
 #include <thread>
+#include <chrono>
 
 class BuildContext;
 class Sample_TileMesh;
@@ -187,8 +187,8 @@ protected:
 	virtual int doGetAccumulatedTime(const rcTimerLabel label) const override;
 
 private:
-	TimeVal m_startTime[RC_MAX_TIMERS];
-	int32_t m_accTime[RC_MAX_TIMERS];
+	std::chrono::steady_clock::time_point m_startTime[RC_MAX_TIMERS];
+	std::chrono::nanoseconds m_accTime[RC_MAX_TIMERS];
 
 	std::deque<std::string> m_logs;
 	mutable std::mutex m_mtx;

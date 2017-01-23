@@ -3,7 +3,6 @@
 #include "Recast.h"
 #include "RecastDebugDraw.h"
 #include "DetourDebugDraw.h"
-#include "PerfTimer.h"
 #include "SDL.h"
 #include "SDL_opengl.h"
 
