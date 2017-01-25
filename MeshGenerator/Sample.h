@@ -22,36 +22,44 @@
 #include "SampleInterfaces.h"
 
 #include <glm/glm.hpp>
+#include <functional>
+#include <map>
+#include <memory>
 
 class BuildContext;
+class InputGeom;
+class dtNavMesh;
+class dtNavMeshQuery;
+class dtCrowd;
+
+template <typename T>
+using deleting_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
 // Tool types.
-enum SampleToolType
+enum struct ToolType : uint32_t
 {
-	TOOL_NONE = 0,
-	TOOL_TILE_EDIT,
-	TOOL_TILE_HIGHLIGHT,
-	TOOL_TEMP_OBSTACLE,
-	TOOL_NAVMESH_TESTER,
-	TOOL_NAVMESH_PRUNE,
-	TOOL_OFFMESH_CONNECTION,
-	TOOL_CONVEX_VOLUME,
-	TOOL_CROWD,
+	NONE = 0,
+	TILE_EDIT,
+	TILE_HIGHLIGHT,
+	TEMP_OBSTACLE,
+	NAVMESH_TESTER,
+	NAVMESH_PRUNE,
+	OFFMESH_CONNECTION,
+	CONVEX_VOLUME,
 	MAX_TOOLS
 };
 
-
-enum SamplePartitionType
+enum struct PartitionType : uint32_t
 {
-	SAMPLE_PARTITION_WATERSHED,
-	SAMPLE_PARTITION_MONOTONE,
-	SAMPLE_PARTITION_LAYERS,
+	WATERSHED,
+	MONOTONE,
+	LAYERS,
 };
 
-struct SampleTool
+struct Tool
 {
-	virtual ~SampleTool() {}
-	virtual int type() = 0;
+	virtual ~Tool() {}
+	virtual ToolType type() const = 0;
 	virtual void init(class Sample* sample) = 0;
 	virtual void reset() = 0;
 	virtual void handleMenu() = 0;
@@ -64,8 +72,9 @@ struct SampleTool
 	virtual void handleUpdate(float dt) = 0;
 };
 
-struct SampleToolState {
-	virtual ~SampleToolState() {}
+struct ToolState
+{
+	virtual ~ToolState() {}
 	virtual void init(class Sample* sample) = 0;
 	virtual void reset() = 0;
 	virtual void handleRender() = 0;
@@ -76,43 +85,38 @@ struct SampleToolState {
 
 class Sample
 {
-protected:
-	class InputGeom* m_geom;
-	class dtNavMesh* m_navMesh;
-	class dtNavMeshQuery* m_navQuery;
-	class dtCrowd* m_crowd;
-
-	unsigned char m_navMeshDrawFlags;
-
-	float m_cellSize;
-	float m_cellHeight;
-	float m_agentHeight;
-	float m_agentRadius;
-	float m_agentMaxClimb;
-	float m_agentMaxSlope;
-	float m_regionMinSize;
-	float m_regionMergeSize;
-	float m_edgeMaxLen;
-	float m_edgeMaxError;
-	float m_vertsPerPoly;
-	float m_detailSampleDist;
-	float m_detailSampleMaxError;
-	int m_partitionType;
-
-	SampleTool* m_tool;
-	SampleToolState* m_toolStates[MAX_TOOLS];
-
-	BuildContext* m_ctx;
-
 public:
 	Sample();
 	virtual ~Sample();
 
 	void setContext(BuildContext* ctx) { m_ctx = ctx; }
 
-	void setTool(SampleTool* tool);
-	SampleToolState* getToolState(int type) { return m_toolStates[type]; }
-	void setToolState(int type, SampleToolState* s) { m_toolStates[type] = s; }
+	void setTool(Tool* tool);
+	ToolState* getToolState(ToolType type) const;
+	void setToolState(ToolType type, ToolState* s);
+
+	uint8_t getNavMeshDrawFlags() const { return m_navMeshDrawFlags; }
+	void setNavMeshDrawFlags(uint8_t flags) { m_navMeshDrawFlags = flags; }
+
+	InputGeom* getInputGeom() { return m_geom; }
+	dtNavMesh* getNavMesh() { return m_navMesh.get(); }
+	dtNavMeshQuery* getNavMeshQuery() { return m_navQuery.get(); }
+	dtCrowd* getCrowd() { return m_crowd.get(); }
+
+	void setNavMesh(dtNavMesh* mesh);
+
+	float getAgentRadius() { return m_agentRadius; }
+	float getAgentHeight() { return m_agentHeight; }
+	float getAgentClimb() { return m_agentMaxClimb; }
+
+	void resetCommonSettings();
+	void handleCommonSettings();
+
+	void updateToolStates(float dt);
+	void initToolStates(Sample* sample);
+	void resetToolStates();
+	void renderToolStates();
+	void renderOverlayToolStates(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 
 	virtual void handleSettings();
 	virtual void handleTools();
@@ -126,25 +130,31 @@ public:
 	virtual bool handleBuild();
 	virtual void handleUpdate(float dt);
 
-	virtual class InputGeom* getInputGeom() { return m_geom; }
-	virtual class dtNavMesh* getNavMesh() { return m_navMesh; }
-	virtual class dtNavMeshQuery* getNavMeshQuery() { return m_navQuery; }
-	virtual class dtCrowd* getCrowd() { return m_crowd; }
-	virtual float getAgentRadius() { return m_agentRadius; }
-	virtual float getAgentHeight() { return m_agentHeight; }
-	virtual float getAgentClimb() { return m_agentMaxClimb; }
-	virtual const float* getBoundsMin();
-	virtual const float* getBoundsMax();
+protected:
+	InputGeom* m_geom = nullptr;
+	deleting_unique_ptr<dtNavMesh> m_navMesh;
+	deleting_unique_ptr<dtNavMeshQuery> m_navQuery;
+	deleting_unique_ptr<dtCrowd> m_crowd;
 
-	inline unsigned char getNavMeshDrawFlags() const { return m_navMeshDrawFlags; }
-	inline void setNavMeshDrawFlags(unsigned char flags) { m_navMeshDrawFlags = flags; }
+	std::unique_ptr<Tool> m_tool;
+	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
 
-	void updateToolStates(float dt);
-	void initToolStates(Sample* sample);
-	void resetToolStates();
-	void renderToolStates();
-	void renderOverlayToolStates(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
+	// we don't own this
+	BuildContext* m_ctx = nullptr;
 
-	void resetCommonSettings();
-	void handleCommonSettings();
+	uint8_t m_navMeshDrawFlags = 0;
+	float m_cellSize;
+	float m_cellHeight;
+	float m_agentHeight;
+	float m_agentRadius;
+	float m_agentMaxClimb;
+	float m_agentMaxSlope;
+	float m_regionMinSize;
+	float m_regionMergeSize;
+	float m_edgeMaxLen;
+	float m_edgeMaxError;
+	float m_vertsPerPoly;
+	float m_detailSampleDist;
+	float m_detailSampleMaxError;
+	PartitionType m_partitionType;
 };

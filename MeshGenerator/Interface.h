@@ -57,9 +57,6 @@ private:
 	// Get the filename of the mesh that would be used to save/open based on current zone
 	std::string GetMeshFilename();
 
-	enum Theme { DefaultTheme, LightTheme, DarkTheme1, DarkTheme2, DarkTheme3 };
-	void SetTheme(Theme theme, bool force = false);
-
 	// Menu Item Handling
 	void OpenMesh();
 	void SaveMesh();
@@ -91,9 +88,6 @@ private:
 
 	// The input geometry (??)
 	std::unique_ptr<InputGeom> m_geom;
-
-	// The current theme
-	Theme m_currentTheme = DefaultTheme;
 
 	// rendering properties
 	bool m_resetCamera;

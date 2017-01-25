@@ -12,12 +12,6 @@
     <Filter Include="Resource Files">
       <UniqueIdentifier>{224f9baf-4d1f-4823-8c71-af835270db6c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\RecastDemo">
-      <UniqueIdentifier>{beb58481-6fba-47a6-8ccc-174aae444615}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\RecastDemo">
-      <UniqueIdentifier>{95c14b6e-c7c4-40fe-9ad9-a6ca97ec36e4}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -29,43 +23,49 @@
     <ClCompile Include="Interface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ChunkyTriMesh.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="ConvexVolumeTool.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="InputGeom.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="NavMeshPruneTool.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="NavMeshTesterTool.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="OffMeshConnectionTool.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="Sample.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="Sample_TileMesh.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
-    <ClCompile Include="SampleInterfaces.cpp">
-      <Filter>Source Files\RecastDemo</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="EQConfig.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_impl_sdl.cpp">
+    <ClCompile Include="..\ZoneData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\ZoneData.cpp">
+    <ClCompile Include="SampleInterfaces.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ChunkyTriMesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConvexVolumeTool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="InputGeom.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMeshPruneTool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMeshTesterTool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="OffMeshConnectionTool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Sample.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Sample_TileMesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGuiSDL.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMeshTileTool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Utilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -76,40 +76,10 @@
     <ClInclude Include="MapGeometryLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ChunkyTriMesh.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="ConvexVolumeTool.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="InputGeom.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="NavMeshPruneTool.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="NavMeshTesterTool.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="OffMeshConnectionTool.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="Sample.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="Sample_TileMesh.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
-    <ClInclude Include="SampleInterfaces.h">
-      <Filter>Header Files\RecastDemo</Filter>
-    </ClInclude>
     <ClInclude Include="Interface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EQConfig.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="imgui_impl_sdl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
@@ -119,6 +89,42 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\NavMeshData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ChunkyTriMesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ConvexVolumeTool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InputGeom.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMeshPruneTool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMeshTesterTool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OffMeshConnectionTool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Sample.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Sample_TileMesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleInterfaces.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGuiSDL.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMeshTileTool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

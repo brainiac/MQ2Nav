@@ -25,13 +25,13 @@
 
 // Tool to create convex volumess for InputGeom
 
-class ConvexVolumeTool : public SampleTool
+class ConvexVolumeTool : public Tool
 {
 public:
 	ConvexVolumeTool();
 	virtual ~ConvexVolumeTool();
 
-	virtual int type() override { return TOOL_CONVEX_VOLUME; }
+	virtual ToolType type() const override { return ToolType::CONVEX_VOLUME; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;
 	virtual void handleMenu() override;

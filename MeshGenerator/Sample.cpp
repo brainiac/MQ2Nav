@@ -16,9 +16,8 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#include <math.h>
-#include <stdio.h>
 #include "Sample.h"
+#include "Interface.h"
 #include "InputGeom.h"
 #include "Recast.h"
 #include "RecastDebugDraw.h"
@@ -26,49 +25,53 @@
 #include "DetourNavMesh.h"
 #include "DetourNavMeshQuery.h"
 #include "DetourCrowd.h"
-#include "imgui.h"
-#include "SDL.h"
-#include "SDL_opengl.h"
 
-#include "Interface.h"
+#include <imgui/imgui.h>
 
-#ifdef WIN32
-#	define snprintf _snprintf
-#endif
-
-Sample::Sample() :
-	m_geom(0),
-	m_navMesh(0),
-	m_navQuery(0),
-	m_crowd(0),
-	m_navMeshDrawFlags(DU_DRAWNAVMESH_OFFMESHCONS|DU_DRAWNAVMESH_CLOSEDLIST),
-	m_tool(0),
-	m_ctx(0)
+Sample::Sample()
+	: m_navMeshDrawFlags(DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST)
 {
 	resetCommonSettings();
-	m_navQuery = dtAllocNavMeshQuery();
-	m_crowd = dtAllocCrowd();
 
-	for (int i = 0; i < MAX_TOOLS; i++)
-		m_toolStates[i] = 0;
+	m_navQuery = deleting_unique_ptr<dtNavMeshQuery>(dtAllocNavMeshQuery(),
+		[](dtNavMeshQuery* q) { dtFreeNavMeshQuery(q); });
+	m_crowd = deleting_unique_ptr<dtCrowd>(dtAllocCrowd(),
+		[](dtCrowd* c) { dtFreeCrowd(c); });
 }
 
 Sample::~Sample()
 {
-	dtFreeNavMeshQuery(m_navQuery);
-	dtFreeNavMesh(m_navMesh);
-	dtFreeCrowd(m_crowd);
-	delete m_tool;
-	for (int i = 0; i < MAX_TOOLS; i++)
-		delete m_toolStates[i];
 }
 
-void Sample::setTool(SampleTool* tool)
+//----------------------------------------------------------------------------
+
+void Sample::setTool(Tool* tool)
 {
-	delete m_tool;
-	m_tool = tool;
+	m_tool.reset(tool);
+
 	if (tool)
+	{
 		m_tool->init(this);
+	}
+}
+
+ToolState* Sample::getToolState(ToolType type) const
+{
+	auto iter = m_toolStates.find(type);
+	if (iter != m_toolStates.end())
+		return iter->second.get();
+	return nullptr;
+}
+
+void Sample::setToolState(ToolType type, ToolState* s)
+{
+	m_toolStates[type] = std::unique_ptr<ToolState>(s);
+}
+
+void Sample::setNavMesh(dtNavMesh* mesh)
+{
+	m_navMesh = deleting_unique_ptr<dtNavMesh>(mesh,
+		[](dtNavMesh* m) { dtFreeNavMesh(m); });
 }
 
 void Sample::handleSettings()
@@ -104,7 +107,8 @@ void Sample::handleRender()
 	// Draw bounds
 	glm::vec3 bmin = m_geom->getMeshBoundsMin();
 	glm::vec3 bmax = m_geom->getMeshBoundsMax();
-	duDebugDrawBoxWire(&dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
+	duDebugDrawBoxWire(&dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2],
+		duRGBA(255, 255, 255, 128), 1.0f);
 }
 
 void Sample::handleRenderOverlay(const glm::mat4& /*proj*/,
@@ -115,18 +119,6 @@ void Sample::handleRenderOverlay(const glm::mat4& /*proj*/,
 void Sample::handleMeshChanged(InputGeom* geom)
 {
 	m_geom = geom;
-}
-
-const float* Sample::getBoundsMin()
-{
-	if (!m_geom) return 0;
-	return &m_geom->getMeshBoundsMin()[0];
-}
-
-const float* Sample::getBoundsMax()
-{
-	if (!m_geom) return 0;
-	return &m_geom->getMeshBoundsMax()[0];
 }
 
 void Sample::resetCommonSettings()
@@ -150,12 +142,11 @@ void Sample::resetCommonSettings()
 
 	m_vertsPerPoly = 6.0f;
 
-	m_partitionType = SAMPLE_PARTITION_WATERSHED;
+	m_partitionType = PartitionType::WATERSHED;
 }
 
 void Sample::handleCommonSettings()
 {
-
 }
 
 void Sample::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
@@ -200,44 +191,44 @@ void Sample::handleUpdate(float dt)
 
 void Sample::updateToolStates(float dt)
 {
-	for (int i = 0; i < MAX_TOOLS; i++)
+	for (const auto& p : m_toolStates)
 	{
-		if (m_toolStates[i])
+		if (p.second)
 		{
-			m_toolStates[i]->handleUpdate(dt);
+			p.second->handleUpdate(dt);
 		}
 	}
 }
 
 void Sample::initToolStates(Sample* sample)
 {
-	for (int i = 0; i < MAX_TOOLS; i++)
+	for (const auto& p : m_toolStates)
 	{
-		if (m_toolStates[i])
+		if (p.second)
 		{
-			m_toolStates[i]->init(sample);
+			p.second->init(sample);
 		}
 	}
 }
 
 void Sample::resetToolStates()
 {
-	for (int i = 0; i < MAX_TOOLS; i++)
+	for (const auto& p : m_toolStates)
 	{
-		if (m_toolStates[i])
+		if (p.second)
 		{
-			m_toolStates[i]->reset();
+			p.second->reset();
 		}
 	}
 }
 
 void Sample::renderToolStates()
 {
-	for (int i = 0; i < MAX_TOOLS; i++)
+	for (const auto& p : m_toolStates)
 	{
-		if (m_toolStates[i])
+		if (p.second)
 		{
-			m_toolStates[i]->handleRender();
+			p.second->handleRender();
 		}
 	}
 }
@@ -245,11 +236,11 @@ void Sample::renderToolStates()
 void Sample::renderOverlayToolStates(const glm::mat4& proj,
 	const glm::mat4& model, const glm::ivec4& view)
 {
-	for (int i = 0; i < MAX_TOOLS; i++)
+	for (const auto& p : m_toolStates)
 	{
-		if (m_toolStates[i])
+		if (p.second)
 		{
-			m_toolStates[i]->handleRenderOverlay(proj, model, view);
+			p.second->handleRenderOverlay(proj, model, view);
 		}
 	}
 }

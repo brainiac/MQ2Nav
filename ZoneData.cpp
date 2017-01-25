@@ -4,8 +4,8 @@
 
 #include "ZoneData.h"
 
-#include "dependencies/zone-utilities/common/eqg_model_loader.h"
-#include "dependencies/zone-utilities/common/safe_alloc.h"
+#include <zone-utilities/common/eqg_model_loader.h>
+#include <zone-utilities/common/safe_alloc.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>

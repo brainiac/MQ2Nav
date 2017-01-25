@@ -8,11 +8,6 @@
 #include "Recast.h"
 #include "RecastDebugDraw.h"
 
-#include <math.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-
 
 static bool intersectSegmentTriangle(const float* sp, const float* sq,
 									 const float* a, const float* b, const float* c,

@@ -25,13 +25,13 @@
 #include <glm/glm.hpp>
 #include <vector>
 
-class NavMeshTesterTool : public SampleTool
+class NavMeshTesterTool : public Tool
 {
 public:
 	NavMeshTesterTool();
 	virtual ~NavMeshTesterTool();
 
-	virtual int type() override { return TOOL_NAVMESH_TESTER; }
+	virtual ToolType type() const override { return ToolType::NAVMESH_TESTER; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;
 	virtual void handleMenu() override;

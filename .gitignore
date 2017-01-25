@@ -2,6 +2,7 @@
 *.exp
 *.map
 *.sdf
+*.exe
 *.opensdf
 Intermediate/
 Release/

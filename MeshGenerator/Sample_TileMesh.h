@@ -16,8 +16,7 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef RECASTSAMPLETILEMESH_H
-#define RECASTSAMPLETILEMESH_H
+#pragma once
 
 #include "Sample.h"
 #include "DetourNavMesh.h"
@@ -28,9 +27,6 @@
 #include <memory>
 #include <functional>
 #include <thread>
-
-template <typename T>
-using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
 class Sample_TileMesh : public Sample
 {
@@ -126,8 +122,5 @@ public:
 
 	void UpdateTileSizes();
 
-	deleted_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
+	deleting_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
 };
-
-
-#endif // RECASTSAMPLETILEMESH_H

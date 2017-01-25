@@ -1084,7 +1084,7 @@ void NavMeshTesterTool::handleRender()
 			dd.vertex(m_prevIterPos[0], m_prevIterPos[1] + 0.3f, m_prevIterPos[2], steerCol);
 			dd.vertex(m_steerPos[0], m_steerPos[1] + 0.3f, m_steerPos[2], steerCol);
 
-			for (int i = 0; i < m_steerPoints.size() - 1; ++i)
+			for (size_t i = 0; i < m_steerPoints.size() - 1; ++i)
 			{
 				dd.vertex(m_steerPoints[i].x, m_steerPoints[i].y + 0.2f, m_steerPoints[i].z, duDarkenCol(steerCol));
 				dd.vertex(m_steerPoints[i + 1].x, m_steerPoints[i + 1].y + 0.2f, m_steerPoints[i + 1].z, duDarkenCol(steerCol));

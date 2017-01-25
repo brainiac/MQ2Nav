@@ -1,22 +1,17 @@
 
 #include "pch.h"
+
 #include "MapGeometryLoader.h"
-
 #include "../ZoneData.h"
-
-#include "zone-utilities/log/log_macros.h"
-#include "zone-utilities/common/compression.h"
 
 #include <gtc/matrix_transform.hpp>
 #include <rapidjson/document.h>
+#include <zone-utilities/log/log_macros.h>
+#include <zone-utilities/common/compression.h>
 
 #include <sstream>
 #include <boost/filesystem.hpp>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 
 static inline void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
 {

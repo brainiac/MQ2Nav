@@ -3,12 +3,9 @@
 #include "Recast.h"
 #include "RecastDebugDraw.h"
 #include "DetourDebugDraw.h"
-#include "SDL.h"
-#include "SDL_opengl.h"
 
-#include <math.h>
-#include <stdio.h>
-#include <stdarg.h>
+#include <SDL.h>
+#include <SDL_OpenGL.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -1,11 +1,12 @@
 // ImGui SDL2 binding with OpenGL
 // https://github.com/ocornut/imgui
 
+#include "ImGuiSDL.h"
+
 #include <SDL.h>
 #include <SDL_syswm.h>
 #include <SDL_opengl.h>
 #include <imgui.h>
-#include "imgui_impl_sdl.h"
 
 // Data
 static double       g_Time = 0.0f;

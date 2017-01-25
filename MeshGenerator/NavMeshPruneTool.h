@@ -26,13 +26,13 @@
 class NavmeshFlags;
 
 // Prune navmesh to accessible locations from a point.
-class NavMeshPruneTool : public SampleTool
+class NavMeshPruneTool : public Tool
 {
 public:
 	NavMeshPruneTool();
 	virtual ~NavMeshPruneTool();
 
-	virtual int type() override { return TOOL_NAVMESH_PRUNE; }
+	virtual ToolType type() const override { return ToolType::NAVMESH_PRUNE; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;
 	virtual void handleMenu() override;

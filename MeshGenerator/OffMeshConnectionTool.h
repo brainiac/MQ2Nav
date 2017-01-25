@@ -24,13 +24,13 @@
 
 // Tool to create off-mesh connection for InputGeom
 
-class OffMeshConnectionTool : public SampleTool
+class OffMeshConnectionTool : public Tool
 {
 public:
 	OffMeshConnectionTool();
 	~OffMeshConnectionTool();
 
-	virtual int type() override { return TOOL_OFFMESH_CONNECTION; }
+	virtual ToolType type() const override { return ToolType::OFFMESH_CONNECTION; }
 	virtual void init(Sample* sample) override;
 	virtual void reset() override;
 	virtual void handleMenu() override;

@@ -1,6 +1,8 @@
 // ImGui SDL2 binding with OpenGL
 // https://github.com/ocornut/imgui
 
+#include <imgui/imgui.h>
+
 struct SDL_Window;
 typedef union SDL_Event SDL_Event;
 
