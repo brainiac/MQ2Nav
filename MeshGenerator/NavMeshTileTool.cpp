@@ -1,15 +1,16 @@
-
+﻿
 #include "NavMeshTileTool.h"
-#include "DebugDraw.h"
+
+#include <DebugDraw.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_custom/imgui_user.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-void NavMeshTileTool::init(Sample* sample)
+void NavMeshTileTool::init(NavMeshTool* meshTool)
 {
-	m_sample = static_cast<Sample_TileMesh*>(sample);
+	m_meshTool = meshTool;
 }
 
 void NavMeshTileTool::handleMenu()
@@ -18,14 +19,14 @@ void NavMeshTileTool::handleMenu()
 	imguiLabel("Create Tiles");
 	if (imguiButton("Create All"))
 	{
-		if (m_sample)
-			m_sample->buildAllTiles();
+		if (m_meshTool)
+			m_meshTool->buildAllTiles();
 	}
 #endif
 	if (ImGui::Button("Remove All"))
 	{
-		if (m_sample)
-			m_sample->removeAllTiles();
+		if (m_meshTool)
+			m_meshTool->removeAllTiles();
 	}
 }
 
@@ -34,12 +35,12 @@ void NavMeshTileTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool s
 	m_hitPosSet = true;
 	m_hitPos = p;
 
-	if (m_sample)
+	if (m_meshTool)
 	{
 		if (shift)
-			m_sample->removeTile(glm::value_ptr(m_hitPos));
+			m_meshTool->removeTile(glm::value_ptr(m_hitPos));
 		else
-			m_sample->buildTile(glm::value_ptr(m_hitPos));
+			m_meshTool->buildTile(glm::value_ptr(m_hitPos));
 	}
 }
 
@@ -47,7 +48,7 @@ void NavMeshTileTool::handleRender()
 {
 	if (m_hitPosSet)
 	{
-		const float s = m_sample->getAgentRadius();
+		const float s = m_meshTool->getAgentRadius();
 
 		DebugDrawGL dd;
 
@@ -67,8 +68,7 @@ void NavMeshTileTool::handleRenderOverlay(const glm::mat4& proj,
 		glm::dvec3 pos = glm::project(hitPos2, model2, proj2, view);
 		int tx = 0, ty = 0;
 
-
-		m_sample->getTilePos(glm::value_ptr(m_hitPos), tx, ty);
+		m_meshTool->getTilePos(glm::value_ptr(m_hitPos), tx, ty);
 		ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "(%d,%d)", tx, ty);
 	}
 

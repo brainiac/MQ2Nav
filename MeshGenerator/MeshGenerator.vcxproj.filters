@@ -12,15 +12,15 @@
     <Filter Include="Resource Files">
       <UniqueIdentifier>{224f9baf-4d1f-4823-8c71-af835270db6c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Proto Files">
+      <UniqueIdentifier>{f6607343-74e5-49b2-a825-ea55dca2c845}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MapGeometryLoader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Interface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
@@ -30,9 +30,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\ZoneData.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SampleInterfaces.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ChunkyTriMesh.cpp">
@@ -53,12 +50,6 @@
     <ClCompile Include="OffMeshConnectionTool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Sample.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Sample_TileMesh.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ImGuiSDL.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -66,6 +57,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Utilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMeshFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Application.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMeshTool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -76,9 +76,6 @@
     <ClInclude Include="MapGeometryLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Interface.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="EQConfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -86,9 +83,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\ZoneData.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\NavMeshData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ChunkyTriMesh.h">
@@ -109,15 +103,6 @@
     <ClInclude Include="OffMeshConnectionTool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Sample.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Sample_TileMesh.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SampleInterfaces.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ImGuiSDL.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -125,6 +110,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMeshData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMeshFile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Application.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMeshTool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -148,5 +145,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="proto\navmesh_file.proto">
+      <Filter>Proto Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

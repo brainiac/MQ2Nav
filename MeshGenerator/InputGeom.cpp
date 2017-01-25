@@ -1,17 +1,14 @@
 
 #include "InputGeom.h"
-#include "MapGeometryLoader.h"
 
-#include "ChunkyTriMesh.h"
-#include "DebugDraw.h"
-#include "DetourNavMesh.h"
-#include "Recast.h"
-#include "RecastDebugDraw.h"
-
+#include <DebugDraw.h>
+#include <DetourNavMesh.h>
+#include <Recast.h>
+#include <RecastDebugDraw.h>
 
 static bool intersectSegmentTriangle(const float* sp, const float* sq,
-									 const float* a, const float* b, const float* c,
-									 float &t)
+	const float* a, const float* b, const float* c,
+	float &t)
 {
 	float v, w;
 	float ab[3], ac[3], qp[3], ap[3], norm[3], e[3];
@@ -49,40 +46,7 @@ static bool intersectSegmentTriangle(const float* sp, const float* sq,
 	return true;
 }
 
-static char* parseRow(char* buf, char* bufEnd, char* row, int len)
-{
-	bool start = true;
-	bool done = false;
-	int n = 0;
-	while (!done && buf < bufEnd)
-	{
-		char c = *buf;
-		buf++;
-		// multirow
-		switch (c)
-		{
-			case '\n':
-				if (start) break;
-				done = true;
-				break;
-			case '\r':
-				break;
-			case '\t':
-			case ' ':
-				if (start) break;
-			default:
-				start = false;
-				row[n++] = c;
-				if (n >= len-1)
-					done = true;
-				break;
-		}
-	}
-	row[n] = '\0';
-	return buf;
-}
-
-
+//----------------------------------------------------------------------------
 
 InputGeom::InputGeom(const std::string& zoneShortName, const std::string& eqPath, const std::string& meshPath)
 	: m_zoneShortName(zoneShortName)
@@ -95,7 +59,7 @@ InputGeom::~InputGeom()
 {
 }
 
-bool InputGeom::loadMesh(rcContext* ctx)
+bool InputGeom::loadGeometry(rcContext* ctx)
 {
 	m_chunkyMesh.reset();
 	m_offMeshConCount = 0;

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "EQConfig.h"
+
 #include "Recast.h"
 
 #include <SDL.h>
@@ -19,15 +20,15 @@
 #include <chrono>
 
 class BuildContext;
-class Sample_TileMesh;
-struct SDL_Surface;
 class InputGeom;
+class NavMeshTool;
+struct SDL_Surface;
 
-class Interface
+class Application
 {
 public:
-	Interface(const std::string& defaultZone = std::string());
-	~Interface();
+	Application(const std::string& defaultZone = std::string());
+	~Application();
 
 	BuildContext& GetContext() { return *m_context; }
 
@@ -84,7 +85,7 @@ private:
 	std::unique_ptr<BuildContext> m_context;
 
 	// The mesh that we use to generate the tiled navmesh
-	std::unique_ptr<Sample_TileMesh> m_mesh;
+	std::unique_ptr<NavMeshTool> m_mesh;
 
 	// The input geometry (??)
 	std::unique_ptr<InputGeom> m_geom;
@@ -95,7 +96,6 @@ private:
 	float m_progress;
 	std::string m_activityMessage;
 	bool m_showLog;
-	bool m_showSample;
 	bool m_showTools = false;
 	bool m_showFailedToOpenDialog = false;
 

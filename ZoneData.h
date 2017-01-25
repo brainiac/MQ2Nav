@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "dependencies/zone-utilities/common/eqg_loader.h"
 #include "dependencies/zone-utilities/common/s3d_loader.h"
 

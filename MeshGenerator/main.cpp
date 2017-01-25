@@ -1,13 +1,8 @@
 
-#include "pch.h"
+#include "Application.h"
 
-
-#include "Recast.h"
-#include "RecastDebugDraw.h"
-#include "ImGuiSDL.h"
-#include "InputGeom.h"
-#include "Interface.h"
-#include "Sample_TileMesh.h"
+#include <Recast.h>
+#include <RecastDebugDraw.h>
 
 #include <imgui/imgui.h>
 #include <zone-utilities/log/log_macros.h>
@@ -152,6 +147,6 @@ int main(int argc, char* argv[])
 	if (argc > 1)
 		startingZone = argv[1];
 
-	Interface window(startingZone);
+	Application window(startingZone);
 	return window.RunMainLoop();
 }

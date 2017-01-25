@@ -16,10 +16,12 @@
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="EQConfig.cpp" />
     <ClCompile Include="ImGuiSDL.cpp" />
-    <ClCompile Include="Interface.cpp" />
+    <ClCompile Include="Application.cpp" />
     <ClCompile Include="InputGeom.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
+    <ClCompile Include="NavMeshTool.cpp" />
+    <ClCompile Include="NavMeshFile.cpp" />
     <ClCompile Include="NavMeshPruneTool.cpp" />
     <ClCompile Include="NavMeshTesterTool.cpp" />
     <ClCompile Include="NavMeshTileTool.cpp" />
@@ -27,30 +29,26 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Sample.cpp" />
-    <ClCompile Include="SampleInterfaces.cpp" />
-    <ClCompile Include="Sample_TileMesh.cpp" />
     <ClCompile Include="Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\NavMeshData.h" />
     <ClInclude Include="..\ZoneData.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="EQConfig.h" />
     <ClInclude Include="ImGuiSDL.h" />
     <ClInclude Include="InputGeom.h" />
-    <ClInclude Include="Interface.h" />
+    <ClInclude Include="Application.h" />
     <ClInclude Include="MapGeometryLoader.h" />
+    <ClInclude Include="NavMeshTool.h" />
+    <ClInclude Include="NavMeshData.h" />
+    <ClInclude Include="NavMeshFile.h" />
     <ClInclude Include="NavMeshPruneTool.h" />
     <ClInclude Include="NavMeshTesterTool.h" />
     <ClInclude Include="NavMeshTileTool.h" />
     <ClInclude Include="OffMeshConnectionTool.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="Sample.h" />
-    <ClInclude Include="SampleInterfaces.h" />
-    <ClInclude Include="Sample_TileMesh.h" />
     <ClInclude Include="Utilities.h" />
   </ItemGroup>
   <ItemGroup>
@@ -85,6 +83,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="proto\navmesh_file.proto" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0F4E974D-3E48-44F0-945E-90C97E1E254D}</ProjectGuid>

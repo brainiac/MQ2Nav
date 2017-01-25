@@ -1,61 +1,18 @@
-//
-// Copyright (c) 2009-2010 Mikko Mononen memon@inside.org
-//
-// This software is provided 'as-is', without any express or implied
-// warranty.  In no event will the authors be held liable for any damages
-// arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-// 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgment in the product documentation would be
-//    appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be
-//    misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
-//
-
+﻿
 #include "ConvexVolumeTool.h"
 #include "InputGeom.h"
-#include "Sample.h"
-#include "Recast.h"
-#include "RecastDebugDraw.h"
-#include "DetourDebugDraw.h"
+#include "NavMeshTool.h"
+#include "Utilities.h"
+
+#include <Recast.h>
+#include <RecastDebugDraw.h>
+#include <DetourDebugDraw.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_custom/imgui_user.h>
 #include <glm/gtc/type_ptr.hpp>
 
-
 // Quick and dirty convex hull.
-
-// Returns true if 'c' is left of line 'a'-'b'.
-inline bool left(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
-{
-	const float u1 = b.x - a.x;
-	const float v1 = b.z - a.z;
-	const float u2 = c.x - a.x;
-	const float v2 = c.z - a.z;
-
-	return u1 * v2 - v1 * u2 < 0;
-}
-
-// Returns true if 'a' is more lower-left than 'b'.
-inline bool cmppt(const glm::vec3& a, const glm::vec3& b)
-{
-	if (a.x < b.x) return true;
-	if (a.x > b.x) return false;
-	if (a.z < b.z) return true;
-	if (a.z > b.z) return false;
-	return false;
-}
-
-inline float distSqr(const glm::vec3& v1, const glm::vec3& v2)
-{
-	glm::vec3 temp = v2 - v1;
-	return glm::dot(temp, temp);
-}
 
 // Calculates convex hull on xz-plane of points on 'pts',
 // stores the indices of the resulting hull in 'out' and
@@ -111,9 +68,9 @@ ConvexVolumeTool::~ConvexVolumeTool()
 {
 }
 
-void ConvexVolumeTool::init(Sample* sample)
+void ConvexVolumeTool::init(NavMeshTool* meshTool)
 {
-	m_sample = sample;
+	m_meshTool = meshTool;
 }
 
 void ConvexVolumeTool::reset()
@@ -161,8 +118,8 @@ void ConvexVolumeTool::handleMenu()
 
 void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, bool shift)
 {
-	if (!m_sample) return;
-	InputGeom* geom = m_sample->getInputGeom();
+	if (!m_meshTool) return;
+	InputGeom* geom = m_meshTool->getInputGeom();
 	if (!geom) return;
 
 	if (shift)
@@ -243,19 +200,6 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 			}
 		}
 	}
-
-}
-
-void ConvexVolumeTool::handleToggle()
-{
-}
-
-void ConvexVolumeTool::handleStep()
-{
-}
-
-void ConvexVolumeTool::handleUpdate(float /*dt*/)
-{
 }
 
 void ConvexVolumeTool::handleRender()

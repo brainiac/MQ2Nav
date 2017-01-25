@@ -1,7 +1,7 @@
-
+﻿
 #pragma once
 
-#include "Sample_TileMesh.h"
+#include "NavMeshTool.h"
 
 class NavMeshTileTool : public Tool
 {
@@ -10,7 +10,7 @@ public:
 	virtual ~NavMeshTileTool() {}
 
 	virtual ToolType type() const override { return ToolType::TILE_EDIT; }
-	virtual void init(Sample* sample) override;
+	virtual void init(NavMeshTool* meshTool) override;
 	virtual void reset() override {}
 	virtual void handleMenu() override;
 	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) override;
@@ -22,7 +22,7 @@ public:
 		const glm::mat4& model, const glm::ivec4& view) override;
 
 private:
-	Sample_TileMesh* m_sample = nullptr;
+	NavMeshTool* m_meshTool = nullptr;
 	glm::vec3 m_hitPos;
 	bool m_hitPosSet = false;
 };

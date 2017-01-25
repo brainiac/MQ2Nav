@@ -1,14 +1,15 @@
 // Implementation of main GUI interface for EQNavigation
 
-#include "pch.h"
-#include "Interface.h"
+#include "Application.h"
 
-#include "RecastDebugDraw.h"
 #include "ImGuiSDL.h"
 #include "InputGeom.h"
-#include "Sample_TileMesh.h"
+#include "NavMeshTool.h"
 #include "Utilities.h"
+
 #include "resource.h"
+
+#include <RecastDebugDraw.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -37,12 +38,11 @@ static bool IsKeyboardBlocked() {
 	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
 }
 
-
 //============================================================================
 
-Interface::Interface(const std::string& defaultZone)
+Application::Application(const std::string& defaultZone)
 	: m_context(new BuildContext())
-	, m_mesh(new Sample_TileMesh)
+	, m_mesh(new NavMeshTool)
 	, m_resetCamera(true)
 	, m_width(1600), m_height(900)
 	, m_progress(0.0)
@@ -64,12 +64,12 @@ Interface::Interface(const std::string& defaultZone)
 	ImGui::SetupImGuiStyle(true, 0.8f);
 }
 
-Interface::~Interface()
+Application::~Application()
 {
 	DestroyWindow();
 }
 
-bool Interface::InitializeWindow()
+bool Application::InitializeWindow()
 {
 	// Init SDL
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
@@ -134,7 +134,7 @@ bool Interface::InitializeWindow()
 	return true;
 }
 
-void Interface::DestroyWindow()
+void Application::DestroyWindow()
 {
 	ImGui_ImplSdl_Shutdown();
 
@@ -144,7 +144,7 @@ void Interface::DestroyWindow()
 	SDL_Quit();
 }
 
-int Interface::RunMainLoop()
+int Application::RunMainLoop()
 {
 	m_time = 0.0f;
 	m_lastTime = SDL_GetTicks();
@@ -227,7 +227,7 @@ int Interface::RunMainLoop()
 	return 0;
 }
 
-void Interface::HandleEvents()
+void Application::HandleEvents()
 {
 	SDL_Event event;
 	while (SDL_PollEvent(&event))
@@ -396,12 +396,12 @@ void Interface::HandleEvents()
 	}
 }
 
-void Interface::UpdateMovementState(bool keydown)
+void Application::UpdateMovementState(bool keydown)
 {
 
 }
 
-void Interface::UpdateCamera()
+void Application::UpdateCamera()
 {
 	// Perform the camera reset if requested
 	if (m_resetCamera)
@@ -441,7 +441,7 @@ void Interface::UpdateCamera()
 	m_cam.z += dp.y * m_model[2][2];
 }
 
-void Interface::RenderInterface()
+void Application::RenderInterface()
 {
 	m_mesh->handleRenderOverlay(m_proj, m_model, m_view);
 
@@ -652,11 +652,6 @@ void Interface::RenderInterface()
 			if (!m_mesh->isBuildingTiles())
 			{
 				m_mesh->handleSettings();
-
-				if (ImGui::CollapsingHeader("Debug"))
-				{
-					m_mesh->handleDebugMode();
-				}
 			}
 		}
 
@@ -721,7 +716,7 @@ void Interface::RenderInterface()
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-void Interface::OpenMesh()
+void Application::OpenMesh()
 {
 	if (m_mesh->isBuildingTiles())
 		return;
@@ -733,7 +728,7 @@ void Interface::OpenMesh()
 	}
 }
 
-void Interface::SaveMesh()
+void Application::SaveMesh()
 {
 	if (m_mesh->isBuildingTiles() || m_mesh->getNavMesh() == nullptr)
 		return;
@@ -743,7 +738,7 @@ void Interface::SaveMesh()
 	m_mesh->SaveMesh(meshFilename);
 }
 
-void Interface::ShowSettingsDialog()
+void Application::ShowSettingsDialog()
 {
 	if (m_showSettingsDialog)
 		ImGui::OpenPopup("Settings");
@@ -770,7 +765,7 @@ void Interface::ShowSettingsDialog()
 	}
 }
 
-void Interface::ShowZonePickerDialog()
+void Application::ShowZonePickerDialog()
 {
 	if (m_mesh->isBuildingTiles()) {
 		m_showZonePickerDialog = false;
@@ -895,7 +890,7 @@ void Interface::ShowZonePickerDialog()
 	}
 }
 
-void Interface::ResetCamera()
+void Application::ResetCamera()
 {
 	// Camera Reset
 	if (m_geom)
@@ -920,7 +915,7 @@ void Interface::ResetCamera()
 	}
 }
 
-std::string Interface::GetMeshFilename()
+std::string Application::GetMeshFilename()
 {
 	std::stringstream ss;
 	ss << m_eqConfig.GetOutputPath() << "\\MQ2Nav\\" << m_zoneShortname << ".bin";
@@ -928,19 +923,19 @@ std::string Interface::GetMeshFilename()
 	return ss.str();
 }
 
-void Interface::Halt()
+void Application::Halt()
 {
 	m_mesh->cancelBuildAllTiles();
 }
 
-void Interface::LoadGeometry(const std::string& zoneShortName)
+void Application::LoadGeometry(const std::string& zoneShortName)
 {
 	std::unique_lock<std::mutex> lock(m_renderMutex);
 
 	Halt();
 
 	auto ptr = std::make_unique<InputGeom>(zoneShortName, m_eqConfig.GetEverquestPath(), m_eqConfig.GetOutputPath());
-	if (!ptr->loadMesh(m_context.get()))
+	if (!ptr->loadGeometry(m_context.get()))
 	{
 		m_showFailedToLoadZone = true;
 

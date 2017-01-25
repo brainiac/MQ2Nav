@@ -1,10 +1,8 @@
 
-#include "pch.h"
-
 #include "MapGeometryLoader.h"
 #include "../ZoneData.h"
 
-#include <gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <rapidjson/document.h>
 #include <zone-utilities/log/log_macros.h>
 #include <zone-utilities/common/compression.h>

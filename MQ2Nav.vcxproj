@@ -73,7 +73,6 @@
     </Link>
     <PostBuildEvent>
       <Command>MKDIR "$(OutDir)MQ2Nav"
-XCOPY /y "$(ProjectDir)LineTexture.png" "$(OutDir)MQ2Nav"
 XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
 </Command>
     </PostBuildEvent>

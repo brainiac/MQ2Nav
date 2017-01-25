@@ -1,35 +1,22 @@
-//
-// Copyright (c) 2009-2010 Mikko Mononen memon@inside.org
-//
-// This software is provided 'as-is', without any express or implied
-// warranty.  In no event will the authors be held liable for any damages
-// arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-// 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgment in the product documentation would be
-//    appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be
-//    misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
-//
 
 #include "NavMeshPruneTool.h"
+
 #include "InputGeom.h"
-#include "Sample.h"
-#include "DetourNavMesh.h"
-#include "DetourCommon.h"
-#include "DetourAssert.h"
-#include "DetourDebugDraw.h"
-#include "../NavMeshData.h"
+#include "NavMeshData.h"
+#include "NavMeshTool.h"
+
+#include <DetourNavMesh.h>
+#include <DetourCommon.h>
+#include <DetourAssert.h>
+#include <DetourDebugDraw.h>
 
 #include <imgui.h>
 #include <imgui_custom/imgui_user.h>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <vector>
+
+//-----------------------------------------------------------------------------
 
 class NavmeshFlags
 {
@@ -138,7 +125,7 @@ static void floodNavmesh(dtNavMesh* nav, NavmeshFlags* flags, dtPolyRef start, u
 		openList.pop_back();
 
 		// Get current poly and tile.
-		// The API input has been cheked already, skip checking internal data.
+		// The API input has been checked already, skip checking internal data.
 		const dtMeshTile* tile = nullptr;
 		const dtPoly* poly = nullptr;
 		nav->getTileAndPolyByRefUnsafe(ref, &tile, &poly);
@@ -155,7 +142,7 @@ static void floodNavmesh(dtNavMesh* nav, NavmeshFlags* flags, dtPolyRef start, u
 			// Mark as visited
 			flags->setFlags(neiRef, flag);
 
-			// Visit neighbours
+			// Visit neighbors
 			openList.push_back(neiRef);
 		}
 	}
@@ -192,9 +179,9 @@ NavMeshPruneTool::~NavMeshPruneTool()
 {
 }
 
-void NavMeshPruneTool::init(Sample* sample)
+void NavMeshPruneTool::init(NavMeshTool* meshtool)
 {
-	m_sample = sample;
+	m_meshTool = meshtool;
 }
 
 void NavMeshPruneTool::reset()
@@ -205,7 +192,7 @@ void NavMeshPruneTool::reset()
 
 void NavMeshPruneTool::handleMenu()
 {
-	dtNavMesh* nav = m_sample->getNavMesh();
+	dtNavMesh* nav = m_meshTool->getNavMesh();
 	if (!nav) return;
 	if (!m_flags) return;
 
@@ -223,12 +210,12 @@ void NavMeshPruneTool::handleMenu()
 
 void NavMeshPruneTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, bool /*shift*/)
 {
-	if (!m_sample) return;
-	InputGeom* geom = m_sample->getInputGeom();
+	if (!m_meshTool) return;
+	InputGeom* geom = m_meshTool->getInputGeom();
 	if (!geom) return;
-	dtNavMesh* nav = m_sample->getNavMesh();
+	dtNavMesh* nav = m_meshTool->getNavMesh();
 	if (!nav) return;
-	dtNavMeshQuery* query = m_sample->getNavMeshQuery();
+	dtNavMeshQuery* query = m_meshTool->getNavMeshQuery();
 	if (!query) return;
 
 	m_hitPos = p;
@@ -254,7 +241,7 @@ void NavMeshPruneTool::handleRender()
 
 	if (m_hitPosSet)
 	{
-		const float s = m_sample->getAgentRadius();
+		const float s = m_meshTool->getAgentRadius();
 		const unsigned int col = duRGBA(255, 255, 255, 255);
 		dd.begin(DU_DRAW_LINES);
 		dd.vertex(m_hitPos[0] - s, m_hitPos[1], m_hitPos[2], col);
@@ -266,7 +253,7 @@ void NavMeshPruneTool::handleRender()
 		dd.end();
 	}
 
-	const dtNavMesh* nav = m_sample->getNavMesh();
+	const dtNavMesh* nav = m_meshTool->getNavMesh();
 	if (m_flags && nav)
 	{
 		for (int i = 0; i < nav->getMaxTiles(); ++i)
@@ -284,7 +271,6 @@ void NavMeshPruneTool::handleRender()
 			}
 		}
 	}
-
 }
 
 void NavMeshPruneTool::handleRenderOverlay(const glm::mat4& /*proj*/,

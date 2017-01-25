@@ -7,7 +7,7 @@
 #include "NavMeshLoader.h"
 #include "RenderHandler.h"
 #include "MQ2Nav_Settings.h"
-#include "NavMeshData.h"
+#include "MeshGenerator/NavMeshData.h"
 
 #include "DebugDrawDX.h"
 #include "DetourNavMesh.h"

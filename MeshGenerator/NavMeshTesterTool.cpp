@@ -1,30 +1,14 @@
-//
-// Copyright (c) 2009-2010 Mikko Mononen memon@inside.org
-//
-// This software is provided 'as-is', without any express or implied
-// warranty.  In no event will the authors be held liable for any damages
-// arising from the use of this software.
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-// 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgment in the product documentation would be
-//    appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be
-//    misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
-//
 
 #include "NavMeshTesterTool.h"
-#include "Sample.h"
-#include "Recast.h"
-#include "RecastDebugDraw.h"
-#include "DetourNavMesh.h"
-#include "DetourNavMeshBuilder.h"
-#include "DetourDebugDraw.h"
-#include "DetourCommon.h"
-#include "../NavMeshData.h"
+
+#include "NavMeshData.h"
+
+#include <Recast.h>
+#include <RecastDebugDraw.h>
+#include <DetourNavMesh.h>
+#include <DetourNavMeshBuilder.h>
+#include <DetourDebugDraw.h>
+#include <DetourCommon.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -219,11 +203,11 @@ NavMeshTesterTool::~NavMeshTesterTool()
 {
 }
 
-void NavMeshTesterTool::init(Sample* sample)
+void NavMeshTesterTool::init(NavMeshTool* meshTool)
 {
-	m_sample = sample;
-	m_navMesh = sample->getNavMesh();
-	m_navQuery = sample->getNavMeshQuery();
+	m_meshTool = meshTool;
+	m_navMesh = meshTool->getNavMesh();
+	m_navQuery = meshTool->getNavMeshQuery();
 	recalc();
 
 	if (m_navQuery)
@@ -237,8 +221,8 @@ void NavMeshTesterTool::init(Sample* sample)
 		m_filter.setAreaCost(PolyArea::Jump, 1.5f);
 	}
 
-	m_neighbourhoodRadius = sample->getAgentRadius() * 20.0f;
-	m_randomRadius = sample->getAgentRadius() * 30.0f;
+	m_neighbourhoodRadius = meshTool->getAgentRadius() * 20.0f;
+	m_randomRadius = meshTool->getAgentRadius() * 30.0f;
 }
 
 void NavMeshTesterTool::handleMenu()
@@ -946,7 +930,7 @@ void NavMeshTesterTool::recalc()
 		{
 			const float nx = (m_epos.z - m_spos.z) * 0.25f;
 			const float nz = -(m_epos.x - m_spos.x) * 0.25f;
-			const float agentHeight = m_sample ? m_sample->getAgentHeight() : 0;
+			const float agentHeight = m_meshTool ? m_meshTool->getAgentHeight() : 0;
 
 			m_queryPoly[0].x = m_spos.x + nx * 1.2f;
 			m_queryPoly[0].y = m_spos.y + agentHeight / 2;
@@ -1019,9 +1003,9 @@ void NavMeshTesterTool::handleRender()
 	static const unsigned int endCol = duRGBA(51, 102, 0, 129);
 	static const unsigned int pathCol = duRGBA(0, 0, 0, 64);
 
-	const float agentRadius = m_sample->getAgentRadius();
-	const float agentHeight = m_sample->getAgentHeight();
-	const float agentClimb = m_sample->getAgentClimb();
+	const float agentRadius = m_meshTool->getAgentRadius();
+	const float agentHeight = m_meshTool->getAgentHeight();
+	const float agentClimb = m_meshTool->getAgentClimb();
 
 	dd.depthMask(false);
 	if (m_sposSet)
