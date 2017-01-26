@@ -131,14 +131,14 @@ XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ProjectReference Include="dependencies\imgui\imgui.vcxproj">
       <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
     </ProjectReference>
+    <ProjectReference Include="dependencies\projects\zone-utilities.vcxproj">
+      <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
+    </ProjectReference>
     <ProjectReference Include="dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
     </ProjectReference>
     <ProjectReference Include="dependencies\zlib\zlib.vcxproj">
       <Project>{d5fc478c-d94c-437f-9911-14f1fb7b9a2b}</Project>
-    </ProjectReference>
-    <ProjectReference Include="dependencies\zone-utilities-projects\zone-utilities.vcxproj">
-      <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
     </ProjectReference>
     <ProjectReference Include="..\MQ2Main\MQ2Main.vcxproj">
       <Project>{2A0A06A4-E9C6-4229-82EE-BD2D4E0A7221}</Project>

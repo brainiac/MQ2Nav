@@ -15,6 +15,9 @@
     <Filter Include="Proto Files">
       <UniqueIdentifier>{f6607343-74e5-49b2-a825-ea55dca2c845}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Proto Files\generated files">
+      <UniqueIdentifier>{6836d4ce-9d8e-4987-8629-1c14bd3ceb73}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -67,6 +70,9 @@
     </ClCompile>
     <ClCompile Include="NavMeshTool.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\navmesh_file.pb.cc">
+      <Filter>Proto Files\generated files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -124,6 +130,9 @@
     <ClInclude Include="NavMeshTool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="proto\navmesh_file.pb.h">
+      <Filter>Proto Files\generated files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="..\dependencies\glm\util\glm.natvis">
@@ -145,8 +154,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="proto\navmesh_file.proto">
+  </ItemGroup>
+  <ItemGroup>
+    <ProtocolBuffer Include="proto\navmesh_file.proto">
       <Filter>Proto Files</Filter>
-    </None>
+    </ProtocolBuffer>
   </ItemGroup>
 </Project>

@@ -29,6 +29,7 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="proto\navmesh_file.pb.cc" />
     <ClCompile Include="Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -48,12 +49,19 @@
     <ClInclude Include="NavMeshTileTool.h" />
     <ClInclude Include="OffMeshConnectionTool.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="proto\navmesh_file.pb.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Utilities.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\dependencies\imgui\imgui.vcxproj">
       <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\projects\libprotobuf.vcxproj">
+      <Project>{6ececb50-9de7-4e61-beed-c377c4d87b28}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\projects\zone-utilities.vcxproj">
+      <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
     </ProjectReference>
     <ProjectReference Include="..\dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
@@ -66,9 +74,6 @@
     </ProjectReference>
     <ProjectReference Include="..\dependencies\zlib\zlib.vcxproj">
       <Project>{d5fc478c-d94c-437f-9911-14f1fb7b9a2b}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\dependencies\zone-utilities-projects\zone-utilities.vcxproj">
-      <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -83,7 +88,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="proto\navmesh_file.proto" />
+    <ProtocolBuffer Include="proto\navmesh_file.proto">
+      <FileType>Document</FileType>
+    </ProtocolBuffer>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0F4E974D-3E48-44F0-945E-90C97E1E254D}</ProjectGuid>
@@ -131,7 +138,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -160,7 +167,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -195,4 +202,10 @@
     <Error Condition="!Exists('..\..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets'))" />
     <Error Condition="!Exists('..\..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets'))" />
   </Target>
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\dependencies\projects\protobuf.targets" />
+  </ImportGroup>
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="..\dependencies\projects\protobuf.props" />
+  </ImportGroup>
 </Project>
