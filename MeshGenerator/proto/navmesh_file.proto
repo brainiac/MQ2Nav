@@ -1,5 +1,0 @@
-syntax = "proto3";
-
-message NavMeshFile {
-	string zone_short_name = 1;
-}

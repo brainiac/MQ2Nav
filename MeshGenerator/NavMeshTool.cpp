@@ -11,6 +11,8 @@
 #include "OffMeshConnectionTool.h"
 #include "Utilities.h"
 
+#include "proto/NavMeshFile.pb.h"
+
 #include <Recast.h>
 #include <RecastDebugDraw.h>
 #include <DetourNavMesh.h>
@@ -23,9 +25,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <google/protobuf/io/zero_copy_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <zlib.h>
+
 #include <ppl.h>
 #include <agents.h>
 #include <mutex>
+#include <fstream>
 
 //----------------------------------------------------------------------------
 
@@ -45,11 +52,6 @@ NavMeshTool::NavMeshTool()
 NavMeshTool::~NavMeshTool()
 {
 	delete[] m_outputPath;
-}
-
-void NavMeshTool::SaveMesh(const std::string& outputPath)
-{
-	saveAll(outputPath.c_str(), m_navMesh.get());
 }
 
 bool NavMeshTool::LoadMesh(const std::string& outputPath)
@@ -79,69 +81,183 @@ bool NavMeshTool::LoadMesh(const std::string& outputPath)
 }
 
 static const int NAVMESHSET_MAGIC = 'M' << 24 | 'S' << 16 | 'E' << 8 | 'T'; //'MSET';
-static const int NAVMESHSET_VERSION = 3;
+static const int NAVMESHSET_VERSION = 4;
+
+enum NavMeshFileFlags {
+	FLAG_COMPRESSED = 0x0001
+};
 
 struct NavMeshSetHeader
 {
-	int magic;
-	int version;
-	int numTiles;
-	dtNavMeshParams params;
+	uint32_t magic;
+	uint16_t version;
+	uint16_t flags;
 };
 
-struct NavMeshTileHeader
+void ToProto(nav::vector3* out_proto, const glm::vec3& v3)
 {
-	dtTileRef tileRef;
-	int dataSize;
-};
+	out_proto->set_x(v3.x);
+	out_proto->set_y(v3.y);
+	out_proto->set_x(v3.z);
+}
 
-
-void NavMeshTool::saveAll(const char* path, const dtNavMesh* mesh)
+void ToProto(nav::dtNavMeshParams* out_proto, const dtNavMeshParams* params)
 {
+	out_proto->set_tile_width(params->tileWidth);
+	out_proto->set_tile_height(params->tileHeight);
+	out_proto->set_max_tiles(params->maxTiles);
+	out_proto->set_max_polys(params->maxPolys);
+	ToProto(out_proto->mutable_origin(), glm::make_vec3(params->orig));
+}
+
+void ToProto(google::protobuf::RepeatedPtrField<nav::NavMeshTile>* tiles, const dtNavMesh* mesh)
+{
+	for (int i = 0; i < mesh->getMaxTiles(); ++i)
+	{
+		const dtMeshTile* tile = mesh->getTile(i);
+		if (!tile || !tile->header || !tile->dataSize) continue;
+
+		nav::NavMeshTile* ptile = tiles->Add();
+		ptile->set_tile_ref(mesh->getTileRef(tile));
+		ptile->set_tile_data(tile->data, tile->dataSize);
+	}
+}
+
+void ToProto(nav::BuildSettings* out_proto, const NavMeshConfig& config)
+{
+	out_proto->set_config_version(config.configVersion);
+	out_proto->set_tile_size(config.tileSize);
+	out_proto->set_cell_size(config.cellSize);
+	out_proto->set_cell_height(config.cellHeight);
+	out_proto->set_agent_height(config.agentHeight);
+	out_proto->set_agent_radius(config.agentRadius);
+	out_proto->set_agent_max_climb(config.agentMaxClimb);
+	out_proto->set_agent_max_slope(config.agentMaxSlope);
+	out_proto->set_region_min_size(config.regionMinSize);
+	out_proto->set_region_merge_size(config.regionMergeSize);
+	out_proto->set_edge_max_len(config.edgeMaxLen);
+	out_proto->set_edge_max_error(config.edgeMaxError);
+	out_proto->set_verts_per_poly(config.vertsPerPoly);
+	out_proto->set_detail_sample_dist(config.detailSampleDist);
+	out_proto->set_detail_sample_max_error(config.detailSampleMaxError);
+	out_proto->set_partition_type(static_cast<int>(config.partitionType));
+}
+
+static void compress_memory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data)
+{
+	std::vector<uint8_t> buffer;
+
+	const size_t BUFSIZE = 128 * 1024;
+	uint8_t temp_buffer[BUFSIZE];
+
+	z_stream strm;
+	strm.zalloc = 0;
+	strm.zfree = 0;
+	strm.next_in = reinterpret_cast<uint8_t *>(in_data);
+	strm.avail_in = in_data_size;
+	strm.next_out = temp_buffer;
+	strm.avail_out = BUFSIZE;
+
+	deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+
+	while (strm.avail_in != 0)
+	{
+		int res = deflate(&strm, Z_NO_FLUSH);
+		assert(res == Z_OK);
+		if (strm.avail_out == 0)
+		{
+			buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
+			strm.next_out = temp_buffer;
+			strm.avail_out = BUFSIZE;
+		}
+	}
+
+	int deflate_res = Z_OK;
+	while (deflate_res == Z_OK)
+	{
+		if (strm.avail_out == 0)
+		{
+			buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
+			strm.next_out = temp_buffer;
+			strm.avail_out = BUFSIZE;
+		}
+		deflate_res = deflate(&strm, Z_FINISH);
+	}
+
+	assert(deflate_res == Z_STREAM_END);
+	buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE - strm.avail_out);
+	deflateEnd(&strm);
+
+	out_data.swap(buffer);
+}
+
+// version of the navmesh data
+static const int NAVMESH_COMPAT_VERSION = 1;
+
+void NavMeshTool::SaveMesh(const std::string& shortName, const std::string& outputPath)
+{
+	const dtNavMesh* mesh = m_navMesh.get();
 	if (!mesh) return;
+	if (!m_geom) return;
 
-	FILE* fp = fopen(path, "wb");
-	if (!fp)
+	std::fstream outfile(outputPath.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
+	if (!outfile.is_open())
 		return;
+
+	bool compress = true;
+
+	// Build the NavMeshFile proto
+
+	nav::NavMeshFile file_proto;
+	file_proto.set_zone_short_name(shortName);
+
+	// save the navmesh data
+	nav::NavMeshTileSet* tileset = file_proto.mutable_tile_set();
+	tileset->set_compatibility_version(NAVMESH_COMPAT_VERSION);
+	ToProto(tileset->mutable_mesh_params(), mesh->getParams());
+	ToProto(tileset->mutable_tiles(), mesh);
+	
+	// save build settings
+	ToProto(file_proto.mutable_build_settings(), m_config);
+	ToProto(file_proto.mutable_build_settings()->mutable_bounds_min(), m_geom->getMeshBoundsMin());
+	ToProto(file_proto.mutable_build_settings()->mutable_bounds_max(), m_geom->getMeshBoundsMax());
+
+	// todo: save convex volumes
+	// todo: save offmesh connections
+	// todo: save area definitions
 
 	// Store header.
 	NavMeshSetHeader header;
 	header.magic = NAVMESHSET_MAGIC;
 	header.version = NAVMESHSET_VERSION;
-	header.numTiles = 0;
-	for (int i = 0; i < mesh->getMaxTiles(); ++i)
+	header.flags = 0;
+
+	if (compress) header.flags |= FLAG_COMPRESSED;
+
+	outfile.write((const char*)&header, sizeof(NavMeshSetHeader));
+
+	if (compress)
 	{
-		const dtMeshTile* tile = mesh->getTile(i);
-		if (!tile || !tile->header || !tile->dataSize) continue;
-		header.numTiles++;
+		std::string buffer;
+		file_proto.SerializeToString(&buffer);
+
+		std::vector<uint8_t> data;
+		compress_memory(&buffer[0], buffer.length(), data);
+
+		outfile.write((const char*)&data[0], data.size());
 	}
-	memcpy(&header.params, mesh->getParams(), sizeof(dtNavMeshParams));
-	fwrite(&header, sizeof(NavMeshSetHeader), 1, fp);
-
-	// Store tiles.
-	for (int i = 0; i < mesh->getMaxTiles(); ++i)
+	else
 	{
-		const dtMeshTile* tile = mesh->getTile(i);
-		if (!tile || !tile->header || !tile->dataSize) continue;
-
-		NavMeshTileHeader tileHeader;
-		tileHeader.tileRef = mesh->getTileRef(tile);
-		tileHeader.dataSize = tile->dataSize;
-		fwrite(&tileHeader, sizeof(tileHeader), 1, fp);
-
-		fwrite(tile->data, tile->dataSize, 1, fp);
+		file_proto.SerializeToOstream(&outfile);
 	}
 
-	// todo: save params
-
-	// todo: save convex volumes
-
-	fclose(fp);
+	outfile.close();
 }
-
 
 dtNavMesh* NavMeshTool::loadAll(const char* path)
 {
+	return 0;
+#if 0
 	FILE* fp = fopen(path, "rb");
 	if (!fp) return 0;
 
@@ -206,6 +322,7 @@ dtNavMesh* NavMeshTool::loadAll(const char* path)
 	fclose(fp);
 
 	return mesh;
+#endif
 }
 
 
@@ -1097,7 +1214,8 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 	// (Optional) Mark areas.
 	const ConvexVolume* vols = m_geom->getConvexVolumes();
 	for (int i = 0; i < m_geom->getConvexVolumeCount(); ++i)
-		rcMarkConvexPolyArea(m_ctx, &vols[i].verts[0][0], vols[i].nverts, vols[i].hmin, vols[i].hmax, (unsigned char)vols[i].area, *chf);
+		rcMarkConvexPolyArea(m_ctx, &vols[i].verts[0][0], vols[i].nverts,
+			vols[i].hmin, vols[i].hmax, (uint8_t)vols[i].area, *chf);
 
 
 	// Partition the heightfield so that we can use simple algorithm later to triangulate the walkable areas.

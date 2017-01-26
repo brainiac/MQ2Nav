@@ -735,7 +735,7 @@ void Application::SaveMesh()
 
 	std::string meshFilename = GetMeshFilename();
 
-	m_mesh->SaveMesh(meshFilename);
+	m_mesh->SaveMesh(m_zoneShortname, meshFilename);
 }
 
 void Application::ShowSettingsDialog()
@@ -918,7 +918,7 @@ void Application::ResetCamera()
 std::string Application::GetMeshFilename()
 {
 	std::stringstream ss;
-	ss << m_eqConfig.GetOutputPath() << "\\MQ2Nav\\" << m_zoneShortname << ".bin";
+	ss << m_eqConfig.GetOutputPath() << "\\MQ2Nav\\" << m_zoneShortname << ".navmesh";
 
 	return ss.str();
 }

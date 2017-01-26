@@ -62,16 +62,13 @@
     <ClCompile Include="Utilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="NavMeshFile.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NavMeshTool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="proto\navmesh_file.pb.cc">
+    <ClCompile Include="proto\NavMeshFile.pb.cc">
       <Filter>Proto Files\generated files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -121,16 +118,13 @@
     <ClInclude Include="NavMeshData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NavMeshFile.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Application.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="NavMeshTool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="proto\navmesh_file.pb.h">
+    <ClInclude Include="proto\NavMeshFile.pb.h">
       <Filter>Proto Files\generated files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -156,7 +150,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProtocolBuffer Include="proto\navmesh_file.proto">
+    <ProtocolBuffer Include="proto\NavMeshFile.proto">
       <Filter>Proto Files</Filter>
     </ProtocolBuffer>
   </ItemGroup>

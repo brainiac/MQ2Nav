@@ -34,9 +34,9 @@ namespace PolyArea { enum Enum : uint8_t
 
 enum struct PartitionType : uint32_t
 {
-	WATERSHED,
-	MONOTONE,
-	LAYERS,
+	WATERSHED = 0,
+	MONOTONE = 1,
+	LAYERS = 2,
 };
 
 struct NavMeshConfig

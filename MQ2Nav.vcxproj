@@ -89,7 +89,6 @@ XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ClInclude Include="ImGuiDX9.h" />
     <ClInclude Include="MQ2Navigation.h" />
     <ClInclude Include="MQ2Nav_Hooks.h" />
-    <ClInclude Include="NavMeshData.h" />
     <ClInclude Include="UiController.h" />
     <ClInclude Include="NavMeshLoader.h" />
     <ClInclude Include="NavigationPath.h" />

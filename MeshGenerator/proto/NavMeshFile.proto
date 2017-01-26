@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package nav;
+
+// This describes the binary format of the navmesh file.
+
+message vector3
+{
+	float x = 1;
+	float y = 2;
+	float z = 3;
+}
+
+message dtNavMeshParams
+{
+	// The world space origin of the navigation mesh's tile space.
+	vector3 origin = 1;
+
+	// The width of each tile (along the x-axis).
+	float tile_width = 2;
+
+	// The height of each tile (along the z-axis).
+	float tile_height = 3;
+
+	// The maximum number of tiles the navigation mesh can contain.
+	int32 max_tiles = 4;
+
+	// The maximum number of polygons each tile can contain.
+	int32 max_polys = 5;
+}
+
+message NavMeshTile
+{
+	uint64 tile_ref = 1;
+
+	bytes tile_data = 2;
+}
+
+message NavMeshTileSet
+{
+	int32 compatibility_version = 1;
+
+	dtNavMeshParams mesh_params = 2;
+
+	repeated NavMeshTile tiles = 3;
+}
+
+message BuildSettings
+{
+	// size of the tiles in voxels
+	float tile_size = 1;
+
+	// cell size in world units
+	float cell_size = 2;
+
+	// cell height in world units
+	float cell_height = 3;
+
+	// agent height in world units
+	float agent_height = 4;
+
+	// agent radius in world units
+	float agent_radius = 5;
+
+	// agent max climb in world units
+	float agent_max_climb = 6;
+
+	// agent max slope in degrees
+	float agent_max_slope = 7;
+
+	// region minimum size in voxels
+	float region_min_size = 8;
+
+	// region merge size in voxels
+	float region_merge_size = 9;
+
+	// edge max length in world units
+	float edge_max_len = 10;
+
+	// edge max error in voxels
+	float edge_max_error = 11;
+
+	float verts_per_poly = 12;
+
+	// detail sample distance in voxels
+	float detail_sample_dist = 13;
+
+	// detail sample max error in voxel heights
+	float detail_sample_max_error = 14;
+
+	// partition type, see PartitionType
+	int32 partition_type = 15;
+
+	// bounds of the mesh area
+	vector3 bounds_min = 16;
+	vector3 bounds_max = 17;
+
+	int32 config_version = 18;
+}
+
+message ConvexVolume
+{
+	// the type of area this volume creates
+	int32 area_type = 1;
+
+	// min and max height
+	float height_min = 2;
+	float height_max = 3;
+
+	// the list of points that create the volume
+	repeated vector3 vertices = 4;
+}
+
+message NavMeshFile
+{
+	// name of the zone that this mesh is for
+	string zone_short_name = 1;
+
+	// the actual nav mesh and its tiles
+	NavMeshTileSet tile_set = 2;
+
+	// the configuration used to generate the mesh
+	BuildSettings build_settings = 3;
+
+	// convex volumes
+	repeated ConvexVolume convex_volumes = 4;
+}

@@ -85,7 +85,7 @@ public:
 
 	void setContext(BuildContext* ctx) { m_ctx = ctx; }
 
-	void SaveMesh(const std::string& outputPath);
+	void SaveMesh(const std::string& shortName, const std::string& outputPath);
 	bool LoadMesh(const std::string& outputPath);
 
 	void ResetMesh();

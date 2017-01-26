@@ -21,7 +21,6 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
     <ClCompile Include="NavMeshTool.cpp" />
-    <ClCompile Include="NavMeshFile.cpp" />
     <ClCompile Include="NavMeshPruneTool.cpp" />
     <ClCompile Include="NavMeshTesterTool.cpp" />
     <ClCompile Include="NavMeshTileTool.cpp" />
@@ -29,7 +28,7 @@
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="proto\navmesh_file.pb.cc" />
+    <ClCompile Include="proto\NavMeshFile.pb.cc" />
     <ClCompile Include="Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -43,13 +42,12 @@
     <ClInclude Include="MapGeometryLoader.h" />
     <ClInclude Include="NavMeshTool.h" />
     <ClInclude Include="NavMeshData.h" />
-    <ClInclude Include="NavMeshFile.h" />
     <ClInclude Include="NavMeshPruneTool.h" />
     <ClInclude Include="NavMeshTesterTool.h" />
     <ClInclude Include="NavMeshTileTool.h" />
     <ClInclude Include="OffMeshConnectionTool.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="proto\navmesh_file.pb.h" />
+    <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Utilities.h" />
   </ItemGroup>
@@ -88,7 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <ProtocolBuffer Include="proto\navmesh_file.proto">
+    <ProtocolBuffer Include="proto\NavMeshFile.proto">
       <FileType>Document</FileType>
     </ProtocolBuffer>
   </ItemGroup>
