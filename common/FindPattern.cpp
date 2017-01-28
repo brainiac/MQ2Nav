@@ -1,3 +1,6 @@
+//
+// FindPattern.cpp
+//
 
 // originally created by: radioactiveman/bunny771/(dom1n1k?)  ------------------------------------------
 inline bool DataCompare(const unsigned char* pData, const unsigned char* bMask, const char* szMask)

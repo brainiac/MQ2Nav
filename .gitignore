@@ -4,15 +4,15 @@
 *.sdf
 *.exe
 *.opensdf
-Intermediate/
-Release/
-Debug/
 .vs/
 *.pdb
 *.suo
 *.user
 *.aps
 
+ipch/
+build/
+dependencies/protobuf/out
 packages/
 *.opendb
 Thumbs.db

@@ -42,12 +42,12 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)$(Configuration)\lib\</OutDir>
-    <IntDir>$(ProjectDir)..\Intermediate\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>$(ProjectDir)..\build\$(Configuration)\lib\</OutDir>
+    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IntDir>$(ProjectDir)..\Intermediate\$(Configuration)\$(ProjectName)\</IntDir>
-    <OutDir>$(SolutionDir)$(Configuration)\lib\</OutDir>
+    <OutDir>$(ProjectDir)..\build\$(Configuration)\lib\</OutDir>
+    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -81,19 +81,28 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="enum.h" />
+    <ClInclude Include="Enum.h" />
     <ClInclude Include="FindPattern.h" />
+    <ClInclude Include="NavMeshData.h" />
+    <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="Signal.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="ZoneData.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FindPattern.cpp" />
+    <ClCompile Include="proto\NavMeshFile.pb.cc" />
     <ClCompile Include="Utilities.cpp" />
     <ClCompile Include="ZoneData.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="..\packages.config" />
+    <ProtocolBuffer Include="proto\NavMeshFile.proto">
+      <FileType>Document</FileType>
+    </ProtocolBuffer>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\dependencies\glm\util\glm.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
@@ -109,4 +118,10 @@
     <Error Condition="!Exists('..\..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets'))" />
     <Error Condition="!Exists('..\..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets'))" />
   </Target>
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\dependencies\projects\protobuf.targets" />
+  </ImportGroup>
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="..\dependencies\projects\protobuf.props" />
+  </ImportGroup>
 </Project>

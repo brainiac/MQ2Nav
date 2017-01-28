@@ -1,3 +1,7 @@
+//
+// FindPattern.h
+//
+
 
 // Find an address that matches the given pattern/mask, starting at the given dwAddress.
 unsigned long FindPattern(unsigned long dwAddress, unsigned long dwLen, const unsigned char* bMask, const char* szMask);

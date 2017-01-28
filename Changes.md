@@ -2,7 +2,7 @@ MQ2Nav Changelog
 ================
 
 
-2.0.1
+1.1.0
 -----
 *NOTE* This version is not compatible with navmeshes made with previous versions. You will need to rebuild your meshes!
 
@@ -24,7 +24,7 @@ MQ2Nav Changelog
 * Improvements to how the active navigation path line is rendered.
 
 
-2.0.0
+1.0.0
 -----
 
 Initial Version of change log, started recording changes after this point!

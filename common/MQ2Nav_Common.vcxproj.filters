@@ -13,11 +13,14 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Proto Files">
+      <UniqueIdentifier>{e2cdbe3f-757f-43ac-b731-ecfec4ad56a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Proto Files\Generated Files">
+      <UniqueIdentifier>{99cd0bff-a60e-4967-ac60-e29b97046a0a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="enum.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ZoneData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -28,6 +31,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\NavMeshFile.pb.h">
+      <Filter>Proto Files\Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMeshData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Enum.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -41,8 +53,19 @@
     <ClCompile Include="Utilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="proto\NavMeshFile.pb.cc">
+      <Filter>Proto Files\Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="..\packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\dependencies\glm\util\glm.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProtocolBuffer Include="proto\NavMeshFile.proto">
+      <Filter>Proto Files</Filter>
+    </ProtocolBuffer>
   </ItemGroup>
 </Project>

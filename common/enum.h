@@ -1,5 +1,5 @@
 //
-// enum.h
+// Enum.h
 //
 
 #pragma once

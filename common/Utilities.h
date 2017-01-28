@@ -1,4 +1,7 @@
-﻿
+﻿//
+// Utilities.h
+//
+
 #pragma once
 
 // misc. utilities to help out here and there
