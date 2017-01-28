@@ -722,7 +722,8 @@ void Application::OpenMesh()
 		return;
 
 	std::string meshFilename = GetMeshFilename();
-	if (!m_mesh->LoadMesh(meshFilename))
+
+	if (!m_mesh->LoadMesh(m_zoneShortname, meshFilename))
 	{
 		m_showFailedToOpenDialog = true;
 	}

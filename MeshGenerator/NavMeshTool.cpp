@@ -15,9 +15,10 @@
 
 #include <Recast.h>
 #include <RecastDebugDraw.h>
+#include <DetourCommon.h>
+#include <DetourDebugDraw.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshBuilder.h>
-#include <DetourDebugDraw.h>
 
 #include <SDL.h>
 #include <imgui/imgui.h>
@@ -54,32 +55,6 @@ NavMeshTool::~NavMeshTool()
 	delete[] m_outputPath;
 }
 
-bool NavMeshTool::LoadMesh(const std::string& outputPath)
-{
-	dtNavMesh* mesh = loadAll(outputPath.c_str());
-	if (mesh)
-	{
-		setNavMesh(mesh);
-
-		dtStatus status = m_navQuery->init(m_navMesh.get(), MAX_NODES);
-		if (dtStatusFailed(status))
-		{
-			m_ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not init Detour navmesh query");
-			return false;
-		}
-
-		if (m_tool)
-		{
-			m_tool->init(this);
-		}
-		initToolStates();
-
-		return true;
-	}
-
-	return false;
-}
-
 static const int NAVMESHSET_MAGIC = 'M' << 24 | 'S' << 16 | 'E' << 8 | 'T'; //'MSET';
 static const int NAVMESHSET_VERSION = 4;
 
@@ -87,7 +62,7 @@ enum NavMeshFileFlags {
 	FLAG_COMPRESSED = 0x0001
 };
 
-struct NavMeshSetHeader
+struct MeshfileHeader
 {
 	uint32_t magic;
 	uint16_t version;
@@ -98,7 +73,7 @@ void ToProto(nav::vector3* out_proto, const glm::vec3& v3)
 {
 	out_proto->set_x(v3.x);
 	out_proto->set_y(v3.y);
-	out_proto->set_x(v3.z);
+	out_proto->set_z(v3.z);
 }
 
 void ToProto(nav::dtNavMeshParams* out_proto, const dtNavMeshParams* params)
@@ -143,7 +118,7 @@ void ToProto(nav::BuildSettings* out_proto, const NavMeshConfig& config)
 	out_proto->set_partition_type(static_cast<int>(config.partitionType));
 }
 
-static void compress_memory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data)
+static bool compress_memory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data)
 {
 	std::vector<uint8_t> buffer;
 
@@ -163,7 +138,9 @@ static void compress_memory(void* in_data, size_t in_data_size, std::vector<uint
 	while (strm.avail_in != 0)
 	{
 		int res = deflate(&strm, Z_NO_FLUSH);
-		assert(res == Z_OK);
+		if (res != Z_OK)
+			return false;
+
 		if (strm.avail_out == 0)
 		{
 			buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
@@ -184,11 +161,51 @@ static void compress_memory(void* in_data, size_t in_data_size, std::vector<uint
 		deflate_res = deflate(&strm, Z_FINISH);
 	}
 
-	assert(deflate_res == Z_STREAM_END);
+	if (deflate_res != Z_STREAM_END)
+		return false;
+
 	buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE - strm.avail_out);
 	deflateEnd(&strm);
 
 	out_data.swap(buffer);
+	return true;
+}
+
+static bool decompress_memory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data)
+{
+	z_stream zs; // z_stream is zlib's control structure
+	memset(&zs, 0, sizeof(zs));
+
+	if (inflateInit(&zs) != Z_OK)
+		return false;
+
+	zs.next_in = (Bytef*)in_data;
+	zs.avail_in = in_data_size;
+
+	int ret;
+	const size_t BUFSIZE = 128 * 1024;
+	uint8_t temp_buffer[BUFSIZE];
+	std::vector<uint8_t> buffer;
+
+	// get the decompressed bytes blockwise using repeated calls to inflate
+	do {
+		zs.next_out = reinterpret_cast<Bytef*>(temp_buffer);
+		zs.avail_out = BUFSIZE;
+
+		ret = inflate(&zs, 0);
+
+		if (buffer.size() < zs.total_out) {
+			buffer.insert(buffer.end(), temp_buffer, temp_buffer + zs.total_out - buffer.size());
+		}
+
+	} while (ret == Z_OK);
+
+	inflateEnd(&zs);
+
+	if (ret != Z_STREAM_END) return false;
+
+	out_data.swap(buffer);
+	return true;
 }
 
 // version of the navmesh data
@@ -200,7 +217,7 @@ void NavMeshTool::SaveMesh(const std::string& shortName, const std::string& outp
 	if (!mesh) return;
 	if (!m_geom) return;
 
-	std::fstream outfile(outputPath.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
+	std::ofstream outfile(outputPath.c_str(), std::ios::binary | std::ios::trunc);
 	if (!outfile.is_open())
 		return;
 
@@ -227,14 +244,14 @@ void NavMeshTool::SaveMesh(const std::string& shortName, const std::string& outp
 	// todo: save area definitions
 
 	// Store header.
-	NavMeshSetHeader header;
+	MeshfileHeader header;
 	header.magic = NAVMESHSET_MAGIC;
 	header.version = NAVMESHSET_VERSION;
 	header.flags = 0;
 
 	if (compress) header.flags |= FLAG_COMPRESSED;
 
-	outfile.write((const char*)&header, sizeof(NavMeshSetHeader));
+	outfile.write((const char*)&header, sizeof(MeshfileHeader));
 
 	if (compress)
 	{
@@ -254,75 +271,192 @@ void NavMeshTool::SaveMesh(const std::string& shortName, const std::string& outp
 	outfile.close();
 }
 
-dtNavMesh* NavMeshTool::loadAll(const char* path)
+void FromProto(const nav::vector3& in_proto, glm::vec3& out_vec)
 {
-	return 0;
-#if 0
-	FILE* fp = fopen(path, "rb");
-	if (!fp) return 0;
+	out_vec = glm::vec3{
+		in_proto.x(),
+		in_proto.y(),
+		in_proto.z()
+	};
+}
 
-	// Read header.
-	NavMeshSetHeader header;
-	size_t readLen = fread(&header, sizeof(NavMeshSetHeader), 1, fp);
-	if (readLen != 1)
+void FromProto(const nav::dtNavMeshParams& proto, dtNavMeshParams& out_params)
+{
+	out_params.tileWidth = proto.tile_width();
+	out_params.tileHeight = proto.tile_height();
+	out_params.maxTiles = proto.max_tiles();
+	out_params.maxPolys = proto.max_polys();
+
+	glm::vec3 orig;
+	FromProto(proto.origin(), orig);
+	dtVcopy(out_params.orig, glm::value_ptr(orig));
+}
+
+void FromProto(const nav::BuildSettings& proto, NavMeshConfig& config)
+{
+	// compare ?
+	//config.configVersion = proto.config_version();
+
+	config.tileSize = proto.tile_size();
+	config.cellSize = proto.cell_size();
+	config.cellHeight = proto.cell_height();
+	config.agentHeight = proto.agent_height();
+	config.agentRadius = proto.agent_radius();
+	config.agentMaxClimb = proto.agent_max_climb();
+	config.agentMaxSlope = proto.agent_max_slope();
+	config.regionMinSize = proto.region_min_size();
+	config.regionMergeSize = proto.region_merge_size();
+	config.edgeMaxLen = proto.edge_max_len();
+	config.edgeMaxError = proto.edge_max_error();
+	config.vertsPerPoly = proto.verts_per_poly();
+	config.detailSampleDist = proto.detail_sample_dist();
+	config.detailSampleMaxError = proto.detail_sample_max_error();
+	config.partitionType = static_cast<PartitionType>(proto.partition_type());
+}
+
+bool NavMeshTool::LoadMesh(const std::string& shortName, const std::string& inputPath)
+{
+	if (!m_geom) return false;
+
+	std::ifstream infile(inputPath.c_str(), std::ios::binary);
+	if (!infile.is_open())
+		return false;
+
+	// read header
+	MeshfileHeader fileHeader;
+	if (!infile.read((char*)&fileHeader, sizeof(MeshfileHeader)))
+		return false; // failed to read header
+
+	if (fileHeader.magic != NAVMESHSET_MAGIC)
 	{
-		fclose(fp);
-		return 0;
-	}
-	if (header.magic != NAVMESHSET_MAGIC)
-	{
-		fclose(fp);
-		return 0;
-	}
-	if (header.version != NAVMESHSET_VERSION)
-	{
-		fclose(fp);
-		return 0;
-	}
-
-	dtNavMesh* mesh = dtAllocNavMesh();
-	if (!mesh)
-	{
-		fclose(fp);
-		return 0;
-	}
-	dtStatus status = mesh->init(&header.params);
-	if (dtStatusFailed(status))
-	{
-		fclose(fp);
-		return 0;
-	}
-
-	// Read tiles.
-	for (int i = 0; i < header.numTiles; ++i)
-	{
-		NavMeshTileHeader tileHeader;
-		readLen = fread(&tileHeader, sizeof(tileHeader), 1, fp);
-		if (readLen != 1)
-			return 0;
-
-		if (!tileHeader.tileRef || !tileHeader.dataSize)
-			break;
-
-		unsigned char* data = (unsigned char*)dtAlloc(tileHeader.dataSize, DT_ALLOC_PERM);
-		if (!data) break;
-		memset(data, 0, tileHeader.dataSize);
-		readLen = fread(data, tileHeader.dataSize, 1, fp);
-		if (readLen != 1)
-			return 0;
-
-		dtMeshHeader* header = (dtMeshHeader*)data;
-
-		dtStatus status = mesh->addTile(data, tileHeader.dataSize, DT_TILE_FREE_DATA, tileHeader.tileRef, 0);
-
-		m_ctx->log(RC_LOG_PROGRESS, "Read Tile: %d, %d (%d) = %d\n", header->x,
-			header->y, header->layer, status);
+		m_ctx->log(RC_LOG_ERROR, "loadMesh: mesh file is not a valid mesh file");
+		return false;
 	}
 
-	fclose(fp);
+	if (fileHeader.version != NAVMESHSET_VERSION)
+	{
+		m_ctx->log(RC_LOG_ERROR, "loadMesh: mesh file has an incompatible version number");
+		return false;
+	}
 
-	return mesh;
-#endif
+	bool compressed = (fileHeader.flags | FLAG_COMPRESSED) != 0;
+
+	nav::NavMeshFile file_proto;
+
+	if (compressed)
+	{
+		std::string compressedBuffer;
+
+		std::streampos pos = infile.tellg();
+		infile.seekg(0, std::ios::end);
+		compressedBuffer.reserve((size_t)infile.tellg());
+		infile.seekg(pos, std::ios::beg);
+
+		compressedBuffer.assign((std::istreambuf_iterator<char>(infile)),
+			std::istreambuf_iterator<char>());
+
+		std::vector<uint8_t> data;
+		if (!decompress_memory(&compressedBuffer[0], compressedBuffer.size(), data))
+		{
+			m_ctx->log(RC_LOG_ERROR, "loadMesh: failed to decompress mesh file");
+			return false;
+		}
+
+		if (!file_proto.ParseFromArray(&data[0], data.size()))
+		{
+			m_ctx->log(RC_LOG_ERROR, "loadMesh: failed to parse mesh file");
+			return false;
+		}
+	}
+	else
+	{
+		if (!file_proto.ParseFromIstream(&infile))
+		{
+			m_ctx->log(RC_LOG_ERROR, "loadMesh: failed to parse mesh file");
+			return false;
+		}
+	}
+
+	if (file_proto.zone_short_name() != shortName)
+	{
+		m_ctx->log(RC_LOG_ERROR, "loadMesh: zone name mismatch! mesh is for '%s'",
+			file_proto.zone_short_name());
+		return false;
+	}
+
+	// read the tileset
+	const nav::NavMeshTileSet& tileset = file_proto.tile_set();
+
+	if (tileset.compatibility_version() == NAVMESH_COMPAT_VERSION)
+	{
+		dtNavMeshParams params;
+		FromProto(tileset.mesh_params(), params);
+
+		deleting_unique_ptr<dtNavMesh> navMesh(dtAllocNavMesh(),
+			[](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
+
+		dtStatus status = navMesh->init(&params);
+		if (status == DT_SUCCESS)
+		{
+			// read the mesh tiles and add them to the navmesh one by one.
+			for (const nav::NavMeshTile& tile : tileset.tiles())
+			{
+				dtTileRef ref = tile.tile_ref();
+				const std::string& tiledata = tile.tile_data();
+
+				if (ref == 0 || tiledata.length() == 0)
+					continue;
+
+				// allocate buffer for the data
+				uint8_t* data = (uint8_t*)dtAlloc(tiledata.length(), DT_ALLOC_PERM);
+				memcpy(data, &tiledata[0], tiledata.length());
+
+				dtMeshHeader* tileheader = (dtMeshHeader*)data;
+
+				dtStatus status = navMesh->addTile(data, tiledata.length(), DT_TILE_FREE_DATA, ref, 0);
+				if (status != DT_SUCCESS)
+				{
+					m_ctx->log(RC_LOG_WARNING, "Failed to read tile: %d, %d (%d) = %d",
+						tileheader->x, tileheader->y, tileheader->layer, status);
+				}
+			}
+
+			m_navMesh = std::move(navMesh);
+
+			dtStatus status = m_navQuery->init(m_navMesh.get(), MAX_NODES);
+			if (dtStatusFailed(status))
+			{
+				m_ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not init Detour navmesh query");
+				return false;
+			}
+		}
+		else
+		{
+			m_ctx->log(RC_LOG_ERROR, "loadMesh: failed to initialize navmesh, will continue loading without tiles.");
+		}
+	}
+	else
+	{
+		m_ctx->log(RC_LOG_WARNING, "loadMesh: navmesh has incompatible structure, will continue loading without tiles.");
+	}
+
+	// load build settings
+	FromProto(file_proto.build_settings(), m_config);
+
+	glm::vec3 bmin, bmax;
+	FromProto(file_proto.build_settings().bounds_min(), bmin);
+	FromProto(file_proto.build_settings().bounds_max(), bmax);
+
+	m_geom->setMeshBoundsMin(bmin);
+	m_geom->setMeshBoundsMax(bmax);
+
+	if (m_tool)
+	{
+		m_tool->init(this);
+	}
+	initToolStates();
+
+	return true;
 }
 
 
@@ -396,6 +530,11 @@ void NavMeshTool::handleSettings()
 #endif
 		ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, m_tilesWidth, m_tilesHeight);
 
+		ImGui::SameLine(ImGui::GetContentRegionAvailWidth() - 100);
+		if (ImGuiEx::ColoredButton("Reset Settings", ImVec2(100, 0), 0.0))
+		{
+			m_config = NavMeshConfig{};
+		}
 
 		if (ImGui::TreeNodeEx("Tiling", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
 
@@ -427,7 +566,8 @@ void NavMeshTool::handleSettings()
 			m_geom->setMeshBoundsMin(min);
 			m_geom->setMeshBoundsMax(max);
 
-			if (ImGui::Button("Reset Bounding Box"))
+			ImGui::SetCursorPosX(ImGui::GetContentRegionAvailWidth() - 131);
+			if (ImGuiEx::ColoredButton("Reset Bounding Box", ImVec2(130, 0), 0.0))
 			{
 				m_geom->resetMeshBounds();
 			}

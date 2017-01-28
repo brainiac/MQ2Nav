@@ -23,10 +23,13 @@ namespace ImGui
 
 	bool CollapsingSubHeader(const char* label, bool* p_open, ImGuiTreeNodeFlags flags = 0);
 	bool CollapsingSubHeader(const char* label, ImGuiTreeNodeFlags flags = 0);
+
 }
 
 
 namespace ImGuiEx
 {
 	void SetupImGuiStyle2();
+
+	bool ColoredButton(const char* text, const ImVec2& size, float hue);
 }
