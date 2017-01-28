@@ -44,7 +44,6 @@ static void ClickSwitch(CVector3 pos, EQSwitch* pSwitch)
 	int randclickX = (rand() % 10) - 5;
 	int randclickZ = (rand() % 10) - 5;
 
-	CVector3 click;
 	pos.Y = pos.Y + (randclickY * 0.1);
 	pos.X = pos.X + (randclickX * 0.1);
 	pos.Z = pos.Z + (randclickZ * 0.1);

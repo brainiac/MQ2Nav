@@ -32,13 +32,7 @@
     <ClInclude Include="MQ2Navigation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FindPattern.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MQ2Nav_Hooks.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Signal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RenderList.h">
@@ -63,9 +57,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DebugDrawDX.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ZoneData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="NavigationType.h">
@@ -97,9 +88,6 @@
     <ClCompile Include="MQ2Nav_Settings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FindPattern.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="MQ2Nav_Hooks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -122,9 +110,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ModelLoader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ZoneData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NavigationType.cpp">

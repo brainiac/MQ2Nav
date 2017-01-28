@@ -589,7 +589,7 @@ void NavigationLine::RenderUI()
 	if (ImGui::CollapsingHeader("Navigation Line Debug"))
 	{
 		int size = m_renderPasses.size();
-		if (ImGui::InputInt("Render Passes", &size));
+		if (ImGui::InputInt("Render Passes", &size))
 			m_renderPasses.resize(size);
 
 		for (int i = 0; i < m_renderPasses.size(); ++i)

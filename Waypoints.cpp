@@ -346,7 +346,7 @@ void RenderWaypointsUI()
 		// Bottom of Right Pane
 		//
 
-		if (ColoredButton("Save", ImVec2(60, 0), 0.28))
+		if (ColoredButton("Save", ImVec2(60, 0), 0.28f))
 		{
 			std::string newName = editWaypointName;
 			if (!newName.empty())

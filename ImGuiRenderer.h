@@ -5,7 +5,7 @@
 #pragma once
 
 #include "Renderable.h"
-#include "Signal.h"
+#include "common/Signal.h"
 
 #include <chrono>
 #include <memory>

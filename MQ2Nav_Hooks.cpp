@@ -4,10 +4,10 @@
 
 #include "MQ2Nav_Hooks.h"
 #include "MQ2Navigation.h"
+#include "MQ2Nav_Settings.h"
 #include "ImGuiRenderer.h"
 #include "RenderHandler.h"
-#include "FindPattern.h"
-#include "MQ2Nav_Settings.h"
+#include "common/FindPattern.h"
 
 #include <imgui.h>
 

@@ -7,7 +7,7 @@
 #include "NavModule.h"
 #include "Renderable.h"
 #include "RenderList.h"
-#include "Signal.h"
+#include "common/Signal.h"
 
 #include <d3dx9.h>
 #include <d3d9caps.h>

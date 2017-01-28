@@ -6,8 +6,9 @@
 
 PreSetup("MQ2Nav");
 PLUGIN_VERSION(2.00);
+
 #define PLUGIN_NAME "MQ2Nav"
-#define PLUGIN_VERSION "2.0.1"
+#define MQ2NAV_PLUGIN_VERSION "2.0.1"
 
 #include <chrono>
 #include <memory>
@@ -43,7 +44,7 @@ PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("Initializing MQ2Nav");
 
-	WriteChatf(PLUGIN_MSG "v%s \ay(BETA)\ax by brainiac (\aohttps://github.com/brainiac/MQ2Nav\ax)", PLUGIN_VERSION);
+	WriteChatf(PLUGIN_MSG "v%s \ay(BETA)\ax by brainiac (\aohttps://github.com/brainiac/MQ2Nav\ax)", MQ2NAV_PLUGIN_VERSION);
 
 	// Patch our chrono::system_clock::now() function
 	DetourFunction(reinterpret_cast<PBYTE>(&std::chrono::high_resolution_clock::now),

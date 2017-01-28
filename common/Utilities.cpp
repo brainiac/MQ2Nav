@@ -11,6 +11,8 @@
 #include <SDL.h>
 #include <SDL_OpenGL.h>
 
+#include <stdio.h>
+
 ImFont* ImGuiEx::DefaultFont = nullptr;
 ImFont* ImGuiEx::ConsoleFont = nullptr;
 

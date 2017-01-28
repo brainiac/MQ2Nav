@@ -11,7 +11,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\ZoneData.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="EQConfig.cpp" />
@@ -27,12 +26,11 @@
     <ClCompile Include="OffMeshConnectionTool.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="proto\NavMeshFile.pb.cc" />
-    <ClCompile Include="Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\ZoneData.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="EQConfig.h" />
@@ -49,9 +47,11 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="Utilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\common\MQ2Nav_Common.vcxproj">
+      <Project>{45e99b43-f47b-4aad-ac88-f95bf467f463}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\dependencies\imgui\imgui.vcxproj">
       <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
     </ProjectReference>
@@ -131,8 +131,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -145,6 +144,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -160,7 +160,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>

@@ -7,7 +7,7 @@
 #include "MQ2Navigation.h"
 #include "NavModule.h"
 #include "Signal.h"
-#include "ZoneData.h"
+#include "common/ZoneData.h"
 
 #include "dependencies/zone-utilities/common/eqg_loader.h"
 #include "dependencies/zone-utilities/common/s3d_loader.h"

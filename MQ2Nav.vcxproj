@@ -45,7 +45,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <AdditionalIncludeDirectories>dependencies;dependencies\imgui;dependencies\recast\DebugUtils\Include;dependencies\recast\DetourCrowd\Include;dependencies\recast\DetourTileCache\Include;dependencies\recast\Detour\Include;dependencies\glm;dependencies\glm\glm;dependencies\zone-utilities\common;dependencies\zone-utilities\log;dependencies\zlib\include;dependencies\dx9\Include;dependencies\rapidjson\include;$(ProjectDir)..</AdditionalIncludeDirectories>
       <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EditAndContinue</DebugInformationFormat>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EnableFastChecks</BasicRuntimeChecks>
@@ -84,7 +84,6 @@ XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugDrawDX.h" />
-    <ClInclude Include="FindPattern.h" />
     <ClInclude Include="ImGuiRenderer.h" />
     <ClInclude Include="ImGuiDX9.h" />
     <ClInclude Include="MQ2Navigation.h" />
@@ -103,11 +102,8 @@ XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ClInclude Include="MQ2Nav_Settings.h" />
     <ClInclude Include="MQ2Nav_Util.h" />
     <ClInclude Include="Waypoints.h" />
-    <ClInclude Include="Signal.h" />
-    <ClInclude Include="ZoneData.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="FindPattern.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
     <ClCompile Include="ImGuiDX9.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
@@ -124,9 +120,11 @@ XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ClCompile Include="MQ2Nav_Settings.cpp" />
     <ClCompile Include="Waypoints.cpp" />
     <ClCompile Include="RenderList.cpp" />
-    <ClCompile Include="ZoneData.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="common\MQ2Nav_Common.vcxproj">
+      <Project>{45e99b43-f47b-4aad-ac88-f95bf467f463}</Project>
+    </ProjectReference>
     <ProjectReference Include="dependencies\imgui\imgui.vcxproj">
       <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
     </ProjectReference>
@@ -149,11 +147,15 @@ XCOPY /y "$(ProjectDir)VolumeLines.fx" "$(OutDir)MQ2Nav"
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\boost.1.63.0.0\build\native\boost.targets" Condition="Exists('..\packages\boost.1.63.0.0\build\native\boost.targets')" />
+    <Import Project="..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets" Condition="Exists('..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets')" />
+    <Import Project="..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets" Condition="Exists('..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\boost.1.63.0.0\build\native\boost.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost.1.63.0.0\build\native\boost.targets'))" />
+    <Error Condition="!Exists('..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets'))" />
+    <Error Condition="!Exists('..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets'))" />
   </Target>
 </Project>

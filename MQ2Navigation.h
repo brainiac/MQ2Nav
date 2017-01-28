@@ -6,7 +6,7 @@
 
 #include "MQ2Plugin.h"
 #include "NavModule.h"
-#include "Signal.h"
+#include "common/Signal.h"
 
 #include <memory>
 #include <chrono>
@@ -14,7 +14,7 @@
 #include <unordered_map>
 
 #define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 #define PLUGIN_MSG "\ag[MQ2Nav]\ax "
 

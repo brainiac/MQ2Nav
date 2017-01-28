@@ -26,7 +26,7 @@
 //----------------------------------------------------------------------------
 
 class NavigationLine;
-class DestinationInfo;
+struct DestinationInfo;
 
 class NavigationPath
 {

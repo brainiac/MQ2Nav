@@ -32,9 +32,6 @@
     <ClCompile Include="EQConfig.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\ZoneData.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ChunkyTriMesh.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -57,9 +54,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NavMeshTileTool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Utilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Application.cpp">
@@ -85,9 +79,6 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\ZoneData.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ChunkyTriMesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -110,9 +101,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="NavMeshTileTool.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="NavMeshData.h">
