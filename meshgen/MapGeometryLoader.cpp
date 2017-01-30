@@ -221,6 +221,11 @@ bool MapGeometryLoader::load()
 		addTriangle(counter, counter + 2, counter + 1);
 	}
 
+	auto isVisible = [](int flags)
+	{
+		return !(flags == 0x01 || flags == 0x10 || flags == 0x11);
+	};
+
 	// Load models
 	for (auto iter : map_models)
 	{
@@ -236,8 +241,10 @@ bool MapGeometryLoader::load()
 
 		for (const auto& poly : model->GetPolygons())
 		{
+			bool visible = isVisible(poly.flags);
+
 			entry->polys.emplace_back(
-				ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x10) == 0 });
+				ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], visible });
 		}
 
 		m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
@@ -258,8 +265,10 @@ bool MapGeometryLoader::load()
 		{
 			// 0x10 = invisible
 			// 0x01 = no collision
+			bool visible = isVisible(poly.flags);
+
 			entry->polys.emplace_back(
-				ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], (poly.flags & 0x11) == 0 });
+				ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], visible });
 		}
 
 		m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
@@ -284,7 +293,7 @@ bool MapGeometryLoader::load()
 			continue;
 
 		// some objects have a really low z, just ignore them.
-		if (obj->GetZ() < -30000)
+		if (obj->GetZ() < -30000 || obj->GetX() > 15000 || obj->GetY() > 15000 || obj->GetZ() > 15000)
 			continue;
 
 		const auto& model = modelIter->second;
@@ -520,7 +529,9 @@ void MapGeometryLoader::LoadDoors()
 
 		for (auto iter = polys.begin(); iter != polys.end(); ++iter)
 		{
-			if (iter->flags & 0x11)
+			bool visible = (iter->flags & 0x11) == 0;
+
+			if (!visible)
 				continue;
 
 			auto& polygon = *iter;
@@ -725,7 +736,7 @@ bool MapGeometryLoader::CompileS3D(
 				v3.pos.x = v3.pos.y;
 				v3.pos.y = t;
 
-				if (current_poly.flags == 0x10)
+				if (current_poly.flags & 0x01)
 					AddFace(v1.pos, v2.pos, v3.pos, false);
 				else
 					AddFace(v1.pos, v2.pos, v3.pos, true);
