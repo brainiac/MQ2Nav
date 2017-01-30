@@ -1,7 +1,7 @@
 MQ2Nav
 ======
 
-![build status](https://ci.appveyor.com/api/projects/status/github/brainiac/MQ2Nav?svg=true)
+[![build status](https://ci.appveyor.com/api/projects/status/github/brainiac/MQ2Nav?svg=true)](https://ci.appveyor.com/project/brainiac/mq2nav)
 
 **This plugin is a work in progress!!**
 
