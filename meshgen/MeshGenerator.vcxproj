@@ -82,7 +82,7 @@
     <ResourceCompile Include="MeshGenerator.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\packages.config" />
+    <None Include="packages.config" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0F4E974D-3E48-44F0-945E-90C97E1E254D}</ProjectGuid>

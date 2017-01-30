@@ -84,7 +84,7 @@ XCOPY /y "$(ProjectDir)..\resources\VolumeLines.fx" "$(OutDir)MQ2Nav"
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="..\packages.config" />
+    <None Include="packages.config" />
     <None Include="..\resources\Zones.ini" />
     <None Include="..\resources\DoorAdjustments.txt" />
   </ItemGroup>
