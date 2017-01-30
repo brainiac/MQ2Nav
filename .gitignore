@@ -15,9 +15,9 @@ build/
 dependencies/protobuf/out
 packages/
 
-Debug\
-Intermediate\
-Release\
+Debug/
+Intermediate/
+Release/
 
 *.opendb
 Thumbs.db
