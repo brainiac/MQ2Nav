@@ -263,10 +263,10 @@ void RenderInputUI()
 		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
 		if (ImGui::TreeNode("##mouseinfo", "EQ Mouse Info"))
 		{
-			int pos[2] = { EQADDR_MOUSE->X, EQADDR_MOUSE->Y };
+			int pos[2] = { (int)EQADDR_MOUSE->X, (int)EQADDR_MOUSE->Y };
 			ImGui::InputInt2("Pos", pos);
 
-			int speed[2] = { EQADDR_MOUSE->SpeedX, EQADDR_MOUSE->SpeedY };
+			int speed[2] = { (int)EQADDR_MOUSE->SpeedX, (int)EQADDR_MOUSE->SpeedY };
 			ImGui::InputInt2("Speed", speed);
 
 			int scroll = MouseInfo->Scroll;
