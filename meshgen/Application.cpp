@@ -110,7 +110,8 @@ bool Application::InitializeWindow()
 		SDL_VERSION(&wminfo.version);
 		if (SDL_GetWindowWMInfo(m_window, &wminfo) == 1) {
 			HWND hwnd = wminfo.info.win.window;
-			::SetClassLong(hwnd, GCL_HICON, reinterpret_cast<LONG>(icon));
+
+			::SetClassLongPtrA(hwnd, GCLP_HICON, reinterpret_cast<LONG_PTR>(icon));
 		}
 	}
 
@@ -1076,7 +1077,7 @@ int BuildContext::getLogCount() const
 {
 	std::unique_lock<std::mutex> lock(m_mtx);
 
-	return m_logs.size();
+	return (int)m_logs.size();
 }
 
 //----------------------------------------------------------------------------

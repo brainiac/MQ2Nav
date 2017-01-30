@@ -1025,11 +1025,11 @@ struct TabWindowNode  {
     void setName(const char* lbl)  {
         if (name) {ImGui::MemFree(name);name=NULL;}
         const char e = '\0';if (!lbl) lbl=&e;
-        const int sz = strlen(lbl)+1;
+        const int sz = (int)strlen(lbl)+1;
         name = (char*) ImGui::MemAlloc(sz+1);strcpy(name,lbl);
     }
     void assignChildNames(bool recursive=false)  {
-        const int sz = strlen(name)+8;
+        const int sz = (int)strlen(name)+8;
         for (int i=0;i<2;i++) {
             TabWindowNode* ch = child[i];
             if (!ch) continue;
@@ -1075,12 +1075,12 @@ struct TabWindowNode  {
         else {
             for (int i=0;i<tabSize;i++) {
                 TabWindow::TabLabel& tl = *tabs[i];
-                if (tl.getLabel()) s.save(tl.getLabel(),"label",(tl.getModified() && strlen(tl.getLabel())>0) ? (strlen(tl.getLabel())-1) : -1);
-                if (tl.tooltip && strlen(tl.tooltip)>0) s.save(tl.getTooltip(),"tooltip");
+                if (tl.getLabel()) s.save(tl.getLabel(),"label",(tl.getModified() && (int)strlen(tl.getLabel())>0) ? ((int)strlen(tl.getLabel())-1) : -1);
+                if (tl.tooltip && (int)strlen(tl.tooltip)>0) s.save(tl.getTooltip(),"tooltip");
                 s.save(&tl.closable,"closable");
                 s.save(&tl.draggable,"draggable");
                 if (selectedTab==&tl) {bool a = true;s.save(&a,"selected");}
-                if (tl.userText && strlen(tl.userText)>0) s.save(tl.getUserText(),"userText");
+                if (tl.userText && (int)strlen(tl.userText)>0) s.save(tl.getUserText(),"userText");
                 s.save(&tl.userInt,"userInt");
                 s.save(&tl.wndFlags,"wndFlags");
             }
@@ -1610,8 +1610,8 @@ void TabWindowNode::render(const ImVec2 &windowSize, MyTabWindowHelperStruct *pt
                 }
                 else if (dd.draggingTabSrc && dd.draggingTabSrc!=&tab && g.HoveredRootWindow && g.CurrentWindow) {
                     // This code should execute only on a drop AFAIK
-                    const int len1 = strlen(g.HoveredRootWindow->Name);
-                    const int len2 = strlen(g.CurrentWindow->Name);
+                    const int len1 = (int)strlen(g.HoveredRootWindow->Name);
+                    const int len2 = (int)strlen(g.CurrentWindow->Name);
                     if (strncmp(g.HoveredRootWindow->Name,g.CurrentWindow->Name,len1)==0 && (len1<=len2 || g.CurrentWindow->Name[len1]=='.'))    {
                         //fprintf(stderr,"g.HoveredRootWindow=%s g.CurrentWindow=%s\n",g.HoveredRootWindow?g.HoveredRootWindow->Name:"NULL",g.CurrentWindow?g.CurrentWindow->Name:"NULL");
                         dd.draggingTabDst = &tab;
@@ -1889,7 +1889,7 @@ void TabWindow::render()
             const char* match = NULL;
             // Window -----------------
             if (hoveredWindow && hoveredWindow!=dd.draggingTabImGuiWindowSrc
-                    && (hoveredWindowNameSz=strlen(hoveredWindow->Name))>4 &&
+                    && (hoveredWindowNameSz=(int)strlen(hoveredWindow->Name))>4 &&
                     //strcmp(&hoveredWindow->Name[hoveredWindowNameSz-4],"user")==0
                     (match=strstr(hoveredWindow->Name,"user"))
                     //&& strncmp(g.ActiveIdWindow->Name,hoveredWindow->Name,hoveredWindowNameSz-5)!=0 // works for g.ActiveIdWindow or g.FocusedWindow
@@ -2065,7 +2065,7 @@ void TabWindow::render()
             if (hoversInt && HoveredCorrectChildWindow && dd.draggingTabSrc && dd.draggingTabImGuiWindowSrc && dd.draggingTabImGuiWindowSrc!=g.HoveredWindow && dd.draggingTabImGuiWindowSrc!=HoveredCorrectChildWindow)
             {
                 // Drop tab label onto a window portion
-                int nameSz = strlen(HoveredCorrectChildWindow->Name);
+                int nameSz = (int)strlen(HoveredCorrectChildWindow->Name);
                 static const char trailString[] = ".user";
                 static const int trailStringSz = (int) strlen(trailString);
                 IM_ASSERT(nameSz>=trailStringSz);

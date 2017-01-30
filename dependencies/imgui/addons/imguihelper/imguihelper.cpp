@@ -1099,11 +1099,11 @@ bool GetFileContent(const char *filePath, ImVector<char> &contentOut, bool clear
         fclose(f);
         return false;
     }
-    f_data.resize(f_size+(appendTrailingZero?1:0));
+    f_data.resize((int)f_size+(appendTrailingZero?1:0));
     const size_t f_size_read = fread(&f_data[0], 1, f_size, f);
     fclose(f);
     if (f_size_read == 0 || f_size_read!=f_size)    return false;
-    if (appendTrailingZero) f_data[f_size] = '\0';
+    if (appendTrailingZero) f_data[(int)f_size] = '\0';
 //----------------------------------------------------
     return true;
 }
@@ -1276,7 +1276,7 @@ bool Serializer::saveTextLines(const char* pValue,const char* name)   {
     FieldType ft = ImGui::FT_TEXTLINE;
     if (!f || ft==ImGui::FT_COUNT || !pValue || !name || name[0]=='\0') return false;
     const char *tmp;const char *start = pValue;
-    int left = strlen(pValue);int numArrayElements =0;  // numLines
+    int left = (int)strlen(pValue);int numArrayElements =0;  // numLines
     bool endsWithNewLine = pValue[left-1]=='\n';
     while ((tmp=strchr(start, '\n'))) {
         ++numArrayElements;
@@ -1313,17 +1313,17 @@ void StringSet(char *&destText, const char *text, bool allowNullDestText) {
     const char e = '\0';
     if (!text && !allowNullDestText) text=&e;
     if (text)  {
-        const int sz = strlen(text);
+        const int sz = (int)strlen(text);
         destText = (char*) ImGui::MemAlloc(sz+1);strcpy(destText,text);
     }
 }
 void StringAppend(char *&destText, const char *textToAppend, bool allowNullDestText, bool prependLineFeedIfDestTextIsNotEmpty, bool mustAppendLineFeed) {
-    const int textToAppendSz = textToAppend ? strlen(textToAppend) : 0;
+    const int textToAppendSz = textToAppend ? (int)strlen(textToAppend) : 0;
     if (textToAppendSz==0) {
         if (!destText && !allowNullDestText) {destText = (char*) ImGui::MemAlloc(1);strcpy(destText,"");}
         return;
     }
-    const int destTextSz = destText ? strlen(destText) : 0;
+    const int destTextSz = destText ? (int)strlen(destText) : 0;
     const bool mustPrependLF = prependLineFeedIfDestTextIsNotEmpty && (destTextSz>0);
     const bool mustAppendLF = mustAppendLineFeed;// && (destText);
     const int totalTextSz = textToAppendSz + destTextSz + (mustPrependLF?1:0) + (mustAppendLF?1:0);

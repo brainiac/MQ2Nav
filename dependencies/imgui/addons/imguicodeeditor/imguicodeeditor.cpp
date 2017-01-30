@@ -833,7 +833,7 @@ void Lines::SplitText(const char *text, ImVector<Line*> &lines,ImString* pOption
     if (!text) return;
     ImString ln("");char c;unsigned offsetInBytes=0,offsetInUTF8Chars=0;
     unsigned nl_n=0,nl_rn=0,nl_r=0,nl_nr=0;Line* line=NULL;
-    for (int i=0,isz=strlen(text);i<isz;i++)    {
+    for (int i=0,isz= (int)strlen(text);i<isz;i++)    {
 	line = NULL;
         c=text[i];
         if (c=='\n')    {
@@ -998,7 +998,7 @@ class FoldingStringVector : public ImVectorEx<FoldingString> {
         punctuationStringsMerged[0] = '\0';
         resetSHvariables();
     }
-    FoldingStringVector(size_t size) : Base(size) {
+    FoldingStringVector(size_t size) : Base((int)size) {
         mergeAdditionalTrailingCharIfPossible = false;
         additionalTrailingChar = ';';
         punctuationStringsMerged[0] = '\0';
@@ -1011,14 +1011,14 @@ class FoldingStringVector : public ImVectorEx<FoldingString> {
         additionalTrailingChar = _additionalTrailingChar;
         this->reserve(tags.size());
         for (size_t i=0,isz=tags.size();i<isz;i++)  {
-            this->push_back(FoldingString(tags[i]));
+            this->push_back(FoldingString(tags[(int)i]));
         }
         resetSHvariables();
     }
 
     void resetAllTemporaryData()    {
         for (size_t i=0,isz=size();i<isz;i++) {
-            FoldingString& f = (*this)[i];
+            FoldingString& f = (*this)[(int)i];
             f.openCnt = 0;
             f.matchStartBeg=f.matchEndBeg=-1;
             f.curStartCharIndex=f.curEndCharIndex=0;
@@ -1029,7 +1029,7 @@ class FoldingStringVector : public ImVectorEx<FoldingString> {
     void resetTemporaryLineData()
     {
         for (size_t i=0,isz=size();i<isz;i++) {
-            FoldingString& f =(*this)[i];
+            FoldingString& f =(*this)[(int)i];
             f.matchStartBeg=f.matchEndBeg=-1;
             f.curStartCharIndex=f.curEndCharIndex=0;
             f.lookForCustomTitle=false;
@@ -1097,7 +1097,7 @@ class FoldingStringVector : public ImVectorEx<FoldingString> {
 	    strcat(punctuationStringsMerged,punctuationStrings[i]);
 	}
 	// Sort punctuationStringsMerged:
-	const int len = strlen(punctuationStringsMerged);char tmp;
+	const int len = (int)strlen(punctuationStringsMerged);char tmp;
 	for (int i=0;i<len;i++)	{
 	    char& t = punctuationStringsMerged[i];
 	    for (int j=i+1;j<len;j++)	{
@@ -1763,7 +1763,7 @@ Language CodeEditor::GetLanguageFromFilename(const char *filename)
     if (!filename || strlen(filename)==0) return LANG_NONE;
     const char* ext = strrchr(filename,'.');
     if (!ext || strlen(ext)==0) return LANG_NONE;
-    const int ext_len = strlen(ext);
+    const int ext_len = (int)strlen(ext);
     for (int i=0,isz=LANG_COUNT;i<isz;i++)  {
         const int index = gFoldingStringVectorIndices[i];
         if (index<0 || index>=gFoldingStringVectors.size()) continue;
@@ -1774,7 +1774,7 @@ Language CodeEditor::GetLanguageFromFilename(const char *filename)
         //fprintf(stderr,"exts[%d]=\"%s\" (ext=\"%s\") i=%d\n",i,exts,ext,i);
         const char* ex = ext;
         int cnt=0;
-        for (int j=0,jsz=strlen(exts);j<jsz;j++)    {
+        for (int j=0,jsz= (int)strlen(exts);j<jsz;j++)    {
             const char* ch = &exts[j];
             while (*ex++==*ch++) {
                 ++cnt;
@@ -1810,9 +1810,9 @@ bool CodeEditor::load(const char* filename, Language optionalLanguage) {
     const size_t length = ftell(f);
     fseek(f,0,SEEK_SET);
     // TODO: UTF8 BOM here ?
-    text.resize(length+1);
+    text.resize((int)length+1);
     fread((void*) &text[0],length,1,f);
-    text[length]='\0';
+    text[(int)length]='\0';
     fclose(f);
     if (optionalLanguage==LANG_COUNT) {
         optionalLanguage = GetLanguageFromFilename(filename);
@@ -1837,7 +1837,7 @@ void CodeEditor::setText(const char *text, Language _lang) {
                 }
             }
             // replace our punctuation hashmap
-            for (int i=0,isz = strlen(fsv->punctuationStringsMerged);i<isz;i++)  {
+            for (int i=0,isz = (int)strlen(fsv->punctuationStringsMerged);i<isz;i++)  {
                 const char c = fsv->punctuationStringsMerged[i];
                 shTypePunctuationMap.put(c,fsv->punctuationStringsMergedSHMap[i]);
                 //fprintf(stderr,"Putting in shTypePunctuationMap: '%c',%d\n",c,fsv->punctuationStringsMergedSHMap[i]);
@@ -1880,7 +1880,7 @@ void CodeEditor::ParseTextForFolding(bool forceAllSegmentsFoldedOrNot, bool fold
     bool acceptStartMultilineCommentFolding = true;	//internal, do not touch
     Line* line=NULL;
     char ch;const int numLines = lines.size();
-    const int singleLineCommentSize = foldingStrings.singleLineComment ? strlen(foldingStrings.singleLineComment) : 0;
+    const int singleLineCommentSize = foldingStrings.singleLineComment ? (int)strlen(foldingStrings.singleLineComment) : 0;
     int firstValidCharPos = -1;
     for (int i=0;i<numLines; i++) {
         line = lines[i];
@@ -2724,7 +2724,7 @@ void CodeEditor::TextLineUnformattedWithSH(const char* text, const char* text_en
 template <int NUM_TOKENS> inline static const char* FindNextToken(const char* text,const char* text_end,const char* token_start[NUM_TOKENS],const char* token_end[NUM_TOKENS],int* pTokenIndexOut=NULL,const char* optionalStringDelimiters=NULL,const char stringEscapeChar='\\',bool skipEscapeChar=false,bool findNewLineCharToo=false) {
     if (pTokenIndexOut) *pTokenIndexOut=-1;
     const char *pt,*t,*tks,*tke;
-    int optionalStringDelimitersSize = optionalStringDelimiters ? strlen(optionalStringDelimiters) : -1;
+    int optionalStringDelimitersSize = optionalStringDelimiters ? (int)strlen(optionalStringDelimiters) : -1;
     for (const char* p = text;p!=text_end;p++)  {
 	if (token_start)    {
 	    for (int j=0;j<NUM_TOKENS;j++)  {
@@ -2800,7 +2800,7 @@ void CodeEditor::RenderTextLineWrappedWithSH(ImVec2& pos, const char* text, cons
             }
             else if (tki==1) {	// Found "/*"
                 if (tk!=text) RenderTextLineWrappedWithSH(pos,text,tk,true);    // Draw until "/*"
-                const int lenOpenCmn = strlen(startComments[1]);
+                const int lenOpenCmn = (int)strlen(startComments[1]);
                 const char* endCmt = text_end;
                 const char* tk2 = FindNextToken<1>(tk+lenOpenCmn,text_end,&startComments[2],&endComments[2]);	// Look for "*/"
                 if (tk2) endCmt = tk2+strlen(startComments[2]);
@@ -2925,7 +2925,7 @@ void CodeEditor::RenderTextLineWrappedWithSH(ImVec2& pos, const char* text, cons
         }
         s+=offset;
         // Print Token (Syntax highlighting through HashMap here)
-        len_tok = strlen(tok);if (--tokenIsNumber<0) tokenIsNumber=0;
+        len_tok = (int)strlen(tok);if (--tokenIsNumber<0) tokenIsNumber=0;
         if (len_tok>0)  {
             int sht = -1;	// Mandatory assignment
             // Handle special starting tokens
@@ -2997,7 +2997,7 @@ void CodeEditor::RenderTextLineWrappedWithSH(ImVec2& pos, const char* text, cons
 template <int NUM_TOKENS> inline static const char* FindPrevToken(const char* text,const char* text_end,const char* token_start[NUM_TOKENS],const char* token_end[NUM_TOKENS],int* pTokenIndexOut=NULL,const char* optionalStringDelimiters=NULL,const char stringEscapeChar='\\',bool skipEscapeChar=false,bool findNewLineCharToo=false) {
     if (pTokenIndexOut) *pTokenIndexOut=-1;
     const char *pt,*t,*tks,*tke;
-    int optionalStringDelimitersSize = optionalStringDelimiters ? strlen(optionalStringDelimiters) : -1;
+    int optionalStringDelimitersSize = optionalStringDelimiters ? (int)strlen(optionalStringDelimiters) : -1;
     for (const char* p = text_end;p!=text;--p)  {
         if (token_start)    {
             for (int j=0;j<NUM_TOKENS;j++)  {
@@ -3080,7 +3080,7 @@ struct BadCodeEditorData {
                 }
             }
             // replace our punctuation hashmap
-            for (int i=0,isz = strlen(fsv->punctuationStringsMerged);i<isz;i++)  {
+            for (int i=0,isz = (int)strlen(fsv->punctuationStringsMerged);i<isz;i++)  {
                 const char c = fsv->punctuationStringsMerged[i];
                 shTypePunctuationMap.put(c,fsv->punctuationStringsMergedSHMap[i]);
                 //fprintf(stderr,"Putting in shTypePunctuationMap: '%c',%d\n",c,fsv->punctuationStringsMergedSHMap[i]);
@@ -3158,7 +3158,7 @@ static void MyRenderTextLineWrappedWithSH(const BadCodeEditorData& ceData,ImVec2
                 else if (tki==1) {	// Found "/*"
                     ceData.pendingOpenMultilineComment = true;  // correct ?
                     if (tk!=text) MyRenderTextLineWrappedWithSH(ceData,pos,text,tk,true);    // Draw until "/*"
-                    const int lenOpenCmn = strlen(startComments[1]);
+                    const int lenOpenCmn = (int)strlen(startComments[1]);
                     const char* endCmt = text_end;
                     const char* tk2 = FindNextToken<1>(tk+lenOpenCmn,text_end,&startComments[2],&endComments[2]);	// Look for "*/"
                     if (tk2) {
@@ -3304,7 +3304,7 @@ static void MyRenderTextLineWrappedWithSH(const BadCodeEditorData& ceData,ImVec2
         }
         s+=offset;
         // Print Token (Syntax highlighting through HashMap here)
-        len_tok = strlen(tok);if (--tokenIsNumber<0) tokenIsNumber=0;
+        len_tok = (int)strlen(tok);if (--tokenIsNumber<0) tokenIsNumber=0;
         if (len_tok>0)  {
             int sht = -1;	// Mandatory assignment
             // Handle special starting tokens
@@ -3591,8 +3591,8 @@ bool BadCodeEditor(const char* label, char* buf, size_t buf_size,ImGuiCe::Langua
             // Take a copy of the initial buffer value (both in original UTF-8 format and converted to wchar)
             // From the moment we focused we are ignoring the content of 'buf' (unless we are in read-only mode)
             const int prev_len_w = edit_state.CurLenW;
-            edit_state.Text.resize(buf_size+1);        // wchar count <= utf-8 count. we use +1 to make sure that .Data isn't NULL so it doesn't crash.
-            edit_state.InitialText.resize(buf_size+1); // utf-8. we use +1 to make sure that .Data isn't NULL so it doesn't crash.
+            edit_state.Text.resize((int)buf_size+1);        // wchar count <= utf-8 count. we use +1 to make sure that .Data isn't NULL so it doesn't crash.
+            edit_state.InitialText.resize((int)buf_size+1); // utf-8. we use +1 to make sure that .Data isn't NULL so it doesn't crash.
             ImFormatString(edit_state.InitialText.Data, edit_state.InitialText.Size, "%s", buf);
             const char* buf_end = NULL;
             edit_state.CurLenW = ImTextStrFromUtf8(edit_state.Text.Data, edit_state.Text.Size, buf, NULL, &buf_end);
@@ -3635,14 +3635,14 @@ bool BadCodeEditor(const char* label, char* buf, size_t buf_size,ImGuiCe::Langua
         if (!is_editable && !g.ActiveIdIsJustActivated)
         {
             // When read-only we always use the live data passed to the function
-            edit_state.Text.resize(buf_size+1);
+            edit_state.Text.resize((int)buf_size+1);
             const char* buf_end = NULL;
             edit_state.CurLenW = ImTextStrFromUtf8(edit_state.Text.Data, edit_state.Text.Size, buf, NULL, &buf_end);
             edit_state.CurLenA = (int)(buf_end - buf);
             edit_state.CursorClamp();
         }
 
-        edit_state.BufSizeA = buf_size;
+        edit_state.BufSizeA = (int)buf_size;
 
         // Although we are active we don't prevent mouse from hovering other elements unless we are interacting right now with the widget.
         // Down the line we should have a cleaner library-wide concept of Selected vs Active.
@@ -3807,7 +3807,7 @@ bool BadCodeEditor(const char* label, char* buf, size_t buf_size,ImGuiCe::Langua
             // Restore initial value
             if (is_editable)
             {
-                ImFormatString(buf, buf_size, "%s", edit_state.InitialText.Data);
+                ImFormatString(buf, (int)buf_size, "%s", edit_state.InitialText.Data);
                 value_changed = true;
             }
         }
@@ -3894,7 +3894,7 @@ bool BadCodeEditor(const char* label, char* buf, size_t buf_size,ImGuiCe::Langua
             // Copy back to user buffer
             if (is_editable && strcmp(edit_state.TempTextBuffer.Data, buf) != 0)
             {
-                ImFormatString(buf, buf_size, "%s", edit_state.TempTextBuffer.Data);
+                ImFormatString(buf, (int)buf_size, "%s", edit_state.TempTextBuffer.Data);
                 value_changed = true;
             }
         }
@@ -4068,7 +4068,7 @@ bool BadCodeEditor(const char* label, char* buf, size_t buf_size,ImGuiCe::Langua
 		    if (correctlyCheckIfTheFirstVisibleLineIsInAMultilineComment && startComments[0] && startComments[1])  {
 			// More accurate version:
 			const char *nextToken=buf;
-			const int numStringDelimitersChars = langData.stringDelimiterChars ? strlen(langData.stringDelimiterChars) : 0;
+			const int numStringDelimitersChars = langData.stringDelimiterChars ? (int)strlen(langData.stringDelimiterChars) : 0;
 
 			bool isInStringDelimiters = false;
                         bool waitForEndLine = false;

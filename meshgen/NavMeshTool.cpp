@@ -128,7 +128,7 @@ static bool compress_memory(void* in_data, size_t in_data_size, std::vector<uint
 	strm.zalloc = 0;
 	strm.zfree = 0;
 	strm.next_in = reinterpret_cast<uint8_t *>(in_data);
-	strm.avail_in = in_data_size;
+	strm.avail_in = (uInt)in_data_size;
 	strm.next_out = temp_buffer;
 	strm.avail_out = BUFSIZE;
 
@@ -179,7 +179,7 @@ static bool decompress_memory(void* in_data, size_t in_data_size, std::vector<ui
 		return false;
 
 	zs.next_in = (Bytef*)in_data;
-	zs.avail_in = in_data_size;
+	zs.avail_in = (uInt)in_data_size;
 
 	int ret;
 	const size_t BUFSIZE = 128 * 1024;
@@ -361,7 +361,7 @@ bool NavMeshTool::LoadMesh(const std::string& shortName, const std::string& inpu
 			return false;
 		}
 
-		if (!file_proto.ParseFromArray(&data[0], data.size()))
+		if (!file_proto.ParseFromArray(&data[0], (int)data.size()))
 		{
 			m_ctx->log(RC_LOG_ERROR, "loadMesh: failed to parse mesh file");
 			return false;
@@ -407,12 +407,12 @@ bool NavMeshTool::LoadMesh(const std::string& shortName, const std::string& inpu
 					continue;
 
 				// allocate buffer for the data
-				uint8_t* data = (uint8_t*)dtAlloc(tiledata.length(), DT_ALLOC_PERM);
+				uint8_t* data = (uint8_t*)dtAlloc((int)tiledata.length(), DT_ALLOC_PERM);
 				memcpy(data, &tiledata[0], tiledata.length());
 
 				dtMeshHeader* tileheader = (dtMeshHeader*)data;
 
-				dtStatus status = navMesh->addTile(data, tiledata.length(), DT_TILE_FREE_DATA, ref, 0);
+				dtStatus status = navMesh->addTile(data, (int)tiledata.length(), DT_TILE_FREE_DATA, ref, 0);
 				if (status != DT_SUCCESS)
 				{
 					m_ctx->log(RC_LOG_WARNING, "Failed to read tile: %d, %d (%d) = %d",

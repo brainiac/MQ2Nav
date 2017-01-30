@@ -84,7 +84,7 @@ bool ListViewBase::render(float listViewHeight, const ImVector<int> *pOptionalCo
         float itemHeight = ImGui::GetTextLineHeightWithSpacing();
         int displayStart = 0, displayEnd = (int) numRows;
 
-        ImGui::CalcListClipping(numRows, itemHeight, &displayStart, &displayEnd);
+        ImGui::CalcListClipping((int)numRows, itemHeight, &displayStart, &displayEnd);
 
         if (scrollToRow>=0) {
             if (displayStart>scrollToRow)  displayStart = scrollToRow;
@@ -148,7 +148,7 @@ bool ListViewBase::render(float listViewHeight, const ImVector<int> *pOptionalCo
                     if (hdPrecision>0) {
                         strcpy(precisionStr,"%.");
                         snprintf(&precisionStr[2], precisionStrSize-2,"%ds",hdPrecision);
-                        precisionLastCharIndex = strlen(precisionStr)-1;
+                        precisionLastCharIndex = (int)strlen(precisionStr)-1;
                     }
                     else {
                         strcpy(precisionStr,"%s");
@@ -399,7 +399,7 @@ bool ListViewBase::render(float listViewHeight, const ImVector<int> *pOptionalCo
 
 bool ListView::sort(size_t column) {
     if ((int)column>=headers.size()) return false;
-    Header& h = headers[column];
+    Header& h = headers[(int)column];
     HeaderData::Sorting& hds = h.hd.sorting;
     if (!hds.sortable) return false;
 

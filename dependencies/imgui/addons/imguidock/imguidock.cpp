@@ -1120,7 +1120,7 @@ struct DockContext
         //SetNextWindowSize(ImVec2(300, 300));
         if (Begin("Dock Debug Info")) {
             for (int i = 0; i < m_docks.size(); ++i) {
-                if (TreeNode((void*)i, "Dock %d (%p)", i, m_docks[i])) {
+                if (TreeNode(reinterpret_cast<void*>((int64_t)i), "Dock %d (%p)", i, m_docks[(int)i])) {
                     Dock &dock = *m_docks[i];
                     Text("pos=(%.1f %.1f) size=(%.1f %.1f)",
                          dock.pos.x, dock.pos.y,

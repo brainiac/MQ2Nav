@@ -2100,7 +2100,7 @@ bool FieldInfo::render(int nodeWidth)   {
     if (f.precision>0) {
         strcpy(precisionStr,"%.");
         snprintf(&precisionStr[2], precisionStrSize-2,"%ds",f.precision);
-        precisionLastCharIndex = strlen(precisionStr)-1;
+        precisionLastCharIndex = (int)strlen(precisionStr)-1;
     }
     else {
         strcpy(precisionStr,"%s");

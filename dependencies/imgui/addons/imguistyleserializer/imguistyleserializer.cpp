@@ -89,7 +89,7 @@ bool SaveStyle(const char* filename,const ImGuiStyle& style)
     fprintf(f, "[AntiAliasedShapes]\n%d\n", style.AntiAliasedShapes?1:0);
     fprintf(f, "[CurveTessellationTol]\n%1.3f\n", style.CurveTessellationTol);
 
-    for (size_t i = 0; i != ImGuiCol_COUNT; i++)
+    for (int i = 0; i != ImGuiCol_COUNT; i++)
     {
 		const ImVec4& c = style.Colors[i];
         fprintf(f, "[%s]\n", ImGui::GetStyleColName(i));//ImGuiColNames[i]);

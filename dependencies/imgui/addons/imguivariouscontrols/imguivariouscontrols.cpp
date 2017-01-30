@@ -696,8 +696,8 @@ bool InputTextMultilineWithHorizontalScrollingAndCopyCutPasteMenu(const char *la
             if (mustPaste)  {
                 // This is VERY HARD to make it work as expected...
                 const int cursorPosition = (selectionStart<selectionEnd) ? selectionStart : cursorPos;
-                const int clipboardTextSize = strlen(clipboardText);
-                int buf_len = strlen(buf);if (buf_len>buf_size) buf_len=buf_size;
+                const int clipboardTextSize = (int)strlen(clipboardText);
+                int buf_len = (int)strlen(buf);if (buf_len>buf_size) buf_len=buf_size;
 
                 // Step 1- Shift [cursorPosition] to [cursorPosition+clipboardTextSize]
                 const int numCharsToShiftRight = buf_len - cursorPosition;
@@ -1944,7 +1944,7 @@ struct MyTreeViewHelperStruct {
         NameEditingStruct(TreeViewNode* n=NULL,const char* startingText=NULL) : editingNode(n) {
             textInput[0]='\0';
             if (startingText) {
-                const int len = strlen(startingText);
+                const int len = (int)strlen(startingText);
                 if (len<255) strcpy(&textInput[0],startingText);
                 else {
                     strncpy(&textInput[0],startingText,255);

@@ -1016,7 +1016,7 @@ void ImGui::PanelManager::Pane::AssociatedWindow::draw(const ImGui::PanelManager
     else if (togglableAndVisible) button->isDown = false;
     if (!wd.isToggleWindow) {
         if (!undocked && hovered)   {
-            pane.bar.setSelectedButtonIndex(winAndBarIndex);
+            pane.bar.setSelectedButtonIndex((int)winAndBarIndex);
             dirty = true;
         }
         else if (undocked && selected)   {
@@ -1070,7 +1070,7 @@ size_t ImGui::PanelManager::Pane::addClonedButtonAndWindow(const ImGui::PanelMan
     IM_ASSERT(&sourcePane!=this);
     IM_ASSERT(sourcePane.getSize()>sourcePaneEntryIndex);
     const Toolbutton& sourceButton = *sourcePane.bar.getButton(sourcePaneEntryIndex);
-    const Pane::AssociatedWindow& sourceWindow = sourcePane.windows[sourcePaneEntryIndex];
+    const Pane::AssociatedWindow& sourceWindow = sourcePane.windows[(int)sourcePaneEntryIndex];
     IM_ASSERT(!sourceButton.isToggleButton);    // cloning toggle buttons is NOT supported
     if (sourceButton.isToggleButton) return getSize();
     size_t size = getSize();
@@ -1168,7 +1168,7 @@ const char *ImGui::PanelManager::Pane::getWindowName(int index) const  {
 int ImGui::PanelManager::Pane::findWindowIndex(const char *windowName) const    {
     if (!windowName) return -1;
     for (size_t i=0,isz=windows.size();i<isz;i++) {
-        const char* wn = windows[i].windowName;
+        const char* wn = windows[(int)i].windowName;
         if (strcmp(windowName,wn)==0) return (int)i;
     }
     return -1;
@@ -1179,7 +1179,7 @@ void ImGui::PanelManager::Pane::getButtonAndWindow(size_t index, ImGui::Toolbutt
     if (pToolbutton) *pToolbutton=bar.getButton(index);
     if (pAssociatedWindow)  {
         if ((int)index<windows.size()) *pAssociatedWindow=NULL;
-        else *pAssociatedWindow=&windows[index];
+        else *pAssociatedWindow=&windows[(int)index];
     }
 }
 
@@ -1188,7 +1188,7 @@ void ImGui::PanelManager::Pane::getButtonAndWindow(size_t index, const ImGui::To
     if (pToolbutton) *pToolbutton=bar.getButton(index);
     if (pAssociatedWindow)  {
         if ((int)index<windows.size()) *pAssociatedWindow=NULL;
-        else *pAssociatedWindow=&windows[index];
+        else *pAssociatedWindow=&windows[(int)index];
     }
 }
 
@@ -1216,11 +1216,11 @@ void ImGui::PanelManager::Pane::getButtonAndWindow(const char *windowName, const
 ImGui::PanelManager::Pane *ImGui::PanelManager::addPane(ImGui::PanelManager::Position pos, const char *toolbarName) {
     const size_t sz = panes.size();
     for (size_t i=0;i<sz;i++)   {
-        IM_ASSERT(panes[i].pos!=pos);   // ONLY ONE PANE PER SIDE IS SUPPORTED
-        if (panes[i].pos==pos) return NULL;
+        IM_ASSERT(panes[(int)i].pos!=pos);   // ONLY ONE PANE PER SIDE IS SUPPORTED
+        if (panes[(int)i].pos==pos) return NULL;
     }
     panes.push_back(Pane(pos,toolbarName));
-    Pane& pane = panes[sz];
+    Pane& pane = panes[(int)sz];
     switch (pos)    {
     case LEFT:      paneLeft = &pane;break;
     case RIGHT:     paneRight = &pane;break;
@@ -1256,7 +1256,7 @@ bool ImGui::PanelManager::render(Pane** pPanePressedOut, int *pPaneToolbuttonPre
 
     // Fill mustUpdateSizes:
     for (size_t paneIndex=0,panesSize=(size_t)panes.size();paneIndex<panesSize;paneIndex++) {
-        const Pane& pane = panes[paneIndex];
+        const Pane& pane = panes[(int)paneIndex];
         if (!pane.visible) continue;
         const Toolbar& bar = pane.bar;
 
@@ -1337,7 +1337,7 @@ bool ImGui::PanelManager::render(Pane** pPanePressedOut, int *pPaneToolbuttonPre
                 // We must turn off the newly selected windows from other panes if present:
                 for (size_t pi=0,panesSize=(size_t)panes.size();pi<panesSize;pi++) {
                     if (pi==paneIndex) continue;    // this pane
-                    const Pane& pn = panes[pi];
+                    const Pane& pn = panes[(int)pi];
                     const int si = pn.getSelectedIndex();
                     if (si>=0)  {
                         const char* cmpName = pn.windows[si].windowName;
@@ -1354,7 +1354,7 @@ bool ImGui::PanelManager::render(Pane** pPanePressedOut, int *pPaneToolbuttonPre
                     if (windowName) {
                         for (size_t pi=0,panesSize=(size_t)panes.size();pi<panesSize;pi++) {
                             if (pi==paneIndex) continue;    // this pane
-                            const Pane& pn = panes[pi];
+                            const Pane& pn = panes[(int)pi];
                             const int si = pn.getSelectedIndex();
                             if (si>=0)  {
                                 const char* cmpName = pn.windows[si].windowName;
@@ -1372,10 +1372,10 @@ bool ImGui::PanelManager::render(Pane** pPanePressedOut, int *pPaneToolbuttonPre
 
     // Draw windows:
     for (size_t paneIndex=0,panesSize=(size_t)panes.size();paneIndex<panesSize;paneIndex++) {
-        const Pane& pane = panes[paneIndex];
+        const Pane& pane = panes[(int)paneIndex];
         if (!pane.visible) continue;
         for (size_t windowIndex=0,paneWindowsSize=(size_t)pane.windows.size();windowIndex<paneWindowsSize;windowIndex++)    {
-            const Pane::AssociatedWindow& window = pane.windows[windowIndex];
+            const Pane::AssociatedWindow& window = pane.windows[(int)windowIndex];
             window.draw(*this,pane,windowIndex);
         }
     }
@@ -1399,33 +1399,33 @@ size_t ImGui::PanelManager::getNumPanes() const {return panes.size();}
 
 const ImGui::PanelManager::Pane *ImGui::PanelManager::getPane(ImGui::PanelManager::Position pos) const {
     for (size_t i=0,isz=panes.size();i<isz;i++) {
-        if (panes[i].pos==pos) return &panes[i];
+        if (panes[(int)i].pos==pos) return &panes[(int)i];
     }
     return NULL;
 }
 
 ImGui::PanelManager::Pane *ImGui::PanelManager::getPane(ImGui::PanelManager::Position pos)  {
     for (size_t i=0,isz=panes.size();i<isz;i++) {
-        if (panes[i].pos==pos) return &panes[i];
+        if (panes[(int)i].pos==pos) return &panes[(int)i];
     }
     return NULL;
 }
 
 
 void ImGui::PanelManager::setToolbarsScaling(float scalingX, float scalingY) {
-    for (size_t i=0,isz=panes.size();i<isz;i++) panes[i].setToolbarScaling(scalingX,scalingY);
+    for (size_t i=0,isz=panes.size();i<isz;i++) panes[(int)i].setToolbarScaling(scalingX,scalingY);
     calculateInnerBarQuadPlacement();
     updateSizes();
 
     // Set all windows "dirty" and clamp visible "toggle-windows" to the display size (although in the latter case "win.curSize" is not used at all [ImGui::GetWindowSize(name) does not exist ATM])
     for (size_t pi=0,pisz=panes.size();pi<pisz;pi++) {
-        const Pane& pane = panes[pi];
+        const Pane& pane = panes[(int)pi];
         for (size_t i=0,isz=pane.windows.size();i<isz;i++) {
-            const Pane::AssociatedWindow& win = pane.windows[i];
+            const Pane::AssociatedWindow& win = pane.windows[(int)i];
             if (win.isValid()) {
                 win.dirty=true;
 
-                const Toolbutton& but = pane.bar.buttons[i];
+                const Toolbutton& but = pane.bar.buttons[(int)i];
                 if (but.isToggleButton) {
                     // simply clamp it
                     if (win.curPos.x+win.curSize.x>innerBarQuadPos.x+innerQuadSize.x)   win.curPos.x=innerBarQuadPos.x+innerQuadSize.x-win.curSize.x;
@@ -1440,7 +1440,7 @@ void ImGui::PanelManager::setToolbarsScaling(float scalingX, float scalingY) {
 
 void ImGui::PanelManager::overrideAllExistingPanesDisplayProperties(const ImVec2 &_opacityOffAndOn, const ImVec4 &_bg_col)  {
     for (size_t pi=0,pisz=panes.size();pi<pisz;pi++) {
-        Pane& pane = panes[pi];
+        Pane& pane = panes[(int)pi];
         pane.setDisplayProperties(_opacityOffAndOn,_bg_col);
     }
 }
@@ -1552,7 +1552,7 @@ void ImGui::PanelManager::updateSizes() const  {
 }
 
 void ImGui::PanelManager::closeHoverWindow() {
-    for (int i=0,isz=getNumPanes();i<isz;i++)   {
+    for (int i=0,isz= (int)getNumPanes();i<isz;i++)   {
         Pane& pane = panes[i];
         Toolbar& bar = pane.bar;
         for (int w=0,wsz=bar.buttons.size();w<wsz;w++)  {
@@ -1585,7 +1585,7 @@ const ImVec2& ImGui::PanelManager::getToolbarCentralQuadSize() const    {
 
 void ImGui::PanelManager::setDisplayPortion(const ImVec4 &_displayPortion) {
     for (size_t i=0,isz=panes.size();i<isz;i++) {
-        Pane& p = panes[i];
+        Pane& p = panes[(int)i];
         p.bar.setDisplayPortion(_displayPortion);
     }
     innerBarQuadSize.x=innerBarQuadSize.y=0;    // forces update

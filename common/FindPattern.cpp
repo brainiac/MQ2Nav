@@ -2,6 +2,10 @@
 // FindPattern.cpp
 //
 
+#include "FindPattern.h"
+
+#ifndef _WIN64 // don't use this on 64bit platform until it gets fixed
+
 // originally created by: radioactiveman/bunny771/(dom1n1k?)  ------------------------------------------
 inline bool DataCompare(const unsigned char* pData, const unsigned char* bMask, const char* szMask)
 {
@@ -46,3 +50,5 @@ unsigned long GetFunctionAddressAt(unsigned long address, unsigned long addressO
 	}
 	return 0;
 }
+
+#endif

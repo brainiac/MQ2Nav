@@ -120,7 +120,7 @@ VOID DebugSpewAlways(PCHAR szFormat, ...)
 	va_list vaList;
 	va_start(vaList, szFormat);
 	int len = _vscprintf(szFormat, vaList) + 1;// _vscprintf doesn't count // terminating '\0'  
-	int headerlen = strlen(DebugHeader) + 1;
+	size_t headerlen = strlen(DebugHeader) + 1;
 	size_t thelen = len + headerlen + 32;
 	char *szOutput = (char *)LocalAlloc(LPTR, thelen);
 	strcpy_s(szOutput, thelen, DebugHeader " ");

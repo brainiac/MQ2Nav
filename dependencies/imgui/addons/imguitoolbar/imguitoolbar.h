@@ -290,8 +290,8 @@ public:
     }
 
     inline size_t getNumButtons() const {return buttons.size();}
-    inline Button* getButton(size_t i) {return ((int)i < buttons.size())? &buttons[i] : NULL;}
-    inline const Button* getButton(size_t i) const {return ((int)i < buttons.size())? &buttons[i] : NULL;}
+    inline Button* getButton(size_t i) {return ((int)i < buttons.size())? &buttons[(int)i] : NULL;}
+    inline const Button* getButton(size_t i) const {return ((int)i < buttons.size())? &buttons[(int)i] : NULL;}
     inline void addButton(const Button& button) {
         buttons.push_back(button);
     }
