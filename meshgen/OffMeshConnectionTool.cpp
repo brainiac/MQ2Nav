@@ -92,8 +92,8 @@ void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, 
 		}
 		else
 		{
-			const uint8_t area = PolyArea::Jump;
-			const uint16_t flags = PolyFlags::Jump;
+			const uint8_t area = static_cast<uint8_t>(PolyArea::Jump);
+			const uint16_t flags = static_cast<uint16_t>(PolyFlags::Jump);
 			geom->addOffMeshConnection(glm::value_ptr(m_hitPos), glm::value_ptr(p),
 				m_meshTool->getAgentRadius(), m_bidir ? 1 : 0, area, flags);
 			m_hitPosSet = false;

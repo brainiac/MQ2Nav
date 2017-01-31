@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ChunkyTriMesh.h"
+
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
 
@@ -26,11 +27,9 @@ class BuildContext;
 class InputGeom;
 class dtNavMesh;
 class dtNavMeshQuery;
-class dtCrowd;
 
 class NavMeshTool;
 class NavMeshLoader;
-class TileBuilder;
 
 //----------------------------------------------------------------------------
 
@@ -165,8 +164,6 @@ private:
 
 	std::unique_ptr<Tool> m_tool;
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
-
-	std::shared_ptr<TileBuilder> m_tileBuilder;
 
 	// we don't own this
 	BuildContext* m_ctx = nullptr;

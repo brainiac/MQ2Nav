@@ -8,6 +8,7 @@
 #include "common/NavMeshData.h"
 
 #include <glm/glm.hpp>
+#include <vector>
 
 // Tool to create convex volumess for InputGeom
 
@@ -31,14 +32,11 @@ public:
 
 private:
 	NavMeshTool* m_meshTool = nullptr;
-	int m_areaType = PolyArea::Ground;
+	PolyArea m_areaType = PolyArea::Ground;
 	float m_polyOffset = 0.0f;
 	float m_boxHeight = 6.0f;
 	float m_boxDescent = 1.0f;
 
-	static const int MAX_PTS = 12;
-	glm::vec3 m_pts[MAX_PTS];
-	int m_npts = 0;
-	int m_hull[MAX_PTS];
-	int m_nhull = 0;
+	std::vector<glm::vec3> m_pts;
+	std::vector<int> m_hull;
 };

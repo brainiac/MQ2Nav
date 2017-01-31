@@ -7,14 +7,15 @@
 #include "ChunkyTriMesh.h"
 #include "MapGeometryLoader.h"
 
+#include "common/NavMeshData.h"
+
 static const int MAX_CONVEXVOL_PTS = 12;
 
 struct ConvexVolume
 {
-	glm::vec3 verts[MAX_CONVEXVOL_PTS];
+	std::vector<glm::vec3> verts;
 	float hmin, hmax;
-	int nverts;
-	int area;
+	PolyArea areaType;
 };
 
 class InputGeom
@@ -55,11 +56,11 @@ public:
 	void drawOffMeshConnections(struct duDebugDraw* dd, bool hilight = false);
 
 	// box volumes
-	int getConvexVolumeCount() const { return m_volumeCount; }
-	const ConvexVolume* getConvexVolumes() const { return m_volumes; }
-	void addConvexVolume(const float* verts, const int nverts,
-		const float minh, const float maxh, unsigned char area);
-	void deleteConvexVolume(int i);
+	size_t getConvexVolumeCount() const { return m_volumes.size(); }
+	const ConvexVolume* getConvexVolume(size_t i) const { return m_volumes[i].get(); }
+	void addConvexVolume(const std::vector<glm::vec3>& verts,
+		const float minh, const float maxh, PolyArea areaType);
+	void deleteConvexVolume(size_t i);
 	void drawConvexVolumes(struct duDebugDraw* dd, bool hilight = false);
 
 	// Utilities
@@ -88,7 +89,5 @@ private:
 	int m_offMeshConCount = 0;
 
 	// Convex Volumes.
-	static const int MAX_VOLUMES = 256;
-	ConvexVolume m_volumes[MAX_VOLUMES];
-	int m_volumeCount = 0;
+	std::vector<std::unique_ptr<ConvexVolume>> m_volumes;
 };

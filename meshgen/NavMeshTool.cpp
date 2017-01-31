@@ -833,7 +833,7 @@ void NavMeshTool::handleRender()
 			duDebugDrawNavMeshPortals(&dd, *m_navMesh);
 		if (m_drawMode == DrawMode::NAVMESH_NODES)
 			duDebugDrawNavMeshNodes(&dd, *m_navQuery);
-		duDebugDrawNavMeshPolysWithFlags(&dd, *m_navMesh, PolyFlags::Disabled, duRGBA(0,0,0,128));
+		duDebugDrawNavMeshPolysWithFlags(&dd, *m_navMesh, +PolyFlags::Disabled, duRGBA(0,0,0,128));
 	}
 
 	m_geom->drawConvexVolumes(&dd);
@@ -1351,11 +1351,13 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 	}
 
 	// (Optional) Mark areas.
-	const ConvexVolume* vols = m_geom->getConvexVolumes();
-	for (int i = 0; i < m_geom->getConvexVolumeCount(); ++i)
-		rcMarkConvexPolyArea(m_ctx, &vols[i].verts[0][0], vols[i].nverts,
-			vols[i].hmin, vols[i].hmax, (uint8_t)vols[i].area, *chf);
+	for (size_t i = 0; i < m_geom->getConvexVolumeCount(); ++i)
+	{
+		const ConvexVolume* vol = m_geom->getConvexVolume(i);
 
+		rcMarkConvexPolyArea(m_ctx, glm::value_ptr(vol->verts[0]), static_cast<int>(vol->verts.size()),
+			vol->hmin, vol->hmax, static_cast<uint8_t>(vol->areaType), *chf);
+	}
 
 	// Partition the heightfield so that we can use simple algorithm later to triangulate the walkable areas.
 	// There are 3 martitioning methods, each with some pros and cons:
@@ -1468,21 +1470,26 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 		for (int i = 0; i < pmesh->npolys; ++i)
 		{
 			if (pmesh->areas[i] == RC_WALKABLE_AREA)
-				pmesh->areas[i] = PolyArea::Ground;
+				pmesh->areas[i] = static_cast<uint16_t>(PolyArea::Ground);
 
-			if (pmesh->areas[i] == PolyArea::Ground ||
-				pmesh->areas[i] == PolyArea::Grass ||
-				pmesh->areas[i] == PolyArea::Road)
+			switch (static_cast<PolyArea>(pmesh->areas[i]))
 			{
-				pmesh->flags[i] = PolyFlags::Walk;
-			}
-			else if (pmesh->areas[i] == PolyArea::Water)
-			{
-				pmesh->flags[i] = PolyFlags::Swim;
-			}
-			else if (pmesh->areas[i] == PolyArea::Door)
-			{
-				pmesh->flags[i] = PolyFlags::Walk | PolyFlags::Door;
+			case PolyArea::Ground:
+			case PolyArea::Grass:
+			case PolyArea::Road:
+				pmesh->flags[i] = +PolyFlags::Walk;
+				break;
+
+			case PolyArea::Water:
+				pmesh->flags[i] = +PolyFlags::Swim;
+				break;
+
+			case PolyArea::Door:
+				pmesh->flags[i] = +(PolyFlags::Walk | PolyFlags::Door);
+				break;
+
+			default:
+				break;
 			}
 		}
 

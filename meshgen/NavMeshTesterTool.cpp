@@ -198,8 +198,8 @@ static bool getSteerTarget(dtNavMeshQuery* navQuery, const glm::vec3& startPos,
 
 NavMeshTesterTool::NavMeshTesterTool()
 {
-	m_filter.setIncludeFlags(PolyFlags::All);
-	m_filter.setExcludeFlags(PolyFlags::Disabled);
+	m_filter.setIncludeFlags(+PolyFlags::All);
+	m_filter.setExcludeFlags(+PolyFlags::Disabled);
 }
 
 NavMeshTesterTool::~NavMeshTesterTool()
@@ -216,12 +216,12 @@ void NavMeshTesterTool::init(NavMeshTool* meshTool)
 	if (m_navQuery)
 	{
 		// Change costs.
-		m_filter.setAreaCost(PolyArea::Ground, 1.0f);
-		m_filter.setAreaCost(PolyArea::Water, 10.0f);
-		m_filter.setAreaCost(PolyArea::Road, 1.0f);
-		m_filter.setAreaCost(PolyArea::Door, 1.0f);
-		m_filter.setAreaCost(PolyArea::Grass, 2.0f);
-		m_filter.setAreaCost(PolyArea::Jump, 1.5f);
+		m_filter.setAreaCost(static_cast<int>(PolyArea::Ground), 1.0f);
+		m_filter.setAreaCost(static_cast<int>(PolyArea::Water), 10.0f);
+		m_filter.setAreaCost(static_cast<int>(PolyArea::Road), 1.0f);
+		m_filter.setAreaCost(static_cast<int>(PolyArea::Door), 1.0f);
+		m_filter.setAreaCost(static_cast<int>(PolyArea::Grass), 2.0f);
+		m_filter.setAreaCost(static_cast<int>(PolyArea::Jump), 1.5f);
 	}
 
 	m_neighbourhoodRadius = meshTool->getAgentRadius() * 20.0f;
@@ -384,20 +384,20 @@ void NavMeshTesterTool::handleMenu()
 	ImGui::Text("Include Flags");
 
 	ImGui::Indent();
-	changed |= ImGui::CheckboxFlags("Walk", &includeFlags, PolyFlags::Walk);
-	changed |= ImGui::CheckboxFlags("Swim", &includeFlags, PolyFlags::Swim);
-	changed |= ImGui::CheckboxFlags("Door", &includeFlags, PolyFlags::Door);
-	changed |= ImGui::CheckboxFlags("Jump", &includeFlags, PolyFlags::Jump);
+	changed |= ImGui::CheckboxFlags("Walk", &includeFlags, +PolyFlags::Walk);
+	changed |= ImGui::CheckboxFlags("Swim", &includeFlags, +PolyFlags::Swim);
+	changed |= ImGui::CheckboxFlags("Door", &includeFlags, +PolyFlags::Door);
+	changed |= ImGui::CheckboxFlags("Jump", &includeFlags, +PolyFlags::Jump);
 	ImGui::Unindent();
 
 	ImGui::Separator();
 	ImGui::Text("Exclude Flags");
 
 	ImGui::Indent();
-	changed |= ImGui::CheckboxFlags("Walk", &excludeFlags, PolyFlags::Walk);
-	changed |= ImGui::CheckboxFlags("Swim", &excludeFlags, PolyFlags::Swim);
-	changed |= ImGui::CheckboxFlags("Door", &excludeFlags, PolyFlags::Door);
-	changed |= ImGui::CheckboxFlags("Jump", &excludeFlags, PolyFlags::Jump);
+	changed |= ImGui::CheckboxFlags("Walk", &excludeFlags, +PolyFlags::Walk);
+	changed |= ImGui::CheckboxFlags("Swim", &excludeFlags, +PolyFlags::Swim);
+	changed |= ImGui::CheckboxFlags("Door", &excludeFlags, +PolyFlags::Door);
+	changed |= ImGui::CheckboxFlags("Jump", &excludeFlags, +PolyFlags::Jump);
 	ImGui::Unindent();
 
 	ImGui::Separator();

@@ -4,11 +4,13 @@
 
 #pragma once
 
+#include "Enum.h"
+
 #include <cstdint>
 #include <functional>
 #include <memory>
 
-namespace PolyFlags { enum Enum : uint16_t
+enum struct PolyFlags : uint16_t
 {
 	Walk          = 0x01, // ability to walk (ground, grass, road, etc)
 	Swim          = 0x02, // ability to swim (water) (unused)
@@ -17,9 +19,10 @@ namespace PolyFlags { enum Enum : uint16_t
 	Disabled      = 0x10, // disabled polygon
 
 	All           = 0xffff,
-};}
+};
+constexpr bool has_bitwise_operations(PolyFlags) { return true; }
 
-namespace PolyArea { enum Enum : uint8_t
+enum struct PolyArea : uint8_t
 {
 	Water = 1,
 	Road,
@@ -30,7 +33,7 @@ namespace PolyArea { enum Enum : uint8_t
 
 	Unwalkable = 0, //RC_NULL_AREA
 	Ground = 63, //RC_WALKABLE_AREA
-};}
+};
 
 enum struct PartitionType : uint32_t
 {

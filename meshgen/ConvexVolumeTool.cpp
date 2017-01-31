@@ -42,6 +42,27 @@ static int convexhull(const glm::vec3* pts, int npts, int* out)
 	return i;
 }
 
+static void convexhull(const std::vector<glm::vec3>& pts, std::vector<int>& out)
+{
+	// Find lower-leftmost point.
+	int hull = 0;
+	for (int i = 1; i < pts.size(); ++i)
+		if (cmppt(pts[i], pts[hull]))
+			hull = i;
+	// Gift wrap hull.
+	int endpt = 0;
+	out.clear();
+	do
+	{
+		out.push_back(hull);
+		endpt = 0;
+		for (int j = 1; j < pts.size(); ++j)
+			if (hull == endpt || left(pts[hull], pts[endpt], pts[j]))
+				endpt = j;
+		hull = endpt;
+	} while (endpt != out[0]);
+}
+
 static int pointInPoly(int nvert, const glm::vec3* verts, const glm::vec3& p)
 {
 	bool c = false;
@@ -77,8 +98,8 @@ void ConvexVolumeTool::init(NavMeshTool* meshTool)
 
 void ConvexVolumeTool::reset()
 {
-	m_npts = 0;
-	m_nhull = 0;
+	m_pts.clear();
+	m_hull.clear();
 }
 
 void ConvexVolumeTool::handleMenu()
@@ -113,8 +134,7 @@ void ConvexVolumeTool::handleMenu()
 
 	if (ImGui::Button("Clear Shape"))
 	{
-		m_npts = 0;
-		m_nhull = 0;
+		reset();
 	}
 }
 
@@ -127,12 +147,13 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 	if (shift)
 	{
 		// Delete
-		int nearestIndex = -1;
-		const ConvexVolume* vols = geom->getConvexVolumes();
-		for (int i = 0; i < geom->getConvexVolumeCount(); ++i)
+		size_t nearestIndex = -1;
+		for (size_t i = 0; i < geom->getConvexVolumeCount(); ++i)
 		{
-			if (pointInPoly(vols[i].nverts, vols[i].verts, p)
-				&& p.y >= vols[i].hmin && p.y <= vols[i].hmax)
+			const ConvexVolume* vol = geom->getConvexVolume(i);
+
+			if (pointInPoly(static_cast<int>(vol->verts.size()), &vol->verts[0], p)
+				&& p.y >= vol->hmin && p.y <= vol->hmax)
 			{
 				nearestIndex = i;
 			}
@@ -150,17 +171,18 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 		bool alt = (SDL_GetModState() & KMOD_ALT) != 0;
 
 		// If clicked on that last pt, create the shape.
-		if (m_npts && (alt || distSqr(p, m_pts[m_npts - 1]) < rcSqr(0.2f)))
+		if (m_pts.size() > 0 && (alt || distSqr(p, m_pts[m_pts.size() - 1]) < rcSqr(0.2f)))
 		{
-			if (m_nhull > 2)
+			if (m_hull.size() > 2)
 			{
+				std::vector<glm::vec3> verts(m_hull.size());
+
 				// Create shape.
-				glm::vec3 verts[MAX_PTS];
-				for (int i = 0; i < m_nhull; ++i)
+				for (int i = 0; i < m_hull.size(); ++i)
 					verts[i] = m_pts[m_hull[i]];
 
 				float minh = FLT_MAX, maxh = 0;
-				for (int i = 0; i < m_nhull; ++i)
+				for (int i = 0; i < m_hull.size(); ++i)
 					minh = glm::min(minh, verts[i].y);
 
 				minh -= m_boxDescent;
@@ -168,38 +190,33 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 
 				if (m_polyOffset > 0.01f)
 				{
-					glm::vec3 offset[MAX_PTS * 2];
-					int noffset = rcOffsetPoly(glm::value_ptr(verts[0]), m_nhull,
-						m_polyOffset, glm::value_ptr(offset[0]), MAX_PTS * 2);
+					std::vector<glm::vec3> offset(m_hull.size() * 2);
+
+					int noffset = rcOffsetPoly(glm::value_ptr(verts[0]), static_cast<int>(verts.size()),
+						m_polyOffset, glm::value_ptr(offset[0]), static_cast<int>(verts.size() * 2));
 					if (noffset > 0)
 					{
-						geom->addConvexVolume(glm::value_ptr(offset[0]), noffset,
-							minh, maxh, static_cast<uint8_t>(m_areaType));
+						geom->addConvexVolume(offset, minh, maxh, m_areaType);
 					}
 				}
 				else
 				{
-					geom->addConvexVolume(glm::value_ptr(verts[0]), m_nhull,
-						minh, maxh, static_cast<uint8_t>(m_areaType));
+					geom->addConvexVolume(verts, minh, maxh, m_areaType);
 				}
 			}
 
-			m_npts = 0;
-			m_nhull = 0;
+			reset();
 		}
 		else
 		{
 			// Add new point
-			if (m_npts < MAX_PTS)
-			{
-				m_pts[m_npts++] = p;
+			m_pts.push_back(p);
 
-				// Update hull.
-				if (m_npts > 1)
-					m_nhull = convexhull(m_pts, m_npts, m_hull);
-				else
-					m_nhull = 0;
-			}
+			// Update hull.
+			if (m_pts.size() >= 2)
+				convexhull(m_pts, m_hull);
+			else
+				m_hull.clear();
 		}
 	}
 }
@@ -210,23 +227,23 @@ void ConvexVolumeTool::handleRender()
 
 	// Find height extents of the shape.
 	float minh = FLT_MAX, maxh = 0;
-	for (int i = 0; i < m_npts; ++i)
+	for (int i = 0; i < m_pts.size(); ++i)
 		minh = glm::min(minh, m_pts[i].y);
 	minh -= m_boxDescent;
 	maxh = minh + m_boxHeight;
 
 	dd.begin(DU_DRAW_POINTS, 4.0f);
-	for (int i = 0; i < m_npts; ++i)
+	for (int i = 0; i < m_pts.size(); ++i)
 	{
 		unsigned int col = duRGBA(255, 255, 255, 255);
-		if (i == m_npts - 1)
+		if (i == m_pts.size() - 1)
 			col = duRGBA(240, 32, 16, 255);
 		dd.vertex(m_pts[i].x, m_pts[i].y + 0.1f, m_pts[i].z, col);
 	}
 	dd.end();
 
 	dd.begin(DU_DRAW_LINES, 2.0f);
-	for (int i = 0, j = m_nhull - 1; i < m_nhull; j = i++)
+	for (size_t i = 0, j = m_hull.size() - 1; i < m_hull.size(); j = i++)
 	{
 		const glm::vec3& vi = m_pts[m_hull[j]];
 		const glm::vec3& vj = m_pts[m_hull[i]];
@@ -244,7 +261,7 @@ void ConvexVolumeTool::handleRenderOverlay(const glm::mat4& /*proj*/,
 	const glm::mat4& /*model*/, const glm::ivec4& view)
 {
 	// Tool help
-	if (!m_npts)
+	if (m_pts.empty())
 	{
 		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
 			"LMB: Create new shape.  SHIFT+LMB: Delete existing shape (click inside a shape).");
