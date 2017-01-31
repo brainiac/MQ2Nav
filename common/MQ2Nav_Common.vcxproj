@@ -147,6 +147,7 @@
   <ItemGroup>
     <ClInclude Include="Enum.h" />
     <ClInclude Include="FindPattern.h" />
+    <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NavMeshData.h" />
     <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="Signal.h" />
@@ -155,6 +156,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FindPattern.cpp" />
+    <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="proto\NavMeshFile.pb.cc" />
     <ClCompile Include="Utilities.cpp" />
     <ClCompile Include="ZoneData.cpp" />
