@@ -2,15 +2,13 @@
 // FindPattern.h
 //
 
+#include <cstdint>
+
 #pragma once
 
-#ifndef _WIN64 // don't use this on 64bit platform until it gets fixed
-
 // Find an address that matches the given pattern/mask, starting at the given dwAddress.
-unsigned long FindPattern(unsigned long dwAddress, unsigned long dwLen, const unsigned char* bMask, const char* szMask);
+uintptr_t FindPattern(uintptr_t dwAddress, uint32_t dwLen, const uint8_t* bMask, const char* szMask);
 
-unsigned long GetDWordAt(unsigned long address, unsigned long numBytes);
+uint32_t GetDWordAt(uintptr_t address, uint32_t numBytes);
 
-unsigned long GetFunctionAddressAt(unsigned long address, unsigned long addressOffset, unsigned long numBytes);
-
-#endif
+uintptr_t GetFunctionAddressAt(uintptr_t address, uint32_t addressOffset, uint32_t numBytes);

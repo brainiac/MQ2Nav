@@ -2,14 +2,17 @@
 // FindPattern.cpp
 //
 
+// original code credits to:
+// radioactiveman
+// bunny771
+// dom1n1k
+// ieatacid
+
 #include "FindPattern.h"
 
-#ifndef _WIN64 // don't use this on 64bit platform until it gets fixed
-
-// originally created by: radioactiveman/bunny771/(dom1n1k?)  ------------------------------------------
-inline bool DataCompare(const unsigned char* pData, const unsigned char* bMask, const char* szMask)
+inline bool DataCompare(const uint8_t* pData, const uint8_t* bMask, const char* szMask)
 {
-    for (; *szMask; ++szMask, ++pData, ++bMask)
+	for (; *szMask; ++szMask, ++pData, ++bMask)
 	{
 		if (*szMask == 'x' && *pData != *bMask)
 			return false;
@@ -17,38 +20,38 @@ inline bool DataCompare(const unsigned char* pData, const unsigned char* bMask, 
 	return (*szMask) == 0;
 }
 
-unsigned long FindPattern(unsigned long dwAddress, unsigned long dwLen, const unsigned char* bMask, const char* szMask)
+uintptr_t FindPattern(uintptr_t dwAddress, uint32_t dwLen, const uint8_t* bMask, const char* szMask)
 {
-	for (unsigned long i = 0; i < dwLen; i++)
+	if (dwAddress == 0)
+		return 0;
+
+	for (uint32_t i = 0; i < dwLen; i++)
 	{
-		if (DataCompare((unsigned char*)(dwAddress + i), bMask, szMask))
-			return (unsigned long)(dwAddress + i);
+		if (DataCompare((uint8_t*)(dwAddress + i), bMask, szMask))
+			return (uintptr_t)(dwAddress + i);
 	}
 
 	return 0;
 }
 // --------------------------------------------------------------------------------------
 
-// ieatacid - 3/11/09
-unsigned long GetDWordAt(unsigned long address, unsigned long numBytes)
+uint32_t GetDWordAt(uintptr_t address, uint32_t numBytes)
 {
 	if (address)
 	{
 		address += numBytes;
-		return *(unsigned long*)address;
+		return *(uint32_t*)address;
 	}
 	return 0;
 }
 
-// ieatacid - 3/11/09
-unsigned long GetFunctionAddressAt(unsigned long address, unsigned long addressOffset, unsigned long numBytes)
+uintptr_t GetFunctionAddressAt(uintptr_t address, uint32_t addressOffset, uint32_t numBytes)
 {
 	if (address)
 	{
-		unsigned long n = *(unsigned long*)(address + addressOffset);
+		uintptr_t n = *(uintptr_t*)(address + addressOffset);
 		return address + n + numBytes;
 	}
+
 	return 0;
 }
-
-#endif
