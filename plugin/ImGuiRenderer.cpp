@@ -8,6 +8,7 @@
 #include "MQ2Nav_Hooks.h"
 
 #include <imgui.h>
+#include <imgui/imgui_custom/imgui_user.h>
 #include <imgui/imgui_custom/ImGuiUtils.h>
 #include <imgui/fonts/font_roboto_regular_ttf.h>
 
@@ -39,6 +40,8 @@ static void ConfigureFonts()
 ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	: m_pDevice(device)
 {
+	m_context = GImGuiGlobalSharedPointer;
+
 	// Iniialize the ImGui overlay
 	ImGui_ImplDX9_Init(eqhwnd, device);
 

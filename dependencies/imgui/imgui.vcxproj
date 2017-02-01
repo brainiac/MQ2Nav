@@ -37,9 +37,13 @@
     <ClInclude Include="imgui_custom\imgui_column_headers.h" />
     <ClInclude Include="imgui_custom\imgui_user.h" />
     <ClInclude Include="imgui_internal.h" />
+    <ClInclude Include="imgui_user.h" />
     <ClInclude Include="stb_rect_pack.h" />
     <ClInclude Include="stb_textedit.h" />
     <ClInclude Include="stb_truetype.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="imgui_user.inl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{81EA8021-75BF-4D3F-8F60-12755690F6F6}</ProjectGuid>
@@ -112,7 +116,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>IMGUI_INCLUDE_IMGUI_USER_H;IMGUI_INCLUDE_IMGUI_USER_INL;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -131,7 +135,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>IMGUI_INCLUDE_IMGUI_USER_H;IMGUI_INCLUDE_IMGUI_USER_INL;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -152,7 +156,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>IMGUI_INCLUDE_IMGUI_USER_H;IMGUI_INCLUDE_IMGUI_USER_INL;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
@@ -173,7 +177,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>IMGUI_INCLUDE_IMGUI_USER_H;IMGUI_INCLUDE_IMGUI_USER_INL;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>

@@ -79,5 +79,13 @@
     <ClInclude Include="imgui_custom\ImGuiUtils.h">
       <Filter>Header Files\custom</Filter>
     </ClInclude>
+    <ClInclude Include="imgui_user.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="imgui_user.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -3,6 +3,8 @@
 
 #include <imgui.h>
 
+#include <memory>
+
 
 namespace ImGui
 {

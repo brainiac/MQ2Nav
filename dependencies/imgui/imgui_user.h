@@ -4,6 +4,20 @@
 
 #pragma once
 
+#include <memory>
+
+//----------------------------------------------------------------------------
+
+struct ImGuiContext;
+
+extern std::shared_ptr<ImGuiContext> GImGuiGlobalSharedPointer;
+
+#define GImGui GImGuiGlobalSharedPointer.get()
+
+#define IMGUI_SET_CURRENT_CONTEXT_FUNC(ctx) \
+	GImGuiGlobalSharedPointer.reset(ctx);
+
+
 #define NO_IMGUIFILESYSTEM
 
 #pragma warning (push)
