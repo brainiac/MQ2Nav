@@ -23,6 +23,11 @@
 #include <string.h>
 #include "SDL.h"
 #include "SDL_opengl.h"
+#ifdef __APPLE__
+#	include <OpenGL/glu.h>
+#else
+#	include <GL/glu.h>
+#endif
 #include "imgui.h"
 #include "NavMeshTesterTool.h"
 #include "Sample.h"
@@ -228,6 +233,7 @@ NavMeshTesterTool::NavMeshTesterTool() :
 	m_sposSet(false),
 	m_eposSet(false),
 	m_pathIterNum(0),
+	m_pathIterPolyCount(0),
 	m_steerPointCount(0)
 {
 	m_filter.setIncludeFlags(SAMPLE_POLYFLAGS_ALL ^ SAMPLE_POLYFLAGS_DISABLED);
@@ -239,10 +245,6 @@ NavMeshTesterTool::NavMeshTesterTool() :
 	
 	m_neighbourhoodRadius = 2.5f;
 	m_randomRadius = 5.0f;
-}
-
-NavMeshTesterTool::~NavMeshTesterTool()
-{
 }
 
 void NavMeshTesterTool::init(Sample* sample)

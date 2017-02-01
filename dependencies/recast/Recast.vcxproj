@@ -32,6 +32,7 @@
     <ClCompile Include="DetourTileCache\Source\DetourTileCache.cpp" />
     <ClCompile Include="DetourTileCache\Source\DetourTileCacheBuilder.cpp" />
     <ClCompile Include="Detour\Source\DetourAlloc.cpp" />
+    <ClCompile Include="Detour\Source\DetourAssert.cpp" />
     <ClCompile Include="Detour\Source\DetourCommon.cpp" />
     <ClCompile Include="Detour\Source\DetourNavMesh.cpp" />
     <ClCompile Include="Detour\Source\DetourNavMeshBuilder.cpp" />
@@ -40,6 +41,7 @@
     <ClCompile Include="Recast\Source\Recast.cpp" />
     <ClCompile Include="Recast\Source\RecastAlloc.cpp" />
     <ClCompile Include="Recast\Source\RecastArea.cpp" />
+    <ClCompile Include="Recast\Source\RecastAssert.cpp" />
     <ClCompile Include="Recast\Source\RecastContour.cpp" />
     <ClCompile Include="Recast\Source\RecastFilter.cpp" />
     <ClCompile Include="Recast\Source\RecastLayers.cpp" />

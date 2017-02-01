@@ -125,6 +125,12 @@
     <ClCompile Include="DetourTileCache\Source\DetourTileCache.cpp">
       <Filter>Source Files\DetourTileCache</Filter>
     </ClCompile>
+    <ClCompile Include="Detour\Source\DetourAssert.cpp">
+      <Filter>Source Files\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="Recast\Source\RecastAssert.cpp">
+      <Filter>Source Files\Recast</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugUtils\Include\DetourDebugDraw.h">
