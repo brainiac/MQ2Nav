@@ -31,8 +31,8 @@ NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
 	m_navMeshConn = loader->OnNavMeshChanged.Connect([this](dtNavMesh* navMesh) { SetNavMesh(navMesh); });
 	m_navMesh = loader->GetNavMesh();
 
-	m_filter.setIncludeFlags(PolyFlags::All);
-	m_filter.setExcludeFlags(PolyFlags::Disabled);
+	m_filter.setIncludeFlags(+PolyFlags::All);
+	m_filter.setExcludeFlags(+PolyFlags::Disabled);
 
 	m_useCorridor = mq2nav::GetSettings().debug_use_pathing_corridor;
 
