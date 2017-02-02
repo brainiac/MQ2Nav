@@ -2,6 +2,8 @@
 // MQ2Nav_Hooks.cpp
 //
 
+#include <Shlobj.h>
+
 #include "MQ2Nav_Hooks.h"
 #include "MQ2Navigation.h"
 #include "MQ2Nav_Settings.h"
@@ -22,6 +24,7 @@
 #include <thread>
 #include <boost/algorithm/string.hpp>
 #include <winternl.h>
+#include <tchar.h>
 
 //============================================================================
 
@@ -84,14 +87,6 @@ DWORD __WndProc = 0;
 const char* WndProc_Mask = "xxx????xx????xxxx????xxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????xxx?xx????xxxx????xxxx????xx????";
 const unsigned char* WndProc_Pattern = (const unsigned char*)"\x6a\xff\x68\x00\x00\x00\x00\x64\xa1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xec\x2c\x8b\x0d\x00\x00\x00\x00\x53\x55\x8b\x6c\x24\x4c\x56\x8b\x74\x24\x54\x33\xdb\x57\x8b\x7c\x24\x50\x89\x5c\x24\x10\x3b\xcb\x74\x00\xe8\x00\x00\x00\x00\x84\xc0\x74\x00\x8b\x0d\x00\x00\x00\x00\x56\x55\x57\xe8\x00\x00\x00\x00\x85\xc0\x0f\x84\x00\x00\x00\x00\x39\x1d\x00\x00\x00\x00";
 
-
-class CRender
-{
-public:
-	/*0x000*/ BYTE Unknown0x0[0xec8];
-	/*0xec8*/ IDirect3DDevice9 *pDevice; // device pointer see .text:100019B4                 mov     ecx, [ecx+0EC8h] // EQGraphicsDX9.dll Wed Oct 12 21:52:41 2016
-};
-
 //----------------------------------------------------------------------------
 
 bool GetOffsets()
@@ -112,26 +107,11 @@ bool GetOffsets()
 		FlushDxKeyboard_Pattern, FlushDxKeyboard_Mask)) == 0)
 		return false;
 
-	//if ((__WndProc = GetWindowLongPtr(*(HWND*)EQADDR_HWND, GWLP_WNDPROC)) == 0)
-	//	return false;
 	if ((__WndProc = FindPattern(FixOffset(0x5A0000), 0x100000,
 		WndProc_Pattern, WndProc_Mask)) == 0)
 		return false;
 
 	return true;
-}
-
-IDirect3DDevice9* GetDeviceFromEverquest()
-{
-	if (CRender* pRender = (CRender*)g_pDrawHandler)
-		return pRender->pDevice;
-
-	return nullptr;
-}
-
-inline void UpdateDevice()
-{
-	g_pDevice = GetDeviceFromEverquest();
 }
 
 //----------------------------------------------------------------------------
@@ -157,12 +137,13 @@ public:
 	HRESULT WINAPI Reset_Trampoline(D3DPRESENT_PARAMETERS* pPresentationParameters);
 	HRESULT WINAPI Reset_Detour(D3DPRESENT_PARAMETERS* pPresentationParameters)
 	{
-		UpdateDevice();
-
 		if (g_pDevice != GetThisDevice())
+		{
 			return Reset_Trampoline(pPresentationParameters);
+		}
 
 		g_deviceAcquired = false;
+
 		if (g_renderHandler)
 		{
 			g_renderHandler->InvalidateDeviceObjects();
@@ -174,6 +155,8 @@ public:
 	HRESULT WINAPI BeginScene_Trampoline();
 	HRESULT WINAPI BeginScene_Detour()
 	{
+		g_pDevice = GetThisDevice();
+
 		return BeginScene_Trampoline();
 	}
 
@@ -186,10 +169,10 @@ public:
 	HRESULT WINAPI EndScene_Trampoline();
 	HRESULT WINAPI EndScene_Detour()
 	{
-		UpdateDevice();
-
 		if (GetThisDevice() != g_pDevice)
+		{
 			return EndScene_Trampoline();
+		}
 
 		// When TestCooperativeLevel returns all good, then we can reinitialize.
 		// This will let the renderer control our flow instead of having to
@@ -476,28 +459,108 @@ void InstallDetour(DWORD address, const T& detour, const T& trampoline,
 	g_installedHooks[address] = deferred;
 }
 
+HMODULE g_d3d9Module = 0;
+typedef HRESULT(WINAPI * D3D9CREATEEXPROC)(UINT, IDirect3D9Ex**);
+
+bool InstallD3D9Hooks()
+{
+	bool success = false;
+
+	WCHAR lpD3D9Path[MAX_PATH];
+	SHGetFolderPathW(NULL, CSIDL_SYSTEM, NULL, SHGFP_TYPE_CURRENT, lpD3D9Path);
+	wcscat_s(lpD3D9Path, MAX_PATH, L"\\d3d9.dll");
+
+	if (g_d3d9Module = LoadLibraryW(lpD3D9Path))
+	{
+		D3D9CREATEEXPROC d3d9CreateEx = (D3D9CREATEEXPROC)GetProcAddress(g_d3d9Module, "Direct3DCreate9Ex");
+		if (d3d9CreateEx)
+		{
+			HRESULT hRes;
+			IDirect3D9Ex* d3d9ex;
+
+			if (SUCCEEDED(hRes = (*d3d9CreateEx)(D3D_SDK_VERSION, &d3d9ex)))
+			{
+				D3DPRESENT_PARAMETERS pp;
+				ZeroMemory(&pp, sizeof(pp));
+				pp.Windowed = 1;
+				pp.SwapEffect = D3DSWAPEFFECT_FLIP;
+				pp.BackBufferFormat = D3DFMT_A8R8G8B8;
+				pp.BackBufferCount = 1;
+				pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+
+				IDirect3DDevice9Ex* deviceEx;
+				if (SUCCEEDED(hRes = d3d9ex->CreateDeviceEx(
+					D3DADAPTER_DEFAULT,
+					D3DDEVTYPE_NULLREF,
+					0,
+					D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_NOWINDOWCHANGES,
+					&pp, NULL, &deviceEx)))
+				{
+					success = true;
+
+					// IDirect3DDevice9 virtual function hooks
+					DWORD* d3dDevice_vftable = *(DWORD**)deviceEx;
+
+					InstallDetour(d3dDevice_vftable[0x3],
+						&RenderHooks::TestCooperativeLevel_Detour,
+						&RenderHooks::TestCooperativeLevel_Trampoline,
+						"d3dDevice_TestCooperativeLevel");
+					InstallDetour(d3dDevice_vftable[0x10],
+						&RenderHooks::Reset_Detour,
+						&RenderHooks::Reset_Trampoline,
+						"d3dDevice_Reset");
+					InstallDetour(d3dDevice_vftable[0x29],
+						&RenderHooks::BeginScene_Detour,
+						&RenderHooks::BeginScene_Trampoline,
+						"d3dDevice_BeginScene");
+					InstallDetour(d3dDevice_vftable[0x2a],
+						&RenderHooks::EndScene_Detour,
+						&RenderHooks::EndScene_Trampoline,
+						"d3dDevice_EndScene");
+
+					deviceEx->Release();
+				}
+				else
+				{
+					DebugSpewAlways("InstallD3D9Hooks: failed to CreateDeviceEx. Result=%x", hRes);
+				}
+
+				d3d9ex->Release();
+			}
+			else
+			{
+				DebugSpewAlways("InstallD3D9Hooks: failed Direct3DCreate9Ex failed. Result=%x", hRes);
+			}
+		}
+		else
+		{
+			DebugSpewAlways("InitD3D9CApture: failed to get address of Direct3DCreate9Ex");
+		}
+	}
+
+	return success;
+}
+
 HookStatus InitializeHooks()
 {
 	if (g_hooksInstalled)
-		return HookStatus::AlreadyInstalled;
+	{
+		if (!g_pDevice)
+		{
+			return HookStatus::MissingDevice;
+		}
 
-	if (!GetOffsets())
+		return HookStatus::Success;
+	}
+
+	if (!GetOffsets()
+		|| !InstallD3D9Hooks())
 	{
 		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
 		return HookStatus::MissingOffset;
 	}
 
 	g_dx9Module = LoadLibraryA("EQGraphicsDX9.dll");
-
-	// Grab the Direct3D9 device and add a reference to it
-	g_pDevice = GetDeviceFromEverquest();
-	if (!g_pDevice)
-	{
-		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
-		return HookStatus::MissingDevice;
-	}
-
-	g_pDevice->AddRef();
 
 	// Detour that enables rendering into the world
 	InstallDetour(ZoneRender_InjectionOffset,
@@ -521,25 +584,6 @@ HookStatus InitializeHooks()
 	// we use direct input for this too? Seems to work for now.
 	InstallDetour(__WndProc, WndProc_Detour, WndProc_Trampoline, "__WndProc");
 
-	// IDirect3DDevice9 virtual function hooks
-	DWORD* d3dDevice_vftable = *(DWORD**)g_pDevice;
-	InstallDetour(d3dDevice_vftable[0x3],
-		&RenderHooks::TestCooperativeLevel_Detour,
-		&RenderHooks::TestCooperativeLevel_Trampoline,
-		"d3dDevice_TestCooperativeLevel");
-	InstallDetour(d3dDevice_vftable[0x10],
-		&RenderHooks::Reset_Detour,
-		&RenderHooks::Reset_Trampoline,
-		"d3dDevice_Reset");
-	InstallDetour(d3dDevice_vftable[0x29],
-		&RenderHooks::BeginScene_Detour,
-		&RenderHooks::BeginScene_Trampoline,
-		"d3dDevice_BeginScene");
-	InstallDetour(d3dDevice_vftable[0x2a],
-		&RenderHooks::EndScene_Detour,
-		&RenderHooks::EndScene_Trampoline,
-		"d3dDevice_EndScene");
-
 #if EQSWITCH_USESWTICH_LOGGING
 	InstallDetour(EQSwitch__UseSwitch,
 		&EQSwitch_Detour::UseSwitch_Detour,
@@ -548,7 +592,7 @@ HookStatus InitializeHooks()
 #endif
 
 	g_hooksInstalled = true;
-	return HookStatus::Success;
+	return !g_pDevice ? HookStatus::MissingDevice : HookStatus::Success;
 }
 
 static void RemoveDetours()
@@ -573,6 +617,12 @@ void ShutdownHooks()
 	{
 		g_pDevice->Release();
 		g_pDevice = nullptr;
+	}
+
+	if (g_d3d9Module)
+	{
+		FreeLibrary(g_d3d9Module);
+		g_d3d9Module = 0;
 	}
 
 	FreeLibrary(g_dx9Module);

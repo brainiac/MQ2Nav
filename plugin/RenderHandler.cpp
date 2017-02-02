@@ -98,7 +98,6 @@ void RenderHandler::PerformRender(Renderable::RenderPhase phase)
 
 void ResetDeviceState()
 {
-
 	g_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
 	g_pDevice->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
 	g_pDevice->SetRenderState(D3DRS_ALPHATESTENABLE, false);

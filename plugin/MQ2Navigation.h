@@ -102,6 +102,7 @@ public:
 	void Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem);
 
 	bool IsInitialized() const { return m_initialized; }
+	bool InitializationFailed() const { return m_initializationFailed; }
 
 	// Handler for /navigate
 	void Command_Navigate(PSPAWNINFO pChar, PCHAR szLine);
@@ -187,6 +188,7 @@ private:
 	int m_zoneId = -1;
 
 	bool m_retryHooks = false;
+	bool m_initializationFailed = false;
 
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;

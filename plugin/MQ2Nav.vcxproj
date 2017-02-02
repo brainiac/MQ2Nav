@@ -66,6 +66,8 @@
       <BufferSecurityCheck Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</BufferSecurityCheck>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Disabled</InlineFunctionExpansion>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(ProjectDir)..\..\Detours\lib;$(ProjectDir)..\dependencies\zlib\lib;$(ProjectDir)..\dependencies\dx9\lib;$(ProjectDir)..\..\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

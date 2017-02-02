@@ -88,7 +88,14 @@ MQ2NavigationPlugin::~MQ2NavigationPlugin()
 void MQ2NavigationPlugin::Plugin_OnPulse()
 {
 	if (!m_initialized)
+	{
+		if (m_retryHooks)
+		{
+			m_retryHooks = false;
+			Plugin_Initialize();
+		}
 		return;
+	}
 
 	for (const auto& m : m_modules)
 	{
@@ -178,6 +185,7 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	if (status != HookStatus::Success)
 	{
 		m_retryHooks = (status == HookStatus::MissingDevice);
+		m_initializationFailed = (status == HookStatus::MissingOffset);
 		return;
 	}
 
@@ -249,14 +257,18 @@ void MQ2NavigationPlugin::InitializeRenderer()
 	g_renderHandler.reset(new RenderHandler());
 
 	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
+
 	g_imguiRenderer.reset(new ImGuiRenderer(eqhwnd, g_pDevice));
 	g_renderHandler->AddRenderable(g_imguiRenderer.get());
 }
 
 void MQ2NavigationPlugin::ShutdownRenderer()
 {
-	g_renderHandler->RemoveRenderable(g_imguiRenderer.get());
-	g_imguiRenderer.reset();
+	if (g_imguiRenderer)
+	{
+		g_renderHandler->RemoveRenderable(g_imguiRenderer.get());
+		g_imguiRenderer.reset();
+	}
 
 	g_renderHandler.reset();
 }

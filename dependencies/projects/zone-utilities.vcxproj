@@ -161,6 +161,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
+      <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -199,6 +200,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4018</DisableSpecificWarnings>
+      <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

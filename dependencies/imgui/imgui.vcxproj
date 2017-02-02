@@ -123,6 +123,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
+      <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -161,6 +162,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>$(ProjectDir)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
