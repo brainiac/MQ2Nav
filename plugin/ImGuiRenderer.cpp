@@ -10,32 +10,8 @@
 #include <imgui.h>
 #include <imgui/imgui_custom/imgui_user.h>
 #include <imgui/imgui_custom/ImGuiUtils.h>
-#include <imgui/fonts/font_roboto_regular_ttf.h>
 
 //----------------------------------------------------------------------------
-
-static void ConfigureFonts()
-{
-	ImGuiIO& io = ImGui::GetIO();
-
-	// font: Roboto Regular @ 16px
-	io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
-		GetRobotoRegularCompressedSize(), 16.0);
-
-	//// font: FontAwesome
-	//ImFontConfig faConfig;
-	//faConfig.MergeMode = true;
-	//static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-	//io.Fonts->AddFontFromMemoryCompressedTTF(GetFontAwesomeCompressedData(),
-	//	GetFontAwesomeCompressedSize(), 14.0f, &faConfig, icon_ranges);
-
-	//// font: Material Design Icons
-	//ImFontConfig mdConfig;
-	//mdConfig.MergeMode = true;
-	//static const ImWchar md_icon_ranges[] = { ICON_MIN_MD, ICON_MAX_MD, 0 };
-	//io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
-	//	GetMaterialIconsCompressedSize(), 13.0f, &mdConfig, md_icon_ranges);
-}
 
 ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	: m_pDevice(device)
@@ -45,14 +21,12 @@ ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	// Iniialize the ImGui overlay
 	ImGui_ImplDX9_Init(eqhwnd, device);
 
-	ConfigureFonts();
-
 	ImGuiIO& io = ImGui::GetIO();
 
 	m_iniFileName = std::string(gszINIPath) + "\\MQ2NavUI.ini";
 	io.IniFilename = m_iniFileName.c_str();
 
-	ImGui::SetupImGuiStyle(true, 0.8f);
+	ImGui::SetupImGuiStyle(true, 0.7f);
 
 	m_pDevice->AddRef();
 

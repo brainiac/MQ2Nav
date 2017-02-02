@@ -9,6 +9,10 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 
+#include <imgui/imgui_custom/ImGuiUtils.h>
+#include <imgui/fonts/font_roboto_regular_ttf.h>
+//#include <imgui/fonts/font_fontawesome_ttf.h>
+
 // Data
 static HWND                     g_hWnd = 0;
 static INT64                    g_Time = 0;
@@ -26,6 +30,31 @@ struct CUSTOMVERTEX
 	D3DXVECTOR2 uv;
 };
 #define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1)
+
+
+static void ConfigureFonts()
+{
+	ImGuiIO& io = ImGui::GetIO();
+
+	// font: Roboto Regular @ 16px
+	io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
+		GetRobotoRegularCompressedSize(), 16.0);
+
+	// font: FontAwesome
+	//ImFontConfig faConfig;
+	//faConfig.MergeMode = true;
+	//static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+	//io.Fonts->AddFontFromMemoryCompressedTTF(GetFontAwesomeCompressedData(),
+	//	GetFontAwesomeCompressedSize(), 14.0f, &faConfig, icon_ranges);
+
+	//// font: Material Design Icons
+	//ImFontConfig mdConfig;
+	//mdConfig.MergeMode = true;
+	//static const ImWchar md_icon_ranges[] = { ICON_MIN_MD, ICON_MAX_MD, 0 };
+	//io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
+	//	GetMaterialIconsCompressedSize(), 13.0f, &mdConfig, md_icon_ranges);
+}
+
 
 // This is the main rendering function that you have to implement and provide to ImGui (via setting up 'RenderDrawListsFn' in the ImGuiIO structure)
 // If text or lines are blurry when integrating ImGui in your engine:
@@ -208,6 +237,8 @@ void ImGui_ImplDX9_Shutdown()
 static void ImGui_ImplDX9_CreateFontsTexture()
 {
 	ImGuiIO& io = ImGui::GetIO();
+
+	ConfigureFonts();
 
 	// Build
 	unsigned char* pixels;

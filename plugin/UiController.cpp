@@ -152,5 +152,6 @@ void UiController::PerformUpdateTab(TabPage page)
 	else if (page == TabPage::Theme)
 	{
 		ImGui::ShowStyleEditor();
+		ImGui::ShowTestWindow();
 	}
 }
