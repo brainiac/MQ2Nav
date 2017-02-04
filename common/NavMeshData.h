@@ -10,6 +10,8 @@
 #include <functional>
 #include <memory>
 
+#include <glm/glm.hpp>
+
 enum struct PolyFlags : uint16_t
 {
 	Walk          = 0x01, // ability to walk (ground, grass, road, etc)
@@ -65,3 +67,31 @@ struct NavMeshConfig
 
 template <typename T>
 using deleting_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
+
+//----------------------------------------------------------------------------
+// file format data
+
+// extension used for navmesh files
+const char* const NAVMESH_FILE_EXTENSION = ".navmesh";
+
+// header constants
+const int NAVMESH_FILE_MAGIC = 'MSET';
+const int NAVMESH_FILE_VERSION = 4;
+
+enum struct NavMeshFileFlags : uint16_t {
+	COMPRESSED = 0x0001
+};
+constexpr bool has_bitwise_operations(NavMeshFileFlags) { return true; }
+
+struct MeshFileHeader
+{
+	uint32_t magic;
+	uint16_t version;
+	NavMeshFileFlags flags;
+};
+
+// compatibility version of the navmesh data
+const int NAVMESH_TILE_COMPAT_VERSION = 1;
+
+// Maximum number of nodes in navigation query
+const int NAVMESH_QUERY_MAX_NODES = 65536;

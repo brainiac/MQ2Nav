@@ -38,6 +38,7 @@ class NavMeshLoader;
 class UiController;
 class KeybindHandler;
 class ImGuiRenderer;
+class NavMesh;
 
 //----------------------------------------------------------------------------
 

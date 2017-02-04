@@ -6,6 +6,8 @@
 
 #include "ChunkyTriMesh.h"
 
+#include "common/Enum.h"
+#include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
 
@@ -79,21 +81,16 @@ struct ToolState
 class NavMeshTool
 {
 public:
-	NavMeshTool();
+	NavMeshTool(const std::shared_ptr<NavMesh>& navMesh);
 	virtual ~NavMeshTool();
 
 	void setContext(BuildContext* ctx) { m_ctx = ctx; }
-
-	void SaveMesh(const std::string& shortName, const std::string& outputPath);
-	bool LoadMesh(const std::string& shortName, const std::string& inputPath);
-
-	void ResetMesh();
 
 	void handleSettings();
 	void handleTools();
 	void handleRender();
 	void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
-	void handleMeshChanged(InputGeom* geom);
+	void handleGeometryChanged(InputGeom* geom);
 
 	bool handleBuild();
 	void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift);
@@ -105,7 +102,7 @@ public:
 	void removeTile(const float* pos);
 	void removeAllTiles();
 
-	void buildAllTiles(bool async = true);
+	void buildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async = true);
 	void cancelBuildAllTiles(bool wait = true);
 
 	bool isBuildingTiles() const { return m_buildingTiles; }
@@ -122,14 +119,8 @@ public:
 	void setNavMeshDrawFlags(uint8_t flags) { m_navMeshDrawFlags = flags; }
 
 	InputGeom* getInputGeom() { return m_geom; }
-	dtNavMesh* getNavMesh() { return m_navMesh.get(); }
-	dtNavMeshQuery* getNavMeshQuery() { return m_navQuery.get(); }
 
-	void setNavMesh(dtNavMesh* mesh);
-
-	float getAgentRadius() { return m_config.agentRadius; }
-	float getAgentHeight() { return m_config.agentHeight; }
-	float getAgentClimb() { return m_config.agentMaxClimb; }
+	std::shared_ptr<NavMesh> GetNavMesh() const { return m_navMesh; }
 
 private:
 	void setTool(Tool* tool);
@@ -152,15 +143,13 @@ private:
 
 	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize) const;
 
-	void saveAll(const char* path, const dtNavMesh* mesh);
-	dtNavMesh* loadAll(const char* path);
+	void NavMeshUpdated();
 
 private:
-	const int MAX_NODES = 1024 * 1024;
-
 	InputGeom* m_geom = nullptr;
-	deleting_unique_ptr<dtNavMesh> m_navMesh;
-	deleting_unique_ptr<dtNavMeshQuery> m_navQuery;
+
+	std::shared_ptr<NavMesh> m_navMesh;
+	Signal<>::ScopedConnection m_navMeshConn;
 
 	std::unique_ptr<Tool> m_tool;
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
@@ -188,8 +177,8 @@ private:
 	std::atomic<bool> m_cancelTiles = false;
 	std::thread m_buildThread;
 
-	NavMeshConfig m_config;
 	uint8_t m_navMeshDrawFlags = 0;
+	NavMeshConfig m_config;
 
 	struct DrawMode { enum Enum {
 		NAVMESH,
@@ -214,3 +203,4 @@ private:
 	};};
 	DrawMode::Enum m_drawMode = DrawMode::NAVMESH;
 };
+

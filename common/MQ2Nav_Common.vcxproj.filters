@@ -45,6 +45,9 @@
     <ClInclude Include="NavMesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZoneData.cpp">
@@ -60,6 +63,9 @@
       <Filter>Proto Files\Generated Files</Filter>
     </ClCompile>
     <ClCompile Include="NavMesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMeshData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -4,21 +4,23 @@
 
 #pragma once
 
-#include "NavMeshData.h"
-#include "Signal.h"
+#include "common/Context.h"
+#include "common/NavMeshData.h"
+#include "common/Signal.h"
 
 #include <string>
 
 class dtNavMesh;
 class dtNavMeshQuery;
+class Context;
 
-namespace nav {
-
+//============================================================================
 
 class NavMesh
 {
 public:
-	NavMesh();
+	NavMesh(Context* context, const std::string& folderName = std::string(),
+		const std::string& zoneName = std::string());
 	~NavMesh();
 
 	// update the current zone. This will trigger a reload of the navmesh file if
@@ -27,36 +29,49 @@ public:
 	std::string GetZoneName() const { return m_zoneName; }
 
 	// sets the navmesh directory. Navmesh files will be loaded from this directory.
-	void SetNavMeshDirectory(const std::string& folderName);
 	std::string GetNavMeshDirectory() const { return m_navMeshDirectory; }
-
-	// turns autoload on or off. A navmesh will be loaded when the zone changes if
-	// autoload is set to true.
-	void SetAutoLoad(bool autoLoad);
-	bool GetAutoLoad() const { return m_autoLoad; }
-
-	// turns autoreload on or off. A navmesh will be reloaded when the file changes
-	// if this is set to true.
-	void SetAutoReload(bool autoReload);
-	bool GetAutoReload() const { return m_autoReload; }
+	void SetNavMeshDirectory(const std::string& dirname);
 
 	// returns true if a navmesh is currently loaded.
 	bool IsNavMeshLoaded() const { return m_navMesh != nullptr; }
+	bool IsNavMeshLoadedFromDisk() const { return m_lastLoadResult == LoadResult::Success; };
 
 	// get the current nav mesh
 	std::shared_ptr<dtNavMesh> GetNavMesh() const { return m_navMesh; }
 
-	// get the nav mesh query object
-
-	// returns the name of the file that the navmesh was loaded from
-	std::string GetDataFileName() const { return m_loadedDataFile; }
-
-	// try to reload the navmesh for the current zone. Returns true if the navmesh
-	// successfully loads.
-	bool LoadNavMeshFromFile();
+	// set the navmesh. This is primarily used for building a new mesh and should be
+	// hidden away in the future to avoid the wierd usage requirements...
+	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh, bool reset = true);
 
 	// unload all existing data and clean up all state
 	void ResetNavMesh();
+
+	// get the nav mesh query object
+	std::shared_ptr<dtNavMeshQuery> GetNavMeshQuery();
+
+	// returns the name of the file that the navmesh was loaded from
+	std::string GetDataFileName() const { return m_dataFile; }
+
+	//----------------------------------------------------------------------------
+	// navmesh data
+
+	// try to reload the navmesh for the current zone. Returns true if the navmesh
+	// successfully loads.
+	enum struct LoadResult { None, Success, MissingFile, Corrupt, VersionMismatch, ZoneMismatch };
+
+	LoadResult LoadNavMeshFile();
+
+	// save the currently loaded mesh to a file
+	bool SaveNavMeshFile();
+
+	void SetNavMeshBounds(const glm::vec3& min, const glm::vec3& max);
+	void GetNavMeshBounds(glm::vec3& min, glm::vec3& max);
+
+	const glm::vec3& GetNavMeshBoundsMin() const { return m_boundsMin; }
+	const glm::vec3& GetNavMeshBoundsMax() const { return m_boundsMax; }
+
+	NavMeshConfig& GetNavMeshConfig() { return m_config; }
+	const NavMeshConfig& GetNavMeshConfig() const { return m_config; }
 
 	//------------------------------------------------------------------------
 	// marked areas and volumes
@@ -66,23 +81,25 @@ public:
 	//------------------------------------------------------------------------
 	// events
 
-	// TODO
+	Signal<> OnNavMeshChanged;
 	
+private:
+	LoadResult LoadMesh(const char* filename);
+	bool SaveMesh(const char* filename);
+
+	void UpdateDataFile();
 
 private:
-	enum struct LoadResult { Success, Corrupt, VersionMismatch };
-	LoadResult LoadMeshFromFile();
-
-private:
+	Context* m_ctx;
 	std::string m_navMeshDirectory;
 	std::string m_zoneName;
-	bool m_autoLoad = false;
-	bool m_autoReload = false;
+	std::string m_dataFile;
+	LoadResult m_lastLoadResult = LoadResult::None;
 
 	std::shared_ptr<dtNavMesh> m_navMesh;
 	std::shared_ptr<dtNavMeshQuery> m_navMeshQuery;
-	std::string m_loadedDataFile;
+	glm::vec3 m_boundsMin, m_boundsMax;
+	NavMeshConfig m_config;
 };
 
-
-} // namespace nav
+//============================================================================

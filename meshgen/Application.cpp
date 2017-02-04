@@ -45,16 +45,18 @@ static bool IsKeyboardBlocked() {
 //============================================================================
 
 Application::Application(const std::string& defaultZone)
-	: m_context(new BuildContext())
-	, m_mesh(new NavMeshTool)
+	: m_rcContext(new BuildContext())
+	, m_context(new ApplicationContext)
+	, m_navMesh(new NavMesh(m_context, m_eqConfig.GetOutputPath() + "\\MQ2Nav", defaultZone))
+	, m_meshTool(new NavMeshTool(m_navMesh))
 	, m_resetCamera(true)
 	, m_width(1600), m_height(900)
 	, m_progress(0.0)
 	, m_showLog(false)
 	, m_nextZoneToLoad(defaultZone)
 {
-	m_mesh->setContext(m_context.get());
-	m_mesh->setOutputPath(m_eqConfig.GetOutputPath().c_str());
+	m_meshTool->setContext(m_rcContext.get());
+	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 
 	// Construct the path to the ini file
 	CHAR fullPath[MAX_PATH] = { 0 };
@@ -207,7 +209,7 @@ int Application::RunMainLoop()
 			UpdateCamera();
 
 			glEnable(GL_FOG);
-			m_mesh->handleRender();
+			m_meshTool->handleRender();
 			glDisable(GL_FOG);
 
 			glEnable(GL_DEPTH_TEST);
@@ -349,7 +351,7 @@ void Application::HandleEvents()
 							pos[2] = m_rays[2] + (m_raye[2] - m_rays[2])*t;
 							bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
 
-							m_mesh->handleClick(m_rays, pos, shift);
+							m_meshTool->handleClick(m_rays, pos, shift);
 						}
 					}
 					else
@@ -448,7 +450,7 @@ void Application::UpdateCamera()
 
 void Application::RenderInterface()
 {
-	m_mesh->handleRenderOverlay(m_proj, m_model, m_view);
+	m_meshTool->handleRenderOverlay(m_proj, m_model, m_view);
 
 	bool showMenu = true;
 
@@ -481,7 +483,7 @@ void Application::RenderInterface()
 			if (ImGui::BeginMenu("File"))
 			{
 				if (ImGui::MenuItem("Open Zone", "Ctrl+O", nullptr,
-					!m_mesh->isBuildingTiles()))
+					!m_meshTool->isBuildingTiles()))
 				{
 					m_showZonePickerDialog = true;
 				}
@@ -489,19 +491,19 @@ void Application::RenderInterface()
 				ImGui::Separator();
 
 				if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr,
-					!m_mesh->isBuildingTiles()))
+					!m_meshTool->isBuildingTiles()))
 				{
 					OpenMesh();
 				}
 				if (ImGui::MenuItem("Save Mesh", "Ctrl+S", nullptr,
-					!m_mesh->isBuildingTiles() && m_mesh->getNavMesh() != nullptr))
+					!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
 				{
 					SaveMesh();
 				}
 				if (ImGui::MenuItem("Reset Mesh", "", nullptr,
-					!m_mesh->isBuildingTiles() && m_mesh->getNavMesh() != nullptr))
+					!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
 				{
-					m_mesh->ResetMesh();
+					m_navMesh->ResetNavMesh();
 				}
 
 				ImGui::Separator();
@@ -598,34 +600,34 @@ void Application::RenderInterface()
 		if (m_geom)
 		{
 			int tw, th, tm;
-			m_mesh->getTileStatistics(tw, th, tm);
+			m_meshTool->getTileStatistics(tw, th, tm);
 			int tt = tw*th;
 
-			float percent = (float)m_mesh->getTilesBuilt() / (float)tt;
+			float percent = (float)m_meshTool->getTilesBuilt() / (float)tt;
 
-			if (m_mesh->isBuildingTiles())
+			if (m_meshTool->isBuildingTiles())
 			{
 				char szProgress[256];
-				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_mesh->getTilesBuilt(), tt, percent * 100);
+				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_meshTool->getTilesBuilt(), tt, percent * 100);
 
 				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
 
 				if (ImGui::Button("Halt Build"))
-					m_mesh->cancelBuildAllTiles();
+					m_meshTool->cancelBuildAllTiles();
 			}
 			else
 			{
 				if (ImGui::Button(ICON_MD_BUILD " Build Mesh"))
-					m_mesh->handleBuild();
+					m_meshTool->handleBuild();
 
-				if (!m_mesh->isBuildingTiles() && m_mesh->getNavMesh() != nullptr)
+				if (!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded())
 				{
 					ImGui::SameLine();
 					if (ImGui::Button(ICON_FA_FLOPPY_O " Save Mesh"))
 						SaveMesh();
 				}
 
-				float totalBuildTime = m_mesh->getTotalBuildTimeMS();
+				float totalBuildTime = m_meshTool->getTotalBuildTimeMS();
 				if (totalBuildTime > 0)
 					ImGui::Text("Build Time: %.1fms", totalBuildTime);
 			}
@@ -654,9 +656,9 @@ void Application::RenderInterface()
 
 			ImGui::Separator();
 
-			if (!m_mesh->isBuildingTiles())
+			if (!m_meshTool->isBuildingTiles())
 			{
-				m_mesh->handleSettings();
+				m_meshTool->handleSettings();
 			}
 		}
 
@@ -671,7 +673,7 @@ void Application::RenderInterface()
 		if (!m_zoneLoaded)
 			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded");
 		else
-			m_mesh->handleTools();
+			m_meshTool->handleTools();
 		ImGui::End();
 	}
 
@@ -688,9 +690,9 @@ void Application::RenderInterface()
 
 		ImGui::PushFont(ImGuiEx::ConsoleFont);
 
-		ImGuiListClipper clipper(m_context->getLogCount(), ImGui::GetTextLineHeightWithSpacing());
+		ImGuiListClipper clipper(m_rcContext->getLogCount(), ImGui::GetTextLineHeightWithSpacing());
 		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) // display only visible items
-			ImGui::Text(m_context->getLogText(i));
+			ImGui::Text(m_rcContext->getLogText(i));
 		clipper.End();
 
 		ImGui::PopFont();
@@ -723,12 +725,10 @@ void Application::RenderInterface()
 
 void Application::OpenMesh()
 {
-	if (m_mesh->isBuildingTiles())
+	if (m_meshTool->isBuildingTiles())
 		return;
 
-	std::string meshFilename = GetMeshFilename();
-
-	if (!m_mesh->LoadMesh(m_zoneShortname, meshFilename))
+	if (m_navMesh->LoadNavMeshFile() != NavMesh::LoadResult::Success)
 	{
 		m_showFailedToOpenDialog = true;
 	}
@@ -736,12 +736,10 @@ void Application::OpenMesh()
 
 void Application::SaveMesh()
 {
-	if (m_mesh->isBuildingTiles() || m_mesh->getNavMesh() == nullptr)
+	if (m_meshTool->isBuildingTiles() || !m_navMesh->IsNavMeshLoaded())
 		return;
 
-	std::string meshFilename = GetMeshFilename();
-
-	m_mesh->SaveMesh(m_zoneShortname, meshFilename);
+	m_navMesh->SaveNavMeshFile();
 }
 
 void Application::ShowSettingsDialog()
@@ -773,7 +771,7 @@ void Application::ShowSettingsDialog()
 
 void Application::ShowZonePickerDialog()
 {
-	if (m_mesh->isBuildingTiles()) {
+	if (m_meshTool->isBuildingTiles()) {
 		m_showZonePickerDialog = false;
 		return;
 	}
@@ -931,7 +929,7 @@ std::string Application::GetMeshFilename()
 
 void Application::Halt()
 {
-	m_mesh->cancelBuildAllTiles();
+	m_meshTool->cancelBuildAllTiles();
 }
 
 void Application::LoadGeometry(const std::string& zoneShortName)
@@ -941,7 +939,7 @@ void Application::LoadGeometry(const std::string& zoneShortName)
 	Halt();
 
 	auto ptr = std::make_unique<InputGeom>(zoneShortName, m_eqConfig.GetEverquestPath(), m_eqConfig.GetOutputPath());
-	if (!ptr->loadGeometry(m_context.get()))
+	if (!ptr->loadGeometry(m_rcContext.get()))
 	{
 		m_showFailedToLoadZone = true;
 
@@ -950,7 +948,9 @@ void Application::LoadGeometry(const std::string& zoneShortName)
 
 		m_failedZoneMsg = ss.str();
 		m_geom.reset();
-		m_mesh->handleMeshChanged(nullptr);
+
+		m_navMesh->ResetNavMesh();
+		m_meshTool->handleGeometryChanged(nullptr);
 		m_zoneLoaded = false;
 		return;
 	}
@@ -971,7 +971,8 @@ void Application::LoadGeometry(const std::string& zoneShortName)
 	std::string windowTitle = ss2.str();
 	SDL_SetWindowTitle(m_window, windowTitle.c_str());
 
-	m_mesh->handleMeshChanged(m_geom.get());
+	m_navMesh->SetZoneName(m_zoneShortname);
+	m_meshTool->handleGeometryChanged(m_geom.get());
 	m_resetCamera = true;
 	m_zoneLoaded = true;
 }

@@ -7,6 +7,8 @@
 #pragma once
 
 #include "EQConfig.h"
+#include "common/Context.h"
+#include "common/NavMesh.h"
 
 #include "Recast.h"
 
@@ -27,6 +29,7 @@ class BuildContext;
 class InputGeom;
 class NavMeshTool;
 struct SDL_Surface;
+class ApplicationContext;
 
 class Application
 {
@@ -34,7 +37,7 @@ public:
 	Application(const std::string& defaultZone = std::string());
 	~Application();
 
-	BuildContext& GetContext() { return *m_context; }
+	BuildContext& GetContext() { return *m_rcContext; }
 
 	// run the main event loop. This doesn't return until the program is ready to exit.
 	// Return code is the result to exit with
@@ -75,6 +78,8 @@ private:
 private:
 	EQConfig m_eqConfig;
 
+	ApplicationContext* m_context;
+
 	// short name of the currently loaded zone
 	std::string m_zoneShortname;
 
@@ -85,11 +90,14 @@ private:
 	// render state from other threads
 	std::mutex m_renderMutex;
 
-	// The build context. Everything passes this around. We own it.
-	std::unique_ptr<BuildContext> m_context;
+	// The nav mesh object
+	std::shared_ptr<NavMesh> m_navMesh;
 
-	// The mesh that we use to generate the tiled navmesh
-	std::unique_ptr<NavMeshTool> m_mesh;
+	// The build context. Everything passes this around. We own it.
+	std::unique_ptr<BuildContext> m_rcContext;
+
+	// The mesh tool that we use to build/manipulate the mesh
+	std::unique_ptr<NavMeshTool> m_meshTool;
 
 	// The input geometry (??)
 	std::unique_ptr<InputGeom> m_geom;
@@ -160,6 +168,17 @@ private:
 	std::thread m_buildThread;
 };
 
+//----------------------------------------------------------------------------
+
+// TODO: Sort out differences and combine these two...
+
+class ApplicationContext : public Context
+{
+public:
+	ApplicationContext() {}
+
+	virtual void Log(LogLevel logLevel, const char* format, ...) override;
+};
 
 class BuildContext : public rcContext
 {

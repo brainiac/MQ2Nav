@@ -82,9 +82,6 @@ bool InputGeom::loadGeometry(rcContext* ctx)
 	rcCalcBounds(m_loader->getVerts(), m_loader->getVertCount(),
 		&m_meshBMin[0], &m_meshBMax[0]);
 
-	m_meshBMinCustom = m_meshBMin;
-	m_meshBMaxCustom = m_meshBMax;
-
 	// Construct the partitioned triangle mesh
 	m_chunkyMesh.reset(new rcChunkyTriMesh);
 	if (!rcCreateChunkyTriMesh(
@@ -337,9 +334,3 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 	dd->depthMask(true);
 }
 #pragma endregion
-
-void InputGeom::resetMeshBounds()
-{
-	m_meshBMinCustom = m_meshBMin;
-	m_meshBMaxCustom = m_meshBMax;
-}

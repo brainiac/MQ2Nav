@@ -209,8 +209,10 @@ NavMeshTesterTool::~NavMeshTesterTool()
 void NavMeshTesterTool::init(NavMeshTool* meshTool)
 {
 	m_meshTool = meshTool;
-	m_navMesh = meshTool->getNavMesh();
-	m_navQuery = meshTool->getNavMeshQuery();
+
+	auto navMesh = meshTool->GetNavMesh();
+	m_navMesh = navMesh->GetNavMesh().get();
+	m_navQuery = navMesh->GetNavMeshQuery().get();
 	recalc();
 
 	if (m_navQuery)
@@ -224,8 +226,8 @@ void NavMeshTesterTool::init(NavMeshTool* meshTool)
 		m_filter.setAreaCost(static_cast<int>(PolyArea::Jump), 1.5f);
 	}
 
-	m_neighbourhoodRadius = meshTool->getAgentRadius() * 20.0f;
-	m_randomRadius = meshTool->getAgentRadius() * 30.0f;
+	m_neighbourhoodRadius = navMesh->GetNavMeshConfig().agentRadius * 20.0f;
+	m_randomRadius = navMesh->GetNavMeshConfig().agentRadius * 30.0f;
 }
 
 void NavMeshTesterTool::handleMenu()
@@ -933,7 +935,7 @@ void NavMeshTesterTool::recalc()
 		{
 			const float nx = (m_epos.z - m_spos.z) * 0.25f;
 			const float nz = -(m_epos.x - m_spos.x) * 0.25f;
-			const float agentHeight = m_meshTool ? m_meshTool->getAgentHeight() : 0;
+			const float agentHeight = m_meshTool ? m_meshTool->GetNavMesh()->GetNavMeshConfig().agentHeight : 0;
 
 			m_queryPoly[0].x = m_spos.x + nx * 1.2f;
 			m_queryPoly[0].y = m_spos.y + agentHeight / 2;
@@ -1006,9 +1008,10 @@ void NavMeshTesterTool::handleRender()
 	static const unsigned int endCol = duRGBA(51, 102, 0, 129);
 	static const unsigned int pathCol = duRGBA(0, 0, 0, 64);
 
-	const float agentRadius = m_meshTool->getAgentRadius();
-	const float agentHeight = m_meshTool->getAgentHeight();
-	const float agentClimb = m_meshTool->getAgentClimb();
+	const auto& config = m_meshTool->GetNavMesh()->GetNavMeshConfig();
+	const float agentRadius = config.agentRadius;
+	const float agentHeight = config.agentHeight;
+	const float agentClimb = config.agentMaxClimb;
 
 	dd.depthMask(false);
 	if (m_sposSet)

@@ -13,6 +13,7 @@
 #include <glm/glm.hpp>
 
 #include <cstdint>
+#include <vector>
 
 // OpenGL debug draw implementation.
 class DebugDrawGL : public duDebugDraw
@@ -111,3 +112,8 @@ inline float distSqr(const glm::vec3& v1, const glm::vec3& v2)
 	glm::vec3 temp = v2 - v1;
 	return glm::dot(temp, temp);
 }
+
+//----------------------------------------------------------------------------
+
+bool CompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data);
+bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data);

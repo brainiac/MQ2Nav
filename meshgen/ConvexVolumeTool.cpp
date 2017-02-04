@@ -46,7 +46,7 @@ static void convexhull(const std::vector<glm::vec3>& pts, std::vector<int>& out)
 {
 	// Find lower-leftmost point.
 	int hull = 0;
-	for (int i = 1; i < pts.size(); ++i)
+	for (size_t i = 1; i < pts.size(); ++i)
 		if (cmppt(pts[i], pts[hull]))
 			hull = i;
 	// Gift wrap hull.
@@ -56,7 +56,7 @@ static void convexhull(const std::vector<glm::vec3>& pts, std::vector<int>& out)
 	{
 		out.push_back(hull);
 		endpt = 0;
-		for (int j = 1; j < pts.size(); ++j)
+		for (size_t j = 1; j < pts.size(); ++j)
 			if (hull == endpt || left(pts[hull], pts[endpt], pts[j]))
 				endpt = j;
 		hull = endpt;
@@ -178,11 +178,11 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 				std::vector<glm::vec3> verts(m_hull.size());
 
 				// Create shape.
-				for (int i = 0; i < m_hull.size(); ++i)
+				for (size_t i = 0; i < m_hull.size(); ++i)
 					verts[i] = m_pts[m_hull[i]];
 
 				float minh = FLT_MAX, maxh = 0;
-				for (int i = 0; i < m_hull.size(); ++i)
+				for (size_t i = 0; i < m_hull.size(); ++i)
 					minh = glm::min(minh, verts[i].y);
 
 				minh -= m_boxDescent;
@@ -227,13 +227,13 @@ void ConvexVolumeTool::handleRender()
 
 	// Find height extents of the shape.
 	float minh = FLT_MAX, maxh = 0;
-	for (int i = 0; i < m_pts.size(); ++i)
+	for (size_t i = 0; i < m_pts.size(); ++i)
 		minh = glm::min(minh, m_pts[i].y);
 	minh -= m_boxDescent;
 	maxh = minh + m_boxHeight;
 
 	dd.begin(DU_DRAW_POINTS, 4.0f);
-	for (int i = 0; i < m_pts.size(); ++i)
+	for (size_t i = 0; i < m_pts.size(); ++i)
 	{
 		unsigned int col = duRGBA(255, 255, 255, 255);
 		if (i == m_pts.size() - 1)

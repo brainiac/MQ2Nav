@@ -51,7 +51,7 @@ void NavMeshTileTool::handleRender()
 {
 	if (m_hitPosSet)
 	{
-		const float s = m_meshTool->getAgentRadius();
+		const float s = m_meshTool->GetNavMesh()->GetNavMeshConfig().agentRadius;
 
 		DebugDrawGL dd;
 

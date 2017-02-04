@@ -77,7 +77,7 @@ void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, 
 		}
 		// If end point close enough, delete it.
 		if (nearestIndex != -1 &&
-			sqrtf(nearestDist) < m_meshTool->getAgentRadius())
+			sqrtf(nearestDist) < m_meshTool->GetNavMesh()->GetNavMeshConfig().agentRadius)
 		{
 			geom->deleteOffMeshConnection(nearestIndex);
 		}
@@ -95,7 +95,7 @@ void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, 
 			const uint8_t area = static_cast<uint8_t>(PolyArea::Jump);
 			const uint16_t flags = static_cast<uint16_t>(PolyFlags::Jump);
 			geom->addOffMeshConnection(glm::value_ptr(m_hitPos), glm::value_ptr(p),
-				m_meshTool->getAgentRadius(), m_bidir ? 1 : 0, area, flags);
+				m_meshTool->GetNavMesh()->GetNavMeshConfig().agentRadius, m_bidir ? 1 : 0, area, flags);
 			m_hitPosSet = false;
 		}
 	}
@@ -116,7 +116,7 @@ void OffMeshConnectionTool::handleUpdate(float /*dt*/)
 void OffMeshConnectionTool::handleRender()
 {
 	DebugDrawGL dd;
-	const float s = m_meshTool->getAgentRadius();
+	const float s = m_meshTool->GetNavMesh()->GetNavMeshConfig().agentRadius;
 
 	if (m_hitPosSet)
 		duDebugDrawCross(&dd, m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2], s, duRGBA(0,0,0,128), 2.0f);

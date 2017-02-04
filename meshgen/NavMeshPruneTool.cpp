@@ -195,7 +195,7 @@ void NavMeshPruneTool::reset()
 
 void NavMeshPruneTool::handleMenu()
 {
-	dtNavMesh* nav = m_meshTool->getNavMesh();
+	auto nav = m_meshTool->GetNavMesh()->GetNavMesh();
 	if (!nav) return;
 	if (!m_flags) return;
 
@@ -206,7 +206,7 @@ void NavMeshPruneTool::handleMenu()
 
 	if (ImGui::Button("Prune Unselected"))
 	{
-		disableUnvisitedPolys(nav, m_flags.get());
+		disableUnvisitedPolys(nav.get(), m_flags.get());
 		m_flags.reset();
 	}
 }
@@ -216,9 +216,9 @@ void NavMeshPruneTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 	if (!m_meshTool) return;
 	InputGeom* geom = m_meshTool->getInputGeom();
 	if (!geom) return;
-	dtNavMesh* nav = m_meshTool->getNavMesh();
+	auto nav = m_meshTool->GetNavMesh()->GetNavMesh();
 	if (!nav) return;
-	dtNavMeshQuery* query = m_meshTool->getNavMeshQuery();
+	auto query = m_meshTool->GetNavMesh()->GetNavMeshQuery();
 	if (!query) return;
 
 	m_hitPos = p;
@@ -227,7 +227,7 @@ void NavMeshPruneTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 	if (!m_flags)
 	{
 		m_flags = std::make_unique<NavmeshFlags>();
-		m_flags->init(nav);
+		m_flags->init(nav.get());
 	}
 
 	const float ext[3] = { 2,4,2 };
@@ -235,7 +235,7 @@ void NavMeshPruneTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 	dtPolyRef ref = 0;
 	query->findNearestPoly(glm::value_ptr(p), ext, &filter, &ref, 0);
 
-	floodNavmesh(nav, m_flags.get(), ref, 1);
+	floodNavmesh(nav.get(), m_flags.get(), ref, 1);
 }
 
 void NavMeshPruneTool::handleRender()
@@ -244,7 +244,7 @@ void NavMeshPruneTool::handleRender()
 
 	if (m_hitPosSet)
 	{
-		const float s = m_meshTool->getAgentRadius();
+		const float s = m_meshTool->GetNavMesh()->GetNavMeshConfig().agentRadius;
 		const unsigned int col = duRGBA(255, 255, 255, 255);
 		dd.begin(DU_DRAW_LINES);
 		dd.vertex(m_hitPos[0] - s, m_hitPos[1], m_hitPos[2], col);
@@ -256,7 +256,7 @@ void NavMeshPruneTool::handleRender()
 		dd.end();
 	}
 
-	const dtNavMesh* nav = m_meshTool->getNavMesh();
+	const dtNavMesh* nav = m_meshTool->GetNavMesh()->GetNavMesh().get();
 	if (m_flags && nav)
 	{
 		for (int i = 0; i < nav->getMaxTiles(); ++i)

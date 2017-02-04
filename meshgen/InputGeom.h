@@ -27,17 +27,8 @@ public:
 	bool loadGeometry(class rcContext* ctx);
 
 	// Method to return static mesh data.
-	inline const glm::vec3& getMeshBoundsMin() const { return m_meshBMinCustom; }
-	inline const glm::vec3& getMeshBoundsMax() const { return m_meshBMaxCustom; }
-
-	inline const glm::vec3& getRealMeshBoundsMin() const { return m_meshBMin; }
-	inline const glm::vec3& getRealMeshBoundsMax() const { return m_meshBMax; }
-
-
-	void resetMeshBounds();
-
-	inline void setMeshBoundsMin(const glm::vec3& min) { m_meshBMinCustom = min; }
-	inline void setMeshBoundsMax(const glm::vec3& max) { m_meshBMaxCustom = max; }
+	inline const glm::vec3& getMeshBoundsMin() const { return m_meshBMin; }
+	inline const glm::vec3& getMeshBoundsMax() const { return m_meshBMax; }
 
 	inline const MapGeometryLoader* getMeshLoader() const { return m_loader.get(); }
 	inline const rcChunkyTriMesh* getChunkyMesh() const { return m_chunkyMesh.get(); }
@@ -76,7 +67,6 @@ private:
 
 	// bounds
 	glm::vec3 m_meshBMin, m_meshBMax;
-	glm::vec3 m_meshBMinCustom, m_meshBMaxCustom;
 
 	// Off-Mesh connections.
 	static const int MAX_OFFMESH_CONNECTIONS = 256;
