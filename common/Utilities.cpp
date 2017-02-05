@@ -18,6 +18,7 @@
 
 ImFont* ImGuiEx::DefaultFont = nullptr;
 ImFont* ImGuiEx::ConsoleFont = nullptr;
+ImFont* ImGuiEx::LargeIconFont = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -124,6 +125,16 @@ void ImGuiEx::ConfigureFonts()
 	static const ImWchar md_icon_ranges[] = { ICON_MIN_MD, ICON_MAX_MD, 0 };
 	io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
 		GetMaterialIconsCompressedSize(), 13.0f, &mdConfig, md_icon_ranges);
+
+	// font: Material Design Icons (Large)
+	ImFontConfig mdConfig2;
+	LargeIconFont = io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
+		GetMaterialIconsCompressedSize(), 16.0f, &mdConfig2, md_icon_ranges);
+
+	mdConfig2.DstFont = LargeIconFont;
+	mdConfig2.MergeMode = true;
+	io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
+		GetRobotoRegularCompressedSize(), 16.0, &mdConfig2);
 
 	// add default proggy clean font as a secondary font
 	ConsoleFont = io.Fonts->AddFontDefault();

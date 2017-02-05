@@ -109,7 +109,6 @@ private:
 	float m_progress;
 	std::string m_activityMessage;
 	bool m_showLog;
-	bool m_showTools = false;
 	bool m_showFailedToOpenDialog = false;
 
 	glm::mat4 m_proj;
@@ -152,6 +151,9 @@ private:
 	bool m_showZonePickerDialog = false;
 	bool m_showSettingsDialog = false;
 	bool m_showDemo = false;
+	bool m_showTools = true;
+	bool m_showProperties = true;
+	bool m_showMapAreas = false;
 
 	// zone to load on next pass
 	std::string m_nextZoneToLoad;

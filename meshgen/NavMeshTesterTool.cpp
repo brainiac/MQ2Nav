@@ -396,10 +396,12 @@ void NavMeshTesterTool::handleMenu()
 	ImGui::Text("Exclude Flags");
 
 	ImGui::Indent();
+	ImGui::PushID("Excludes");
 	changed |= ImGui::CheckboxFlags("Walk", &excludeFlags, +PolyFlags::Walk);
 	changed |= ImGui::CheckboxFlags("Swim", &excludeFlags, +PolyFlags::Swim);
 	changed |= ImGui::CheckboxFlags("Door", &excludeFlags, +PolyFlags::Door);
 	changed |= ImGui::CheckboxFlags("Jump", &excludeFlags, +PolyFlags::Jump);
+	ImGui::PopID();
 	ImGui::Unindent();
 
 	ImGui::Separator();

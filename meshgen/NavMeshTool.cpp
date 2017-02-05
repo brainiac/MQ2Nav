@@ -127,9 +127,120 @@ void NavMeshTool::UpdateTileSizes()
 
 void NavMeshTool::handleSettings()
 {
-	if (ImGui::CollapsingHeader("Mesh Properties", 0, true, true))
+	if (ImGui::CollapsingHeader("Debug"))
 	{
-		int tt = m_tilesWidth*m_tilesHeight;
+		// Check which modes are valid.
+		bool valid[DrawMode::MAX];
+		for (int i = 0; i < DrawMode::MAX; ++i)
+			valid[i] = false;
+
+		if (m_geom)
+		{
+			bool isValid = m_navMesh->IsNavMeshLoaded();
+
+			valid[DrawMode::NAVMESH] = isValid;
+			valid[DrawMode::NAVMESH_TRANS] = isValid;
+			valid[DrawMode::NAVMESH_BVTREE] = isValid;
+			valid[DrawMode::NAVMESH_NODES] = isValid;
+			valid[DrawMode::NAVMESH_PORTALS] = isValid;
+			valid[DrawMode::NAVMESH_INVIS] = isValid;
+			valid[DrawMode::MESH] = true;
+		}
+
+		int unavail = 0;
+		for (int i = 0; i < DrawMode::MAX; ++i)
+		{
+			if (!valid[i]) unavail++;
+		}
+
+		if (unavail != DrawMode::MAX)
+		{
+			ImGui::Text("Draw");
+
+			if (valid[DrawMode::MESH] && ImGui::RadioButton("Input Mesh", m_drawMode == DrawMode::MESH))
+				m_drawMode = DrawMode::MESH;
+			if (valid[DrawMode::NAVMESH] && ImGui::RadioButton("Navmesh", m_drawMode == DrawMode::NAVMESH))
+				m_drawMode = DrawMode::NAVMESH;
+			if (valid[DrawMode::NAVMESH_INVIS] && ImGui::RadioButton("Navmesh Invis", m_drawMode == DrawMode::NAVMESH_INVIS))
+				m_drawMode = DrawMode::NAVMESH_INVIS;
+			if (valid[DrawMode::NAVMESH_TRANS] && ImGui::RadioButton("Navmesh Trans", m_drawMode == DrawMode::NAVMESH_TRANS))
+				m_drawMode = DrawMode::NAVMESH_TRANS;
+			if (valid[DrawMode::NAVMESH_BVTREE] && ImGui::RadioButton("Navmesh BVTree", m_drawMode == DrawMode::NAVMESH_BVTREE))
+				m_drawMode = DrawMode::NAVMESH_BVTREE;
+			if (valid[DrawMode::NAVMESH_NODES] && ImGui::RadioButton("Navmesh Nodes", m_drawMode == DrawMode::NAVMESH_NODES))
+				m_drawMode = DrawMode::NAVMESH_NODES;
+			if (valid[DrawMode::NAVMESH_PORTALS] && ImGui::RadioButton("Navmesh Portals", m_drawMode == DrawMode::NAVMESH_PORTALS))
+				m_drawMode = DrawMode::NAVMESH_PORTALS;
+		}
+	}
+}
+
+bool ToolButton(const char* text, const char* tooltip, bool active)
+{
+	if (!active)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Button, ImColor(100, 100, 100, 255));
+	}
+
+	ImGui::PushFont(ImGuiEx::LargeIconFont);
+
+	bool result = ImGui::Button(text, ImVec2(30, 30));
+
+	ImGui::PopFont();
+
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted(tooltip);
+		ImGui::EndTooltip();
+	}
+
+	if (!active)
+	{
+		ImGui::PopStyleColor();
+	}
+
+	return result;
+}
+
+void NavMeshTool::handleTools()
+{
+	ToolType type = !m_tool ? ToolType::NONE : m_tool->type();
+
+	if (ToolButton(ICON_MD_QUEUE, "Tile Edit Tool", type == ToolType::TILE_EDIT)) // create tiles
+	{
+		setTool(new NavMeshTileTool);
+	}
+	ImGui::SameLine();
+
+	if (ToolButton(ICON_MD_PLACE, "NavMesh Tester Tool", type == ToolType::NAVMESH_TESTER)) // test mesh
+	{
+		setTool(new NavMeshTesterTool);
+	}
+	ImGui::SameLine();
+
+
+	if (ToolButton(ICON_MD_FORMAT_SHAPES, "Mark Areas Tool", type == ToolType::CONVEX_VOLUME)) // mark areas
+	{
+		setTool(new ConvexVolumeTool);
+	}
+	ImGui::SameLine();
+
+	if (ToolButton(ICON_MD_CROP, "Prune NavMesh Tool", type == ToolType::NAVMESH_PRUNE)) // prune tool
+	{
+		setTool(new NavMeshPruneTool);
+	}
+
+	ImGui::Separator();
+
+	if (m_tool)
+	{
+		m_tool->handleMenu();
+	}
+
+	if (type == ToolType::TILE_EDIT)
+	{
+		int tt = m_tilesWidth * m_tilesHeight;
 
 		ImVec4 col = ImColor(255, 255, 255);
 #ifndef DT_POLYREF64
@@ -205,7 +316,7 @@ void NavMeshTool::handleSettings()
 
 			ImGui::SliderFloat("Min Region Size", &m_config.regionMinSize, 0.0f, 150.0f, "%.0f");
 			ImGui::SliderFloat("Merged Region Size", &m_config.regionMergeSize, 0.0f, 150.0f, "%.0f");
-			
+
 			// Partitioning
 			ImGui::Text("Partitioning");
 			ImGui::SameLine();
@@ -276,147 +387,6 @@ void NavMeshTool::handleSettings()
 			ImGui::SliderFloat("Sample Distance", &m_config.detailSampleDist, 0.0f, 0.9f, "%.2f");
 			ImGui::SliderFloat("Max Sample Error", &m_config.detailSampleMaxError, 0.0f, 100.0f, "%.1f");
 		}
-	}
-
-	if (ImGui::CollapsingHeader("Debug"))
-	{
-		// Check which modes are valid.
-		bool valid[DrawMode::MAX];
-		for (int i = 0; i < DrawMode::MAX; ++i)
-			valid[i] = false;
-
-		if (m_geom)
-		{
-			bool isValid = m_navMesh->IsNavMeshLoaded();
-
-			valid[DrawMode::NAVMESH] = isValid;
-			valid[DrawMode::NAVMESH_TRANS] = isValid;
-			valid[DrawMode::NAVMESH_BVTREE] = isValid;
-			valid[DrawMode::NAVMESH_NODES] = isValid;
-			valid[DrawMode::NAVMESH_PORTALS] = isValid;
-			valid[DrawMode::NAVMESH_INVIS] = isValid;
-			valid[DrawMode::MESH] = true;
-
-			//valid[DrawMode::VOXELS] = false; // m_solid != 0;
-			//valid[DrawMode::VOXELS_WALKABLE] = false; // = m_solid != 0;
-			//valid[DrawMode::COMPACT] = false; // m_chf != 0;
-			//valid[DrawMode::COMPACT_DISTANCE] = false; // m_chf != 0;
-			//valid[DrawMode::COMPACT_REGIONS] = false; // m_chf != 0;
-			//valid[DrawMode::REGION_CONNECTIONS] = false; // m_cset != 0;
-			//valid[DrawMode::RAW_CONTOURS] = false; // m_cset != 0;
-			//valid[DrawMode::BOTH_CONTOURS] = false; // m_cset != 0;
-			//valid[DrawMode::CONTOURS] = false; // m_cset != 0;
-			//valid[DrawMode::POLYMESH] = false; // m_pmesh != 0;
-			//valid[DrawMode::POLYMESH_DETAIL] = false; // m_dmesh != 0;
-		}
-
-		int unavail = 0;
-		for (int i = 0; i < DrawMode::MAX; ++i)
-		{
-			if (!valid[i]) unavail++;
-		}
-
-		if (unavail != DrawMode::MAX)
-		{
-			ImGui::Text("Draw");
-
-			if (valid[DrawMode::MESH] && ImGui::RadioButton("Input Mesh", m_drawMode == DrawMode::MESH))
-				m_drawMode = DrawMode::MESH;
-			if (valid[DrawMode::NAVMESH] && ImGui::RadioButton("Navmesh", m_drawMode == DrawMode::NAVMESH))
-				m_drawMode = DrawMode::NAVMESH;
-			if (valid[DrawMode::NAVMESH_INVIS] && ImGui::RadioButton("Navmesh Invis", m_drawMode == DrawMode::NAVMESH_INVIS))
-				m_drawMode = DrawMode::NAVMESH_INVIS;
-			if (valid[DrawMode::NAVMESH_TRANS] && ImGui::RadioButton("Navmesh Trans", m_drawMode == DrawMode::NAVMESH_TRANS))
-				m_drawMode = DrawMode::NAVMESH_TRANS;
-			if (valid[DrawMode::NAVMESH_BVTREE] && ImGui::RadioButton("Navmesh BVTree", m_drawMode == DrawMode::NAVMESH_BVTREE))
-				m_drawMode = DrawMode::NAVMESH_BVTREE;
-			if (valid[DrawMode::NAVMESH_NODES] && ImGui::RadioButton("Navmesh Nodes", m_drawMode == DrawMode::NAVMESH_NODES))
-				m_drawMode = DrawMode::NAVMESH_NODES;
-			if (valid[DrawMode::NAVMESH_PORTALS] && ImGui::RadioButton("Navmesh Portals", m_drawMode == DrawMode::NAVMESH_PORTALS))
-				m_drawMode = DrawMode::NAVMESH_PORTALS;
-			//if (valid[DrawMode::VOXELS] && ImGui::RadioButton("Voxels", m_drawMode == DrawMode::VOXELS))
-			//	m_drawMode = DrawMode::VOXELS;
-			//if (valid[DrawMode::VOXELS_WALKABLE] && ImGui::RadioButton("Walkable Voxels", m_drawMode == DrawMode::VOXELS_WALKABLE))
-			//	m_drawMode = DrawMode::VOXELS_WALKABLE;
-			//if (valid[DrawMode::COMPACT] && ImGui::RadioButton("Compact", m_drawMode == DrawMode::COMPACT))
-			//	m_drawMode = DrawMode::COMPACT;
-			//if (valid[DrawMode::COMPACT_DISTANCE] && ImGui::RadioButton("Compact Distance", m_drawMode == DrawMode::COMPACT_DISTANCE))
-			//	m_drawMode = DrawMode::COMPACT_DISTANCE;
-			//if (valid[DrawMode::COMPACT_REGIONS] && ImGui::RadioButton("Compact Regions", m_drawMode == DrawMode::COMPACT_REGIONS))
-			//	m_drawMode = DrawMode::COMPACT_REGIONS;
-			//if (valid[DrawMode::REGION_CONNECTIONS] && ImGui::RadioButton("Region Connections", m_drawMode == DrawMode::REGION_CONNECTIONS))
-			//	m_drawMode = DrawMode::REGION_CONNECTIONS;
-			//if (valid[DrawMode::RAW_CONTOURS] && ImGui::RadioButton("Raw Contours", m_drawMode == DrawMode::RAW_CONTOURS))
-			//	m_drawMode = DrawMode::RAW_CONTOURS;
-			//if (valid[DrawMode::BOTH_CONTOURS] && ImGui::RadioButton("Both Contours", m_drawMode == DrawMode::BOTH_CONTOURS))
-			//	m_drawMode = DrawMode::BOTH_CONTOURS;
-			//if (valid[DrawMode::CONTOURS] && ImGui::RadioButton("Contours", m_drawMode == DrawMode::CONTOURS))
-			//	m_drawMode = DrawMode::CONTOURS;
-			//if (valid[DrawMode::POLYMESH] && ImGui::RadioButton("Poly Mesh", m_drawMode == DrawMode::POLYMESH))
-			//	m_drawMode = DrawMode::POLYMESH;
-			//if (valid[DrawMode::POLYMESH_DETAIL] && ImGui::RadioButton("Poly Mesh Detail", m_drawMode == DrawMode::POLYMESH_DETAIL))
-			//	m_drawMode = DrawMode::POLYMESH_DETAIL;
-		}
-	}
-}
-
-bool ToolButton(const char* text, const char* tooltip, bool active)
-{
-	if (!active)
-	{
-		ImGui::PushStyleColor(ImGuiCol_Button, ImColor(100, 100, 100, 255));
-	}
-
-	bool result = ImGui::Button(text, ImVec2(30, 30));
-
-	if (ImGui::IsItemHovered())
-	{
-		ImGui::BeginTooltip();
-		ImGui::TextUnformatted(tooltip);
-		ImGui::EndTooltip();
-	}
-
-	if (!active)
-	{
-		ImGui::PopStyleColor();
-	}
-
-	return result;
-}
-
-void NavMeshTool::handleTools()
-{
-	ToolType type = !m_tool ? ToolType::NONE : m_tool->type();
-
-	if (ToolButton(ICON_MD_QUEUE, "Tile Edit Tool", type == ToolType::TILE_EDIT)) // create tiles
-	{
-		setTool(new NavMeshTileTool);
-	}
-	ImGui::SameLine();
-
-	if (ToolButton(ICON_MD_PLACE, "NavMesh Tester Tool", type == ToolType::NAVMESH_TESTER)) // test mesh
-	{
-		setTool(new NavMeshTesterTool);
-	}
-	ImGui::SameLine();
-
-
-	if (ToolButton(ICON_MD_FORMAT_SHAPES, "Mark Areas Tool", type == ToolType::CONVEX_VOLUME)) // mark areas
-	{
-		setTool(new ConvexVolumeTool);
-	}
-	ImGui::SameLine();
-
-	if (ToolButton(ICON_MD_CROP, "Prune NavMesh Tool", type == ToolType::NAVMESH_PRUNE)) // prune tool
-	{
-		setTool(new NavMeshPruneTool);
-	}
-
-	ImGui::Separator();
-
-	if (m_tool)
-	{
-		m_tool->handleMenu();
 	}
 }
 

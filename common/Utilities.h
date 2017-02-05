@@ -60,6 +60,7 @@ namespace ImGuiEx
 	void ConfigureFonts();
 
 	extern ImFont* DefaultFont;
+	extern ImFont* LargeIconFont;
 	extern ImFont* ConsoleFont;
 }
 

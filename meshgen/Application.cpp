@@ -273,10 +273,16 @@ void Application::HandleEvents()
 				case SDLK_s:
 					SaveMesh();
 					break;
+
+				case SDLK_p:
+					m_showProperties = !m_showProperties;
+					break;
+
 				case SDLK_t:
 					m_showTools = !m_showTools;
 					break;
-				case SDLK_p:
+
+				case SDLK_COMMA:
 					m_showSettingsDialog = true;
 					break;
 				default:
@@ -452,21 +458,16 @@ void Application::RenderInterface()
 {
 	m_meshTool->handleRenderOverlay(m_proj, m_model, m_view);
 
-	bool showMenu = true;
-
 	char buffer[240] = { 0, };
 
 	// Help text.
-	if (showMenu)
-	{
-		static const char msg[] = "Hotkey List -> W/S/A/D: Move  "
-			"RMB: Rotate   "
-			"LMB: Place Start   "
-			"LMB+SHIFT: Place End   ";
+	static const char msg[] = "Hotkey List -> W/S/A/D: Move  "
+		"RMB: Rotate   "
+		"LMB: Place Start   "
+		"LMB+SHIFT: Place End   ";
 
-		ImGui::RenderTextCentered(ImVec2(m_width / 2, 20),
-			ImColor(255, 255, 255, 128), "%s", msg);
-	}
+	ImGui::RenderTextCentered(ImVec2(m_width / 2, 20),
+		ImColor(255, 255, 255, 128), "%s", msg);
 
 	if (!m_activityMessage.empty())
 	{
@@ -474,113 +475,119 @@ void Application::RenderInterface()
 			ImColor(255, 255, 255, 128), m_activityMessage.c_str(), m_progress);
 	}
 
-	if (showMenu)
+	m_showFailedToOpenDialog = false;
+
+	if (ImGui::BeginMainMenuBar())
 	{
-		m_showFailedToOpenDialog = false;
-
-		if (ImGui::BeginMainMenuBar())
+		if (ImGui::BeginMenu("File"))
 		{
-			if (ImGui::BeginMenu("File"))
+			if (ImGui::MenuItem("Open Zone", "Ctrl+O", nullptr,
+				!m_meshTool->isBuildingTiles()))
 			{
-				if (ImGui::MenuItem("Open Zone", "Ctrl+O", nullptr,
-					!m_meshTool->isBuildingTiles()))
-				{
-					m_showZonePickerDialog = true;
-				}
-
-				ImGui::Separator();
-
-				if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr,
-					!m_meshTool->isBuildingTiles()))
-				{
-					OpenMesh();
-				}
-				if (ImGui::MenuItem("Save Mesh", "Ctrl+S", nullptr,
-					!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
-				{
-					SaveMesh();
-				}
-				if (ImGui::MenuItem("Reset Mesh", "", nullptr,
-					!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
-				{
-					m_navMesh->ResetNavMesh();
-				}
-
-				ImGui::Separator();
-
-				if (ImGui::MenuItem("Settings", "Ctrl+P", nullptr))
-				{
-					m_showSettingsDialog = true;
-				}
-
-				ImGui::Separator();
-
-				if (ImGui::MenuItem("Quit", "Alt+F4"))
-					m_done = true;
-				ImGui::EndMenu();
+				m_showZonePickerDialog = true;
 			}
 
-			if (ImGui::BeginMenu("View"))
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Settings", "Ctrl+,", nullptr))
 			{
-				if (ImGui::MenuItem("Show Log", 0, m_showLog))
-					m_showLog = !m_showLog;
-				if (ImGui::MenuItem("Show Tools", "Ctrl+T", m_showTools))
-					m_showTools = !m_showTools;
-
-				ImGui::Separator();
-
-				if (ImGui::MenuItem("Show ImGui Demo", 0, m_showDemo))
-					m_showDemo = !m_showDemo;
-
-				ImGui::EndMenu();
+				m_showSettingsDialog = true;
 			}
-			ImGui::EndMainMenuBar();
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Quit", "Alt+F4"))
+				m_done = true;
+			ImGui::EndMenu();
 		}
 
-		if (m_showFailedToOpenDialog)
-			ImGui::OpenPopup("Failed To Open");
-		if (ImGui::BeginPopupModal("Failed To Open"))
+		if (ImGui::BeginMenu("Mesh"))
 		{
-			m_showFailedToOpenDialog = false;
-			ImGui::Text("Failed to open mesh.");
-			if (ImGui::Button("Close"))
-				ImGui::CloseCurrentPopup();
+			if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr,
+				!m_meshTool->isBuildingTiles()))
+			{
+				OpenMesh();
+			}
+			if (ImGui::MenuItem("Save Mesh", "Ctrl+S", nullptr,
+				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
+			{
+				SaveMesh();
+			}
+			if (ImGui::MenuItem("Reset Mesh", "", nullptr,
+				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
+			{
+				m_navMesh->ResetNavMesh();
+			}
 
-			ImGui::EndPopup();
+			ImGui::EndMenu();
 		}
 
-		if (m_showFailedToLoadZone)
-			ImGui::OpenPopup("Failed To Open Zone");
-		if (ImGui::BeginPopupModal("Failed To Open Zone"))
+		if (ImGui::BeginMenu("Edit"))
 		{
-			m_showFailedToLoadZone = false;
+			if (ImGui::MenuItem("Map Areas"))
+				m_showMapAreas = !m_showMapAreas;
 
-			ImGui::Text("%s", m_failedZoneMsg.c_str());
-			if (ImGui::Button("Close"))
-				ImGui::CloseCurrentPopup();
-			ImGui::EndPopup();
+			ImGui::EndMenu();
 		}
 
-		ShowSettingsDialog();
-		ShowZonePickerDialog();
-		if (m_showDemo)
-			ImGui::ShowTestWindow(&m_showDemo);
+		if (ImGui::BeginMenu("View"))
+		{
+			if (ImGui::MenuItem("Show Properties", "Ctrl+P", m_showProperties))
+				m_showProperties = !m_showProperties;
+			if (ImGui::MenuItem("Show Tools", "Ctrl+T", m_showTools))
+				m_showTools = !m_showTools;
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Show Log", 0, m_showLog))
+				m_showLog = !m_showLog;
+
+			if (ImGui::MenuItem("Show ImGui Demo", 0, m_showDemo))
+				m_showDemo = !m_showDemo;
+
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
 	}
 
-	// start the properties dialog
-	ImGui::SetNextWindowPos(ImVec2(0, 21));
-	ImGui::SetNextWindowSize(ImVec2(315, m_height - 21));
-
-	const float oldWindowRounding = ImGui::GetStyle().WindowRounding;
-	ImGui::GetStyle().WindowRounding = 0;
-
-	bool show = ImGui::Begin("##Properties", 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-		| ImGuiWindowFlags_NoTitleBar);
-
-	ImGui::GetStyle().WindowRounding = oldWindowRounding;
-
-	if (show)
+	if (m_showFailedToOpenDialog)
+		ImGui::OpenPopup("Failed To Open");
+	if (ImGui::BeginPopupModal("Failed To Open"))
 	{
+		m_showFailedToOpenDialog = false;
+		ImGui::Text("Failed to open mesh.");
+		if (ImGui::Button("Close"))
+			ImGui::CloseCurrentPopup();
+
+		ImGui::EndPopup();
+	}
+
+	if (m_showFailedToLoadZone)
+		ImGui::OpenPopup("Failed To Open Zone");
+	if (ImGui::BeginPopupModal("Failed To Open Zone"))
+	{
+		m_showFailedToLoadZone = false;
+
+		ImGui::Text("%s", m_failedZoneMsg.c_str());
+		if (ImGui::Button("Close"))
+			ImGui::CloseCurrentPopup();
+		ImGui::EndPopup();
+	}
+
+	ShowSettingsDialog();
+	ShowZonePickerDialog();
+
+	if (m_showDemo)
+	{
+		ImGui::ShowTestWindow(&m_showDemo);
+	}
+
+	if (m_showProperties)
+	{
+		ImGui::SetNextWindowPos(ImVec2(20, 21 + 20), ImGuiSetCond_FirstUseEver);
+
+		ImGui::Begin("Properties", &m_showProperties, ImGuiWindowFlags_AlwaysAutoResize);
+
 		// show zone name
 		if (!m_zoneLoaded)
 			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
@@ -599,66 +606,30 @@ void Application::RenderInterface()
 
 		if (m_geom)
 		{
-			int tw, th, tm;
-			m_meshTool->getTileStatistics(tw, th, tm);
-			int tt = tw*th;
-
-			float percent = (float)m_meshTool->getTilesBuilt() / (float)tt;
-
-			if (m_meshTool->isBuildingTiles())
-			{
-				char szProgress[256];
-				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_meshTool->getTilesBuilt(), tt, percent * 100);
-
-				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
-
-				if (ImGui::Button("Halt Build"))
-					m_meshTool->CancelBuildAllTiles();
-			}
-			else
-			{
-				if (ImGui::Button(ICON_MD_BUILD " Build Mesh"))
-					m_meshTool->handleBuild();
-
-				if (!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded())
-				{
-					ImGui::SameLine();
-					if (ImGui::Button(ICON_FA_FLOPPY_O " Save Mesh"))
-						SaveMesh();
-				}
-
-				float totalBuildTime = m_meshTool->getTotalBuildTimeMS();
-				if (totalBuildTime > 0)
-					ImGui::Text("Build Time: %.1fms", totalBuildTime);
-			}
-
-			ImGui::Separator();
-
 			auto* loader = m_geom->getMeshLoader();
 
 			if (loader->HasDynamicObjects())
 				ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
-			else {
+			else
+			{
 				ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
 
 				if (ImGui::IsItemHovered())
 				{
 					ImGui::BeginTooltip();
 					ImGui::Text("Dynamic objects can be loaded after entering\n"
-					            "a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
-					            "to refresh the dynamic objects.");
+						"a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
+						"to refresh the dynamic objects.");
 					ImGui::EndTooltip();
 				}
 			}
 
 			ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
 
-
-			ImGui::Separator();
-
-			if (!m_meshTool->isBuildingTiles())
+			if (m_navMesh->IsNavMeshLoaded())
 			{
-				m_meshTool->handleSettings();
+				if (ImGui::Button(ICON_FA_FLOPPY_O " Save"))
+					SaveMesh();
 			}
 		}
 
@@ -667,22 +638,52 @@ void Application::RenderInterface()
 
 	if (m_showTools)
 	{
-		ImGui::SetNextWindowPos(ImVec2(m_width - 300 - 10, 10), ImGuiSetCond_Once);
-		ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiSetCond_Once);
-		ImGui::Begin("Tools", &m_showTools, ImGuiWindowFlags_AlwaysAutoResize);
-		if (!m_zoneLoaded)
-			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded");
-		else
-			m_meshTool->handleTools();
+		// start the tools dialog
+		ImGui::SetNextWindowPos(ImVec2(m_width - 315, 21));
+		ImGui::SetNextWindowSize(ImVec2(315, m_height - 21));
+
+		const float oldWindowRounding = ImGui::GetStyle().WindowRounding;
+		ImGui::GetStyle().WindowRounding = 0;
+
+		ImGui::Begin("##Tools", &m_showTools, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+			| ImGuiWindowFlags_NoTitleBar);
+
+		ImGui::GetStyle().WindowRounding = oldWindowRounding;
+
+		if (m_geom)
+		{
+			if (m_meshTool->isBuildingTiles())
+			{
+				int tw, th, tm;
+				m_meshTool->getTileStatistics(tw, th, tm);
+				int tt = tw*th;
+
+				float percent = (float)m_meshTool->getTilesBuilt() / (float)tt;
+
+				char szProgress[256];
+				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_meshTool->getTilesBuilt(), tt, percent * 100);
+
+				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
+
+				if (ImGui::Button(ICON_MD_CANCEL " Stop"))
+					m_meshTool->CancelBuildAllTiles();
+			}
+			else
+			{
+				m_meshTool->handleTools();
+			}
+
+			m_meshTool->handleSettings();
+		}
+
 		ImGui::End();
 	}
 
-	// Log
-	if (m_showLog && showMenu)
+	if (m_showLog)
 	{
 		int logXPos = 10 + 10 + 300;
 
-		ImGui::SetNextWindowPos(ImVec2(logXPos, m_height - 200 - 10), ImGuiSetCond_Once);
+		ImGui::SetNextWindowPos(ImVec2(logXPos, m_height - 200 - 10), ImGuiSetCond_FirstUseEver);
 		ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiSetCond_Once);
 
 		ImGui::Begin("Log", &m_showLog);
@@ -717,6 +718,11 @@ void Application::RenderInterface()
 
 		ImGui::End();
 		ImGui::End();
+	}
+
+	if (m_showMapAreas)
+	{
+
 	}
 }
 
@@ -790,10 +796,10 @@ void Application::ShowZonePickerDialog()
 
 		bool selectSingle = false;
 		static char filterText[64] = "";
-		if (setfocus) ImGui::SetKeyboardFocusHere(0);
 		ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth());
 		if (ImGui::InputText("", filterText, 64, ImGuiInputTextFlags_EnterReturnsTrue))
 			selectSingle = true;
+		if (setfocus) ImGui::SetKeyboardFocusHere(0);
 		ImGui::PopItemWidth();
 
 		std::string text(filterText);

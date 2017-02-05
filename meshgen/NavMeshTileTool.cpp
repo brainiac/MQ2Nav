@@ -11,6 +11,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <imgui/fonts/IconsMaterialDesign.h>
+
 void NavMeshTileTool::init(NavMeshTool* meshTool)
 {
 	m_meshTool = meshTool;
@@ -18,19 +20,23 @@ void NavMeshTileTool::init(NavMeshTool* meshTool)
 
 void NavMeshTileTool::handleMenu()
 {
-#if 0
-	imguiLabel("Create Tiles");
-	if (imguiButton("Create All"))
+	if (ImGui::Button(ICON_MD_BUILD " Build Mesh"))
 	{
 		if (m_meshTool)
-			m_meshTool->buildAllTiles();
+			m_meshTool->handleBuild();
 	}
-#endif
-	if (ImGui::Button("Remove All"))
+
+	ImGui::SameLine();
+
+	if (ImGui::Button(ICON_MD_DELETE_FOREVER "Remove All"))
 	{
 		if (m_meshTool)
 			m_meshTool->RemoveAllTiles();
 	}
+
+	float totalBuildTime = m_meshTool->getTotalBuildTimeMS();
+	if (totalBuildTime > 0)
+		ImGui::Text("Build Time: %.1fms", totalBuildTime);
 }
 
 void NavMeshTileTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
