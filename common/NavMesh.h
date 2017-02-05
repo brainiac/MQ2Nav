@@ -6,6 +6,7 @@
 
 #include "common/Context.h"
 #include "common/NavMeshData.h"
+#include "common/NavModule.h"
 #include "common/Signal.h"
 
 #include <string>
@@ -16,7 +17,7 @@ class Context;
 
 //============================================================================
 
-class NavMesh
+class NavMesh : public NavModule
 {
 public:
 	NavMesh(Context* context, const std::string& folderName = std::string(),
@@ -57,7 +58,14 @@ public:
 
 	// try to reload the navmesh for the current zone. Returns true if the navmesh
 	// successfully loads.
-	enum struct LoadResult { None, Success, MissingFile, Corrupt, VersionMismatch, ZoneMismatch };
+	enum struct LoadResult {
+		None,
+		Success,
+		MissingFile,
+		Corrupt,
+		VersionMismatch,
+		ZoneMismatch
+	};
 
 	LoadResult LoadNavMeshFile();
 

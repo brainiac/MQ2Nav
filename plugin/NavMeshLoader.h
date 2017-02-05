@@ -5,7 +5,10 @@
 #pragma once
 
 #include "MQ2Plugin.h"
-#include "NavModule.h"
+
+#include "common/Context.h"
+#include "common/NavMesh.h"
+#include "common/NavModule.h"
 #include "common/Signal.h"
 
 #include <chrono>
@@ -18,10 +21,10 @@ class MQ2NavigationPlugin;
 class NavMeshLoader : public NavModule
 {
 public:
-	NavMeshLoader() {}
+	NavMeshLoader(Context* context, NavMesh* mesh);
 
-	virtual void Initialize() override;
-	virtual void Shutdown() override;
+	virtual void Initialize() override {}
+	virtual void Shutdown() override {}
 
 	// will do actions on specific intervals
 	virtual void OnPulse() override;
@@ -42,40 +45,18 @@ public:
 	void SetAutoReload(bool autoReload);
 	bool GetAutoReload() const { return m_autoReload; }
 
-	// returns if a navmesh is currently loaded or not.
-	bool IsNavMeshLoaded() const { return m_mesh != nullptr; }
-
-	// returns the name of the file that the navmesh was loaded from.
-	std::string GetDataFileName() const { return m_loadedDataFile; }
-	
 	// try to reload the navmesh for the current zone. Returns true if the
 	// navmesh successfully loads
 	bool LoadNavMesh();
 
-	// unload all existing data and clean up all state
-	void Reset();
-
-	// get the currently loaded navmesh
-	inline dtNavMesh* GetNavMesh() const { return m_mesh.get(); }
-
-	Signal<dtNavMesh*> OnNavMeshChanged;
-
 private:
-	enum LoadResult { SUCCESS, CORRUPT, VERSION_MISMATCH };
-
-	LoadResult LoadZoneMeshData(const std::shared_ptr<char>& data, DWORD length);
-
-	std::string GetMeshDirectory() const;
-
-private:
-	std::unique_ptr<dtNavMesh> m_mesh;
+	Context* m_context = nullptr;
+	NavMesh* m_navMesh = nullptr;
 
 	std::string m_zoneShortName;
 	int m_zoneId = -1;
 
 	bool m_autoLoad = true;
-	std::string m_loadedDataFile;
-	int m_loadedTiles = 0;
 
 	// auto reloading
 	bool m_autoReload = true;

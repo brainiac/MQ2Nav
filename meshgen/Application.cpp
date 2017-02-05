@@ -45,9 +45,9 @@ static bool IsKeyboardBlocked() {
 //============================================================================
 
 Application::Application(const std::string& defaultZone)
-	: m_rcContext(new BuildContext())
-	, m_context(new ApplicationContext)
-	, m_navMesh(new NavMesh(m_context, m_eqConfig.GetOutputPath() + "\\MQ2Nav", defaultZone))
+	: m_context(new ApplicationContext())
+	, m_rcContext(new BuildContext(m_context.get()))
+	, m_navMesh(new NavMesh(m_context.get(), m_eqConfig.GetOutputPath() + "\\MQ2Nav", defaultZone))
 	, m_meshTool(new NavMeshTool(m_navMesh))
 	, m_resetCamera(true)
 	, m_width(1600), m_height(900)
@@ -979,7 +979,8 @@ void Application::LoadGeometry(const std::string& zoneShortName)
 
 //============================================================================
 
-BuildContext::BuildContext()
+BuildContext::BuildContext(Context* context)
+	: m_context(context)
 {
 	resetTimers();
 }
@@ -1011,13 +1012,29 @@ void BuildContext::doLog(const rcLogCategory category,
 
 	m_logs.emplace_back(std::string(message, static_cast<std::size_t>(length)));
 
-	OutputDebugStringA(message);
+	LogLevel level = LogLevel::DEBUG;
+	switch (category)
+	{
+	case RC_LOG_PROGRESS:
+		level = LogLevel::VERBOSE;
+		break;
+	case RC_LOG_WARNING:
+		level = LogLevel::WARNING;
+		break;
+	case RC_LOG_ERROR:
+		level = LogLevel::ERROR;
+		break;
+
+	default:
+		break;
+	}
+
+	m_context->Log(level, "%s", message);
 }
 
 void BuildContext::dumpLog(const char* format, ...)
 {
 	return;
-
 
 	// Print header.
 	va_list ap;
@@ -1106,6 +1123,52 @@ int BuildContext::doGetAccumulatedTime(const rcTimerLabel label) const
 {
 	return std::chrono::duration_cast<std::chrono::microseconds>(
 		m_accTime[label]).count();
+}
+
+void ApplicationContext::Log(LogLevel level, const char* szFormat, ...)
+{
+	char time_buffer[512];
+	time_t current_time;
+	struct tm *time_info;
+
+	time(&current_time);
+	time_info = localtime(&current_time);
+
+	strftime(time_buffer, 512, "%m/%d/%y %H:%M:%S", time_info);
+	const char* logLevel = "Unknown";
+
+	std::stringstream ss;
+
+	switch (level)
+	{
+	case LogLevel::VERBOSE:
+		logLevel = "Verbose";
+		break;
+	case LogLevel::DEBUG:
+		logLevel = "Debug";
+		break;
+	case LogLevel::INFO:
+		logLevel = "Info";
+		break;
+	case LogLevel::WARNING:
+		logLevel = "Warn";
+		break;
+	case LogLevel::ERROR:
+		logLevel = "Error";
+		break;
+	}
+
+	va_list vaList;
+	va_start(vaList, szFormat);
+	int len = _vscprintf(szFormat, vaList) + 1;// _vscprintf doesn't count // terminating '\0'  
+
+	char *szOutput = (char *)LocalAlloc(LPTR, len);
+	vsprintf_s(szOutput, len, szFormat, vaList);
+
+	ss << time_buffer << " [" << logLevel << "] " << szOutput << "\n";
+	OutputDebugStringA(ss.str().c_str());
+
+	LocalFree(szOutput);
 }
 
 #pragma warning(pop)

@@ -38,5 +38,5 @@ private:
 	float m_boxDescent = 1.0f;
 
 	std::vector<glm::vec3> m_pts;
-	std::vector<int> m_hull;
+	std::vector<uint32_t> m_hull;
 };

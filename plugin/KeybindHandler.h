@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "NavModule.h"
+#include "common/NavModule.h"
 #include "common/Signal.h"
 
 //----------------------------------------------------------------------------

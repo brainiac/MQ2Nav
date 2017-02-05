@@ -48,6 +48,9 @@
     <ClInclude Include="Context.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NavModule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZoneData.cpp">

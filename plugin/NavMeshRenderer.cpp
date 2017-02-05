@@ -7,8 +7,10 @@
 #include "MQ2Navigation.h"
 #include "MQ2Nav_Settings.h"
 #include "RenderHandler.h"
-#include "NavMeshLoader.h"
 #include "DebugDrawDX.h"
+#include "NavMeshLoader.h"
+
+#include "common/NavMesh.h"
 
 #include <cassert>
 #include <DetourDebugDraw.h>
@@ -39,10 +41,10 @@ NavMeshRenderer::~NavMeshRenderer()
 
 void NavMeshRenderer::Initialize()
 {
-	m_meshLoader = g_mq2Nav->Get<NavMeshLoader>();
+	m_navMesh = g_mq2Nav->Get<NavMesh>();
 
-	m_meshConn = m_meshLoader->OnNavMeshChanged.Connect(
-		[this](dtNavMesh* m) { m_navMesh = m; UpdateNavMesh(); });
+	m_meshConn = m_navMesh->OnNavMeshChanged.Connect(
+		[this]() { UpdateNavMesh(); });
 
 	g_renderHandler->AddRenderable(this);
 }
@@ -82,10 +84,7 @@ void NavMeshRenderer::Render(Renderable::RenderPhase phase)
 		{
 			if (m_enabled)
 			{
-				if (m_navMesh)
-				{
-					UpdateNavMesh();
-				}
+				UpdateNavMesh();
 			}
 			else
 			{
@@ -159,26 +158,32 @@ void NavMeshRenderer::StartLoad()
 	m_loading = true;
 	int tilesToLoad = 0;
 
+	if (!m_navMesh->IsNavMeshLoaded())
+		return;
+
+	std::shared_ptr<const dtNavMesh> navMesh =
+		std::static_pointer_cast<const dtNavMesh>(m_navMesh->GetNavMesh());
+
 	std::shared_ptr<DebugDrawDX> dd = std::make_shared<DebugDrawDX>(m_primGroup.get());
 
-	for (int i = 0; i < m_navMesh->getMaxTiles(); ++i)
+	for (int i = 0; i < navMesh->getMaxTiles(); ++i)
 	{
-		const dtMeshTile* tile = m_navMesh->getTile(i);
+		const dtMeshTile* tile = navMesh->getTile(i);
 		if (!tile->header) continue;
 
 		tilesToLoad++;
 	}
 
-	auto loadingThread = [this, dd, tilesToLoad]() mutable
+	auto loadingThread = [this, dd, tilesToLoad, navMesh]() mutable
 	{
 		int currentTile = 0;
 
-		for (int i = 0; i < m_navMesh->getMaxTiles() && !m_stopLoading; ++i)
+		for (int i = 0; i < navMesh->getMaxTiles() && !m_stopLoading; ++i)
 		{
-			const dtMeshTile* tile = m_navMesh->getTile(i);
+			const dtMeshTile* tile = navMesh->getTile(i);
 			if (!tile->header) continue;
 
-			drawMeshTile(dd.get(), *m_navMesh, 0, tile, DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST
+			drawMeshTile(dd.get(), *navMesh, 0, tile, DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST
 				/* | DU_DRAWNAVMESH_COLOR_TILES*/);
 
 			++currentTile;
@@ -202,7 +207,7 @@ void NavMeshRenderer::UpdateNavMesh()
 	m_primGroup->Reset();
 
 	// if we don't have a navmesh, don't build the geometry
-	if (!m_navMesh)
+	if (!m_navMesh->IsNavMeshLoaded())
 	{
 		InvalidateDeviceObjects();
 		return;
@@ -213,13 +218,18 @@ void NavMeshRenderer::UpdateNavMesh()
 
 void NavMeshRenderer::OnUpdateUI()
 {
-	if (!m_navMesh)
+	if (!m_navMesh->IsNavMeshLoaded())
 		ImGui::TextColored(ImColor(255, 255, 0), "No navmesh loaded");
 	else
 		ImGui::TextColored(ImColor(0, 255, 0), "Navmesh loaded");
+
 	ImGui::SameLine();
+
 	if (ImGui::Button("Reload"))
-		m_meshLoader->LoadNavMesh();
+	{
+		g_mq2Nav->Get<NavMeshLoader>()->LoadNavMesh();
+	}
+
 
 	if (ImGui::Checkbox("Show navmesh", &m_enabled)) {
 		//mq2nav::GetSettings().show_navmesh_overlay = m_enabled;

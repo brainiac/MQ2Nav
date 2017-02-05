@@ -152,6 +152,7 @@
     <ClInclude Include="FindPattern.h" />
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NavMeshData.h" />
+    <ClInclude Include="NavModule.h" />
     <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="Signal.h" />
     <ClInclude Include="Utilities.h" />

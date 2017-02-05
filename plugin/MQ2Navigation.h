@@ -5,7 +5,9 @@
 #pragma once
 
 #include "MQ2Plugin.h"
-#include "NavModule.h"
+
+#include "common/Context.h"
+#include "common/NavModule.h"
 #include "common/Signal.h"
 
 #include <memory>
@@ -85,6 +87,16 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine,
 
 //----------------------------------------------------------------------------
 
+class PluginContext : public Context
+{
+public:
+	// Log something...
+	virtual void Log(LogLevel logLevel, const char* format, ...);
+
+};
+
+//----------------------------------------------------------------------------
+
 class MQ2NavigationPlugin
 {
 public:
@@ -108,15 +120,18 @@ public:
 	// Handler for /navigate
 	void Command_Navigate(PSPAWNINFO pChar, PCHAR szLine);
 
+	std::string GetDataDirectory() const;
+
 	//------------------------------------------------------------------------
 	// modules
 
-	template <typename T>
-	void AddModule()
+	template <typename T, typename... Args>
+	T* AddModule(Args&&... args)
 	{
-		m_modules.emplace(std::move(std::make_pair(
+		auto result = m_modules.emplace(std::move(std::make_pair(
 			typeid(T).hash_code(),
-			std::unique_ptr<NavModule>(new T()))));
+			std::unique_ptr<NavModule>(new T(std::forward<Args>(args)...)))));
+		return static_cast<T*>(result.first->second.get());
 	}
 
 	template <typename T>
@@ -181,6 +196,8 @@ private:
 	void OnMovementKeyPressed();
 
 private:
+	std::unique_ptr<PluginContext> m_context;
+
 	std::shared_ptr<NavigationPath> m_activePath;
 
 	Signal<>::ScopedConnection m_uiConn;

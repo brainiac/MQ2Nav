@@ -94,4 +94,4 @@ struct MeshFileHeader
 const int NAVMESH_TILE_COMPAT_VERSION = 1;
 
 // Maximum number of nodes in navigation query
-const int NAVMESH_QUERY_MAX_NODES = 65536;
+const int NAVMESH_QUERY_MAX_NODES = 4096;

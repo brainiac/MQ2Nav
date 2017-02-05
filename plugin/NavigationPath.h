@@ -7,10 +7,11 @@
 #include "MQ2Navigation.h"
 #include "Renderable.h"
 #include "RenderList.h"
-#include "Signal.h"
 
-#include "DetourNavMeshQuery.h"
-#include "DetourPathCorridor.h"
+#include "common/Signal.h"
+
+#include <DetourNavMeshQuery.h>
+#include <DetourPathCorridor.h>
 
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
@@ -25,6 +26,7 @@
 
 //----------------------------------------------------------------------------
 
+class NavMesh;
 class NavigationLine;
 struct DestinationInfo;
 
@@ -93,11 +95,11 @@ public:
 
 	const float* GetCurrentPath() const { return &m_currentPath[0]; }
 
-	dtNavMesh* GetNavMesh() const { return m_navMesh; }
+	dtNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
 
 private:
-	void SetNavMesh(dtNavMesh* navMesh);
+	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh);
 
 	std::shared_ptr<DestinationInfo> m_destinationInfo;
 
@@ -111,7 +113,7 @@ private:
 
 
 	// the plugin owns the mesh
-	dtNavMesh* m_navMesh = nullptr;
+	std::shared_ptr<dtNavMesh> m_navMesh;
 
 	// we own the query
 	std::unique_ptr<dtNavMeshQuery> m_query;
@@ -128,7 +130,7 @@ private:
 	dtQueryFilter m_filter;
 	float m_extents[3] = { 2, 4, 2 }; // note: X, Z, Y
 
-	Signal<dtNavMesh*>::ScopedConnection m_navMeshConn;
+	Signal<>::ScopedConnection m_navMeshConn;
 };
 
 //----------------------------------------------------------------------------

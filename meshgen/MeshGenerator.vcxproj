@@ -22,6 +22,7 @@
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="EQConfig.cpp" />
+    <ClCompile Include="GLUtilities.cpp" />
     <ClCompile Include="ImGuiSDL.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="InputGeom.cpp" />

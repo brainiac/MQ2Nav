@@ -13,6 +13,7 @@
 #include <glm/glm.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 // OpenGL debug draw implementation.
@@ -117,3 +118,27 @@ inline float distSqr(const glm::vec3& v1, const glm::vec3& v2)
 
 bool CompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data);
 bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data);
+
+
+//----------------------------------------------------------------------------
+
+class scope_guard
+{
+public:
+	template<class Callable>
+	scope_guard(Callable && undo_func) : f(std::forward<Callable>(undo_func)) {}
+	scope_guard(scope_guard && other) : f(std::move(other.f)) {}
+	~scope_guard() {
+		if (f) f(); // must not throw
+	}
+
+	void dismiss() throw() {
+		f = nullptr;
+	}
+
+	scope_guard(const scope_guard&) = delete;
+	void operator=(const scope_guard&) = delete;
+
+private:
+	std::function<void()> f;
+};

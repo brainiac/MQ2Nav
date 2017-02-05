@@ -78,7 +78,11 @@ private:
 private:
 	EQConfig m_eqConfig;
 
-	ApplicationContext* m_context;
+	// The application context.
+	std::unique_ptr<ApplicationContext> m_context;
+
+	// The build context. Everything passes this around. We own it.
+	std::unique_ptr<BuildContext> m_rcContext;
 
 	// short name of the currently loaded zone
 	std::string m_zoneShortname;
@@ -92,9 +96,6 @@ private:
 
 	// The nav mesh object
 	std::shared_ptr<NavMesh> m_navMesh;
-
-	// The build context. Everything passes this around. We own it.
-	std::unique_ptr<BuildContext> m_rcContext;
 
 	// The mesh tool that we use to build/manipulate the mesh
 	std::unique_ptr<NavMeshTool> m_meshTool;
@@ -183,7 +184,7 @@ public:
 class BuildContext : public rcContext
 {
 public:
-	BuildContext();
+	BuildContext(Context* appContext);
 	virtual ~BuildContext();
 
 	// Dumps the log to stdout
@@ -204,6 +205,7 @@ protected:
 	virtual int doGetAccumulatedTime(const rcTimerLabel label) const override;
 
 private:
+	Context* m_context;
 	std::chrono::steady_clock::time_point m_startTime[RC_MAX_TIMERS];
 	std::chrono::nanoseconds m_accTime[RC_MAX_TIMERS];
 

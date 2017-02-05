@@ -5,8 +5,8 @@
 #pragma once
 
 #include "MQ2Navigation.h"
-#include "NavModule.h"
-#include "Signal.h"
+#include "common/Signal.h"
+#include "common/NavModule.h"
 #include "common/ZoneData.h"
 
 #include "dependencies/zone-utilities/common/eqg_loader.h"

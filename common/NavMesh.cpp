@@ -113,15 +113,19 @@ std::shared_ptr<dtNavMeshQuery> NavMesh::GetNavMeshQuery()
 {
 	if (!m_navMeshQuery)
 	{
-		m_navMeshQuery = std::shared_ptr<dtNavMeshQuery>(dtAllocNavMeshQuery(),
-			[](dtNavMeshQuery* ptr) { dtFreeNavMeshQuery(ptr); });
-
 		if (m_navMesh)
 		{
-			dtStatus status = m_navMeshQuery->init(m_navMesh.get(), NAVMESH_QUERY_MAX_NODES);
+			auto query = std::shared_ptr<dtNavMeshQuery>(dtAllocNavMeshQuery(),
+				[](dtNavMeshQuery* ptr) { dtFreeNavMeshQuery(ptr); });
+
+			dtStatus status = query->init(m_navMesh.get(), NAVMESH_QUERY_MAX_NODES);
 			if (dtStatusFailed(status))
 			{
 				m_ctx->Log(LogLevel::ERROR, "GetNavMeshQuery: Could not init detour navmesh query");
+			}
+			else
+			{
+				m_navMeshQuery = query;
 			}
 		}
 	}
@@ -253,44 +257,61 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	// cache the filename of the file we tried to load
 	m_dataFile = filename;
 
-	std::ifstream infile(filename, std::ios::binary);
-	if (!infile.is_open())
+	FILE* file = 0;
+	errno_t err = fopen_s(&file, filename, "rb");
+	if (err == ENOENT)
 		return LoadResult::MissingFile;
+	else if (!file)
+		return LoadResult::Corrupt;
 
-	// read header
-	MeshFileHeader fileHeader;
-	if (!infile.read((char*)&fileHeader, sizeof(MeshFileHeader)))
-		return LoadResult::MissingFile; // failed to read header
+	scope_guard g = [file]() { fclose(file); };
+	
+	// read the whole file
+	size_t filesize = 0;
+	fseek(file, 0, SEEK_END);
+	filesize = ftell(file);
+	rewind(file);
 
-	if (fileHeader.magic != NAVMESH_FILE_MAGIC)
+	if (filesize <= sizeof(MeshFileHeader))
 	{
 		m_ctx->Log(LogLevel::ERROR, "loadMesh: mesh file is not a valid mesh file");
 		return LoadResult::Corrupt;
 	}
 
-	if (fileHeader.version != NAVMESH_FILE_VERSION)
+	std::unique_ptr<char[]> buffer(new char[filesize]);
+	size_t result = fread(buffer.get(), filesize, 1, file);
+	if (result != 1)
+	{
+		m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to read contents of mesh file");
+		return LoadResult::Corrupt;
+	}
+
+	char* data_ptr = buffer.get();
+	size_t data_size = filesize;
+
+	// read header
+	MeshFileHeader* fileHeader = (MeshFileHeader*)data_ptr;
+	data_ptr += sizeof(MeshFileHeader); data_size -= sizeof(MeshFileHeader);
+
+	if (fileHeader->magic != NAVMESH_FILE_MAGIC)
+	{
+		m_ctx->Log(LogLevel::ERROR, "loadMesh: mesh file is not a valid mesh file");
+		return LoadResult::Corrupt;
+	}
+
+	if (fileHeader->version != NAVMESH_FILE_VERSION)
 	{
 		m_ctx->Log(LogLevel::ERROR, "loadMesh: mesh file has an incompatible version number");
 		return LoadResult::VersionMismatch;
 	}
 
-	bool compressed = +(fileHeader.flags & NavMeshFileFlags::COMPRESSED) != 0;
+	bool compressed = +(fileHeader->flags & NavMeshFileFlags::COMPRESSED) != 0;
 	nav::NavMeshFile file_proto;
 
 	if (compressed)
 	{
-		std::string compressedBuffer;
-
-		std::streampos pos = infile.tellg();
-		infile.seekg(0, std::ios::end);
-		compressedBuffer.reserve((size_t)infile.tellg());
-		infile.seekg(pos, std::ios::beg);
-
-		compressedBuffer.assign((std::istreambuf_iterator<char>(infile)),
-			std::istreambuf_iterator<char>());
-
 		std::vector<uint8_t> data;
-		if (!DecompressMemory(&compressedBuffer[0], compressedBuffer.size(), data))
+		if (!DecompressMemory(data_ptr, data_size, data))
 		{
 			m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to decompress mesh file");
 			return LoadResult::Corrupt;
@@ -304,7 +325,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	}
 	else
 	{
-		if (!file_proto.ParseFromIstream(&infile))
+		if (!file_proto.ParseFromArray(data_ptr, data_size))
 		{
 			m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to parse mesh file");
 			return LoadResult::Corrupt;

@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "NavModule.h"
 #include "Renderable.h"
 #include "RenderList.h"
+
+#include "common/NavModule.h"
 #include "common/Signal.h"
 
 #include <d3dx9.h>
@@ -16,7 +17,7 @@
 #include <mutex>
 
 class dtNavMesh;
-class NavMeshLoader;
+class NavMesh;
 class ConfigurableRenderState;
 
 //----------------------------------------------------------------------------
@@ -47,14 +48,13 @@ private:
 
 private:
 	IDirect3DDevice9* m_pDevice = nullptr;
-	NavMeshLoader* m_meshLoader = nullptr;
-	const dtNavMesh* m_navMesh = nullptr;
+	NavMesh* m_navMesh = nullptr;
 
 	bool m_enabled = false;
 	bool m_loaded = false;
 
 	std::unique_ptr<RenderGroup> m_primGroup;
-	Signal<dtNavMesh*>::ScopedConnection m_meshConn;
+	Signal<>::ScopedConnection m_meshConn;
 
 	std::unique_ptr<ConfigurableRenderState> m_state;
 	bool m_useStateEditor = false;

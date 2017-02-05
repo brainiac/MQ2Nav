@@ -103,9 +103,6 @@
     <ClInclude Include="NavMeshRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NavModule.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MQ2Nav_Hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>

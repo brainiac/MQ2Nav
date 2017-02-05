@@ -7,6 +7,7 @@
 #include "NavMeshLoader.h"
 #include "RenderHandler.h"
 #include "MQ2Nav_Settings.h"
+#include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 
 #include "DebugDrawDX.h"
@@ -27,9 +28,10 @@ const int MAX_PATH_SIZE = 2048 * 4;
 NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
 	: m_renderPaths(false)
 {
-	auto* loader = g_mq2Nav->Get<NavMeshLoader>();
-	m_navMeshConn = loader->OnNavMeshChanged.Connect([this](dtNavMesh* navMesh) { SetNavMesh(navMesh); });
-	m_navMesh = loader->GetNavMesh();
+	auto* mesh = g_mq2Nav->Get<NavMesh>();
+	m_navMeshConn = mesh->OnNavMeshChanged.Connect(
+		[this, mesh]() { SetNavMesh(mesh->GetNavMesh()); });
+	m_navMesh = mesh->GetNavMesh();
 
 	m_filter.setIncludeFlags(+PolyFlags::All);
 	m_filter.setExcludeFlags(+PolyFlags::Disabled);
@@ -94,7 +96,7 @@ bool NavigationPath::FindPath()
 	return m_currentPathSize > 0;
 }
 
-void NavigationPath::SetNavMesh(dtNavMesh* navMesh)
+void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh)
 {
 	m_navMesh = navMesh;
 
@@ -111,10 +113,11 @@ void NavigationPath::UpdatePath(bool force)
 {
 	if (m_navMesh == nullptr || m_destinationInfo == nullptr)
 		return;
+
 	if (m_query == nullptr)
 	{
 		m_query.reset(new dtNavMeshQuery);
-		m_query->init(m_navMesh, 10000 /* MAX_NODES */);
+		m_query->init(m_navMesh.get(), 10000 /* MAX_NODES */);
 	}
 
 	PSPAWNINFO me = GetCharInfo()->pSpawn;

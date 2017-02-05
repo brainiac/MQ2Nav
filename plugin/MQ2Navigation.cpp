@@ -17,6 +17,8 @@
 #include "UiController.h"
 #include "Waypoints.h"
 
+#include "common/NavMesh.h"
+
 #include "DetourCommon.h"
 
 #include <boost/lexical_cast.hpp>
@@ -74,10 +76,33 @@ static void ClickGroundItem(PGROUNDITEM pGroundItem)
 	HideDoCommand((PSPAWNINFO)pLocalPlayer, Command, FALSE);
 }
 
+//----------------------------------------------------------------------------
+
+#define MsgHeader "[MQ2Nav]"
+
+void PluginContext::Log(LogLevel level, const char* szFormat, ...)
+{
+	va_list vaList;
+	va_start(vaList, szFormat);
+	int len = _vscprintf(szFormat, vaList) + 1;// _vscprintf doesn't count // terminating '\0'  
+
+	size_t headerlen = strlen(MsgHeader) + 1;
+	size_t thelen = len + headerlen + 32;
+	char *szOutput = (char *)LocalAlloc(LPTR, thelen);
+	strcpy_s(szOutput, thelen, MsgHeader " ");
+	vsprintf_s(szOutput + headerlen, thelen - headerlen, szFormat, vaList);
+	strcat_s(szOutput, thelen, "\n");
+	OutputDebugString(szOutput);
+	LocalFree(szOutput);
+}
+
+#undef MsgHeader
+
 //============================================================================
 
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
+	: m_context(new PluginContext)
 {
 }
 
@@ -194,7 +219,11 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	InitializeRenderer();
 
 	AddModule<KeybindHandler>();
-	AddModule<NavMeshLoader>();
+
+	NavMesh* mesh = AddModule<NavMesh>(m_context.get(),
+		GetDataDirectory());
+	AddModule<NavMeshLoader>(m_context.get(), mesh);
+
 	AddModule<ModelLoader>();
 	AddModule<NavMeshRenderer>();
 	AddModule<UiController>();
@@ -248,6 +277,12 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 	ShutdownHooks();
 	
 	m_initialized = false;
+}
+
+std::string MQ2NavigationPlugin::GetDataDirectory() const
+{
+	// the root path is where we look for all of our mesh files
+	return std::string(gszINIPath) + "\\MQ2Nav";
 }
 
 //----------------------------------------------------------------------------
@@ -443,7 +478,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	if (!destInfo->valid)
 		return;
 
-	if (!Get<NavMeshLoader>()->IsNavMeshLoaded())
+	if (!Get<NavMesh>()->IsNavMeshLoaded())
 	{
 		WriteChatf(PLUGIN_MSG "\arCannot navigate - No mesh file loaded.");
 		return;
@@ -470,7 +505,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 
 bool MQ2NavigationPlugin::IsMeshLoaded() const
 {
-	return Get<NavMeshLoader>()->IsNavMeshLoaded();
+	return Get<NavMesh>()->IsNavMeshLoaded();
 }
 
 void MQ2NavigationPlugin::OnMovementKeyPressed()

@@ -122,7 +122,6 @@ XCOPY /y "$(ProjectDir)..\resources\VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ClInclude Include="NavigationType.h" />
     <ClInclude Include="NavMeshLoader.h" />
     <ClInclude Include="NavMeshRenderer.h" />
-    <ClInclude Include="NavModule.h" />
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="RenderList.h" />

@@ -19,44 +19,21 @@
 // Calculates convex hull on xz-plane of points on 'pts',
 // stores the indices of the resulting hull in 'out' and
 // returns number of points on hull.
-static int convexhull(const glm::vec3* pts, int npts, int* out)
+static void convexhull(const std::vector<glm::vec3>& pts, std::vector<uint32_t>& out)
 {
 	// Find lower-leftmost point.
-	int hull = 0;
-	for (int i = 1; i < npts; ++i)
+	uint32_t hull = 0;
+	for (uint32_t i = 1; i < static_cast<uint32_t>(pts.size()); ++i)
 		if (cmppt(pts[i], pts[hull]))
 			hull = i;
 	// Gift wrap hull.
-	int endpt = 0;
-	int i = 0;
-	do
-	{
-		out[i++] = hull;
-		endpt = 0;
-		for (int j = 1; j < npts; ++j)
-			if (hull == endpt || left(pts[hull], pts[endpt], pts[j]))
-				endpt = j;
-		hull = endpt;
-	} while (endpt != out[0]);
-
-	return i;
-}
-
-static void convexhull(const std::vector<glm::vec3>& pts, std::vector<int>& out)
-{
-	// Find lower-leftmost point.
-	int hull = 0;
-	for (size_t i = 1; i < pts.size(); ++i)
-		if (cmppt(pts[i], pts[hull]))
-			hull = i;
-	// Gift wrap hull.
-	int endpt = 0;
+	uint32_t endpt = 0;
 	out.clear();
 	do
 	{
 		out.push_back(hull);
 		endpt = 0;
-		for (size_t j = 1; j < pts.size(); ++j)
+		for (uint32_t j = 1; j < static_cast<uint32_t>(pts.size()); ++j)
 			if (hull == endpt || left(pts[hull], pts[endpt], pts[j]))
 				endpt = j;
 		hull = endpt;

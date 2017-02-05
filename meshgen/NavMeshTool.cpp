@@ -436,10 +436,7 @@ void NavMeshTool::handleRender()
 	duDebugDrawBoxWire(&dd, m_tileBmin[0], m_tileBmin[1], m_tileBmin[2],
 		m_tileBmax[0], m_tileBmax[1], m_tileBmax[2], m_tileCol, 1.0f);
 
-	auto navMesh = m_navMesh->GetNavMesh();
-	auto navQuery = m_navMesh->GetNavMeshQuery();
-
-	if (navMesh && navQuery &&
+	if (m_navMesh->IsNavMeshLoaded() &&
 		(m_drawMode == DrawMode::NAVMESH ||
 		 m_drawMode == DrawMode::NAVMESH_TRANS ||
 		 m_drawMode == DrawMode::NAVMESH_BVTREE ||
@@ -447,15 +444,22 @@ void NavMeshTool::handleRender()
 		 m_drawMode == DrawMode::NAVMESH_PORTALS ||
 		 m_drawMode == DrawMode::NAVMESH_INVIS))
 	{
-		if (m_drawMode != DrawMode::NAVMESH_INVIS)
-			duDebugDrawNavMeshWithClosedList(&dd, *navMesh, *navQuery, m_navMeshDrawFlags);
-		if (m_drawMode == DrawMode::NAVMESH_BVTREE)
-			duDebugDrawNavMeshBVTree(&dd, *navMesh);
-		if (m_drawMode == DrawMode::NAVMESH_PORTALS)
-			duDebugDrawNavMeshPortals(&dd, *navMesh);
-		if (m_drawMode == DrawMode::NAVMESH_NODES)
-			duDebugDrawNavMeshNodes(&dd, *navQuery);
-		duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(0,0,0,128));
+		auto navMesh = m_navMesh->GetNavMesh();
+		auto navQuery = m_navMesh->GetNavMeshQuery();
+
+		if (navMesh && navQuery)
+		{
+			if (m_drawMode != DrawMode::NAVMESH_INVIS)
+				duDebugDrawNavMeshWithClosedList(&dd, *navMesh, *navQuery, m_navMeshDrawFlags);
+			if (m_drawMode == DrawMode::NAVMESH_BVTREE)
+				duDebugDrawNavMeshBVTree(&dd, *navMesh);
+			if (m_drawMode == DrawMode::NAVMESH_PORTALS)
+				duDebugDrawNavMeshPortals(&dd, *navMesh);
+			if (m_drawMode == DrawMode::NAVMESH_NODES)
+				duDebugDrawNavMeshNodes(&dd, *navQuery);
+
+			duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(0, 0, 0, 128));
+		}
 	}
 
 	m_geom->drawConvexVolumes(&dd);
