@@ -11,13 +11,6 @@
 
 static const int MAX_CONVEXVOL_PTS = 12;
 
-struct ConvexVolume
-{
-	std::vector<glm::vec3> verts;
-	float hmin, hmax;
-	PolyArea areaType;
-};
-
 class InputGeom
 {
 public:
@@ -45,14 +38,6 @@ public:
 		unsigned char bidir, unsigned char area, unsigned short flags);
 	void deleteOffMeshConnection(int i);
 	void drawOffMeshConnections(struct duDebugDraw* dd, bool hilight = false);
-
-	// box volumes
-	size_t getConvexVolumeCount() const { return m_volumes.size(); }
-	const ConvexVolume* getConvexVolume(size_t i) const { return m_volumes[i].get(); }
-	void addConvexVolume(const std::vector<glm::vec3>& verts,
-		const float minh, const float maxh, PolyArea areaType);
-	void deleteConvexVolume(size_t i);
-	void drawConvexVolumes(struct duDebugDraw* dd, bool hilight = false);
 
 	// Utilities
 	bool raycastMesh(float* src, float* dst, float& tmin);

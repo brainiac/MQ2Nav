@@ -6,11 +6,12 @@
 
 #include "Enum.h"
 
+#include <glm/glm.hpp>
+
 #include <cstdint>
 #include <functional>
 #include <memory>
-
-#include <glm/glm.hpp>
+#include <vector>
 
 enum struct PolyFlags : uint16_t
 {
@@ -92,3 +93,15 @@ const int NAVMESH_TILE_COMPAT_VERSION = 1;
 
 // Maximum number of nodes in navigation query
 const int NAVMESH_QUERY_MAX_NODES = 4096;
+
+//----------------------------------------------------------------------------
+
+// Convex Volumes
+
+struct ConvexVolume
+{
+	std::vector<glm::vec3> verts;
+	float hmin, hmax;
+	PolyArea areaType;
+};
+

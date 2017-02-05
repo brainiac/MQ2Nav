@@ -29,7 +29,7 @@ void NavMeshTileTool::handleMenu()
 	if (ImGui::Button("Remove All"))
 	{
 		if (m_meshTool)
-			m_meshTool->removeAllTiles();
+			m_meshTool->RemoveAllTiles();
 	}
 }
 
@@ -41,9 +41,9 @@ void NavMeshTileTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool s
 	if (m_meshTool)
 	{
 		if (shift)
-			m_meshTool->removeTile(glm::value_ptr(m_hitPos));
+			m_meshTool->RemoveTile(m_hitPos);
 		else
-			m_meshTool->buildTile(glm::value_ptr(m_hitPos));
+			m_meshTool->BuildTile(m_hitPos);
 	}
 }
 
@@ -71,7 +71,7 @@ void NavMeshTileTool::handleRenderOverlay(const glm::mat4& proj,
 		glm::dvec3 pos = glm::project(hitPos2, model2, proj2, view);
 		int tx = 0, ty = 0;
 
-		m_meshTool->getTilePos(glm::value_ptr(m_hitPos), tx, ty);
+		m_meshTool->GetTilePos(m_hitPos, tx, ty);
 		ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "(%d,%d)", tx, ty);
 	}
 

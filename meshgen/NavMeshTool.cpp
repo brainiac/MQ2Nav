@@ -375,10 +375,10 @@ void NavMeshTool::handleTools()
 	{
 		setTool(new NavMeshTileTool);
 	}
-	if (ImGui::RadioButton("Create Off-Mesh Links", type == ToolType::OFFMESH_CONNECTION))
-	{
-		setTool(new OffMeshConnectionTool);
-	}
+	//if (ImGui::RadioButton("Create Off-Mesh Links", type == ToolType::OFFMESH_CONNECTION))
+	//{
+	//	setTool(new OffMeshConnectionTool);
+	//}
 	if (ImGui::RadioButton("Create Convex Volumes", type == ToolType::CONVEX_VOLUME))
 	{
 		setTool(new ConvexVolumeTool);
@@ -462,11 +462,83 @@ void NavMeshTool::handleRender()
 		}
 	}
 
-	m_geom->drawConvexVolumes(&dd);
+	drawConvexVolumes(&dd);
 
 	if (m_tool)
 		m_tool->handleRender();
 	renderToolStates();
+}
+
+void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
+{
+	dd->depthMask(false);
+
+	dd->begin(DU_DRAW_TRIS);
+
+	const auto& volumes = m_navMesh->GetConvexVolumes();
+
+	for (const auto& vol : volumes)
+	{
+		uint32_t col = duIntToCol(static_cast<int>(vol->areaType), 32);
+		size_t nverts = vol->verts.size();
+
+		for (size_t j = 0, k = nverts - 1; j < nverts; k = j++)
+		{
+			const glm::vec3& va = vol->verts[k];
+			const glm::vec3& vb = vol->verts[j];
+
+			dd->vertex(vol->verts[0][0], vol->hmax, vol->verts[0][2], col);
+			dd->vertex(vb[0], vol->hmax, vb[2], col);
+			dd->vertex(va[0], vol->hmax, va[2], col);
+
+			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
+			dd->vertex(va[0], vol->hmax, va[2], col);
+			dd->vertex(vb[0], vol->hmax, vb[2], col);
+
+			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
+			dd->vertex(vb[0], vol->hmax, vb[2], col);
+			dd->vertex(vb[0], vol->hmin, vb[2], duDarkenCol(col));
+		}
+	}
+	dd->end();
+
+	dd->begin(DU_DRAW_LINES, 2.0f);
+	for (const auto& vol : volumes)
+	{
+		uint32_t col = duIntToCol(static_cast<int>(vol->areaType), 220);
+		size_t nverts = vol->verts.size();
+
+		for (size_t j = 0, k = nverts - 1; j < nverts; k = j++)
+		{
+			const glm::vec3& va = vol->verts[k];
+			const glm::vec3& vb = vol->verts[j];
+
+			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
+			dd->vertex(vb[0], vol->hmin, vb[2], duDarkenCol(col));
+			dd->vertex(va[0], vol->hmax, va[2], col);
+			dd->vertex(vb[0], vol->hmax, vb[2], col);
+			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
+			dd->vertex(va[0], vol->hmax, va[2], col);
+		}
+	}
+	dd->end();
+
+	dd->begin(DU_DRAW_POINTS, 3.0f);
+	for (const auto& vol : volumes)
+	{
+		uint32_t col = duDarkenCol(duIntToCol(static_cast<int>(vol->areaType), 255));
+		size_t nverts = vol->verts.size();
+
+		for (size_t j = 0; j < nverts; ++j)
+		{
+			dd->vertex(vol->verts[j].x, vol->verts[j].y + 0.1f, vol->verts[j].z, col);
+			dd->vertex(vol->verts[j].x, vol->hmin, vol->verts[j].z, col);
+			dd->vertex(vol->verts[j].x, vol->hmax, vol->verts[j].z, col);
+		}
+	}
+	dd->end();
+
+	dd->depthMask(true);
 }
 
 void NavMeshTool::handleRenderOverlay(const glm::mat4& proj,
@@ -531,7 +603,7 @@ bool NavMeshTool::handleBuild()
 		return false;
 	}
 
-	buildAllTiles(navMesh);
+	BuildAllTiles(navMesh);
 
 	if (m_tool)
 	{
@@ -543,7 +615,7 @@ bool NavMeshTool::handleBuild()
 	return true;
 }
 
-void NavMeshTool::getTilePos(const float* pos, int& tx, int& ty)
+void NavMeshTool::GetTilePos(const glm::vec3& pos, int& tx, int& ty)
 {
 	if (!m_geom) return;
 
@@ -554,7 +626,7 @@ void NavMeshTool::getTilePos(const float* pos, int& tx, int& ty)
 	ty = (int)((pos[2] - bmin[2]) / ts);
 }
 
-void NavMeshTool::removeTile(const float* pos)
+void NavMeshTool::RemoveTile(const glm::vec3& pos)
 {
 	if (!m_geom) return;
 
@@ -582,7 +654,7 @@ void NavMeshTool::removeTile(const float* pos)
 	navMesh->removeTile(tileRef, 0, 0);
 }
 
-void NavMeshTool::removeAllTiles()
+void NavMeshTool::RemoveAllTiles()
 {
 	auto navMesh = m_navMesh->GetNavMesh();
 	if (!navMesh) return;
@@ -605,7 +677,7 @@ void NavMeshTool::removeAllTiles()
 	}
 }
 
-void NavMeshTool::cancelBuildAllTiles(bool wait)
+void NavMeshTool::CancelBuildAllTiles(bool wait)
 {
 	if (m_buildingTiles)
 		m_cancelTiles = true;
@@ -630,7 +702,7 @@ void NavMeshTool::resetCommonSettings()
 
 //----------------------------------------------------------------------------
 
-void NavMeshTool::buildTile(const float* pos)
+void NavMeshTool::BuildTile(const glm::vec3& pos)
 {
 	if (!m_geom) return;
 	auto navMesh = m_navMesh->GetNavMesh();
@@ -675,6 +747,37 @@ void NavMeshTool::buildTile(const float* pos)
 	m_ctx->dumpLog("Build Tile (%d,%d):", tx, ty);
 }
 
+void NavMeshTool::RebuildTile(dtTileRef tileRef)
+{
+	if (!m_geom) return;
+	const auto& navMesh = m_navMesh->GetNavMesh();
+	if (!navMesh) return;
+
+	const dtMeshTile* tile = navMesh->getTileByRef(tileRef);
+	if (!tile || !tile->header) return;
+	
+	auto bmin = tile->header->bmin;
+	auto bmax = tile->header->bmax;
+
+	int dataSize = 0;
+	unsigned char* data = buildTileMesh(tile->header->x, tile->header->y, bmin, bmax, dataSize);
+
+	navMesh->removeTile(tileRef, 0, 0);
+
+	if (data)
+	{
+		dtStatus status = navMesh->addTile(data, dataSize, DT_TILE_FREE_DATA, 0, 0);
+		if (dtStatusFailed(status))
+			dtFree(data);
+	}
+
+}
+
+void NavMeshTool::RebuildTiles(const std::vector<dtTileRef>& tiles)
+{
+	for (dtTileRef tileRef : tiles)
+		RebuildTile(tileRef);
+}
 
 struct TileData
 {
@@ -723,7 +826,7 @@ private:
 	std::shared_ptr<dtNavMesh> m_navMesh;
 };
 
-void NavMeshTool::buildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async)
+void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async)
 {
 	if (!m_geom) return;
 	if (m_buildingTiles) return;
@@ -737,7 +840,7 @@ void NavMeshTool::buildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 
 		m_buildThread = std::thread([this, navMesh]()
 		{
-			buildAllTiles(navMesh, false);
+			BuildAllTiles(navMesh, false);
 		});
 		return;
 	}
@@ -974,10 +1077,9 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 	}
 
 	// (Optional) Mark areas.
-	for (size_t i = 0; i < m_geom->getConvexVolumeCount(); ++i)
+	const auto& volumes = m_navMesh->GetConvexVolumes();
+	for (const auto& vol : volumes)
 	{
-		const ConvexVolume* vol = m_geom->getConvexVolume(i);
-
 		rcMarkConvexPolyArea(m_ctx, glm::value_ptr(vol->verts[0]), static_cast<int>(vol->verts.size()),
 			vol->hmin, vol->hmax, static_cast<uint8_t>(vol->areaType), *chf);
 	}

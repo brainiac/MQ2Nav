@@ -99,6 +99,7 @@ void NavMesh::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh, bool reset)
 	{
 		m_boundsMin = m_boundsMax = glm::vec3();
 		m_config = NavMeshConfig{};
+		m_volumes.clear();
 	}
 }
 
@@ -237,6 +238,34 @@ static void FromProto(const nav::BuildSettings& proto, NavMeshConfig& config)
 	config.detailSampleDist = proto.detail_sample_dist();
 	config.detailSampleMaxError = proto.detail_sample_max_error();
 	config.partitionType = static_cast<PartitionType>(proto.partition_type());
+}
+
+static void ToProto(nav::ConvexVolume& out_proto, const ConvexVolume& volume)
+{
+	out_proto.set_area_type(static_cast<uint32_t>(volume.areaType));
+	out_proto.set_height_min(volume.hmin);
+	out_proto.set_height_max(volume.hmax);
+
+	for (const auto& vert : volume.verts)
+	{
+		nav::vector3* out_vert = out_proto.add_vertices();
+		ToProto(*out_vert, vert);
+	}
+}
+
+static std::unique_ptr<ConvexVolume> FromProto(const nav::ConvexVolume& proto)
+{
+	auto volume = std::make_unique<ConvexVolume>();
+	
+	volume->areaType = static_cast<PolyArea>(proto.area_type());
+	volume->hmin = proto.height_min();
+	volume->hmax = proto.height_max();
+
+	for (const auto& vert : proto.vertices())
+	{
+		volume->verts.push_back(FromProto(vert));
+	}
+	return volume;
 }
 
 NavMesh::LoadResult NavMesh::LoadNavMeshFile()
@@ -391,12 +420,19 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	}
 
 	m_navMeshQuery.reset();
+	m_volumes.clear();
 
 	// load build settings
 	FromProto(file_proto.build_settings(), m_config);
 
 	m_boundsMin = FromProto(file_proto.build_settings().bounds_min());
 	m_boundsMax = FromProto(file_proto.build_settings().bounds_max());
+
+	// load convex volumes
+	for (const auto& proto_volume : file_proto.convex_volumes())
+	{
+		m_volumes.push_back(FromProto(proto_volume));
+	}
 
 	return LoadResult::Success;
 }
@@ -441,7 +477,13 @@ bool NavMesh::SaveMesh(const char* filename)
 	ToProto(*file_proto.mutable_build_settings()->mutable_bounds_min(), m_boundsMin);
 	ToProto(*file_proto.mutable_build_settings()->mutable_bounds_max(), m_boundsMax);
 
-	// todo: save convex volumes
+	// save convex volumes
+	for (const auto& volume : m_volumes)
+	{
+		nav::ConvexVolume* proto_vol = file_proto.add_convex_volumes();
+		ToProto(*proto_vol, *volume);
+	}
+
 	// todo: save offmesh connections
 	// todo: save area definitions
 
@@ -474,4 +516,68 @@ bool NavMesh::SaveMesh(const char* filename)
 	return true;
 }
 
+//----------------------------------------------------------------------------
+
+ConvexVolume* NavMesh::AddConvexVolume(const std::vector<glm::vec3>& verts,
+	float minh, float maxh, PolyArea areaType)
+{
+	auto volume = std::make_unique<ConvexVolume>();
+	volume->areaType = areaType;
+	volume->hmax = maxh;
+	volume->hmin = minh;
+	volume->verts = verts;
+
+	ConvexVolume* vol = volume.get();
+	m_volumes.push_back(std::move(volume));
+
+	return vol;
+}
+
+void NavMesh::DeleteConvexVolume(size_t index)
+{
+	if (index < m_volumes.size())
+	{
+		m_volumes.erase(m_volumes.begin() + index);
+	}
+}
+
+std::vector<dtTileRef> NavMesh::GetTilesIntersectingConvexVolume(const ConvexVolume* volume)
+{
+	std::vector<dtTileRef> tiles;
+
+	if (m_navMesh && volume && volume->verts.size() > 1)
+	{
+		glm::vec3 bmin = volume->verts[0], bmax = volume->verts[0];
+		for (const auto& vert : volume->verts)
+		{
+			bmin = glm::min(bmin, vert);
+			bmax = glm::max(bmax, vert);
+		}
+
+		int minx, miny, maxx, maxy;
+		m_navMesh->calcTileLoc(glm::value_ptr(bmin), &minx, &miny);
+		m_navMesh->calcTileLoc(glm::value_ptr(bmax), &maxx, &maxy);
+
+		static const int MAX_NEIS = 32;
+		const dtMeshTile* neis[MAX_NEIS];
+
+		for (int y = miny; y <= maxy; ++y)
+		{
+			for (int x = minx; x <= maxx; ++x)
+			{
+				const int nneis = m_navMesh->getTilesAt(x, y, neis, MAX_NEIS);
+				for (int j = 0; j < nneis; j++)
+				{
+					dtTileRef tileRef = m_navMesh->getTileRef(neis[j]);
+					tiles.push_back(tileRef);
+				}
+			}
+		}
+
+		std::sort(tiles.begin(), tiles.end());
+		std::unique(tiles.begin(), tiles.end());
+	}
+
+	return tiles;
+}
 //============================================================================

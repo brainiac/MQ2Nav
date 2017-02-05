@@ -613,7 +613,7 @@ void Application::RenderInterface()
 				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
 
 				if (ImGui::Button("Halt Build"))
-					m_meshTool->cancelBuildAllTiles();
+					m_meshTool->CancelBuildAllTiles();
 			}
 			else
 			{
@@ -929,7 +929,7 @@ std::string Application::GetMeshFilename()
 
 void Application::Halt()
 {
-	m_meshTool->cancelBuildAllTiles();
+	m_meshTool->CancelBuildAllTiles();
 }
 
 void Application::LoadGeometry(const std::string& zoneShortName)

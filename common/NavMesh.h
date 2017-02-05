@@ -9,6 +9,8 @@
 #include "common/NavModule.h"
 #include "common/Signal.h"
 
+#include <DetourNavMesh.h>
+
 #include <string>
 
 class dtNavMesh;
@@ -23,6 +25,9 @@ public:
 	NavMesh(Context* context, const std::string& folderName = std::string(),
 		const std::string& zoneName = std::string());
 	~NavMesh();
+
+	NavMesh(const NavMesh&) = delete;
+	NavMesh& operator=(const NavMesh&) = delete;
 
 	// update the current zone. This will trigger a reload of the navmesh file if
 	// the zone has changed, if autoload is enabled.
@@ -84,7 +89,17 @@ public:
 	//------------------------------------------------------------------------
 	// marked areas and volumes
 
-	// TODO
+	size_t GetConvexVolumeCount() const { return m_volumes.size(); }
+	const ConvexVolume* GetConvexVolume(size_t index) const { return m_volumes[index].get(); }
+	ConvexVolume* GetConvexVolume(size_t index) { return m_volumes[index].get(); }
+
+	ConvexVolume* AddConvexVolume(const std::vector<glm::vec3>& verts,
+		float minh, float maxh, PolyArea areaType);
+	void DeleteConvexVolume(size_t index);
+
+	const std::vector<std::unique_ptr<ConvexVolume>>& GetConvexVolumes() const { return m_volumes; }
+
+	std::vector<dtTileRef> GetTilesIntersectingConvexVolume(const ConvexVolume* volume);
 
 	//------------------------------------------------------------------------
 	// events
@@ -108,6 +123,8 @@ private:
 	std::shared_ptr<dtNavMeshQuery> m_navMeshQuery;
 	glm::vec3 m_boundsMin, m_boundsMax;
 	NavMeshConfig m_config;
+
+	std::vector<std::unique_ptr<ConvexVolume>> m_volumes;
 };
 
 //============================================================================

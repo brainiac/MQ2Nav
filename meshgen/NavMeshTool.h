@@ -95,15 +95,17 @@ public:
 	bool handleBuild();
 	void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift);
 
+	void GetTilePos(const glm::vec3& pos, int& tx, int& ty);
 
-	void getTilePos(const float* pos, int& tx, int& ty);
+	void BuildTile(const glm::vec3& pos);
+	void RemoveTile(const glm::vec3& pos);
+	void RemoveAllTiles();
 
-	void buildTile(const float* pos);
-	void removeTile(const float* pos);
-	void removeAllTiles();
+	void BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async = true);
+	void CancelBuildAllTiles(bool wait = true);
 
-	void buildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async = true);
-	void cancelBuildAllTiles(bool wait = true);
+	void RebuildTiles(const std::vector<dtTileRef>& tiles);
+	void RebuildTile(dtTileRef tileRef);
 
 	bool isBuildingTiles() const { return m_buildingTiles; }
 
@@ -144,6 +146,8 @@ private:
 	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize) const;
 
 	void NavMeshUpdated();
+
+	void drawConvexVolumes(duDebugDraw* dd);
 
 private:
 	InputGeom* m_geom = nullptr;

@@ -40,11 +40,11 @@ static void convexhull(const std::vector<glm::vec3>& pts, std::vector<uint32_t>&
 	} while (endpt != out[0]);
 }
 
-static int pointInPoly(int nvert, const glm::vec3* verts, const glm::vec3& p)
+static int pointInPoly(const std::vector<glm::vec3>& verts, const glm::vec3& p)
 {
 	bool c = false;
 
-	for (int i = 0, j = nvert - 1; i < nvert; j = i++)
+	for (size_t i = 0, j = verts.size() - 1; i < verts.size(); j = i++)
 	{
 		const glm::vec3& vi = verts[i];
 		const glm::vec3& vj = verts[j];
@@ -81,8 +81,8 @@ void ConvexVolumeTool::reset()
 
 void ConvexVolumeTool::handleMenu()
 {
-	ImGui::SliderFloat("Shape Height", &m_boxHeight, 0.1f, 20.0f);
-	ImGui::SliderFloat("Shape Descent", &m_boxDescent, 0.1f, 20.0f);
+	ImGui::SliderFloat("Shape Height", &m_boxHeight, 0.1f, 100.0f);
+	ImGui::SliderFloat("Shape Descent", &m_boxDescent, -100.f, 100.f);
 	ImGui::SliderFloat("Poly Offset", &m_polyOffset, 0.0f, 10.0f);
 
 	ImGui::Separator();
@@ -118,28 +118,34 @@ void ConvexVolumeTool::handleMenu()
 void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, bool shift)
 {
 	if (!m_meshTool) return;
-	InputGeom* geom = m_meshTool->getInputGeom();
-	if (!geom) return;
+	auto navMesh = m_meshTool->GetNavMesh();
+
+	std::vector<dtTileRef> modifiedTiles;
 
 	if (shift)
 	{
 		// Delete
 		size_t nearestIndex = -1;
-		for (size_t i = 0; i < geom->getConvexVolumeCount(); ++i)
+		const auto& volumes = navMesh->GetConvexVolumes();
+		size_t i = 0;
+		for (const auto& vol : volumes)
 		{
-			const ConvexVolume* vol = geom->getConvexVolume(i);
-
-			if (pointInPoly(static_cast<int>(vol->verts.size()), &vol->verts[0], p)
-				&& p.y >= vol->hmin && p.y <= vol->hmax)
+			if (pointInPoly(vol->verts, p) && p.y >= vol->hmin && p.y <= vol->hmax)
 			{
 				nearestIndex = i;
+				break;
 			}
+
+			i++;
 		}
 
 		// If end point close enough, delete it.
 		if (nearestIndex != -1)
 		{
-			geom->deleteConvexVolume(nearestIndex);
+			const ConvexVolume* volume = navMesh->GetConvexVolume(nearestIndex);
+			modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume);
+
+			m_meshTool->GetNavMesh()->DeleteConvexVolume(nearestIndex);
 		}
 	}
 	else
@@ -167,18 +173,21 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 
 				if (m_polyOffset > 0.01f)
 				{
-					std::vector<glm::vec3> offset(m_hull.size() * 2);
+					std::vector<glm::vec3> offset(m_hull.size() * 2 + 1);
 
 					int noffset = rcOffsetPoly(glm::value_ptr(verts[0]), static_cast<int>(verts.size()),
-						m_polyOffset, glm::value_ptr(offset[0]), static_cast<int>(verts.size() * 2));
+						m_polyOffset, glm::value_ptr(offset[0]), static_cast<int>(verts.size() * 2 + 1));
 					if (noffset > 0)
 					{
-						geom->addConvexVolume(offset, minh, maxh, m_areaType);
+						offset.resize(noffset);
+						ConvexVolume* volume = navMesh->AddConvexVolume(offset, minh, maxh, m_areaType);
+						modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume);
 					}
 				}
 				else
 				{
-					geom->addConvexVolume(verts, minh, maxh, m_areaType);
+					ConvexVolume* volume = navMesh->AddConvexVolume(verts, minh, maxh, m_areaType);
+					modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume);
 				}
 			}
 
@@ -195,6 +204,11 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 			else
 				m_hull.clear();
 		}
+	}
+
+	if (!modifiedTiles.empty())
+	{
+		m_meshTool->RebuildTiles(modifiedTiles);
 	}
 }
 

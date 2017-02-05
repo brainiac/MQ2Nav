@@ -101,7 +101,7 @@ message BuildSettings
 message ConvexVolume
 {
 	// the type of area this volume creates
-	int32 area_type = 1;
+	uint32 area_type = 1;
 
 	// min and max height
 	float height_min = 2;
