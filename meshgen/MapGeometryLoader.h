@@ -17,8 +17,22 @@
 #include <string>
 #include <map>
 #include <tuple>
+#include <unordered_map>
 
 #include <glm/glm.hpp>
+
+struct KeyFuncs
+{
+	size_t operator()(const glm::vec3& k)const
+	{
+		return std::hash<float>()(k.x) ^ std::hash<float>()(k.y) ^ std::hash<float>()(k.z);
+	}
+
+	bool operator()(const glm::vec3& a, const glm::vec3& b)const
+	{
+		return a == b;
+	}
+};
 
 class MapGeometryLoader
 {
@@ -68,8 +82,8 @@ private:
 	uint32_t current_collide_index = 0;
 	uint32_t current_non_collide_index = 0;
 
-	std::map<std::tuple<float, float, float>, uint32_t> collide_vert_to_index;
-	std::map<std::tuple<float, float, float>, uint32_t> non_collide_vert_to_index;
+	std::unordered_map<glm::vec3, uint32_t, KeyFuncs, KeyFuncs> collide_vert_to_index;
+	std::unordered_map<glm::vec3, uint32_t, KeyFuncs, KeyFuncs> non_collide_vert_to_index;
 
 	std::shared_ptr<EQEmu::EQG::Terrain> terrain;
 	std::map<std::string, std::shared_ptr<EQEmu::S3D::Geometry>> map_models;
@@ -85,13 +99,9 @@ private:
 	public:
 		struct Poly
 		{
-			union {
-				struct {
-					uint32_t v1, v2, v3;
-				};
-				uint32_t v[3];
-			};
+			glm::ivec3 indices;
 			uint8_t vis;
+			uint32_t flags;
 		};
 		std::vector<glm::vec3> verts;
 		std::vector<Poly> polys;

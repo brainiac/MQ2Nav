@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
 	eqLogRegister(std::make_shared<EQEmu::Log::LogFile>(logfilePath));
 	eqLogRegister(std::make_shared<EQEmu::Log::LogStdOut>());
 
-#if defined(DEBUG)
+#if defined(DEBUG) || 1
 	eqLogRegister(std::make_shared<DebugLog>());
 #endif
 

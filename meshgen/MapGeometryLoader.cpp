@@ -244,11 +244,13 @@ bool MapGeometryLoader::load()
 			bool visible = isVisible(poly.flags);
 
 			entry->polys.emplace_back(
-				ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], visible });
+				ModelEntry::Poly{ glm::ivec3{poly.verts[0], poly.verts[1], poly.verts[2]},
+					visible, poly.flags });
 		}
 
 		m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
 	}
+
 	for (auto iter : map_eqg_models)
 	{
 		bool first = true;
@@ -268,10 +270,12 @@ bool MapGeometryLoader::load()
 			bool visible = isVisible(poly.flags);
 
 			entry->polys.emplace_back(
-				ModelEntry::Poly{ poly.verts[0], poly.verts[1], poly.verts[2], visible });
+				ModelEntry::Poly{ glm::ivec3{ poly.verts[0], poly.verts[1], poly.verts[2] },
+					visible, poly.flags });
 		}
 
 		m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
+
 	}
 
 	auto AddTriangle = [&](const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
@@ -305,7 +309,7 @@ bool MapGeometryLoader::load()
 			glm::vec3 v[3];
 			for (int i = 0; i < 3; i++)
 			{
-				v[i] = model->verts[poly.v[i]];
+				v[i] = model->verts[poly.indices[i]];
 
 				RotateVertex(v[i], GetRotation(obj));
 				ScaleVertex(v[i], GetScale(obj));
@@ -336,7 +340,7 @@ bool MapGeometryLoader::load()
 				for (int i = 0; i < 3; i++)
 				{
 					glm::vec3& v = v_[i];
-					v = model->verts[poly.v[i]];
+					v = model->verts[poly.indices[i]];
 
 					ScaleVertex(v, GetScale(obj));
 					TranslateVertex(v, GetTranslation(obj));
@@ -706,9 +710,18 @@ bool MapGeometryLoader::CompileS3D(
 	map_eqg_models.clear();
 	map_placeables.clear();
 
-	eqLogMessage(LogTrace, "Processing s3d zone geometry fragments.");
+	//eqLogMessage(LogTrace, "Processing s3d zone geometry fragments.");
 	for (uint32_t i = 0; i < zone_frags.size(); ++i)
 	{
+		if (zone_frags[i].type == 0x29)
+		{
+			EQEmu::S3D::WLDFragment29 &frag = reinterpret_cast<EQEmu::S3D::WLDFragment29&>(zone_frags[i]);
+			auto region = frag.GetData();
+
+			eqLogMessage(LogTrace, "Processing region '%s' '%s' for s3d.",
+				region->GetName().c_str(), region->GetExtendedInfo().c_str());
+
+		}
 		if (zone_frags[i].type == 0x36)
 		{
 			EQEmu::S3D::WLDFragment36& frag = reinterpret_cast<EQEmu::S3D::WLDFragment36&>(zone_frags[i]);
@@ -736,7 +749,7 @@ bool MapGeometryLoader::CompileS3D(
 				v3.pos.x = v3.pos.y;
 				v3.pos.y = t;
 
-				if (current_poly.flags & 0x01)
+				if (current_poly.flags == 0x10)
 					AddFace(v1.pos, v2.pos, v3.pos, false);
 				else
 					AddFace(v1.pos, v2.pos, v3.pos, true);
@@ -1133,101 +1146,50 @@ void MapGeometryLoader::AddFace(glm::vec3& v1, glm::vec3& v2, glm::vec3& v3, boo
 {
 	if (!collidable)
 	{
-		std::tuple<float, float, float> tt = std::make_tuple(v1.x, v1.y, v1.z);
-		auto iter = non_collide_vert_to_index.find(tt);
-		if (iter == non_collide_vert_to_index.end())
+		auto InsertVertex = [this](const glm::vec3& vec)
 		{
-			non_collide_vert_to_index[tt] = current_non_collide_index;
-			non_collide_verts.push_back(v1);
-			non_collide_indices.push_back(current_non_collide_index);
+			auto iter = non_collide_vert_to_index.find(vec);
+			if (iter == non_collide_vert_to_index.end())
+			{
+				non_collide_vert_to_index[vec] = current_non_collide_index;
+				non_collide_verts.push_back(vec);
+				non_collide_indices.push_back(current_non_collide_index);
 
-			++current_non_collide_index;
-		}
-		else
-		{
-			uint32_t t_idx = iter->second;
-			non_collide_indices.push_back(t_idx);
-		}
+				++current_non_collide_index;
+			}
+			else
+			{
+				uint32_t t_idx = iter->second;
+				non_collide_indices.push_back(t_idx);
+			}
+		};
 
-		tt = std::make_tuple(v2.x, v2.y, v2.z);
-		iter = non_collide_vert_to_index.find(tt);
-		if (iter == non_collide_vert_to_index.end())
-		{
-			non_collide_vert_to_index[tt] = current_non_collide_index;
-			non_collide_verts.push_back(v2);
-			non_collide_indices.push_back(current_non_collide_index);
-
-			++current_non_collide_index;
-		}
-		else
-		{
-			uint32_t t_idx = iter->second;
-			non_collide_indices.push_back(t_idx);
-		}
-
-		tt = std::make_tuple(v3.x, v3.y, v3.z);
-		iter = non_collide_vert_to_index.find(tt);
-		if (iter == non_collide_vert_to_index.end())
-		{
-			non_collide_vert_to_index[tt] = current_non_collide_index;
-			non_collide_verts.push_back(v3);
-			non_collide_indices.push_back(current_non_collide_index);
-
-			++current_non_collide_index;
-		}
-		else
-		{
-			uint32_t t_idx = iter->second;
-			non_collide_indices.push_back(t_idx);
-		}
+		InsertVertex(v1);
+		InsertVertex(v2);
+		InsertVertex(v3);
 	}
 	else
 	{
-		std::tuple<float, float, float> tt = std::make_tuple(v1.x, v1.y, v1.z);
-		auto iter = collide_vert_to_index.find(tt);
-		if (iter == collide_vert_to_index.end())
+		auto InsertVertex = [this](const glm::vec3& vec)
 		{
-			collide_vert_to_index[tt] = current_collide_index;
-			collide_verts.push_back(v1);
-			collide_indices.push_back(current_collide_index);
+			auto iter = collide_vert_to_index.find(vec);
+			if (iter == collide_vert_to_index.end())
+			{
+				collide_vert_to_index[vec] = current_collide_index;
+				collide_verts.push_back(vec);
+				collide_indices.push_back(current_collide_index);
 
-			++current_collide_index;
-		}
-		else
-		{
-			uint32_t t_idx = iter->second;
-			collide_indices.push_back(t_idx);
-		}
+				++current_collide_index;
+			}
+			else
+			{
+				uint32_t t_idx = iter->second;
+				collide_indices.push_back(t_idx);
+			}
+		};
 
-		tt = std::make_tuple(v2.x, v2.y, v2.z);
-		iter = collide_vert_to_index.find(tt);
-		if (iter == collide_vert_to_index.end()) {
-			collide_vert_to_index[tt] = current_collide_index;
-			collide_verts.push_back(v2);
-			collide_indices.push_back(current_collide_index);
-
-			++current_collide_index;
-		}
-		else
-		{
-			uint32_t t_idx = iter->second;
-			collide_indices.push_back(t_idx);
-		}
-
-		tt = std::make_tuple(v3.x, v3.y, v3.z);
-		iter = collide_vert_to_index.find(tt);
-		if (iter == collide_vert_to_index.end())
-		{
-			collide_vert_to_index[tt] = current_collide_index;
-			collide_verts.push_back(v3);
-			collide_indices.push_back(current_collide_index);
-
-			++current_collide_index;
-		}
-		else
-		{
-			uint32_t t_idx = iter->second;
-			collide_indices.push_back(t_idx);
-		}
+		InsertVertex(v1);
+		InsertVertex(v2);
+		InsertVertex(v3);
 	}
 }

@@ -327,7 +327,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	}
 	else
 	{
-		if (!file_proto.ParseFromArray(data_ptr, data_size))
+		if (!file_proto.ParseFromArray(data_ptr, (int)data_size))
 		{
 			m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to parse mesh file");
 			return LoadResult::Corrupt;
