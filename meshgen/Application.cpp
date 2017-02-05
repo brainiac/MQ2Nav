@@ -668,8 +668,8 @@ void Application::RenderInterface()
 	if (m_showTools)
 	{
 		ImGui::SetNextWindowPos(ImVec2(m_width - 300 - 10, 10), ImGuiSetCond_Once);
-		ImGui::SetNextWindowSize(ImVec2(300, 600), ImGuiSetCond_Once);
-		ImGui::Begin("Tools", &m_showTools, 0);
+		ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiSetCond_Once);
+		ImGui::Begin("Tools", &m_showTools, ImGuiWindowFlags_AlwaysAutoResize);
 		if (!m_zoneLoaded)
 			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded");
 		else

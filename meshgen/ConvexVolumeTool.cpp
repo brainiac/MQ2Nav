@@ -71,19 +71,26 @@ ConvexVolumeTool::~ConvexVolumeTool()
 void ConvexVolumeTool::init(NavMeshTool* meshTool)
 {
 	m_meshTool = meshTool;
+
+	m_state = (ConvexVolumeToolState*)m_meshTool->getToolState(type());
+	if (!m_state)
+	{
+		m_state = new ConvexVolumeToolState();
+		m_meshTool->setToolState(type(), m_state);
+	}
+
+	m_state->init(m_meshTool);
 }
 
 void ConvexVolumeTool::reset()
 {
-	m_pts.clear();
-	m_hull.clear();
 }
 
 void ConvexVolumeTool::handleMenu()
 {
-	ImGui::SliderFloat("Shape Height", &m_boxHeight, 0.1f, 100.0f);
-	ImGui::SliderFloat("Shape Descent", &m_boxDescent, -100.f, 100.f);
-	ImGui::SliderFloat("Poly Offset", &m_polyOffset, 0.0f, 10.0f);
+	ImGui::SliderFloat("Shape Height", &m_state->m_boxHeight, 0.1f, 100.0f);
+	ImGui::SliderFloat("Shape Descent", &m_state->m_boxDescent, -100.f, 100.f);
+	ImGui::SliderFloat("Poly Offset", &m_state->m_polyOffset, 0.0f, 10.0f);
 
 	ImGui::Separator();
 
@@ -91,10 +98,10 @@ void ConvexVolumeTool::handleMenu()
 
 	ImGui::Indent();
 
-	if (ImGui::RadioButton("Ground", m_areaType == PolyArea::Ground))
-		m_areaType = PolyArea::Ground;
-	if (ImGui::RadioButton("Unwalkable", m_areaType == PolyArea::Unwalkable))
-		m_areaType = PolyArea::Unwalkable;
+	if (ImGui::RadioButton("Ground", m_state->m_areaType == PolyArea::Ground))
+		m_state->m_areaType = PolyArea::Ground;
+	if (ImGui::RadioButton("Unwalkable", m_state->m_areaType == PolyArea::Unwalkable))
+		m_state->m_areaType = PolyArea::Unwalkable;
 #if 0
 	if (ImGui::RadioButton("Grass", m_areaType == PolyArea::Grass))
 		m_areaType = PolyArea::Grass;
@@ -118,6 +125,94 @@ void ConvexVolumeTool::handleMenu()
 void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, bool shift)
 {
 	if (!m_meshTool) return;
+	auto navMesh = m_meshTool->GetNavMesh();
+
+	std::vector<dtTileRef> modifiedTiles = m_state->handleVolumeClick(p, shift);
+
+	if (!modifiedTiles.empty())
+	{
+		m_meshTool->RebuildTiles(modifiedTiles);
+	}
+}
+
+void ConvexVolumeTool::handleRender()
+{
+}
+
+void ConvexVolumeTool::handleRenderOverlay(const glm::mat4& /*proj*/,
+	const glm::mat4& /*model*/, const glm::ivec4& view)
+{
+	// Tool help
+	if (m_state->m_pts.empty())
+	{
+		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
+			"LMB: Create new shape.  SHIFT+LMB: Delete existing shape (click inside a shape).");
+	}
+	else
+	{
+		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
+			"Click LMB to add new points. Alt+Click to finish the shape.");
+		ImGui::RenderTextRight(-330, -(view[3] - 60), ImVec4(255, 255, 255, 192),
+			"The shape will be convex hull of all added points.");
+	}
+}
+
+//----------------------------------------------------------------------------
+
+void ConvexVolumeToolState::init(NavMeshTool* meshTool)
+{
+	m_meshTool = meshTool;
+}
+
+void ConvexVolumeToolState::reset()
+{
+	m_pts.clear();
+	m_hull.clear();
+}
+
+void ConvexVolumeToolState::handleRender()
+{
+	DebugDrawGL dd;
+
+	// Find height extents of the shape.
+	float minh = FLT_MAX, maxh = 0;
+	for (size_t i = 0; i < m_pts.size(); ++i)
+		minh = glm::min(minh, m_pts[i].y);
+	minh -= m_boxDescent;
+	maxh = minh + m_boxHeight;
+
+	dd.begin(DU_DRAW_POINTS, 4.0f);
+	for (size_t i = 0; i < m_pts.size(); ++i)
+	{
+		unsigned int col = duRGBA(255, 255, 255, 255);
+		if (i == m_pts.size() - 1)
+			col = duRGBA(240, 32, 16, 255);
+		dd.vertex(m_pts[i].x, m_pts[i].y + 0.1f, m_pts[i].z, col);
+	}
+	dd.end();
+
+	dd.begin(DU_DRAW_LINES, 2.0f);
+	for (size_t i = 0, j = m_hull.size() - 1; i < m_hull.size(); j = i++)
+	{
+		const glm::vec3& vi = m_pts[m_hull[j]];
+		const glm::vec3& vj = m_pts[m_hull[i]];
+		dd.vertex(vj.x, minh, vj.z, duRGBA(255, 255, 255, 64));
+		dd.vertex(vi.x, minh, vi.z, duRGBA(255, 255, 255, 64));
+		dd.vertex(vj.x, maxh, vj.z, duRGBA(255, 255, 255, 64));
+		dd.vertex(vi.x, maxh, vi.z, duRGBA(255, 255, 255, 64));
+		dd.vertex(vj.x, minh, vj.z, duRGBA(255, 255, 255, 64));
+		dd.vertex(vj.x, maxh, vj.z, duRGBA(255, 255, 255, 64));
+	}
+	dd.end();
+}
+
+void ConvexVolumeToolState::handleRenderOverlay(const glm::mat4& proj,
+	const glm::mat4& model, const glm::ivec4& view)
+{
+}
+
+std::vector<dtTileRef> ConvexVolumeToolState::handleVolumeClick(const glm::vec3& p, bool shift)
+{
 	auto navMesh = m_meshTool->GetNavMesh();
 
 	std::vector<dtTileRef> modifiedTiles;
@@ -180,6 +275,7 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 					if (noffset > 0)
 					{
 						offset.resize(noffset);
+
 						ConvexVolume* volume = navMesh->AddConvexVolume(offset, minh, maxh, m_areaType);
 						modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume);
 					}
@@ -206,62 +302,5 @@ void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 		}
 	}
 
-	if (!modifiedTiles.empty())
-	{
-		m_meshTool->RebuildTiles(modifiedTiles);
-	}
-}
-
-void ConvexVolumeTool::handleRender()
-{
-	DebugDrawGL dd;
-
-	// Find height extents of the shape.
-	float minh = FLT_MAX, maxh = 0;
-	for (size_t i = 0; i < m_pts.size(); ++i)
-		minh = glm::min(minh, m_pts[i].y);
-	minh -= m_boxDescent;
-	maxh = minh + m_boxHeight;
-
-	dd.begin(DU_DRAW_POINTS, 4.0f);
-	for (size_t i = 0; i < m_pts.size(); ++i)
-	{
-		unsigned int col = duRGBA(255, 255, 255, 255);
-		if (i == m_pts.size() - 1)
-			col = duRGBA(240, 32, 16, 255);
-		dd.vertex(m_pts[i].x, m_pts[i].y + 0.1f, m_pts[i].z, col);
-	}
-	dd.end();
-
-	dd.begin(DU_DRAW_LINES, 2.0f);
-	for (size_t i = 0, j = m_hull.size() - 1; i < m_hull.size(); j = i++)
-	{
-		const glm::vec3& vi = m_pts[m_hull[j]];
-		const glm::vec3& vj = m_pts[m_hull[i]];
-		dd.vertex(vj.x, minh, vj.z, duRGBA(255, 255, 255, 64));
-		dd.vertex(vi.x, minh, vi.z, duRGBA(255, 255, 255, 64));
-		dd.vertex(vj.x, maxh, vj.z, duRGBA(255, 255, 255, 64));
-		dd.vertex(vi.x, maxh, vi.z, duRGBA(255, 255, 255, 64));
-		dd.vertex(vj.x, minh, vj.z, duRGBA(255, 255, 255, 64));
-		dd.vertex(vj.x, maxh, vj.z, duRGBA(255, 255, 255, 64));
-	}
-	dd.end();
-}
-
-void ConvexVolumeTool::handleRenderOverlay(const glm::mat4& /*proj*/,
-	const glm::mat4& /*model*/, const glm::ivec4& view)
-{
-	// Tool help
-	if (m_pts.empty())
-	{
-		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
-			"LMB: Create new shape.  SHIFT+LMB: Delete existing shape (click inside a shape).");
-	}
-	else
-	{
-		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
-			"Click LMB to add new points. Alt+Click to finish the shape.");
-		ImGui::RenderTextRight(-330, -(view[3] - 60), ImVec4(255, 255, 255, 192),
-			"The shape will be convex hull of all added points.");
-	}
+	return modifiedTiles;
 }

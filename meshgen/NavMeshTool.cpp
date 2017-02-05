@@ -18,6 +18,7 @@
 #include <DetourDebugDraw.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshBuilder.h>
+#include <imgui/fonts/IconsMaterialDesign.h>
 
 #include <SDL.h>
 #include <imgui/imgui.h>
@@ -359,29 +360,56 @@ void NavMeshTool::handleSettings()
 	}
 }
 
+bool ToolButton(const char* text, const char* tooltip, bool active)
+{
+	if (!active)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Button, ImColor(100, 100, 100, 255));
+	}
+
+	bool result = ImGui::Button(text, ImVec2(30, 30));
+
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted(tooltip);
+		ImGui::EndTooltip();
+	}
+
+	if (!active)
+	{
+		ImGui::PopStyleColor();
+	}
+
+	return result;
+}
+
 void NavMeshTool::handleTools()
 {
 	ToolType type = !m_tool ? ToolType::NONE : m_tool->type();
 
-	if (ImGui::RadioButton("Test Navmesh", type == ToolType::NAVMESH_TESTER))
-	{
-		setTool(new NavMeshTesterTool);
-	}
-	if (ImGui::RadioButton("Prune Navmesh", type == ToolType::NAVMESH_PRUNE))
-	{
-		setTool(new NavMeshPruneTool);
-	}
-	if (ImGui::RadioButton("Create Tiles", type == ToolType::TILE_EDIT))
+	if (ToolButton(ICON_MD_QUEUE, "Tile Edit Tool", type == ToolType::TILE_EDIT)) // create tiles
 	{
 		setTool(new NavMeshTileTool);
 	}
-	//if (ImGui::RadioButton("Create Off-Mesh Links", type == ToolType::OFFMESH_CONNECTION))
-	//{
-	//	setTool(new OffMeshConnectionTool);
-	//}
-	if (ImGui::RadioButton("Create Convex Volumes", type == ToolType::CONVEX_VOLUME))
+	ImGui::SameLine();
+
+	if (ToolButton(ICON_MD_PLACE, "NavMesh Tester Tool", type == ToolType::NAVMESH_TESTER)) // test mesh
+	{
+		setTool(new NavMeshTesterTool);
+	}
+	ImGui::SameLine();
+
+
+	if (ToolButton(ICON_MD_FORMAT_SHAPES, "Mark Areas Tool", type == ToolType::CONVEX_VOLUME)) // mark areas
 	{
 		setTool(new ConvexVolumeTool);
+	}
+	ImGui::SameLine();
+
+	if (ToolButton(ICON_MD_CROP, "Prune NavMesh Tool", type == ToolType::NAVMESH_PRUNE)) // prune tool
+	{
+		setTool(new NavMeshPruneTool);
 	}
 
 	ImGui::Separator();
@@ -705,8 +733,6 @@ void NavMeshTool::resetCommonSettings()
 void NavMeshTool::BuildTile(const glm::vec3& pos)
 {
 	if (!m_geom) return;
-	auto navMesh = m_navMesh->GetNavMesh();
-	if (!navMesh) return;
 
 	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
 	const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
@@ -726,6 +752,31 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 	m_tileCol = duRGBA(255, 255, 255, 64);
 
 	m_ctx->resetLog();
+
+	std::shared_ptr<dtNavMesh> navMesh = m_navMesh->GetNavMesh();
+	if (!navMesh)
+	{
+		navMesh = std::shared_ptr<dtNavMesh>(dtAllocNavMesh(),
+			[](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
+
+		m_navMesh->SetNavMesh(navMesh, false);
+
+		dtNavMeshParams params;
+		rcVcopy(params.orig, glm::value_ptr(bmin));
+		params.tileWidth = m_config.tileSize * m_config.cellSize;
+		params.tileHeight = m_config.tileSize * m_config.cellSize;
+		params.maxTiles = m_tilesWidth * m_tilesHeight;
+		params.maxPolys = m_maxPolysPerTile * params.maxTiles;
+
+		dtStatus status;
+
+		status = navMesh->init(&params);
+		if (dtStatusFailed(status))
+		{
+			m_ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not init navmesh.");
+			return;
+		}
+	}
 
 	int dataSize = 0;
 	unsigned char* data = buildTileMesh(tx, ty, glm::value_ptr(m_tileBmin),

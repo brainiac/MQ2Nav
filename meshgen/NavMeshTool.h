@@ -124,11 +124,11 @@ public:
 
 	std::shared_ptr<NavMesh> GetNavMesh() const { return m_navMesh; }
 
-private:
 	void setTool(Tool* tool);
 	ToolState* getToolState(ToolType type) const;
 	void setToolState(ToolType type, ToolState* s);
 
+private:
 	deleting_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
 
 	void resetCommonSettings();
