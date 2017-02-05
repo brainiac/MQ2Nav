@@ -9,6 +9,7 @@
 #include "RenderList.h"
 
 #include "common/Signal.h"
+#include "common/Utilities.h"
 
 #include <DetourNavMeshQuery.h>
 #include <DetourPathCorridor.h>
@@ -116,7 +117,7 @@ private:
 	std::shared_ptr<dtNavMesh> m_navMesh;
 
 	// we own the query
-	std::unique_ptr<dtNavMeshQuery> m_query;
+	deleting_unique_ptr<dtNavMeshQuery> m_query;
 
 	bool m_useCorridor = false;
 	// used by corridor

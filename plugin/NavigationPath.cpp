@@ -116,8 +116,10 @@ void NavigationPath::UpdatePath(bool force)
 
 	if (m_query == nullptr)
 	{
-		m_query.reset(new dtNavMeshQuery);
-		m_query->init(m_navMesh.get(), 10000 /* MAX_NODES */);
+		m_query = deleting_unique_ptr<dtNavMeshQuery>(dtAllocNavMeshQuery(),
+			[](dtNavMeshQuery* ptr) { dtFreeNavMeshQuery(ptr); });
+
+		m_query->init(m_navMesh.get(), MAX_NODES);
 	}
 
 	PSPAWNINFO me = GetCharInfo()->pSpawn;

@@ -65,9 +65,6 @@ struct NavMeshConfig
 	PartitionType partitionType = PartitionType::WATERSHED;
 };
 
-template <typename T>
-using deleting_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
-
 //----------------------------------------------------------------------------
 // file format data
 

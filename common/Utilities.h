@@ -14,6 +14,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <vector>
 
 // OpenGL debug draw implementation.
@@ -142,3 +143,9 @@ public:
 private:
 	std::function<void()> f;
 };
+
+
+
+template <typename T>
+using deleting_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
+
