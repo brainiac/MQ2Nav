@@ -17,9 +17,8 @@ enum struct PolyFlags : uint16_t
 {
 	Walk          = 0x01, // ability to walk (ground, grass, road, etc)
 	Swim          = 0x02, // ability to swim (water) (unused)
-	Door          = 0x04, // ability to move through doors (unused)
-	Jump          = 0x08, // ability to join. (unused)
-	Disabled      = 0x10, // disabled polygon
+	Jump          = 0x04, // ability to jump. (unused)
+	Disabled      = 0x08, // disabled polygon
 
 	All           = 0xffff,
 };
@@ -27,16 +26,29 @@ constexpr bool has_bitwise_operations(PolyFlags) { return true; }
 
 enum struct PolyArea : uint8_t
 {
-	Water = 1,
-	Road,
-	Door,
-	Grass,
-	Jump,
-	Avoid,
+	Unwalkable = 0,         // RC_NULL_AREA
+	Ground     = 1,         // RC_WALKABLE_AREA is 63, we will map it?
 
-	Unwalkable = 0, //RC_NULL_AREA
-	Ground = 63, //RC_WALKABLE_AREA
+	Water      = 2,
+	Jump       = 3,
+
+	UserDefinedFirst = 10,
+	UserDefinedLast  = 60
 };
+
+struct PolyAreaType
+{
+	uint8_t id;             // PolyArea
+	std::string name;
+	uint32_t color;
+	uint16_t flags;
+	float cost;
+};
+
+extern const std::vector<PolyAreaType> DefaultPolyAreas;
+
+bool IsUserDefinedPolyArea(uint8_t areaId);
+
 
 enum struct PartitionType : uint32_t
 {

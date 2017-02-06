@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ChunkyTriMesh.h"
+#include "DebugDraw.h"
 
 #include "common/Enum.h"
 #include "common/NavMesh.h"
@@ -76,6 +77,17 @@ struct ToolState
 	virtual void handleUpdate(const float dt) = 0;
 };
 
+class NavMeshDebugDraw : public DebugDrawGL
+{
+public:
+	NavMeshDebugDraw(NavMeshTool* tool) : m_tool(tool) {}
+
+	virtual unsigned int polyToCol(const dtPoly* poly) override;
+
+private:
+	NavMeshTool* m_tool;
+};
+
 //----------------------------------------------------------------------------
 
 class NavMeshTool
@@ -127,6 +139,10 @@ public:
 	void setTool(Tool* tool);
 	ToolState* getToolState(ToolType type) const;
 	void setToolState(ToolType type, ToolState* s);
+
+	unsigned int GetColorForPoly(const dtPoly* poly);
+
+	duDebugDraw& getDebugDraw() { return m_dd; }
 
 private:
 	deleting_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
@@ -206,5 +222,6 @@ private:
 		MAX
 	};};
 	DrawMode::Enum m_drawMode = DrawMode::NAVMESH;
-};
 
+	NavMeshDebugDraw m_dd{ this };
+};

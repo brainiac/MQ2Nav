@@ -2,7 +2,7 @@
 // GLUtilities.cpp
 //
 
-#include "common/Utilities.h"
+#include "DebugDraw.h"
 
 #include <SDL.h>
 #include <SDL_OpenGL.h>

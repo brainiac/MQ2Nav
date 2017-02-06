@@ -6,48 +6,12 @@
 
 // misc. utilities to help out here and there
 
-#include <DebugDraw.h>
-#include <Recast.h>
-#include <RecastDump.h>
-
 #include <glm/glm.hpp>
 
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <vector>
-
-// OpenGL debug draw implementation.
-class DebugDrawGL : public duDebugDraw
-{
-public:
-	virtual void depthMask(bool state);
-	virtual void texture(bool state);
-	virtual void begin(duDebugDrawPrimitives prim, float size = 1.0f);
-	virtual void vertex(const float* pos, unsigned int color);
-	virtual void vertex(const float x, const float y, const float z, unsigned int color);
-	virtual void vertex(const float* pos, unsigned int color, const float* uv);
-	virtual void vertex(const float x, const float y, const float z, unsigned int color, const float u, const float v);
-	virtual void end();
-};
-
-// stdio file implementation.
-class FileIO : public duFileIO
-{
-public:
-	FileIO();
-	virtual ~FileIO();
-	bool openForWrite(const char* path);
-	bool openForRead(const char* path);
-	virtual bool isWriting() const;
-	virtual bool isReading() const;
-	virtual bool write(const void* ptr, const size_t size);
-	virtual bool read(void* ptr, const size_t size);
-
-private:
-	FILE* m_fp;
-	int m_mode;
-};
 
 //----------------------------------------------------------------------------
 // gui helpers

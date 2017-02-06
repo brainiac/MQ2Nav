@@ -100,7 +100,7 @@ message BuildSettings
 
 message ConvexVolume
 {
-	// the type of area this volume creates
+	// the type of area this volume creates. Maps to a PolyAreaType
 	uint32 area_type = 1;
 
 	// min and max height
@@ -109,6 +109,24 @@ message ConvexVolume
 
 	// the list of points that create the volume
 	repeated vector3 vertices = 4;
+}
+
+message PolyAreaType
+{
+	// id of the area
+	uint32 id = 1;
+
+	// name of the area
+	string name = 2;
+
+	// color of the area
+	uint32 color = 3;
+
+	// flags
+	uint32 flags = 4;
+
+	// area cost
+	float cost = 5;
 }
 
 message NavMeshFile
@@ -124,4 +142,7 @@ message NavMeshFile
 
 	// convex volumes
 	repeated ConvexVolume convex_volumes = 4;
+
+	// areas
+	repeated PolyAreaType areas = 5;
 }

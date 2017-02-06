@@ -220,9 +220,9 @@ void NavMeshTesterTool::init(NavMeshTool* meshTool)
 		// Change costs.
 		m_filter.setAreaCost(static_cast<int>(PolyArea::Ground), 1.0f);
 		m_filter.setAreaCost(static_cast<int>(PolyArea::Water), 10.0f);
-		m_filter.setAreaCost(static_cast<int>(PolyArea::Road), 1.0f);
-		m_filter.setAreaCost(static_cast<int>(PolyArea::Door), 1.0f);
-		m_filter.setAreaCost(static_cast<int>(PolyArea::Grass), 2.0f);
+		//m_filter.setAreaCost(static_cast<int>(PolyArea::Road), 1.0f);
+		//m_filter.setAreaCost(static_cast<int>(PolyArea::Door), 1.0f);
+		//m_filter.setAreaCost(static_cast<int>(PolyArea::Grass), 2.0f);
 		m_filter.setAreaCost(static_cast<int>(PolyArea::Jump), 1.5f);
 	}
 
@@ -388,7 +388,7 @@ void NavMeshTesterTool::handleMenu()
 	ImGui::Indent();
 	changed |= ImGui::CheckboxFlags("Walk", &includeFlags, +PolyFlags::Walk);
 	changed |= ImGui::CheckboxFlags("Swim", &includeFlags, +PolyFlags::Swim);
-	changed |= ImGui::CheckboxFlags("Door", &includeFlags, +PolyFlags::Door);
+	//changed |= ImGui::CheckboxFlags("Door", &includeFlags, +PolyFlags::Door);
 	changed |= ImGui::CheckboxFlags("Jump", &includeFlags, +PolyFlags::Jump);
 	ImGui::Unindent();
 
@@ -399,7 +399,7 @@ void NavMeshTesterTool::handleMenu()
 	ImGui::PushID("Excludes");
 	changed |= ImGui::CheckboxFlags("Walk", &excludeFlags, +PolyFlags::Walk);
 	changed |= ImGui::CheckboxFlags("Swim", &excludeFlags, +PolyFlags::Swim);
-	changed |= ImGui::CheckboxFlags("Door", &excludeFlags, +PolyFlags::Door);
+	//changed |= ImGui::CheckboxFlags("Door", &excludeFlags, +PolyFlags::Door);
 	changed |= ImGui::CheckboxFlags("Jump", &excludeFlags, +PolyFlags::Jump);
 	ImGui::PopID();
 	ImGui::Unindent();

@@ -397,7 +397,7 @@ void NavMeshTool::handleRender()
 	if (!m_geom || !m_geom->getMeshLoader())
 		return;
 
-	DebugDrawGL dd;
+	duDebugDraw& dd = getDebugDraw();
 
 	const float texScale = 1.0f / (m_config.cellSize * 10.0f);
 
@@ -1223,18 +1223,18 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 			switch (static_cast<PolyArea>(pmesh->areas[i]))
 			{
 			case PolyArea::Ground:
-			case PolyArea::Grass:
-			case PolyArea::Road:
+			//case PolyArea::Grass:
+			//case PolyArea::Road:
 				pmesh->flags[i] = +PolyFlags::Walk;
 				break;
 
-			case PolyArea::Water:
-				pmesh->flags[i] = +PolyFlags::Swim;
-				break;
+			//case PolyArea::Water:
+			//	pmesh->flags[i] = +PolyFlags::Swim;
+			//	break;
 
-			case PolyArea::Door:
-				pmesh->flags[i] = +(PolyFlags::Walk | PolyFlags::Door);
-				break;
+			//case PolyArea::Door:
+			//	pmesh->flags[i] = +(PolyFlags::Walk | PolyFlags::Door);
+			//	break;
 
 			default:
 				break;
@@ -1292,6 +1292,20 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 
 	dataSize = navDataSize;
 	return navData;
+}
+
+unsigned int NavMeshTool::GetColorForPoly(const dtPoly* poly)
+{
+	if (poly)
+	{
+		uint8_t area = poly->getArea();
+		if (area == RC_WALKABLE_AREA)
+			area = (uint8_t)PolyArea::Ground;
+
+		return m_navMesh->GetPolyAreas()[area].color;
+	}
+
+	return 0;
 }
 
 
@@ -1403,4 +1417,9 @@ void NavMeshTool::renderOverlayToolStates(const glm::mat4& proj,
 			p.second->handleRenderOverlay(proj, model, view);
 		}
 	}
+}
+
+unsigned int NavMeshDebugDraw::polyToCol(const dtPoly* poly)
+{
+	return m_tool->GetColorForPoly(poly);
 }

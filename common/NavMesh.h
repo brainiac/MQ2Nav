@@ -11,6 +11,7 @@
 
 #include <DetourNavMesh.h>
 
+#include <map>
 #include <string>
 
 class dtNavMesh;
@@ -89,6 +90,12 @@ public:
 	//------------------------------------------------------------------------
 	// marked areas and volumes
 
+	using PolyAreaMap = std::map<uint8_t, PolyAreaType>;
+	PolyAreaMap& GetPolyAreas() { return m_polyAreas; }
+	const PolyAreaMap& GetPolyAreas() const { return m_polyAreas; }
+
+	const PolyAreaType& GetPolyArea(uint8_t areaType);
+
 	size_t GetConvexVolumeCount() const { return m_volumes.size(); }
 	const ConvexVolume* GetConvexVolume(size_t index) const { return m_volumes[index].get(); }
 	ConvexVolume* GetConvexVolume(size_t index) { return m_volumes[index].get(); }
@@ -111,6 +118,7 @@ private:
 	bool SaveMesh(const char* filename);
 
 	void UpdateDataFile();
+	void InitializeAreas();
 
 private:
 	Context* m_ctx;
@@ -125,6 +133,7 @@ private:
 	NavMeshConfig m_config;
 
 	std::vector<std::unique_ptr<ConvexVolume>> m_volumes;
+	std::map<uint8_t, PolyAreaType> m_polyAreas;
 };
 
 //============================================================================

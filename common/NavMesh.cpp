@@ -29,6 +29,7 @@ NavMesh::NavMesh(Context* context, const std::string& dataFolder, const std::str
 	, m_zoneName(zoneName)
 {
 	UpdateDataFile();
+	InitializeAreas();
 }
 
 NavMesh::~NavMesh()
@@ -268,6 +269,24 @@ static std::unique_ptr<ConvexVolume> FromProto(const nav::ConvexVolume& proto)
 	return volume;
 }
 
+static void ToProto(nav::PolyAreaType& out_proto, const PolyAreaType& area)
+{
+	out_proto.set_id(area.id);
+	out_proto.set_name(area.name);
+	out_proto.set_color(area.color);
+	out_proto.set_flags(area.flags);
+	out_proto.set_cost(area.cost);
+}
+
+static void FromProto(const nav::PolyAreaType& in_proto, PolyAreaType& area)
+{
+	area.id = static_cast<uint8_t>(in_proto.id());
+	area.name = in_proto.name();
+	area.color = in_proto.color();
+	area.flags = static_cast<uint16_t>(in_proto.flags());
+	area.cost = in_proto.cost();
+}
+
 NavMesh::LoadResult NavMesh::LoadNavMeshFile()
 {
 	if (m_dataFile.empty())
@@ -428,6 +447,16 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	m_boundsMin = FromProto(file_proto.build_settings().bounds_min());
 	m_boundsMax = FromProto(file_proto.build_settings().bounds_max());
 
+	// load areas
+	for (const auto& proto_area : file_proto.areas())
+	{
+		if (!IsUserDefinedPolyArea(proto_area.id()))
+		{
+			PolyAreaType& area = m_polyAreas[proto_area.id()];
+			FromProto(proto_area, area);
+		}
+	}
+
 	// load convex volumes
 	for (const auto& proto_volume : file_proto.convex_volumes())
 	{
@@ -484,8 +513,21 @@ bool NavMesh::SaveMesh(const char* filename)
 		ToProto(*proto_vol, *volume);
 	}
 
+	// save area definitions
+	for (const auto& areapair : m_polyAreas)
+	{
+		uint8_t id = areapair.first;
+		const PolyAreaType& area = areapair.second;
+
+		// only serialize user defined areas
+		if (IsUserDefinedPolyArea(id))
+		{
+			nav::PolyAreaType* proto_area = file_proto.add_areas();
+			ToProto(*proto_area, area);
+		}
+	}
+
 	// todo: save offmesh connections
-	// todo: save area definitions
 
 	// Store header.
 	MeshFileHeader header;
@@ -580,4 +622,17 @@ std::vector<dtTileRef> NavMesh::GetTilesIntersectingConvexVolume(const ConvexVol
 
 	return tiles;
 }
+
+//----------------------------------------------------------------------------
+
+void NavMesh::InitializeAreas()
+{
+	m_polyAreas.clear();
+
+	for (const PolyAreaType& area : DefaultPolyAreas)
+	{
+		m_polyAreas[area.id] = area;
+	}
+}
+
 //============================================================================

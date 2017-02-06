@@ -727,7 +727,35 @@ void Application::RenderInterface()
 
 	if (m_showMapAreas)
 	{
+		if (ImGui::Begin("Map Areas Editor", &m_showMapAreas))
+		{
+			auto& areas = m_navMesh->GetPolyAreas();
+			for (auto iter = areas.begin(); iter != areas.end(); ++iter)
+			{
+				uint8_t areaId = iter->first;
+				PolyAreaType& area = iter->second;
 
+				ImGui::PushID(areaId);
+
+				ImGui::Text("Area: %s", area.name.c_str());
+				ImColor col(area.color);
+				if (ImGuiEx::ColorEdit4("color", &col.Value.x,
+					ImGuiEx::ImGuiColorEditFlags_Alpha | ImGuiEx::ImGuiColorEditFlags_RGB))
+				{
+					area.color = (ImU32)col;
+				}
+				ImGui::SliderFloat("cost", &area.cost, 0.0f, 100.0f, "%.2f");
+				int32_t flags32 = area.flags;
+				if (ImGui::InputInt("flags", &flags32, 0, 65535, ImGuiInputTextFlags_CharsHexadecimal))
+				{
+					area.flags = static_cast<uint16_t>(flags32);
+				}
+
+				ImGui::PopID();
+			}
+
+			ImGui::End();
+		}
 	}
 }
 
