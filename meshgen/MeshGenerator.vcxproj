@@ -39,6 +39,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ZonePicker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ChunkyTriMesh.h" />
@@ -55,6 +56,7 @@
     <ClInclude Include="OffMeshConnectionTool.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="ZonePicker.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\common\MQ2Nav_Common.vcxproj">
@@ -282,7 +284,12 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\dependencies\projects\protobuf.targets" />
+  </ImportGroup>
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="..\dependencies\projects\protobuf.props" />
     <Import Project="..\packages\boost.1.63.0.0\build\native\boost.targets" Condition="Exists('..\packages\boost.1.63.0.0\build\native\boost.targets')" />
     <Import Project="..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets" Condition="Exists('..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets')" />
     <Import Project="..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets" Condition="Exists('..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets')" />
@@ -295,10 +302,4 @@
     <Error Condition="!Exists('..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_filesystem-vc140.1.63.0.0\build\native\boost_filesystem-vc140.targets'))" />
     <Error Condition="!Exists('..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_system-vc140.1.63.0.0\build\native\boost_system-vc140.targets'))" />
   </Target>
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\dependencies\projects\protobuf.targets" />
-  </ImportGroup>
-  <ImportGroup Label="ExtensionSettings">
-    <Import Project="..\dependencies\projects\protobuf.props" />
-  </ImportGroup>
 </Project>

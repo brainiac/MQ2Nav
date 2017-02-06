@@ -9,6 +9,7 @@
 #include "ImGuiSDL.h"
 #include "InputGeom.h"
 #include "NavMeshTool.h"
+#include "ZonePicker.h"
 #include "common/Utilities.h"
 
 #include "resource.h"
@@ -252,15 +253,19 @@ void Application::HandleEvents()
 			break;
 
 		case SDL_KEYDOWN:
+			if (event.key.keysym.sym == SDLK_ESCAPE)
+			{
+				if (m_meshTool->isBuildingTiles())
+					Halt();
+				else if (m_showZonePickerDialog)
+					m_showZonePickerDialog = false;
+			}
+
 			if (IsKeyboardBlocked())
 				break;
 
 			// Handle any key presses here.
-			if (event.key.keysym.sym == SDLK_ESCAPE)
-			{
-				Halt();
-			}
-			else if (event.key.keysym.mod & KMOD_CTRL)
+			if (event.key.keysym.mod & KMOD_CTRL)
 			{
 				switch (event.key.keysym.sym)
 				{
@@ -782,121 +787,20 @@ void Application::ShowZonePickerDialog()
 		return;
 	}
 
-	bool setfocus = false;
 	if (m_showZonePickerDialog) {
-		ImGui::OpenPopup("Open Zone");
-		setfocus = true;
+		bool focus = false;
+		if (!m_zonePicker) {
+			m_zonePicker = std::make_unique<ZonePicker>(m_eqConfig);
+			focus = true;
+			ImGui::SetNextWindowFocus();
+		}
+		if (m_zonePicker->Show(focus, &m_nextZoneToLoad)) {
+			m_showZonePickerDialog = false;
+		}
 	}
-	m_showZonePickerDialog = false;
 
-	ImGui::SetNextWindowSize(ImVec2(500, 575), ImGuiSetCond_Once);
-	if (ImGui::BeginPopupModal("Open Zone"))
-	{
-		ImGui::Text("Select a zone or type to filter by name");
-
-		bool selectSingle = false;
-		static char filterText[64] = "";
-		ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth());
-		if (ImGui::InputText("", filterText, 64, ImGuiInputTextFlags_EnterReturnsTrue))
-			selectSingle = true;
-		if (setfocus) ImGui::SetKeyboardFocusHere(0);
-		ImGui::PopItemWidth();
-
-		std::string text(filterText);
-		bool closePopup = false;
-
-		ImGui::BeginChild("##ZoneList", ImVec2(ImGui::GetWindowContentRegionWidth(),
-			ImGui::GetWindowHeight() - 115), false);
-
-		if (text.empty())
-		{
-			// if there is no filter we will display the tree of zones
-			const auto& mapList = m_eqConfig.GetMapList();
-			for (const auto& mapIter : mapList)
-			{
-				const std::string& expansionName = mapIter.first;
-
-				if (ImGui::TreeNode(expansionName.c_str()))
-				{
-					ImGui::Columns(2);
-
-					for (const auto& zonePair : mapIter.second)
-					{
-						const std::string& longName = zonePair.first;
-						const std::string& shortName = zonePair.second;
-
-						bool selected = false;
-						if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_MenuItem))
-							selected = true;
-						ImGui::NextColumn();
-						ImGui::SetColumnOffset(-1, 300);
-						ImGui::Text(shortName.c_str());
-						ImGui::NextColumn();
-
-						if (selected) {
-							LoadGeometry(zonePair.second.c_str());
-							closePopup = true;
-							break;
-						}
-					}
-					ImGui::Columns(1);
-
-					ImGui::TreePop();
-				}
-			}
-		}
-		else
-		{
-			const auto& mapList = m_eqConfig.GetAllMaps();
-			bool count = 0;
-			std::string lastZone;
-
-			ImGui::Columns(2);
-
-			for (const auto& mapIter : mapList)
-			{
-				const std::string& shortName = mapIter.first;
-				const std::string& longName = mapIter.second;
-
-				if (boost::ifind_first(shortName, text) || boost::ifind_first(longName, text))
-				{
-					std::string displayName = longName + " (" + shortName + ")";
-					lastZone = shortName;
-					bool selected = false;
-					if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_MenuItem))
-						selected = true;
-					ImGui::NextColumn();
-					ImGui::SetColumnOffset(-1, 300);
-					ImGui::Text(shortName.c_str());
-					ImGui::NextColumn();
-					if (selected) {
-						m_nextZoneToLoad = shortName.c_str();
-						closePopup = true;
-						break;
-					}
-				}
-				count++;
-			}
-
-			ImGui::Columns(1);
-
-
-			if (count == 1 && selectSingle) {
-				m_nextZoneToLoad = lastZone;
-				closePopup = true;
-			}
-		}
-
-		ImGui::EndChild();
-
-		ImGui::PushItemWidth(250);
-		if (ImGui::Button("Cancel") || closePopup) {
-			filterText[0] = 0;
-			ImGui::CloseCurrentPopup();
-		}
-		ImGui::PopItemWidth();
-
-		ImGui::EndPopup();
+	if (!m_showZonePickerDialog && m_zonePicker) {
+		m_zonePicker.reset();
 	}
 }
 

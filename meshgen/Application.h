@@ -30,6 +30,7 @@ class InputGeom;
 class NavMeshTool;
 struct SDL_Surface;
 class ApplicationContext;
+class ZonePicker;
 
 class Application
 {
@@ -169,6 +170,8 @@ private:
 
 	// current navmesh build worker thread
 	std::thread m_buildThread;
+
+	std::unique_ptr<ZonePicker> m_zonePicker;
 };
 
 //----------------------------------------------------------------------------

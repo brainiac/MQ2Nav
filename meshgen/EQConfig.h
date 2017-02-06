@@ -39,7 +39,7 @@ public:
 
 	std::string GetLongNameForShortName(const std::string& shortName);
 
-	const std::map<std::string, std::string>& GetAllMaps() { return m_mapNames; }
+	const std::map<std::string, std::string>& GetAllMaps() const { return m_mapNames; }
 
 private:
 	void LoadConfigFromIni();

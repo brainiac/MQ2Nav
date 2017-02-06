@@ -213,7 +213,9 @@ void NavMeshTool::handleTools()
 	}
 	ImGui::SameLine();
 
-	if (ToolButton(ICON_MD_PLACE, "NavMesh Tester Tool", type == ToolType::NAVMESH_TESTER)) // test mesh
+	// use ICON_MD_PLACE for waypoints
+
+	if (ToolButton(ICON_MD_DIRECTIONS_RUN, "NavMesh Tester Tool", type == ToolType::NAVMESH_TESTER)) // test mesh
 	{
 		setTool(new NavMeshTesterTool);
 	}
