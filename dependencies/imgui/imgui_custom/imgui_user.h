@@ -3,6 +3,7 @@
 
 #include <imgui.h>
 
+#include <functional>
 #include <memory>
 
 
@@ -55,4 +56,6 @@ namespace ImGuiEx
 		ImGuiColorEditFlags_ModeMask_ = ImGuiColorEditFlags_RGB | ImGuiColorEditFlags_HSV | ImGuiColorEditFlags_HEX
 	};
 
+	bool ColorCombo(const char* label, int* current_item, bool(*items_getter)(void*, int, ImColor* color, const char**),
+		void* data, int items_count, int height_in_items);
 }

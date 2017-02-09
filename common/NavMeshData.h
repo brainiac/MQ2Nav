@@ -27,13 +27,14 @@ constexpr bool has_bitwise_operations(PolyFlags) { return true; }
 enum struct PolyArea : uint8_t
 {
 	Unwalkable = 0,         // RC_NULL_AREA
-	Ground     = 1,         // RC_WALKABLE_AREA is 63, we will map it?
-
-	Water      = 2,
-	Jump       = 3,
+	Water      = 1,
+	Jump       = 2,
 
 	UserDefinedFirst = 10,
-	UserDefinedLast  = 60
+	UserDefinedLast  = 60,
+
+	Ground     = 63,        // RC_WALKABLE_AREA
+	Last = Ground,
 };
 
 struct PolyAreaType

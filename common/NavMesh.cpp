@@ -450,11 +450,10 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	// load areas
 	for (const auto& proto_area : file_proto.areas())
 	{
-		if (!IsUserDefinedPolyArea(proto_area.id()))
-		{
-			PolyAreaType& area = m_polyAreas[proto_area.id()];
-			FromProto(proto_area, area);
-		}
+		PolyAreaType area;
+		FromProto(proto_area, area);
+
+		UpdateArea(area);
 	}
 
 	// load convex volumes
@@ -514,17 +513,11 @@ bool NavMesh::SaveMesh(const char* filename)
 	}
 
 	// save area definitions
-	for (const auto& areapair : m_polyAreas)
+	for (const PolyAreaType& area: m_polyAreaList)
 	{
-		uint8_t id = areapair.first;
-		const PolyAreaType& area = areapair.second;
-
 		// only serialize user defined areas
-		if (IsUserDefinedPolyArea(id))
-		{
-			nav::PolyAreaType* proto_area = file_proto.add_areas();
-			ToProto(*proto_area, area);
-		}
+		nav::PolyAreaType* proto_area = file_proto.add_areas();
+		ToProto(*proto_area, area);
 	}
 
 	// todo: save offmesh connections
@@ -627,12 +620,57 @@ std::vector<dtTileRef> NavMesh::GetTilesIntersectingConvexVolume(const ConvexVol
 
 void NavMesh::InitializeAreas()
 {
-	m_polyAreas.clear();
+	m_polyAreaList.clear();
+
+	// initialize the array
+	for (uint8_t i = 0; i < m_polyAreas.size(); i++)
+	{
+		m_polyAreas[i] = PolyAreaType{ i, std::string(), 0, 0, 0.f };
+	}
 
 	for (const PolyAreaType& area : DefaultPolyAreas)
 	{
+		m_polyAreaList.push_back(area);
 		m_polyAreas[area.id] = area;
 	}
+}
+
+void NavMesh::UpdateArea(const PolyAreaType& areaType)
+{
+	// don't read in invalid ids
+	if (areaType.id < m_polyAreas.size())
+	{
+		auto iter = std::find_if(m_polyAreaList.begin(), m_polyAreaList.end(),
+			[&areaType](const PolyAreaType& area)
+		{
+			return areaType.id == area.id; 
+		});
+
+		if (iter == m_polyAreaList.end())
+		{
+			// didn't exist in the vector, lets just assume that
+			// it didn't exist in the array either.
+			m_polyAreaList.push_back(areaType);
+			m_polyAreas[areaType.id] = areaType;
+		}
+		else
+		{
+			if (IsUserDefinedPolyArea(areaType.id))
+			{
+				*iter = areaType;
+			}
+			else
+			{
+				// can only change color and cost
+				iter->color = areaType.color;
+				iter->cost = areaType.cost;
+
+				m_polyAreas[areaType.id].color = areaType.color;
+				m_polyAreas[areaType.id].cost = areaType.cost;
+			}
+		}
+	}
+
 }
 
 //============================================================================

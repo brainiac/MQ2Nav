@@ -11,8 +11,13 @@
 #include <DetourDebugDraw.h>
 
 #include <imgui/imgui.h>
+#define IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_PLACEMENT_NEW
+#include <imgui/imgui_internal.h>
 #include <imgui/imgui_custom/imgui_user.h>
 #include <glm/gtc/type_ptr.hpp>
+
+#include <functional>
 
 // Quick and dirty convex hull.
 
@@ -86,33 +91,40 @@ void ConvexVolumeTool::reset()
 {
 }
 
+
 void ConvexVolumeTool::handleMenu()
 {
+	auto navMesh = m_meshTool->GetNavMesh();
+	if (!navMesh) return;
+
 	ImGui::SliderFloat("Shape Height", &m_state->m_boxHeight, 0.1f, 100.0f);
 	ImGui::SliderFloat("Shape Descent", &m_state->m_boxDescent, -100.f, 100.f);
 	ImGui::SliderFloat("Poly Offset", &m_state->m_polyOffset, 0.0f, 10.0f);
 
 	ImGui::Separator();
 
-	ImGui::Text("Area Type");
+	const auto& polyAreas = navMesh->GetPolyAreas();
+	
+	struct Iter {
+		decltype(polyAreas)& polys;
+	};
+	Iter data{ polyAreas };
 
-	ImGui::Indent();
+	auto getter = [](void* data, int index, ImColor* color, const char** text) -> bool
+	{
+		Iter* p = (Iter*)data;
 
-	if (ImGui::RadioButton("Ground", m_state->m_areaType == PolyArea::Ground))
-		m_state->m_areaType = PolyArea::Ground;
-	if (ImGui::RadioButton("Unwalkable", m_state->m_areaType == PolyArea::Unwalkable))
-		m_state->m_areaType = PolyArea::Unwalkable;
-#if 0
-	if (ImGui::RadioButton("Grass", m_areaType == PolyArea::Grass))
-		m_areaType = PolyArea::Grass;
-	if (ImGui::RadioButton("Road", m_areaType == PolyArea::Road))
-		m_areaType = PolyArea::Road;
-	if (ImGui::RadioButton("Water", m_areaType == PolyArea::Water))
-		m_areaType = PolyArea::Water;
-	if (ImGui::RadioButton("Door", m_areaType == PolyArea::Door))
-		m_areaType = PolyArea::Door;
-#endif
-	ImGui::Unindent();
+		*color = p->polys[index].color;
+		color->Value.w = 1.0f; // no transparency
+		*text = p->polys[index].name.c_str();
+		return true;
+	};
+
+	static int selected = 0;
+	if (ImGuiEx::ColorCombo("Area Type", &selected, getter, &data, (int)polyAreas.size(), 5))
+	{
+		m_state->m_areaType = static_cast<PolyArea>(polyAreas[selected].id);
+	}
 
 	ImGui::Separator();
 

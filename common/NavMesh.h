@@ -11,6 +11,7 @@
 
 #include <DetourNavMesh.h>
 
+#include <array>
 #include <map>
 #include <string>
 
@@ -90,11 +91,16 @@ public:
 	//------------------------------------------------------------------------
 	// marked areas and volumes
 
-	using PolyAreaMap = std::map<uint8_t, PolyAreaType>;
-	PolyAreaMap& GetPolyAreas() { return m_polyAreas; }
-	const PolyAreaMap& GetPolyAreas() const { return m_polyAreas; }
+	using PolyAreaList = std::vector<PolyAreaType>;
+	PolyAreaList& GetPolyAreas() { return m_polyAreaList; }
+	const PolyAreaList& GetPolyAreas() const { return m_polyAreaList; }
 
-	const PolyAreaType& GetPolyArea(uint8_t areaType);
+	inline const PolyAreaType& GetPolyArea(uint8_t areaType) const
+	{
+		return m_polyAreas[areaType];
+	}
+
+	void UpdateArea(const PolyAreaType& area);
 
 	size_t GetConvexVolumeCount() const { return m_volumes.size(); }
 	const ConvexVolume* GetConvexVolume(size_t index) const { return m_volumes[index].get(); }
@@ -120,6 +126,7 @@ private:
 	void UpdateDataFile();
 	void InitializeAreas();
 
+
 private:
 	Context* m_ctx;
 	std::string m_navMeshDirectory;
@@ -133,7 +140,9 @@ private:
 	NavMeshConfig m_config;
 
 	std::vector<std::unique_ptr<ConvexVolume>> m_volumes;
-	std::map<uint8_t, PolyAreaType> m_polyAreas;
+
+	std::vector<PolyAreaType> m_polyAreaList;
+	std::array<PolyAreaType, (int)PolyArea::Last + 1> m_polyAreas;
 };
 
 //============================================================================

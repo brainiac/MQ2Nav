@@ -22,7 +22,7 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 
 	// ground
 	PolyAreaType{
-		1,                       // id
+		63,                      // id
 		"ground",                // name
 		RGBA(0, 192, 255, 255),  // color
 		+PolyFlags::Walk,        // flags
@@ -31,7 +31,7 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 
 	// water
 	PolyAreaType{
-		2,                       // id
+		1,                       // id
 		"water",                 // name
 		RGBA(0, 0, 255, 255),    // color
 		+PolyFlags::Swim,        // flags
@@ -40,16 +40,16 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 
 	// jump
 	PolyAreaType{
-		3,                       // id
+		2,                       // id
 		"jump",                  // name
 		RGBA(127, 127, 0, 64),   // color
 		+PolyFlags::Jump,        // flags
 		1.5f,                    // cost
 	},
 
-	// water
+	// road
 	PolyAreaType{
-		4,                       // id
+		3,                       // id
 		"road",                  // name
 		RGBA(50, 20, 12, 255),   // color
 		+PolyFlags::Walk,        // flags

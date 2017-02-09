@@ -479,7 +479,7 @@ void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
 
 	for (const auto& vol : volumes)
 	{
-		uint32_t col = duIntToCol(static_cast<int>(vol->areaType), 32);
+		uint32_t col = duTransCol(m_navMesh->GetPolyArea((int)vol->areaType).color, 32);
 		size_t nverts = vol->verts.size();
 
 		for (size_t j = 0, k = nverts - 1; j < nverts; k = j++)
@@ -505,7 +505,7 @@ void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
 	dd->begin(DU_DRAW_LINES, 2.0f);
 	for (const auto& vol : volumes)
 	{
-		uint32_t col = duIntToCol(static_cast<int>(vol->areaType), 220);
+		uint32_t col = duTransCol(m_navMesh->GetPolyArea((int)vol->areaType).color, 220);
 		size_t nverts = vol->verts.size();
 
 		for (size_t j = 0, k = nverts - 1; j < nverts; k = j++)
@@ -526,7 +526,7 @@ void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
 	dd->begin(DU_DRAW_POINTS, 3.0f);
 	for (const auto& vol : volumes)
 	{
-		uint32_t col = duDarkenCol(duIntToCol(static_cast<int>(vol->areaType), 255));
+		uint32_t col = duDarkenCol(duTransCol(m_navMesh->GetPolyArea((int)vol->areaType).color, 255));
 		size_t nverts = vol->verts.size();
 
 		for (size_t j = 0; j < nverts; ++j)
@@ -656,23 +656,17 @@ void NavMeshTool::RemoveTile(const glm::vec3& pos)
 
 void NavMeshTool::RemoveAllTiles()
 {
-	auto navMesh = m_navMesh->GetNavMesh();
+	std::shared_ptr<dtNavMesh> navMesh = m_navMesh->GetNavMesh();
 	if (!navMesh) return;
 
-	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
-	const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
-	int gw = 0, gh = 0;
-	rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
-	const int ts = (int)m_config.tileSize;
-	const int tw = (gw + ts - 1) / ts;
-	const int th = (gh + ts - 1) / ts;
-
-	for (int y = 0; y < th; ++y)
+	for (int i = 0; i < navMesh->getMaxTiles(); ++i)
 	{
-		for (int x = 0; x < tw; ++x)
+		const dtMeshTile* tile = nullptr;
+
+		if ((tile = const_cast<const dtNavMesh*>(navMesh.get())->getTile(i))
+			&& tile->header != nullptr)
 		{
-			dtTileRef tileRef = navMesh->getTileRefAt(x, y, 0);
-			navMesh->removeTile(tileRef, 0, 0);
+			navMesh->removeTile(navMesh->getTileRef(tile), 0, 0);
 		}
 	}
 }
@@ -1298,11 +1292,7 @@ unsigned int NavMeshTool::GetColorForPoly(const dtPoly* poly)
 {
 	if (poly)
 	{
-		uint8_t area = poly->getArea();
-		if (area == RC_WALKABLE_AREA)
-			area = (uint8_t)PolyArea::Ground;
-
-		return m_navMesh->GetPolyAreas()[area].color;
+		return m_navMesh->GetPolyArea(poly->getArea()).color;
 	}
 
 	return 0;

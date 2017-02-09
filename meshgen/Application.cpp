@@ -732,24 +732,33 @@ void Application::RenderInterface()
 			auto& areas = m_navMesh->GetPolyAreas();
 			for (auto iter = areas.begin(); iter != areas.end(); ++iter)
 			{
-				uint8_t areaId = iter->first;
-				PolyAreaType& area = iter->second;
+				const PolyAreaType& area = *iter;
+				uint8_t areaId = area.id;
+				ImColor col(area.color);
+				int32_t flags32 = area.flags;
+				float cost = area.cost;
 
 				ImGui::PushID(areaId);
+				bool changed = false;
 
 				ImGui::Text("Area: %s", area.name.c_str());
-				ImColor col(area.color);
-				if (ImGuiEx::ColorEdit4("color", &col.Value.x,
-					ImGuiEx::ImGuiColorEditFlags_Alpha | ImGuiEx::ImGuiColorEditFlags_RGB))
+				changed |= ImGuiEx::ColorEdit4("color", &col.Value.x,
+					ImGuiEx::ImGuiColorEditFlags_Alpha | ImGuiEx::ImGuiColorEditFlags_RGB);
+				changed |= ImGui::SliderFloat("cost", &cost, 0.0f, 100.0f, "%.2f");
+				changed |= ImGui::InputInt("flags", &flags32, 0, 65535, ImGuiInputTextFlags_CharsHexadecimal);
+
+				if (changed)
 				{
-					area.color = (ImU32)col;
+					PolyAreaType areaType{
+						area.id,
+						area.name,
+						ImU32(col),
+						uint16_t(flags32),
+						cost
+					};
+					m_navMesh->UpdateArea(areaType);
 				}
-				ImGui::SliderFloat("cost", &area.cost, 0.0f, 100.0f, "%.2f");
-				int32_t flags32 = area.flags;
-				if (ImGui::InputInt("flags", &flags32, 0, 65535, ImGuiInputTextFlags_CharsHexadecimal))
-				{
-					area.flags = static_cast<uint16_t>(flags32);
-				}
+
 
 				ImGui::PopID();
 			}
