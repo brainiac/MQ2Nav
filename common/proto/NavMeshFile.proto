@@ -109,6 +109,8 @@ message ConvexVolume
 
 	// the list of points that create the volume
 	repeated vector3 vertices = 4;
+
+	string name = 5;
 }
 
 message PolyAreaType

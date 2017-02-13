@@ -26,15 +26,15 @@ constexpr bool has_bitwise_operations(PolyFlags) { return true; }
 
 enum struct PolyArea : uint8_t
 {
-	Unwalkable = 0,         // RC_NULL_AREA
-	Water      = 1,
+	Unwalkable = 0,        // RC_NULL_AREA
+	Ground     = 1,        // RC_WALKABLE_AREA
 	Jump       = 2,
+	Water      = 3,
 
 	UserDefinedFirst = 10,
 	UserDefinedLast  = 60,
 
-	Ground     = 63,        // RC_WALKABLE_AREA
-	Last = Ground,
+	Last = 63,
 };
 
 struct PolyAreaType
@@ -44,6 +44,7 @@ struct PolyAreaType
 	uint32_t color;
 	uint16_t flags;
 	float cost;
+	bool valid;
 };
 
 extern const std::vector<PolyAreaType> DefaultPolyAreas;
@@ -115,6 +116,8 @@ struct ConvexVolume
 {
 	std::vector<glm::vec3> verts;
 	float hmin, hmax;
-	PolyArea areaType;
+	uint8_t areaType;
+
+	std::string name;
 };
 

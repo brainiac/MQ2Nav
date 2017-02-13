@@ -76,6 +76,8 @@ private:
 	void UpdateMovementState(bool keydown);
 	void UpdateCamera();
 
+	void DrawAreaTypesEditor();
+
 private:
 	EQConfig m_eqConfig;
 
@@ -153,6 +155,7 @@ private:
 	bool m_showSettingsDialog = false;
 	bool m_showDemo = false;
 	bool m_showTools = true;
+	bool m_showDebug = false;
 	bool m_showProperties = true;
 	bool m_showMapAreas = false;
 

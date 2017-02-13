@@ -11,6 +11,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <DebugDraw.h>
 #include <DetourCommon.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
@@ -101,6 +102,8 @@ void NavMesh::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh, bool reset)
 		m_boundsMin = m_boundsMax = glm::vec3();
 		m_config = NavMeshConfig{};
 		m_volumes.clear();
+
+		InitializeAreas();
 	}
 }
 
@@ -246,6 +249,7 @@ static void ToProto(nav::ConvexVolume& out_proto, const ConvexVolume& volume)
 	out_proto.set_area_type(static_cast<uint32_t>(volume.areaType));
 	out_proto.set_height_min(volume.hmin);
 	out_proto.set_height_max(volume.hmax);
+	out_proto.set_name(volume.name);
 
 	for (const auto& vert : volume.verts)
 	{
@@ -258,14 +262,16 @@ static std::unique_ptr<ConvexVolume> FromProto(const nav::ConvexVolume& proto)
 {
 	auto volume = std::make_unique<ConvexVolume>();
 	
-	volume->areaType = static_cast<PolyArea>(proto.area_type());
+	volume->areaType = proto.area_type();
 	volume->hmin = proto.height_min();
 	volume->hmax = proto.height_max();
+	volume->name = proto.name();
 
 	for (const auto& vert : proto.vertices())
 	{
 		volume->verts.push_back(FromProto(vert));
 	}
+
 	return volume;
 }
 
@@ -285,6 +291,7 @@ static void FromProto(const nav::PolyAreaType& in_proto, PolyAreaType& area)
 	area.color = in_proto.color();
 	area.flags = static_cast<uint16_t>(in_proto.flags());
 	area.cost = in_proto.cost();
+	area.valid = true;
 }
 
 NavMesh::LoadResult NavMesh::LoadNavMeshFile()
@@ -447,6 +454,8 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	m_boundsMin = FromProto(file_proto.build_settings().bounds_min());
 	m_boundsMax = FromProto(file_proto.build_settings().bounds_max());
 
+	InitializeAreas();
+
 	// load areas
 	for (const auto& proto_area : file_proto.areas())
 	{
@@ -513,11 +522,11 @@ bool NavMesh::SaveMesh(const char* filename)
 	}
 
 	// save area definitions
-	for (const PolyAreaType& area: m_polyAreaList)
+	for (const PolyAreaType* area: m_polyAreaList)
 	{
 		// only serialize user defined areas
 		nav::PolyAreaType* proto_area = file_proto.add_areas();
-		ToProto(*proto_area, area);
+		ToProto(*proto_area, *area);
 	}
 
 	// todo: save offmesh connections
@@ -554,7 +563,7 @@ bool NavMesh::SaveMesh(const char* filename)
 //----------------------------------------------------------------------------
 
 ConvexVolume* NavMesh::AddConvexVolume(const std::vector<glm::vec3>& verts,
-	float minh, float maxh, PolyArea areaType)
+	float minh, float maxh, uint8_t areaType)
 {
 	auto volume = std::make_unique<ConvexVolume>();
 	volume->areaType = areaType;
@@ -622,16 +631,18 @@ void NavMesh::InitializeAreas()
 {
 	m_polyAreaList.clear();
 
+	// TODO: Add way to save default custom areas
+
 	// initialize the array
 	for (uint8_t i = 0; i < m_polyAreas.size(); i++)
 	{
-		m_polyAreas[i] = PolyAreaType{ i, std::string(), 0, 0, 0.f };
+		m_polyAreas[i] = PolyAreaType{ i, std::string(), duIntToCol(i, 255), 0, 1.f, false };
 	}
 
 	for (const PolyAreaType& area : DefaultPolyAreas)
 	{
-		m_polyAreaList.push_back(area);
 		m_polyAreas[area.id] = area;
+		m_polyAreaList.push_back(&m_polyAreas[area.id]);
 	}
 }
 
@@ -640,37 +651,65 @@ void NavMesh::UpdateArea(const PolyAreaType& areaType)
 	// don't read in invalid ids
 	if (areaType.id < m_polyAreas.size())
 	{
+		// simpler to just remove and append new poly area 
 		auto iter = std::find_if(m_polyAreaList.begin(), m_polyAreaList.end(),
-			[&areaType](const PolyAreaType& area)
+			[&areaType](const PolyAreaType* area)
 		{
-			return areaType.id == area.id; 
+			return areaType.id == area->id; 
 		});
+		if (iter != m_polyAreaList.end())
+			m_polyAreaList.erase(iter);
 
-		if (iter == m_polyAreaList.end())
+		if (IsUserDefinedPolyArea(areaType.id))
 		{
-			// didn't exist in the vector, lets just assume that
-			// it didn't exist in the array either.
-			m_polyAreaList.push_back(areaType);
 			m_polyAreas[areaType.id] = areaType;
+			m_polyAreas[areaType.id].valid = true;
 		}
 		else
 		{
-			if (IsUserDefinedPolyArea(areaType.id))
-			{
-				*iter = areaType;
-			}
-			else
-			{
-				// can only change color and cost
-				iter->color = areaType.color;
-				iter->cost = areaType.cost;
-
-				m_polyAreas[areaType.id].color = areaType.color;
-				m_polyAreas[areaType.id].cost = areaType.cost;
-			}
+			// can only change color and cost
+			m_polyAreas[areaType.id].color = areaType.color;
+			m_polyAreas[areaType.id].cost = areaType.cost;
 		}
+
+		m_polyAreaList.push_back(&m_polyAreas[areaType.id]);
+
+		std::sort(m_polyAreaList.begin(), m_polyAreaList.end(),
+			[](const PolyAreaType* typeA, const PolyAreaType* typeB) { return typeA->id < typeB->id; });
+	}
+}
+
+void NavMesh::RemoveUserDefinedArea(uint8_t areaId)
+{
+	if (!IsUserDefinedPolyArea(areaId))
+		return;
+
+	m_polyAreas[areaId].valid = false;
+
+	auto iter = std::find_if(m_polyAreaList.begin(), m_polyAreaList.end(),
+		[areaId](const PolyAreaType* area)
+	{
+		return areaId == area->id;
+	});
+	if (iter != m_polyAreaList.end())
+		m_polyAreaList.erase(iter);
+
+	m_polyAreas[areaId] = PolyAreaType{ areaId, std::string(), duIntToCol(areaId, 255), 0, 1.f, false };
+
+	std::sort(m_polyAreaList.begin(), m_polyAreaList.end(),
+		[](const PolyAreaType* typeA, const PolyAreaType* typeB) { return typeA->id < typeB->id; });
+}
+
+uint8_t NavMesh::GetFirstUnusedUserDefinedArea() const
+{
+	for (uint8_t index = (uint8_t)PolyArea::UserDefinedFirst;
+		index <= (uint8_t)PolyArea::UserDefinedLast; ++index)
+	{
+		if (!m_polyAreas[index].valid)
+			return index;
 	}
 
+	return 0;
 }
 
 //============================================================================

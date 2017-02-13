@@ -125,53 +125,50 @@ void NavMeshTool::UpdateTileSizes()
 	}
 }
 
-void NavMeshTool::handleSettings()
+void NavMeshTool::handleDebug()
 {
-	if (ImGui::CollapsingHeader("Debug"))
+	// Check which modes are valid.
+	bool valid[DrawMode::MAX];
+	for (int i = 0; i < DrawMode::MAX; ++i)
+		valid[i] = false;
+
+	if (m_geom)
 	{
-		// Check which modes are valid.
-		bool valid[DrawMode::MAX];
-		for (int i = 0; i < DrawMode::MAX; ++i)
-			valid[i] = false;
+		bool isValid = m_navMesh->IsNavMeshLoaded();
 
-		if (m_geom)
-		{
-			bool isValid = m_navMesh->IsNavMeshLoaded();
+		valid[DrawMode::NAVMESH] = isValid;
+		valid[DrawMode::NAVMESH_TRANS] = isValid;
+		valid[DrawMode::NAVMESH_BVTREE] = isValid;
+		valid[DrawMode::NAVMESH_NODES] = isValid;
+		valid[DrawMode::NAVMESH_PORTALS] = isValid;
+		valid[DrawMode::NAVMESH_INVIS] = isValid;
+		valid[DrawMode::MESH] = true;
+	}
 
-			valid[DrawMode::NAVMESH] = isValid;
-			valid[DrawMode::NAVMESH_TRANS] = isValid;
-			valid[DrawMode::NAVMESH_BVTREE] = isValid;
-			valid[DrawMode::NAVMESH_NODES] = isValid;
-			valid[DrawMode::NAVMESH_PORTALS] = isValid;
-			valid[DrawMode::NAVMESH_INVIS] = isValid;
-			valid[DrawMode::MESH] = true;
-		}
+	int unavail = 0;
+	for (int i = 0; i < DrawMode::MAX; ++i)
+	{
+		if (!valid[i]) unavail++;
+	}
 
-		int unavail = 0;
-		for (int i = 0; i < DrawMode::MAX; ++i)
-		{
-			if (!valid[i]) unavail++;
-		}
+	if (unavail != DrawMode::MAX)
+	{
+		ImGui::Text("Draw");
 
-		if (unavail != DrawMode::MAX)
-		{
-			ImGui::Text("Draw");
-
-			if (valid[DrawMode::MESH] && ImGui::RadioButton("Input Mesh", m_drawMode == DrawMode::MESH))
-				m_drawMode = DrawMode::MESH;
-			if (valid[DrawMode::NAVMESH] && ImGui::RadioButton("Navmesh", m_drawMode == DrawMode::NAVMESH))
-				m_drawMode = DrawMode::NAVMESH;
-			if (valid[DrawMode::NAVMESH_INVIS] && ImGui::RadioButton("Navmesh Invis", m_drawMode == DrawMode::NAVMESH_INVIS))
-				m_drawMode = DrawMode::NAVMESH_INVIS;
-			if (valid[DrawMode::NAVMESH_TRANS] && ImGui::RadioButton("Navmesh Trans", m_drawMode == DrawMode::NAVMESH_TRANS))
-				m_drawMode = DrawMode::NAVMESH_TRANS;
-			if (valid[DrawMode::NAVMESH_BVTREE] && ImGui::RadioButton("Navmesh BVTree", m_drawMode == DrawMode::NAVMESH_BVTREE))
-				m_drawMode = DrawMode::NAVMESH_BVTREE;
-			if (valid[DrawMode::NAVMESH_NODES] && ImGui::RadioButton("Navmesh Nodes", m_drawMode == DrawMode::NAVMESH_NODES))
-				m_drawMode = DrawMode::NAVMESH_NODES;
-			if (valid[DrawMode::NAVMESH_PORTALS] && ImGui::RadioButton("Navmesh Portals", m_drawMode == DrawMode::NAVMESH_PORTALS))
-				m_drawMode = DrawMode::NAVMESH_PORTALS;
-		}
+		if (valid[DrawMode::MESH] && ImGui::RadioButton("Input Mesh", m_drawMode == DrawMode::MESH))
+			m_drawMode = DrawMode::MESH;
+		if (valid[DrawMode::NAVMESH] && ImGui::RadioButton("Navmesh", m_drawMode == DrawMode::NAVMESH))
+			m_drawMode = DrawMode::NAVMESH;
+		if (valid[DrawMode::NAVMESH_INVIS] && ImGui::RadioButton("Navmesh Invis", m_drawMode == DrawMode::NAVMESH_INVIS))
+			m_drawMode = DrawMode::NAVMESH_INVIS;
+		if (valid[DrawMode::NAVMESH_TRANS] && ImGui::RadioButton("Navmesh Trans", m_drawMode == DrawMode::NAVMESH_TRANS))
+			m_drawMode = DrawMode::NAVMESH_TRANS;
+		if (valid[DrawMode::NAVMESH_BVTREE] && ImGui::RadioButton("Navmesh BVTree", m_drawMode == DrawMode::NAVMESH_BVTREE))
+			m_drawMode = DrawMode::NAVMESH_BVTREE;
+		if (valid[DrawMode::NAVMESH_NODES] && ImGui::RadioButton("Navmesh Nodes", m_drawMode == DrawMode::NAVMESH_NODES))
+			m_drawMode = DrawMode::NAVMESH_NODES;
+		if (valid[DrawMode::NAVMESH_PORTALS] && ImGui::RadioButton("Navmesh Portals", m_drawMode == DrawMode::NAVMESH_PORTALS))
+			m_drawMode = DrawMode::NAVMESH_PORTALS;
 	}
 }
 

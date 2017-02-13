@@ -529,7 +529,7 @@ void Application::RenderInterface()
 
 		if (ImGui::BeginMenu("Edit"))
 		{
-			if (ImGui::MenuItem("Map Areas"))
+			if (ImGui::MenuItem("Area Types"))
 				m_showMapAreas = !m_showMapAreas;
 
 			ImGui::EndMenu();
@@ -541,6 +541,8 @@ void Application::RenderInterface()
 				m_showProperties = !m_showProperties;
 			if (ImGui::MenuItem("Show Tools", "Ctrl+T", m_showTools))
 				m_showTools = !m_showTools;
+			if (ImGui::MenuItem("Show Debug", nullptr, m_showDebug))
+				m_showDebug = !m_showDebug;
 
 			ImGui::Separator();
 
@@ -677,9 +679,15 @@ void Application::RenderInterface()
 			{
 				m_meshTool->handleTools();
 			}
-
-			m_meshTool->handleSettings();
 		}
+
+		ImGui::End();
+	}
+
+	if (m_showDebug
+		&& ImGui::Begin("Debug", &m_showDebug))
+	{
+		m_meshTool->handleDebug();
 
 		ImGui::End();
 	}
@@ -727,41 +735,11 @@ void Application::RenderInterface()
 
 	if (m_showMapAreas)
 	{
-		if (ImGui::Begin("Map Areas Editor", &m_showMapAreas))
+		ImGui::SetNextWindowSize(ImVec2(440, 400), ImGuiSetCond_Once);
+
+		if (ImGui::Begin("Area Types", &m_showMapAreas))
 		{
-			auto& areas = m_navMesh->GetPolyAreas();
-			for (auto iter = areas.begin(); iter != areas.end(); ++iter)
-			{
-				const PolyAreaType& area = *iter;
-				uint8_t areaId = area.id;
-				ImColor col(area.color);
-				int32_t flags32 = area.flags;
-				float cost = area.cost;
-
-				ImGui::PushID(areaId);
-				bool changed = false;
-
-				ImGui::Text("Area: %s", area.name.c_str());
-				changed |= ImGuiEx::ColorEdit4("color", &col.Value.x,
-					ImGuiEx::ImGuiColorEditFlags_Alpha | ImGuiEx::ImGuiColorEditFlags_RGB);
-				changed |= ImGui::SliderFloat("cost", &cost, 0.0f, 100.0f, "%.2f");
-				changed |= ImGui::InputInt("flags", &flags32, 0, 65535, ImGuiInputTextFlags_CharsHexadecimal);
-
-				if (changed)
-				{
-					PolyAreaType areaType{
-						area.id,
-						area.name,
-						ImU32(col),
-						uint16_t(flags32),
-						cost
-					};
-					m_navMesh->UpdateArea(areaType);
-				}
-
-
-				ImGui::PopID();
-			}
+			DrawAreaTypesEditor();
 
 			ImGui::End();
 		}
@@ -841,6 +819,168 @@ void Application::ShowZonePickerDialog()
 	}
 }
 
+static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userIndex = -1)
+{
+	uint8_t areaId = area.id;
+
+	bool builtIn = !IsUserDefinedPolyArea(areaId);
+	ImColor col(area.color);
+	int32_t flags32 = area.flags;
+	float cost = area.cost;
+	bool useNewName = false;
+	std::string newName;
+	bool remove = false;
+
+	ImGui::PushID(areaId);
+
+	bool changed = false;
+
+	if (areaId != 0) // no color for 0
+	{
+		changed |= ImGuiEx::ColorEdit4("##color", &col.Value.x,
+			ImGuiColorEditFlags_NoSliders);
+	}
+
+	ImGui::NextColumn();
+	ImGui::SetColumnOffset(1, 35);
+
+	ImGuiWindow* window = ImGui::GetCurrentWindow();
+	float offset = window->DC.CurrentLineTextBaseOffset;
+	window->DC.CurrentLineTextBaseOffset += 2.0f;
+
+	if (builtIn)
+		ImGui::Text("Built-in %d", areaId);
+	else
+		ImGui::Text("User %d",  userIndex != -1 ? userIndex : areaId);
+
+	window->DC.CurrentLineTextBaseOffset = offset;
+
+	ImGui::NextColumn();
+	ImGui::SetColumnOffset(2, 120);
+
+	char name[256];
+	strcpy_s(name, area.name.c_str());
+
+	ImGui::PushItemWidth(200);
+
+	if (builtIn)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Text, ImColor(128, 128, 128));
+		useNewName = ImGui::InputText("##name", name, 256, ImGuiInputTextFlags_ReadOnly);
+		ImGui::PopStyleColor(1);
+	}
+	else
+	{
+		useNewName = ImGui::InputText("##name", name, 256, 0);
+	}
+
+	ImGui::PopItemWidth();
+
+	if (useNewName)
+	{
+		newName = name;
+		changed = true;
+	}
+
+	ImGui::NextColumn();
+	ImGui::SetColumnOffset(3, 325);
+
+	ImGui::PushItemWidth(45);
+
+	if (areaId == 0)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Text, ImColor(128, 128, 128));
+		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, 1, ImGuiInputTextFlags_ReadOnly);
+		ImGui::PopStyleColor(1);
+	}
+	else
+	{
+		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, 1);
+	}
+
+	ImGui::PopItemWidth();
+
+	if (changed)
+	{
+		PolyAreaType areaType{
+			areaId,
+			useNewName ? newName : area.name,
+			ImU32(col),
+			uint16_t(flags32),
+			cost,
+			true
+		};
+		navMesh->UpdateArea(areaType);
+	}
+
+	ImGui::NextColumn();
+	ImGui::SetColumnOffset(4, 370);
+
+	if (!builtIn)
+	{
+		if (ImGui::Button("  -  "))
+		{
+			remove = true;
+		}
+	}
+	else
+	{
+		auto iter = std::find_if(DefaultPolyAreas.begin(), DefaultPolyAreas.end(),
+			[areaId](const PolyAreaType& def) { return def.id == areaId; });
+		if (iter != DefaultPolyAreas.end())
+		{
+			const auto& defArea = *iter;
+			if (defArea.color != col || defArea.cost != cost)
+			{
+				if (ImGui::Button("Revert"))
+				{
+					navMesh->UpdateArea(defArea);
+				}
+			}
+		}
+	}
+
+	ImGui::NextColumn();
+	ImGui::PopID();
+
+	return remove;
+}
+
+void Application::DrawAreaTypesEditor()
+{
+	ImGui::Columns(5, 0, false);
+
+	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Unwalkable));
+	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Ground));
+	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Jump));
+	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Water));
+
+	ImGui::Separator();
+
+	for (uint8_t index = (uint8_t)PolyArea::UserDefinedFirst;
+		index <= (uint8_t)PolyArea::UserDefinedLast; ++index)
+	{
+		const auto& area = m_navMesh->GetPolyArea(index);
+		if (area.valid)
+		{
+			if (RenderAreaType(m_navMesh.get(), area, area.id - (uint8_t)PolyArea::UserDefinedFirst))
+				m_navMesh->RemoveUserDefinedArea(area.id);
+		}
+	}
+
+	uint8_t nextAreaId = m_navMesh->GetFirstUnusedUserDefinedArea();
+	if (nextAreaId != 0)
+	{
+		if (ImGui::Button(" + "))
+		{
+			auto area = m_navMesh->GetPolyArea(nextAreaId);
+			m_navMesh->UpdateArea(area);
+		}
+	}
+
+	ImGui::Columns(1);
+}
+
 void Application::ResetCamera()
 {
 	// Camera Reset
@@ -918,8 +1058,8 @@ void Application::LoadGeometry(const std::string& zoneShortName)
 	std::string windowTitle = ss2.str();
 	SDL_SetWindowTitle(m_window, windowTitle.c_str());
 
-	m_navMesh->SetZoneName(m_zoneShortname);
 	m_meshTool->handleGeometryChanged(m_geom.get());
+	m_navMesh->SetZoneName(m_zoneShortname);
 	m_resetCamera = true;
 	m_zoneLoaded = true;
 }

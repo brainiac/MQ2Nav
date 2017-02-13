@@ -91,15 +91,131 @@ void ConvexVolumeTool::reset()
 {
 }
 
+static bool AreaTypeCombo(NavMesh* navMesh, uint8_t* areaType)
+{
+	const auto& polyAreas = navMesh->GetPolyAreas();
+	bool changed = false;
+
+	struct Iter {
+		decltype(polyAreas)& polys;
+	};
+	Iter data{ polyAreas };
+
+	static auto getter = [](void* data, int index, ImColor* color, const char** text) -> bool
+	{
+		Iter* p = (Iter*)data;
+
+		*color = p->polys[index]->color;
+		color->Value.w = 1.0f; // no transparency
+		*text = p->polys[index]->name.c_str();
+		return true;
+	};
+
+	int size = (int)polyAreas.size();
+	int selected = 0;
+
+	for (int i = 0; i < size; ++i)
+	{
+		if (polyAreas[i]->id == *areaType)
+			selected = i;
+	}
+
+	if (ImGuiEx::ColorCombo("Area Type", &selected, getter, &data, size, 10))
+	{
+		*areaType = polyAreas[selected]->id;
+		changed = true;
+	}
+
+	return changed;
+}
 
 void ConvexVolumeTool::handleMenu()
 {
 	auto navMesh = m_meshTool->GetNavMesh();
 	if (!navMesh) return;
 
+	// show list of existing convex volumes
+	ImGui::BeginChild("VolumeList", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.9f, 300));
+	for (size_t i = 0; i < navMesh->GetConvexVolumeCount(); ++i)
+	{
+		ConvexVolume* volume = navMesh->GetConvexVolume(i);
+		const PolyAreaType& area = navMesh->GetPolyArea(volume->areaType);
+
+		char label[256];
+		const char* volumeName = volume->name.empty() ? "unnamed" : volume->name.c_str();
+
+		if (!area.valid)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Text, ImColor(255, 0, 0));
+
+			sprintf_s(label, "%04d: %s (Invalid Area Type: %d)", (int)i, volumeName, volume->areaType);
+		}
+		else
+		{
+			if (area.name.empty())
+				sprintf_s(label, "%04d: %s (Unnamed Area: %d)", (int)i, volumeName, volume->areaType);
+			else
+				sprintf_s(label, "%04d: %s (%s)", (int)i, volumeName, area.name.c_str());
+		}
+
+		bool selected = (m_state->m_currentVolume == volume);
+
+		if (ImGui::Selectable(label, &selected))
+		{
+			if (selected)
+				m_state->m_currentVolume = volume;
+		}
+
+		if (!area.valid)
+		{
+			ImGui::PopStyleColor(1);
+		}
+	}
+
+	if (ImGui::Button("Create New Shape"))
+	{
+		m_state->m_editing = true;
+		m_state->m_currentVolume = nullptr;
+	}
+
+	if (m_state->m_editing)
+	{
+		ImGui::Separator();
+
+		ImGui::InputText("Name", m_state->m_name, 256);
+		AreaTypeCombo(navMesh.get(), &m_state->m_areaType);
+		ImGui::SliderFloat("Shape Height", &m_state->m_boxHeight, 0.1f, 100.0f);
+		ImGui::SliderFloat("Shape Descent", &m_state->m_boxDescent, -100.f, 100.f);
+		ImGui::SliderFloat("Poly Offset", &m_state->m_polyOffset, 0.0f, 10.0f);
+	}
+	else if (ConvexVolume* vol = m_state->m_currentVolume)
+	{
+		ImGui::Separator();
+
+		char name[256];
+		sprintf_s(name, vol->name.c_str());
+		if (ImGui::InputText("Name", name, 256))
+			vol->name = name;
+		m_state->m_modified |= ImGui::InputFloat("Hieght Min", &vol->hmin, 1.0, 10.0, 1);
+		m_state->m_modified |= ImGui::InputFloat("Hieght Max", &vol->hmax, 1.0, 10.0, 1);
+
+		if (ImGui::Button("Delete Shape"))
+		{
+			for (size_t i = 0; i < navMesh->GetConvexVolumeCount(); ++i)
+			{
+				if (navMesh->GetConvexVolume(i) == m_state->m_currentVolume)
+				{
+					navMesh->DeleteConvexVolume(i);
+					m_state->m_currentVolume = nullptr;
+					break;
+				}
+			}
+		}
+	}
+
+	ImGui::InputText("Name", m_state->m_name, 256);
 	ImGui::SliderFloat("Shape Height", &m_state->m_boxHeight, 0.1f, 100.0f);
 	ImGui::SliderFloat("Shape Descent", &m_state->m_boxDescent, -100.f, 100.f);
-	ImGui::SliderFloat("Poly Offset", &m_state->m_polyOffset, 0.0f, 10.0f);
 
 	ImGui::Separator();
 
@@ -114,16 +230,16 @@ void ConvexVolumeTool::handleMenu()
 	{
 		Iter* p = (Iter*)data;
 
-		*color = p->polys[index].color;
+		*color = p->polys[index]->color;
 		color->Value.w = 1.0f; // no transparency
-		*text = p->polys[index].name.c_str();
+		*text = p->polys[index]->name.c_str();
 		return true;
 	};
 
 	static int selected = 0;
-	if (ImGuiEx::ColorCombo("Area Type", &selected, getter, &data, (int)polyAreas.size(), 5))
+	if (ImGuiEx::ColorCombo("Area Type", &selected, getter, &data, (int)polyAreas.size(), 10))
 	{
-		m_state->m_areaType = static_cast<PolyArea>(polyAreas[selected].id);
+		m_state->m_areaType = polyAreas[selected]->id;
 	}
 
 	ImGui::Separator();
@@ -132,6 +248,12 @@ void ConvexVolumeTool::handleMenu()
 	{
 		reset();
 	}
+
+	ImGui::Separator();
+
+
+
+	ImGui::EndChild();
 }
 
 void ConvexVolumeTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, bool shift)
@@ -180,6 +302,7 @@ void ConvexVolumeToolState::reset()
 {
 	m_pts.clear();
 	m_hull.clear();
+	m_currentVolume = nullptr;
 }
 
 void ConvexVolumeToolState::handleRender()
@@ -248,7 +371,7 @@ std::vector<dtTileRef> ConvexVolumeToolState::handleVolumeClick(const glm::vec3&
 
 		// If end point close enough, delete it.
 		if (nearestIndex != -1)
-		{
+		{ 
 			const ConvexVolume* volume = navMesh->GetConvexVolume(nearestIndex);
 			modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume);
 
@@ -288,13 +411,13 @@ std::vector<dtTileRef> ConvexVolumeToolState::handleVolumeClick(const glm::vec3&
 					{
 						offset.resize(noffset);
 
-						ConvexVolume* volume = navMesh->AddConvexVolume(offset, minh, maxh, m_areaType);
+						ConvexVolume* volume = navMesh->AddConvexVolume(offset, minh, maxh, (uint8_t)m_areaType);
 						modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume);
 					}
 				}
 				else
 				{
-					ConvexVolume* volume = navMesh->AddConvexVolume(verts, minh, maxh, m_areaType);
+					ConvexVolume* volume = navMesh->AddConvexVolume(verts, minh, maxh, (uint8_t)m_areaType);
 					modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume);
 				}
 			}

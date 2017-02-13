@@ -14,46 +14,41 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 	// unwalkable
 	PolyAreaType{
 		0,                       // id
-		"unwalkable",            // name
+		"Not Walkable",          // name
 		RGBA(0, 0, 0, 0),        // color
 		0,                       // flags
 		0.0f,                    // cost
+		true,                    // valid
 	},
 
 	// ground
 	PolyAreaType{
-		63,                      // id
-		"ground",                // name
+		1,                      // id
+		"Walkable",              // name
 		RGBA(0, 192, 255, 255),  // color
 		+PolyFlags::Walk,        // flags
 		1.0f,                    // cost
-	},
-
-	// water
-	PolyAreaType{
-		1,                       // id
-		"water",                 // name
-		RGBA(0, 0, 255, 255),    // color
-		+PolyFlags::Swim,        // flags
-		10.0f,                   // cost
+		true,                    // valid
 	},
 
 	// jump
 	PolyAreaType{
 		2,                       // id
-		"jump",                  // name
+		"Jump",                  // name
 		RGBA(127, 127, 0, 64),   // color
 		+PolyFlags::Jump,        // flags
 		1.5f,                    // cost
+		true,                    // valid
 	},
 
-	// road
+	// water
 	PolyAreaType{
 		3,                       // id
-		"road",                  // name
-		RGBA(50, 20, 12, 255),   // color
-		+PolyFlags::Walk,        // flags
-		0.8f,                    // cost
+		"Water",                 // name
+		RGBA(0, 0, 255, 255),    // color
+		+PolyFlags::Swim,        // flags
+		10.0f,                   // cost
+		true,                    // valid
 	},
 };
 

@@ -98,7 +98,7 @@ public:
 
 	void setContext(BuildContext* ctx) { m_ctx = ctx; }
 
-	void handleSettings();
+	void handleDebug();
 	void handleTools();
 	void handleRender();
 	void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);

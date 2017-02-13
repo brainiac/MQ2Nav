@@ -430,7 +430,7 @@ bool ImGuiEx::ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags fl
 			SameLine(0, style.ItemInnerSpacing.x);
 
 		const ImVec4 col_display(col[0], col[1], col[2], 1.0f);
-		if (ColorButton(col_display))
+		if (ColorButton(col_display, (flags & ImGuiColorEditFlags_SmallButton) != 0))
 		{
 			if (!(flags & ImGuiColorEditFlags_NoPicker))
 			{

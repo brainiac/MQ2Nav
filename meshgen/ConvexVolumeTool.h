@@ -11,6 +11,7 @@
 #include <vector>
 
 class ConvexVolumeToolState;
+struct ConvexVolume;
 
 class ConvexVolumeTool : public Tool
 {
@@ -33,7 +34,6 @@ public:
 private:
 	NavMeshTool* m_meshTool = nullptr;
 	ConvexVolumeToolState* m_state = nullptr;
-
 };
 
 class ConvexVolumeToolState : public ToolState
@@ -53,11 +53,16 @@ public:
 private:
 	NavMeshTool* m_meshTool = nullptr;
 
-	PolyArea m_areaType = PolyArea::Ground;
+	// properties for active area edit 
+	char m_name[256];
+	uint8_t m_areaType = (uint8_t)PolyArea::Unwalkable;
 	float m_polyOffset = 0.0f;
 	float m_boxHeight = 6.0f;
 	float m_boxDescent = 1.0f;
-
 	std::vector<glm::vec3> m_pts;
 	std::vector<uint32_t> m_hull;
+	bool m_editing = false;
+	bool m_modified = false;
+
+	ConvexVolume* m_currentVolume = nullptr;
 };

@@ -91,7 +91,7 @@ public:
 	//------------------------------------------------------------------------
 	// marked areas and volumes
 
-	using PolyAreaList = std::vector<PolyAreaType>;
+	using PolyAreaList = std::vector<const PolyAreaType*>;
 	PolyAreaList& GetPolyAreas() { return m_polyAreaList; }
 	const PolyAreaList& GetPolyAreas() const { return m_polyAreaList; }
 
@@ -101,13 +101,17 @@ public:
 	}
 
 	void UpdateArea(const PolyAreaType& area);
+	void RemoveUserDefinedArea(uint8_t areaId);
+
+	// returns 0 if there are no available areas
+	uint8_t GetFirstUnusedUserDefinedArea() const;
 
 	size_t GetConvexVolumeCount() const { return m_volumes.size(); }
 	const ConvexVolume* GetConvexVolume(size_t index) const { return m_volumes[index].get(); }
 	ConvexVolume* GetConvexVolume(size_t index) { return m_volumes[index].get(); }
 
 	ConvexVolume* AddConvexVolume(const std::vector<glm::vec3>& verts,
-		float minh, float maxh, PolyArea areaType);
+		float minh, float maxh, uint8_t areaType);
 	void DeleteConvexVolume(size_t index);
 
 	const std::vector<std::unique_ptr<ConvexVolume>>& GetConvexVolumes() const { return m_volumes; }
@@ -141,7 +145,7 @@ private:
 
 	std::vector<std::unique_ptr<ConvexVolume>> m_volumes;
 
-	std::vector<PolyAreaType> m_polyAreaList;
+	std::vector<const PolyAreaType*> m_polyAreaList;
 	std::array<PolyAreaType, (int)PolyArea::Last + 1> m_polyAreas;
 };
 
