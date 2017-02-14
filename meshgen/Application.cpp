@@ -522,6 +522,7 @@ void Application::RenderInterface()
 				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
 			{
 				m_navMesh->ResetNavMesh();
+				m_meshTool->handleGeometryChanged(m_geom.get());
 			}
 
 			ImGui::EndMenu();

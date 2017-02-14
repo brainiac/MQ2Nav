@@ -114,6 +114,7 @@ const int NAVMESH_QUERY_MAX_NODES = 4096;
 
 struct ConvexVolume
 {
+	uint32_t id;
 	std::vector<glm::vec3> verts;
 	float hmin, hmax;
 	uint8_t areaType;

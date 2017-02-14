@@ -14,6 +14,7 @@
 #include <array>
 #include <map>
 #include <string>
+#include <unordered_map>
 
 class dtNavMesh;
 class dtNavMeshQuery;
@@ -89,7 +90,7 @@ public:
 	const NavMeshConfig& GetNavMeshConfig() const { return m_config; }
 
 	//------------------------------------------------------------------------
-	// marked areas and volumes
+	// area types
 
 	using PolyAreaList = std::vector<const PolyAreaType*>;
 	PolyAreaList& GetPolyAreas() { return m_polyAreaList; }
@@ -106,17 +107,24 @@ public:
 	// returns 0 if there are no available areas
 	uint8_t GetFirstUnusedUserDefinedArea() const;
 
-	size_t GetConvexVolumeCount() const { return m_volumes.size(); }
-	const ConvexVolume* GetConvexVolume(size_t index) const { return m_volumes[index].get(); }
-	ConvexVolume* GetConvexVolume(size_t index) { return m_volumes[index].get(); }
+	//----------------------------------------------------------------------------
+	// convex values / marked areas
 
-	ConvexVolume* AddConvexVolume(const std::vector<glm::vec3>& verts,
-		float minh, float maxh, uint8_t areaType);
-	void DeleteConvexVolume(size_t index);
+	size_t GetConvexVolumeCount() const { return m_volumes.size(); }
+
+	const ConvexVolume* GetConvexVolume(size_t index) const { return m_volumes[index].get(); }
+
+	ConvexVolume* GetConvexVolume(size_t index) { return m_volumes[index].get(); }
 
 	const std::vector<std::unique_ptr<ConvexVolume>>& GetConvexVolumes() const { return m_volumes; }
 
-	std::vector<dtTileRef> GetTilesIntersectingConvexVolume(const ConvexVolume* volume);
+	ConvexVolume* AddConvexVolume(const std::vector<glm::vec3>& verts, const std::string& name,
+		float minh, float maxh, uint8_t areaType);
+
+	ConvexVolume* GetConvexVolumeById(uint32_t id);
+	void DeleteConvexVolumeById(uint32_t id);
+
+	std::vector<dtTileRef> GetTilesIntersectingConvexVolume(uint32_t volumeId);
 
 	//------------------------------------------------------------------------
 	// events
@@ -130,6 +138,7 @@ private:
 	void UpdateDataFile();
 	void InitializeAreas();
 
+	void ResetSavedData();
 
 private:
 	Context* m_ctx;
@@ -144,6 +153,8 @@ private:
 	NavMeshConfig m_config;
 
 	std::vector<std::unique_ptr<ConvexVolume>> m_volumes;
+	std::unordered_map<uint32_t, ConvexVolume*> m_volumesById;
+	uint32_t m_nextVolumeId = 1;
 
 	std::vector<const PolyAreaType*> m_polyAreaList;
 	std::array<PolyAreaType, (int)PolyArea::Last + 1> m_polyAreas;

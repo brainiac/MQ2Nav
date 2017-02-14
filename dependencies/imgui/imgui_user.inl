@@ -62,9 +62,30 @@ bool ImGuiEx::ColorCombo(const char* label, int* current_item, bool(*items_gette
 		const float square_size = g.FontSize - 2;
 		const ImRect bb(rect.Min + ImVec2(style.FramePadding.x, style.FramePadding.y - 1),
 			rect.Min + ImVec2(square_size + style.FramePadding.y * 2, square_size + (style.FramePadding.y * 2)));
-		ImGui::RenderFrame(bb.Min, bb.Max, color, true, style.FrameRounding);
+
+		bool outline = (color.Value.x == 0 && color.Value.y == 0 && color.Value.z == 0);
+		ImGuiWindow* window = ImGui::GetCurrentWindow();
+		bool showBorders = (window->Flags & ImGuiWindowFlags_ShowBorders) != 0;
+
+		if (outline)
+		{
+			window->Flags |= ImGuiWindowFlags_ShowBorders;
+			ImGui::PushStyleColor(ImGuiCol_Border, ImColor(255, 255, 255, 64));
+			ImGui::PushStyleColor(ImGuiCol_BorderShadow, ImColor(255, 255, 255, 64));
+		}
+
+		ImGui::RenderFrame(bb.Min, bb.Max, color, true, 0.0);
+
+		if (outline)
+		{
+			if (!showBorders)
+				window->Flags &= ~ImGuiWindowFlags_ShowBorders;
+
+			ImGui::PopStyleColor(2);
+		}
 
 		rect.Min.x += bb.GetWidth() + style.FramePadding.x * 2;
+		rect.Min.y += 2;
 		RenderTextClipped(rect.Min, rect.Max, item_text, NULL, NULL, ImVec2(0.0f, 0.0f));
 	};
 

@@ -111,6 +111,8 @@ message ConvexVolume
 	repeated vector3 vertices = 4;
 
 	string name = 5;
+
+	uint32 id = 6;
 }
 
 message PolyAreaType

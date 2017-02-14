@@ -99,12 +99,19 @@ void NavMesh::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh, bool reset)
 
 	if (reset)
 	{
-		m_boundsMin = m_boundsMax = glm::vec3();
-		m_config = NavMeshConfig{};
-		m_volumes.clear();
-
-		InitializeAreas();
+		ResetSavedData();
 	}
+}
+
+void NavMesh::ResetSavedData()
+{
+	m_boundsMin = m_boundsMax = glm::vec3();
+	m_config = NavMeshConfig{};
+	m_volumes.clear();
+	m_volumesById.clear();
+	m_nextVolumeId = 1;
+
+	InitializeAreas();
 }
 
 void NavMesh::ResetNavMesh()
@@ -250,6 +257,7 @@ static void ToProto(nav::ConvexVolume& out_proto, const ConvexVolume& volume)
 	out_proto.set_height_min(volume.hmin);
 	out_proto.set_height_max(volume.hmax);
 	out_proto.set_name(volume.name);
+	out_proto.set_id(volume.id);
 
 	for (const auto& vert : volume.verts)
 	{
@@ -266,6 +274,7 @@ static std::unique_ptr<ConvexVolume> FromProto(const nav::ConvexVolume& proto)
 	volume->hmin = proto.height_min();
 	volume->hmax = proto.height_max();
 	volume->name = proto.name();
+	volume->id = proto.id();
 
 	for (const auto& vert : proto.vertices())
 	{
@@ -445,16 +454,13 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 		m_ctx->Log(LogLevel::ERROR, "loadMesh: navmesh has incompatible structure, will continue loading without tiles.");
 	}
 
-	m_navMeshQuery.reset();
-	m_volumes.clear();
+	ResetSavedData();
 
 	// load build settings
 	FromProto(file_proto.build_settings(), m_config);
 
 	m_boundsMin = FromProto(file_proto.build_settings().bounds_min());
 	m_boundsMax = FromProto(file_proto.build_settings().bounds_max());
-
-	InitializeAreas();
 
 	// load areas
 	for (const auto& proto_area : file_proto.areas())
@@ -468,7 +474,15 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	// load convex volumes
 	for (const auto& proto_volume : file_proto.convex_volumes())
 	{
-		m_volumes.push_back(FromProto(proto_volume));
+		std::unique_ptr<ConvexVolume> vol = FromProto(proto_volume);
+		m_volumesById.emplace(vol->id, vol.get());
+		m_volumes.push_back(std::move(vol));
+	}
+
+	// find the next volume id
+	for (const auto& volume : m_volumes)
+	{
+		m_nextVolumeId = std::max(m_nextVolumeId, volume->id + 1);
 	}
 
 	return LoadResult::Success;
@@ -563,6 +577,7 @@ bool NavMesh::SaveMesh(const char* filename)
 //----------------------------------------------------------------------------
 
 ConvexVolume* NavMesh::AddConvexVolume(const std::vector<glm::vec3>& verts,
+	const std::string& name,
 	float minh, float maxh, uint8_t areaType)
 {
 	auto volume = std::make_unique<ConvexVolume>();
@@ -570,24 +585,40 @@ ConvexVolume* NavMesh::AddConvexVolume(const std::vector<glm::vec3>& verts,
 	volume->hmax = maxh;
 	volume->hmin = minh;
 	volume->verts = verts;
+	volume->id = m_nextVolumeId++;
+	volume->name = name;
 
 	ConvexVolume* vol = volume.get();
 	m_volumes.push_back(std::move(volume));
+	m_volumesById.emplace(vol->id, vol);
 
 	return vol;
 }
 
-void NavMesh::DeleteConvexVolume(size_t index)
+void NavMesh::DeleteConvexVolumeById(uint32_t id)
 {
-	if (index < m_volumes.size())
+	auto iter = std::find_if(m_volumes.begin(), m_volumes.end(),
+		[id](const auto& ptr) { return ptr->id == id; });
+	if (iter != m_volumes.end())
 	{
-		m_volumes.erase(m_volumes.begin() + index);
+		m_volumesById.erase((*iter)->id);
+		m_volumes.erase(iter);
 	}
 }
 
-std::vector<dtTileRef> NavMesh::GetTilesIntersectingConvexVolume(const ConvexVolume* volume)
+ConvexVolume* NavMesh::GetConvexVolumeById(uint32_t id)
+{
+	auto iter = m_volumesById.find(id);
+	if (iter != m_volumesById.end())
+		return iter->second;
+
+	return nullptr;
+}
+
+std::vector<dtTileRef> NavMesh::GetTilesIntersectingConvexVolume(uint32_t id)
 {
 	std::vector<dtTileRef> tiles;
+	auto volume = GetConvexVolumeById(id);
 
 	if (m_navMesh && volume && volume->verts.size() > 1)
 	{
