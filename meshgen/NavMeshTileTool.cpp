@@ -16,6 +16,12 @@
 void NavMeshTileTool::init(NavMeshTool* meshTool)
 {
 	m_meshTool = meshTool;
+	m_hitPosSet = false;
+}
+
+void NavMeshTileTool::reset()
+{
+	m_hitPosSet = false;
 }
 
 void NavMeshTileTool::handleMenu()

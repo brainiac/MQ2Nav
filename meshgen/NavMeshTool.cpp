@@ -429,10 +429,6 @@ void NavMeshTool::handleRender()
 	const float s = m_config.tileSize * m_config.cellSize;
 	duDebugDrawGridXZ(&dd, bmin[0], bmin[1], bmin[2], tw, th, s, duRGBA(0, 0, 0, 64), 1.0f);
 
-	// Draw active tile
-	duDebugDrawBoxWire(&dd, m_tileBmin[0], m_tileBmin[1], m_tileBmin[2],
-		m_tileBmax[0], m_tileBmax[1], m_tileBmax[2], m_tileCol, 1.0f);
-
 	if (m_navMesh->IsNavMeshLoaded() &&
 		(m_drawMode == DrawMode::NAVMESH ||
 		 m_drawMode == DrawMode::NAVMESH_TRANS ||
@@ -541,15 +537,6 @@ void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
 void NavMeshTool::handleRenderOverlay(const glm::mat4& proj,
 	const glm::mat4& model, const glm::ivec4& view)
 {
-	// Draw start and end point labels
-	if (m_tileBuildTime > 0.0f)
-	{
-		glm::vec3 pos = glm::project((m_tileBmin + m_tileBmax) / 2.0f,
-			model, proj, view);
-		ImGui::RenderText((int)pos.x, -((int)pos.y - 25), ImVec4(0, 0, 0, 220),
-			"%.3fms / %dTris / %.1fkB", m_tileBuildTime, m_tileTriCount, m_tileMemUsage);
-	}
-
 	if (m_tool)
 	{
 		m_tool->handleRenderOverlay(proj, model, view);
@@ -637,16 +624,6 @@ void NavMeshTool::RemoveTile(const glm::vec3& pos)
 	const int tx = (int)((pos[0] - bmin[0]) / ts);
 	const int ty = (int)((pos[2] - bmin[2]) / ts);
 
-	m_tileBmin[0] = bmin[0] + tx*ts;
-	m_tileBmin[1] = bmin[1];
-	m_tileBmin[2] = bmin[2] + ty*ts;
-
-	m_tileBmax[0] = bmin[0] + (tx + 1)*ts;
-	m_tileBmax[1] = bmax[1];
-	m_tileBmax[2] = bmin[2] + (ty + 1)*ts;
-
-	m_tileCol = duRGBA(128, 32, 16, 64);
-
 	dtTileRef tileRef = navMesh->getTileRefAt(tx, ty, 0);
 	navMesh->removeTile(tileRef, 0, 0);
 }
@@ -704,15 +681,14 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 	const int tx = (int)((pos[0] - bmin[0]) / ts);
 	const int ty = (int)((pos[2] - bmin[2]) / ts);
 
-	m_tileBmin[0] = bmin[0] + tx*ts;
-	m_tileBmin[1] = bmin[1];
-	m_tileBmin[2] = bmin[2] + ty*ts;
+	glm::vec3 tileBmin, tileBmax;
+	tileBmin[0] = bmin[0] + tx*ts;
+	tileBmin[1] = bmin[1];
+	tileBmin[2] = bmin[2] + ty*ts;
 
-	m_tileBmax[0] = bmin[0] + (tx + 1)*ts;
-	m_tileBmax[1] = bmax[1];
-	m_tileBmax[2] = bmin[2] + (ty + 1)*ts;
-
-	m_tileCol = duRGBA(255, 255, 255, 64);
+	tileBmax[0] = bmin[0] + (tx + 1)*ts;
+	tileBmax[1] = bmax[1];
+	tileBmax[2] = bmin[2] + (ty + 1)*ts;
 
 	m_ctx->resetLog();
 
@@ -742,8 +718,8 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 	}
 
 	int dataSize = 0;
-	unsigned char* data = buildTileMesh(tx, ty, glm::value_ptr(m_tileBmin),
-		glm::value_ptr(m_tileBmax), dataSize);
+	unsigned char* data = buildTileMesh(tx, ty, glm::value_ptr(tileBmin),
+		glm::value_ptr(tileBmax), dataSize);
 
 	// Remove any previous data (navmesh owns and deletes the data).
 	dtTileRef tileRef = navMesh->getTileRefAt(tx, ty, 0);
@@ -895,17 +871,18 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 
 				++m_tilesBuilt;
 
-				m_tileBmin[0] = bmin[0] + x*tcs;
-				m_tileBmin[1] = bmin[1];
-				m_tileBmin[2] = bmin[2] + y*tcs;
+				glm::vec3 tileBmin, tileBmax;
+				tileBmin[0] = bmin[0] + x*tcs;
+				tileBmin[1] = bmin[1];
+				tileBmin[2] = bmin[2] + y*tcs;
 
-				m_tileBmax[0] = bmin[0] + (x + 1)*tcs;
-				m_tileBmax[1] = bmax[1];
-				m_tileBmax[2] = bmin[2] + (y + 1)*tcs;
+				tileBmax[0] = bmin[0] + (x + 1)*tcs;
+				tileBmax[1] = bmax[1];
+				tileBmax[2] = bmin[2] + (y + 1)*tcs;
 
 				int dataSize = 0;
-				uint8_t* data = buildTileMesh(x, y, glm::value_ptr(m_tileBmin),
-					glm::value_ptr(m_tileBmax), dataSize);
+				uint8_t* data = buildTileMesh(x, y, glm::value_ptr(tileBmin),
+					glm::value_ptr(tileBmax), dataSize);
 
 				if (data)
 				{
@@ -970,15 +947,11 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshTool::rasterizeGeometry(rcConfi
 	if (!ncid)
 		return 0;
 
-	//m_tileTriCount = 0;
-
 	for (int i = 0; i < ncid; ++i)
 	{
 		const rcChunkyTriMeshNode& node = chunkyMesh->nodes[cid[i]];
 		const int* ctris = &chunkyMesh->tris[node.i * 3];
 		const int nctris = node.n;
-
-		//m_tileTriCount += nctris;
 
 		memset(triareas.get(), 0, nctris * sizeof(unsigned char));
 		rcMarkWalkableTriangles(m_ctx, cfg.walkableSlopeAngle,
@@ -1253,15 +1226,8 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 			return 0;
 		}
 	}
-	//m_tileMemUsage = navDataSize/1024.0f;
 
 	m_ctx->stopTimer(RC_TIMER_TOTAL);
-
-	// Show performance stats.
-	//duLogBuildTimes(*m_ctx, m_ctx->getAccumulatedTime(RC_TIMER_TOTAL));
-	//m_ctx->log(RC_LOG_PROGRESS, ">> Polymesh: %d vertices  %d polygons", pmesh->nverts, pmesh->npolys);
-
-	//m_tileBuildTime = m_ctx->getAccumulatedTime(RC_TIMER_TOTAL)/1000.0f;
 
 	dataSize = navDataSize;
 	return navData;

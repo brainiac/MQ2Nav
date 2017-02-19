@@ -180,14 +180,8 @@ private:
 	int m_maxTiles = 0;
 	int m_maxPolysPerTile = 0;
 
-	uint32_t m_tileCol = duRGBA(0, 0, 0, 32);
-	glm::vec3 m_tileBmin, m_tileBmax;
 	char* m_outputPath = nullptr;
-
 	float m_totalBuildTimeMs = 0.f;
-	float m_tileBuildTime = 0.f;
-	float m_tileMemUsage = 0;
-	int m_tileTriCount = 0;
 
 	int m_tilesWidth = 0;
 	int m_tilesHeight = 0;

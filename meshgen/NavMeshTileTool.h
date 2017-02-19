@@ -14,7 +14,7 @@ public:
 
 	virtual ToolType type() const override { return ToolType::TILE_EDIT; }
 	virtual void init(NavMeshTool* meshTool) override;
-	virtual void reset() override {}
+	virtual void reset() override;
 	virtual void handleMenu() override;
 	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) override;
 	virtual void handleToggle() override {}
