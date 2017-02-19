@@ -11,6 +11,14 @@ message vector3
 	float z = 3;
 }
 
+message color
+{
+	uint32 r = 1;
+	uint32 g = 2;
+	uint32 b = 3;
+	uint32 a = 4;
+}
+
 message dtNavMeshParams
 {
 	// The world space origin of the navigation mesh's tile space.
@@ -124,7 +132,7 @@ message PolyAreaType
 	string name = 2;
 
 	// color of the area
-	uint32 color = 3;
+	color color = 3;
 
 	// flags
 	uint32 flags = 4;

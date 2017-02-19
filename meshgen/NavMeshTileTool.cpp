@@ -70,15 +70,13 @@ void NavMeshTileTool::handleRenderOverlay(const glm::mat4& proj,
 {
 	if (m_hitPosSet)
 	{
-		glm::dvec3 hitPos2{ m_hitPos };
-		glm::dmat4x4 model2{ model };
-		glm::dmat4x4 proj2{ proj };
-
-		glm::dvec3 pos = glm::project(hitPos2, model2, proj2, view);
+		glm::vec3 pos = glm::project(m_hitPos, model, proj, view);
 		int tx = 0, ty = 0;
 
 		m_meshTool->GetTilePos(m_hitPos, tx, ty);
-		ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "(%d,%d)", tx, ty);
+		ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220),
+			"%.2f %.2f %.2f\nTile: (%d,%d)", m_hitPos.z, m_hitPos.x, m_hitPos.y,
+			tx, ty);
 	}
 
 	// Tool help

@@ -405,19 +405,21 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 	if (!_stricmp(buffer, "help"))
 	{
 		WriteChatf(PLUGIN_MSG "Usage:");
-		WriteChatf(PLUGIN_MSG "\ag/navigate [save | load]\ax - save/load settings");
-		WriteChatf(PLUGIN_MSG "\ag/navigate reload\ax - reload navmesh");
-		WriteChatf(PLUGIN_MSG "\ag/navigate recordwaypoint <waypoint name> <waypoint tag>\ax - create a waypoint");
+		WriteChatf(PLUGIN_MSG "\ag/nav [save | load]\ax - save/load settings");
+		WriteChatf(PLUGIN_MSG "\ag/nav reload\ax - reload navmesh");
+		WriteChatf(PLUGIN_MSG "\ag/nav recordwaypoint <waypoint name> <waypoint tag>\ax - create a waypoint");
 
 		WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
-		WriteChatf(PLUGIN_MSG "\ag/navigate target\ax - navigate to target");
-		WriteChatf(PLUGIN_MSG "\ag/navigate id #\ax - navigate to target with ID = #");
-		WriteChatf(PLUGIN_MSG "\ag/navigate X Y Z\ax - navigate to coordinates");
-		WriteChatf(PLUGIN_MSG "\ag/navigate item [click] [once]\ax - navigate to item (and click it)");
-		WriteChatf(PLUGIN_MSG "\ag/navigate door [click] [once]\ax - navigate to door/object (and click it)");
-		WriteChatf(PLUGIN_MSG "\ag/navigate waypoint <waypoint>\ax - navigate to waypoint");
-		WriteChatf(PLUGIN_MSG "\ag/navigate stop\ax - stop navigation");
-		WriteChatf(PLUGIN_MSG "\ag/navigate pause\ax - pause navigation");
+		WriteChatf(PLUGIN_MSG "\ag/nav target\ax - navigate to target");
+		WriteChatf(PLUGIN_MSG "\ag/nav id #\ax - navigate to target with ID = #");
+		WriteChatf(PLUGIN_MSG "\ag/nav loc[yxz] Y X Z\ax - navigate to coordinates");
+		WriteChatf(PLUGIN_MSG "\ag/nav locxyz X Y Z\ax - navigate to coordinates");
+		WriteChatf(PLUGIN_MSG "\ag/nav item [click]\ax - navigate to item (and click it)");
+		WriteChatf(PLUGIN_MSG "\ag/nav door [item_name | id #] [click]\ax - navigate to door/object (and click it)");
+		WriteChatf(PLUGIN_MSG "\ag/nav spawn <spawn search>\ax - navigate to spawn via spawn search query");
+		WriteChatf(PLUGIN_MSG "\ag/nav waypoint|wp <waypoint>\ax - navigate to waypoint");
+		WriteChatf(PLUGIN_MSG "\ag/nav stop\ax - stop navigation");
+		WriteChatf(PLUGIN_MSG "\ag/nav pause\ax - pause navigation");
 		return;
 	}
 	
@@ -964,13 +966,15 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 	}
 
 	// parse /nav x y z
+	if (!_stricmp(buffer, "loc") || !_stricmp(buffer, "locxyz") || !_stricmp(buffer, "locyxz"))
 	{
 		glm::vec3 tmpDestination;
+		bool noflip = !_stricmp(buffer, "locxyz");
 
 		int i = 0;
 		for (; i < 3; ++i)
 		{
-			char* item = GetArg(buffer, szLine, i + 1);
+			char* item = GetArg(buffer, szLine, i + 2);
 			if (!item)
 				break;
 
@@ -984,7 +988,8 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 					tmpDestination.x, tmpDestination.y, tmpDestination.z);
 
 			// swap the x/y coordinates for silly eq coordinate system
-			std::swap(tmpDestination.x, tmpDestination.y);
+			if (!noflip)
+				std::swap(tmpDestination.x, tmpDestination.y);
 
 			result->type = DestinationType::Location;
 			result->eqDestinationPos = tmpDestination;

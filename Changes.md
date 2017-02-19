@@ -28,19 +28,20 @@ MQ2Nav Changelog
   * Reduced MaxClimb to 4.0 to avoid getting stuck on the edge of tall objects
   * Increased MaxSlope to 75 to allow traversal over steeper terrain.
 * Navmesh ingame path rendering has received a visual upgrade.
-
-**Misc Improvements**
 * Revamp the ingame Waypoints UI, fixing several bugs
   * Added option to delete and rename waypoints
   * Fixed the order of the x,y,z coordinates in waypoints UI to match /loc
+* Improvements to how the in-game active navigation path line is rendered.
 
+** Command Changes **
 * Fixed various /nav commands and made many improvements:
-  * Fixed /nav x y z
-  * Added /nav spawn <text> - takes same parameters of Spawn TLO to do a spawn search
+  * Removed /nav x y z, replaced with:
+    * eq /loc coordinates: /nav loc y x z, /nav locyxz y x z
+    * eq xyz coordinates: /nav locxyz x y z
   * Fixed issues with clicking items and doors when using /nav item or /nav door
-  * Added new forms of /nav commands. [See the wiki](https://github.com/brainiac/MQ2Nav/wiki/Command-Reference) for more info.
 * Remove spam click behavior of /nav item/door as it didn't work right anyways
-* Improvements to how the active navigation path line is rendered.
+  * Added /nav spawn <text> - takes same parameters of Spawn TLO to do a spawn search
+* Added new forms of /nav commands. [See the wiki](https://github.com/brainiac/MQ2Nav/wiki/Command-Reference) for more info.
 
 
 1.0.0

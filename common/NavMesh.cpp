@@ -196,6 +196,22 @@ inline glm::vec3 FromProto(const nav::vector3& in_proto)
 	return glm::vec3{ in_proto.x(), in_proto.y(), in_proto.z() };
 }
 
+static void ToProto(nav::color& out_proto, uint32_t color)
+{
+	out_proto.set_a((color >> 24) & 0xff);
+	out_proto.set_r((color >> 16) & 0xff);
+	out_proto.set_g((color >> 8) & 0xff);
+	out_proto.set_b(color & 0xff);
+}
+
+inline uint32_t FromProto(const nav::color& proto)
+{
+	return ((proto.a() & 0xff) << 24)
+		| ((proto.r() & 0xff) << 16)
+		| ((proto.g() & 0xff) << 8)
+		| (proto.b() & 0xff);
+}
+
 static void ToProto(nav::dtNavMeshParams& out_proto, const dtNavMeshParams* params)
 {
 	out_proto.set_tile_width(params->tileWidth);
@@ -308,7 +324,7 @@ static void ToProto(nav::PolyAreaType& out_proto, const PolyAreaType& area)
 {
 	out_proto.set_id(area.id);
 	out_proto.set_name(area.name);
-	out_proto.set_color(area.color);
+	ToProto(*out_proto.mutable_color(), area.color);
 	out_proto.set_flags(area.flags);
 	out_proto.set_cost(area.cost);
 }
@@ -317,7 +333,7 @@ static void FromProto(const nav::PolyAreaType& in_proto, PolyAreaType& area)
 {
 	area.id = static_cast<uint8_t>(in_proto.id());
 	area.name = in_proto.name();
-	area.color = in_proto.color();
+	area.color = FromProto(in_proto.color());
 	area.flags = static_cast<uint16_t>(in_proto.flags());
 	area.cost = in_proto.cost();
 	area.valid = true;
@@ -821,7 +837,7 @@ bool NavMesh::ExportJson(const std::string& filename, PersistedDataFields fields
 
 	google::protobuf::util::JsonPrintOptions options;
 	options.add_whitespace = true;
-	options.always_print_primitive_fields = true;
+	//options.always_print_primitive_fields = true;
 
 	std::string jsonString;
 	google::protobuf::util::Status status =

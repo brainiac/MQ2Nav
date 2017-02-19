@@ -80,7 +80,7 @@ util::Status BinaryToJsonStream(TypeResolver* resolver,
   RETURN_IF_ERROR(resolver->ResolveMessageType(type_url, &type));
   converter::ProtoStreamObjectSource proto_source(&in_stream, resolver, type);
   io::CodedOutputStream out_stream(json_output);
-  converter::JsonObjectWriter json_writer(options.add_whitespace ? " " : "",
+  converter::JsonObjectWriter json_writer(options.add_whitespace ? "  " : "",
                                           &out_stream);
   if (options.always_print_primitive_fields) {
     converter::DefaultValueObjectWriter default_value_writer(
