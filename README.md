@@ -9,6 +9,11 @@ This project consists of two parts: The MQ2 Plugin (MQ2Nav.dll), and the Mesh Ge
 
 The MeshGenerator tool is used for generating and editing the properties of navmeshes
 
+Screenshots
+-----------
+
+* See the [wiki](https://github.com/brainiac/MQ2Nav/wiki/Screenshots) for some screenshots and features
+
 
 Building
 --------
