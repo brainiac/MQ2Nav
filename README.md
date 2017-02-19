@@ -3,42 +3,39 @@ MQ2Nav
 
 [![build status](https://ci.appveyor.com/api/projects/status/github/brainiac/MQ2Nav?svg=true)](https://ci.appveyor.com/project/brainiac/mq2nav)
 
-**This plugin is a work in progress!!**
-
-Navigation Mesh plugin for [MacroQuest2](http://www.macroquest2.com). This is based on the origin MQ2Navigation plugin, but has been heavily rewritten to take advantage of newer libraries that are available. The plugin also includes a 3d overlay to display navigation meshes as well as a debugging UI provided by [imgui](https://github.com/ocornut/imgui/). 
-
-Contributions are welcome!
+NavMesh based navigation and pathfinding plugin for [MacroQuest2](http://www.macroquest2.com). Navigation is based on the RecastNavigation library. The plugin also includes an ingame overlay to display navigation meshes as well as a debugging UI provided by [imgui](https://github.com/ocornut/imgui/).
 
 This project consists of two parts: The MQ2 Plugin (MQ2Nav.dll), and the Mesh Generator (MeshGenerator.exe)
 
-![screenshot of some MQ2Nav features](/images/mq2nav1.png?raw=true)
-![screenshot of navmesh in MeshGenerator.exe](/images/meshgen1.png?raw=true)
+The MeshGenerator tool is used for generating and editing the properties of navmeshes
 
 
 Building
 --------
 
-#####Requirements
+##### Requirements
 
-* Visual Studio 2015 (Update 1)
+* Visual Studio 2015 (Update 3)
 
-To build the plugin you'll need to add it to your MQ2 solution:
+MQ2Nav is a unique plugin. You do not want to add it to your solution. Instead you will build it in a separate solution apart from MacroQuest2.sln.
 
-1. Copy (or clone) the contents of the repository into your MQ2 source tree.
-2. Open MacroQuest2.sln and in solution explorer right click and 'Add -> Existing Project'
-3. In the bottom right of the 'Add Existing Project' dialog, change 'All Project Files' to 'Solution Files'
-4. Add MQ2Nav.sln to the project
+1. Check out the sources into <your macroquest source folder>/MQ2Nav. MQ2Nav should be next to MQ2Main, etc.
+2. Open MacroQuest2.sln and build
+3. Open MQ2Nav\MQ2Nav.sln and select the configuration (most people will want Release)
+4. **build MQ2Nav.dll:** select the Win32 architecture and build
+5. **build MeshGenerator.exe:** select the x64 architecture and build
 
 The first time you build, you'll download some NuGet packages.
 
-The outputs will go into your Release (or Debug) folder.
+The outputs will go into your Release (or Debug, depending on your selected configuration) folder.
 
-###Third Party Libraries
+### Third Party Libraries
 
 This plugin makes use of the following libraries:
 
 * [EQEmu zone-utilities](https://github.com/EQEmu/zone-utilities)
 * [imgui](https://github.com/ocornut/imgui)
+* [google protocol buffers](https://github.com/google/protobuf)
 * [glm](http://glm.g-truc.net)
 * [rapidjson](http://rapidjson.org)
 * [RecastNavigation](https://github.com/recastnavigation/recastnavigation)
@@ -49,21 +46,20 @@ This plugin makes use of the following libraries:
 Contributing
 ------------
 
-Feel free to open pull requests or report issues.
+Contributions are welcome! Feel free to open pull requests or report issues.
 
 **TODO**
 
 Usage
 -----
 
-**TODO**
+See the [wiki](https://github.com/brainiac/MQ2Nav/wiki) for more info
 
 Notes
 -----
 
 Loading into a zone with MQ2Nav loaded will generate a config file with a list of dynamic objects that can be consumed by MeshGenerator to add that extra geometry to the navmesh. These kinds of objects include some POK stones, for example. Doors are filtered out of the list, but there may be some false positives.
 
-**TODO**
 
 TODO List
 ---------
@@ -72,8 +68,6 @@ Some things to do. Eventually move these to issues...
 
 - Split overlay code out into its own plugin
 - Better path planning
-- Improve the debug overlay
-- Improve rendering of navmesh, etc
 - Switch to TileCache implementation (for dynamic obstacle support)
 - Render paths with MQ2Map
 - Improved door opening behavior

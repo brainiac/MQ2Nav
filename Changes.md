@@ -6,20 +6,38 @@ MQ2Nav Changelog
 -----
 *NOTE* This version is not compatible with navmeshes made with previous versions. You will need to rebuild your meshes!
 
-* Various visual improvements to UI.
-* Revamp the Waypoints UI, fixing several bugs
-  * Added option to delete and rename waypoints
-  * Fixed the order of the x,y,z coordinates in waypoints UI to match /loc
-* Tile size limit has been removed. Tiles are now indexed by 64-bit integer so the tile limit is so high now that you'll run out of memory before you hit it.
+**New Areas Tool**
+* MeshGenerator can now define custom area types with cost modifiers. Access it from the Edit menu.
+* Convex Volume tool has been given an overhaul, lets you save the volumes and edit existing volumes.
+  * Convex Volumes let you mark parts of the navmesh as different types of areas.
+  * Areas define cost modifiers or can completely exclude areas of the mesh from navigation
+  * Navigation will always use the lowest cost path. Mark areas with high cost to avoid them and low cost to prefer them. Default area cost is 1.0
+
+**Navmesh Format Changes**
 * Due to many changes to the internal structure of the navmesh, old navmeshes will not load correctly. As a result, the navmesh compat version has been bumped up, so loading older meshes will give you an error.
+* Navmesh files now have their own extension: .navmesh
+* Navmesh files are now compressed for extra space savings
+* All modifications to the navmesh are now stored in the .navmesh file, so reopening a mesh will have all the changes that were made when the navmesh was created.
+* Tile size limit has been removed.
+
+**UI Changes**
+* New theme applied to the UI in both the plugin and MeshGenerator
+* Completely redesigned MeshGenerator UI.
 * Adjusted the defaults of a couple navmesh parameters for better path finding behavior:
   * Reduced MaxClimb to 4.0 to avoid getting stuck on the edge of tall objects
   * Increased MaxSlope to 75 to allow traversal over steeper terrain.
+* Navmesh ingame path rendering has received a visual upgrade.
+
+**Misc Improvements**
+* Revamp the ingame Waypoints UI, fixing several bugs
+  * Added option to delete and rename waypoints
+  * Fixed the order of the x,y,z coordinates in waypoints UI to match /loc
+
 * Fixed various /nav commands and made many improvements:
   * Fixed /nav x y z
   * Added /nav spawn <text> - takes same parameters of Spawn TLO to do a spawn search
   * Fixed issues with clicking items and doors when using /nav item or /nav door
-  * Added new forms of /nav commands, see the wiki: https://github.com/brainiac/MQ2Nav/wiki/Command-Reference
+  * Added new forms of /nav commands. [See the wiki](https://github.com/brainiac/MQ2Nav/wiki/Command-Reference) for more info.
 * Remove spam click behavior of /nav item/door as it didn't work right anyways
 * Improvements to how the active navigation path line is rendered.
 
@@ -28,3 +46,4 @@ MQ2Nav Changelog
 -----
 
 Initial Version of change log, started recording changes after this point!
+* Originally numbered 2.0, but retroactively changed to 1.0 to start a new versioning sequence!
