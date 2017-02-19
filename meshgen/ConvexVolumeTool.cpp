@@ -151,11 +151,6 @@ void ConvexVolumeTool::handleMenu()
 		ImGui::Separator();
 	}
 
-	if (m_editing)
-	{
-
-	}
-
 	ImGui::Text("%d Volumes", navMesh->GetConvexVolumeCount());
 	ImGui::BeginChild("VolumeList", ImVec2(0, 200), true);
 	for (size_t i = 0; i < navMesh->GetConvexVolumeCount(); ++i)
@@ -231,7 +226,6 @@ void ConvexVolumeTool::handleMenu()
 		ImGui::EndChild();
 	}
 
-
 	if (m_editing)
 	{
 		ImGui::Text("Create New Volume");
@@ -243,8 +237,40 @@ void ConvexVolumeTool::handleMenu()
 		ImGui::SliderFloat("Shape Descent", &m_state->m_boxDescent, -100.f, 100.f);
 		ImGui::SliderFloat("Poly Offset", &m_state->m_polyOffset, 0.0f, 10.0f);
 
-		ImGui::Columns(3, 0, false);
+#if 0 // Still WIP
+		{
+			auto& hull = m_state->m_hull;
+			auto& pts = m_state->m_pts;
+			ImGui::Text("%d Hull Points (%d total)", hull.size(), pts.size());
 
+			ImGui::BeginChild("##points", ImVec2(0, 140), true);
+			int i = 0;
+			for (auto& pt : pts)
+			{
+				char text[16];
+				sprintf_s(text, "%d", i);
+
+				bool isHull = (std::find(hull.begin(), hull.end(), i) != hull.end());
+				if (isHull)
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, ImColor(255, 255, 0));
+				}
+
+				ImGui::InputFloat3(text, glm::value_ptr(pt), 1);
+
+				if (isHull)
+				{
+					ImGui::PopStyleColor(1);
+				}
+
+				i++;
+			}
+
+			ImGui::EndChild();
+		}
+#endif
+
+		ImGui::Columns(3, 0, false);
 		if (m_state->m_hull.size() > 2 && ImGuiEx::ColoredButton("Create Volume", ImVec2(0, 0), 0.28f))
 		{
 			auto modifiedTiles = m_state->CreateShape();
@@ -252,9 +278,7 @@ void ConvexVolumeTool::handleMenu()
 			{
 				m_meshTool->RebuildTiles(modifiedTiles);
 			}
-
 		}
-
 		ImGui::NextColumn();
 		ImGui::NextColumn();
 		if (ImGuiEx::ColoredButton("Cancel", ImVec2(-1, 0), 0.0))
@@ -262,7 +286,6 @@ void ConvexVolumeTool::handleMenu()
 			m_state->reset();
 			m_editing = false;
 		}
-
 		ImGui::Columns(1);
 	}
 	else if (m_state->m_currentVolumeId != 0)
