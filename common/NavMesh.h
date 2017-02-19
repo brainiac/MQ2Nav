@@ -19,6 +19,7 @@
 
 class dtNavMesh;
 class dtNavMeshQuery;
+class dtQueryFilter;
 class Context;
 
 namespace nav {
@@ -75,6 +76,9 @@ public:
 
 	// get the nav mesh query object
 	std::shared_ptr<dtNavMeshQuery> GetNavMeshQuery();
+
+	// build area costs for filter
+	void FillFilterAreaCosts(dtQueryFilter& filter);
 
 	// returns the name of the file that the navmesh was loaded from
 	std::string GetDataFileName() const { return m_dataFile; }

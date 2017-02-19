@@ -100,7 +100,8 @@ public:
 	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
 
 private:
-	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh);
+	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
+		bool updatePath = true);
 
 	std::shared_ptr<DestinationInfo> m_destinationInfo;
 

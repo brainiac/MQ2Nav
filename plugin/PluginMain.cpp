@@ -5,10 +5,10 @@
 #include "MQ2Navigation.h"
 
 PreSetup("MQ2Nav");
-PLUGIN_VERSION(2.00);
+PLUGIN_VERSION(1.10);
 
 #define PLUGIN_NAME "MQ2Nav"
-#define MQ2NAV_PLUGIN_VERSION "2.1.0"
+#define MQ2NAV_PLUGIN_VERSION "1.1.0"
 
 #include <chrono>
 #include <memory>

@@ -131,18 +131,20 @@ void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMeshQuery* 
 		const dtPoly* p = &tile->polys[i];
 		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)	// Skip off-mesh links.
 			continue;
-			
+
 		const dtPolyDetail* pd = &tile->detailMeshes[i];
 
 		unsigned int col;
-		if (query && query->isInClosedList(base | (dtPolyRef)i))
-			col = duRGBA(255,196,0,64);
+
+		if (flags & DU_DRAWNAVMESH_COLOR_TILES)
+			col = tileColor;
 		else
+			col = duTransCol(dd->polyToCol(p), 64);
+
+		if (query && query->isInClosedList(base | (dtPolyRef)i))
 		{
-			if (flags & DU_DRAWNAVMESH_COLOR_TILES)
-				col = tileColor;
-			else
-				col = duTransCol(dd->polyToCol(p), 64);
+			unsigned int col2 = duRGBA(255, 196, 0, 64);
+			col = duLerpCol(col, col2, 127);
 		}
 		
 		for (int j = 0; j < pd->triCount; ++j)

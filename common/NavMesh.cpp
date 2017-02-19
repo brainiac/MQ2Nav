@@ -827,6 +827,14 @@ uint8_t NavMesh::GetFirstUnusedUserDefinedArea() const
 	return 0;
 }
 
+void NavMesh::FillFilterAreaCosts(dtQueryFilter& filter)
+{
+	for (const PolyAreaType* areaType : m_polyAreaList)
+	{
+		filter.setAreaCost(areaType->id, areaType->cost);
+	}
+}
+
 bool NavMesh::ExportJson(const std::string& filename, PersistedDataFields fields)
 {
 	if (m_zoneName.empty())

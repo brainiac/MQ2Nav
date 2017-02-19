@@ -217,13 +217,8 @@ void NavMeshTesterTool::init(NavMeshTool* meshTool)
 
 	if (m_navQuery)
 	{
-		// Change costs.
-		m_filter.setAreaCost(static_cast<int>(PolyArea::Ground), 1.0f);
-		m_filter.setAreaCost(static_cast<int>(PolyArea::Water), 10.0f);
-		//m_filter.setAreaCost(static_cast<int>(PolyArea::Road), 1.0f);
-		//m_filter.setAreaCost(static_cast<int>(PolyArea::Door), 1.0f);
-		//m_filter.setAreaCost(static_cast<int>(PolyArea::Grass), 2.0f);
-		m_filter.setAreaCost(static_cast<int>(PolyArea::Jump), 1.5f);
+		// update costs
+		navMesh->FillFilterAreaCosts(m_filter);
 	}
 
 	m_neighbourhoodRadius = navMesh->GetNavMeshConfig().agentRadius * 20.0f;

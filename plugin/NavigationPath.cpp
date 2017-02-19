@@ -31,10 +31,8 @@ NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
 	auto* mesh = g_mq2Nav->Get<NavMesh>();
 	m_navMeshConn = mesh->OnNavMeshChanged.Connect(
 		[this, mesh]() { SetNavMesh(mesh->GetNavMesh()); });
-	m_navMesh = mesh->GetNavMesh();
-
-	m_filter.setIncludeFlags(+PolyFlags::All);
-	m_filter.setExcludeFlags(+PolyFlags::Disabled);
+	
+	SetNavMesh(mesh->GetNavMesh(), false);
 
 	m_useCorridor = mq2nav::GetSettings().debug_use_pathing_corridor;
 
@@ -96,14 +94,23 @@ bool NavigationPath::FindPath()
 	return m_currentPathSize > 0;
 }
 
-void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh)
+void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
+	bool updatePath)
 {
 	m_navMesh = navMesh;
 
 	m_query.reset();
 	m_corridor.reset();
 
-	if (m_navMesh)
+	m_filter = dtQueryFilter{};
+	m_filter.setIncludeFlags(+PolyFlags::All);
+	m_filter.setExcludeFlags(+PolyFlags::Disabled);
+	if (auto* mesh = g_mq2Nav->Get<NavMesh>())
+	{
+		mesh->FillFilterAreaCosts(m_filter);
+	}
+
+	if (updatePath && m_navMesh)
 	{
 		UpdatePath();
 	}

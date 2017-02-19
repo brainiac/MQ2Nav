@@ -278,6 +278,7 @@ void ConvexVolumeTool::handleMenu()
 			{
 				m_meshTool->RebuildTiles(modifiedTiles);
 			}
+			m_editing = false;
 		}
 		ImGui::NextColumn();
 		ImGui::NextColumn();
