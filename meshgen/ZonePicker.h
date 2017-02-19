@@ -25,6 +25,8 @@ public:
 
 	bool Show(bool focus, std::string* selected_zone = nullptr);
 
+	bool ShouldLoadNavMesh() const { return m_loadNavMesh; }
+
 private:
 	typedef std::map<std::string, std::string> ZoneCollection;
 	ZoneCollection m_allMaps;
@@ -32,6 +34,8 @@ private:
 
 	std::string m_eqDirectory;
 	char m_filterText[64] = { 0 };
+
+	bool m_loadNavMesh = true;
 
 	std::vector<IMAGEDATA> m_tgaData;
 };

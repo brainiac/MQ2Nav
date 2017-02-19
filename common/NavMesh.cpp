@@ -4,12 +4,16 @@
 
 #include "NavMesh.h"
 #include "common/Enum.h"
+#include "common/JsonProto.h"
 #include "common/Utilities.h"
 #include "common/proto/NavMeshFile.pb.h"
 
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/util/json_util.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <rapidjson/document.h>
+#include <rapidjson/filereadstream.h>
 
 #include <DebugDraw.h>
 #include <DetourCommon.h>
@@ -93,25 +97,41 @@ void NavMesh::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh, bool reset)
 	if (navMesh == m_navMesh)
 		return;
 
-	m_navMesh = navMesh;
-	m_navMeshQuery.reset();
-	m_lastLoadResult = LoadResult::None;
-
 	if (reset)
 	{
 		ResetSavedData();
 	}
+
+	m_navMesh = navMesh;
+	m_navMeshQuery.reset();
+	m_lastLoadResult = LoadResult::None;
 }
 
-void NavMesh::ResetSavedData()
+void NavMesh::ResetSavedData(PersistedDataFields fields)
 {
-	m_boundsMin = m_boundsMax = glm::vec3();
-	m_config = NavMeshConfig{};
-	m_volumes.clear();
-	m_volumesById.clear();
-	m_nextVolumeId = 1;
+	if (+(fields & PersistedDataFields::BuildSettings))
+	{
+		m_boundsMin = m_boundsMax = glm::vec3();
+		m_config = NavMeshConfig{};
+	}
 
-	InitializeAreas();
+	if (+(fields & PersistedDataFields::MeshTiles))
+	{
+		m_navMesh.reset();
+		m_navMeshQuery.reset();
+	}
+
+	if (+(fields & PersistedDataFields::AreaTypes))
+	{
+		InitializeAreas();
+	}
+
+	if (+(fields & PersistedDataFields::ConvexVolumes))
+	{
+		m_volumes.clear();
+		m_volumesById.clear();
+		m_nextVolumeId = 1;
+	}
 }
 
 void NavMesh::ResetNavMesh()
@@ -303,6 +323,152 @@ static void FromProto(const nav::PolyAreaType& in_proto, PolyAreaType& area)
 	area.valid = true;
 }
 
+void NavMesh::LoadFromProto(const nav::NavMeshFile& proto, PersistedDataFields fields)
+{
+	if (+(fields & PersistedDataFields::MeshTiles))
+	{
+		// read the tileset
+		const nav::NavMeshTileSet& tileset = proto.tile_set();
+
+		if (tileset.compatibility_version() == NAVMESH_TILE_COMPAT_VERSION)
+		{
+			dtNavMeshParams params;
+			FromProto(params, tileset.mesh_params());
+
+			std::shared_ptr<dtNavMesh> navMesh(dtAllocNavMesh(),
+				[](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
+
+			dtStatus status = navMesh->init(&params);
+			if (status == DT_SUCCESS)
+			{
+				// read the mesh tiles and add them to the navmesh one by one.
+				for (const nav::NavMeshTile& tile : tileset.tiles())
+				{
+					dtTileRef ref = tile.tile_ref();
+					const std::string& tiledata = tile.tile_data();
+
+					if (ref == 0 || tiledata.length() == 0)
+						continue;
+
+					// allocate buffer for the data
+					uint8_t* data = (uint8_t*)dtAlloc((int)tiledata.length(), DT_ALLOC_PERM);
+					memcpy(data, &tiledata[0], tiledata.length());
+
+					dtMeshHeader* tileheader = (dtMeshHeader*)data;
+
+					dtStatus status = navMesh->addTile(data, (int)tiledata.length(), DT_TILE_FREE_DATA, ref, 0);
+					if (status != DT_SUCCESS)
+					{
+						m_ctx->Log(LogLevel::WARNING, "Failed to read tile: %d, %d (%d) = %d",
+							tileheader->x, tileheader->y, tileheader->layer, status);
+					}
+				}
+
+				m_navMesh = std::move(navMesh);
+			}
+			else
+			{
+				m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to initialize navmesh, will continue loading without tiles.");
+			}
+		}
+		else
+		{
+			m_ctx->Log(LogLevel::ERROR, "loadMesh: navmesh has incompatible structure, will continue loading without tiles.");
+		}
+	}
+
+	if (+(fields & PersistedDataFields::BuildSettings))
+	{
+		// load build settings
+		FromProto(proto.build_settings(), m_config);
+
+		m_boundsMin = FromProto(proto.build_settings().bounds_min());
+		m_boundsMax = FromProto(proto.build_settings().bounds_max());
+	}
+
+	if (+(fields & PersistedDataFields::AreaTypes))
+	{
+		// load areas
+		for (const auto& proto_area : proto.areas())
+		{
+			PolyAreaType area;
+			FromProto(proto_area, area);
+
+			UpdateArea(area);
+		}
+	}
+
+	if (+(fields & PersistedDataFields::ConvexVolumes))
+	{
+		// load convex volumes
+		for (const auto& proto_volume : proto.convex_volumes())
+		{
+			std::unique_ptr<ConvexVolume> vol = FromProto(proto_volume);
+			m_volumesById.emplace(vol->id, vol.get());
+			m_volumes.push_back(std::move(vol));
+		}
+
+		// find the next volume id
+		for (const auto& volume : m_volumes)
+		{
+			m_nextVolumeId = std::max(m_nextVolumeId, volume->id + 1);
+		}
+	}
+}
+
+void NavMesh::SaveToProto(nav::NavMeshFile& proto, PersistedDataFields fields)
+{
+	if (+(fields & PersistedDataFields::BuildSettings))
+	{
+		// save build settings
+		ToProto(*proto.mutable_build_settings(), m_config);
+		ToProto(*proto.mutable_build_settings()->mutable_bounds_min(), m_boundsMin);
+		ToProto(*proto.mutable_build_settings()->mutable_bounds_max(), m_boundsMax);
+	}
+
+	if (+(fields & PersistedDataFields::MeshTiles))
+	{
+		// save the navmesh data
+		nav::NavMeshTileSet* tileset = proto.mutable_tile_set();
+		tileset->set_compatibility_version(NAVMESH_TILE_COMPAT_VERSION);
+		ToProto(*tileset->mutable_mesh_params(), m_navMesh->getParams());
+		ToProto(*tileset->mutable_tiles(), m_navMesh.get());
+	}
+
+	if (+(fields & PersistedDataFields::ConvexVolumes))
+	{
+		// save convex volumes
+		for (const auto& volume : m_volumes)
+		{
+			nav::ConvexVolume* proto_vol = proto.add_convex_volumes();
+			ToProto(*proto_vol, *volume);
+		}
+	}
+
+	if (+(fields & PersistedDataFields::AreaTypes))
+	{
+		// save area definitions
+		for (const PolyAreaType* area : m_polyAreaList)
+		{
+			// only serialize user defined areas
+			if (area->id == (uint8_t)PolyArea::Unwalkable)
+				continue;
+
+			if (!IsUserDefinedPolyArea(area->id))
+			{
+				if (area->id < DefaultPolyAreas.size()
+					&& *area == DefaultPolyAreas[area->id])
+				{
+					continue;
+				}
+			}
+
+			nav::PolyAreaType* proto_area = proto.add_areas();
+			ToProto(*proto_area, *area);
+		}
+	}
+}
+
 NavMesh::LoadResult NavMesh::LoadNavMeshFile()
 {
 	if (m_dataFile.empty())
@@ -405,85 +571,9 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 		return LoadResult::ZoneMismatch;
 	}
 
-	// read the tileset
-	const nav::NavMeshTileSet& tileset = file_proto.tile_set();
+	ResetSavedData(PersistedDataFields::All);
 
-	if (tileset.compatibility_version() == NAVMESH_TILE_COMPAT_VERSION)
-	{
-		dtNavMeshParams params;
-		FromProto(params, tileset.mesh_params());
-
-		std::shared_ptr<dtNavMesh> navMesh(dtAllocNavMesh(),
-			[](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
-
-		dtStatus status = navMesh->init(&params);
-		if (status == DT_SUCCESS)
-		{
-			// read the mesh tiles and add them to the navmesh one by one.
-			for (const nav::NavMeshTile& tile : tileset.tiles())
-			{
-				dtTileRef ref = tile.tile_ref();
-				const std::string& tiledata = tile.tile_data();
-
-				if (ref == 0 || tiledata.length() == 0)
-					continue;
-
-				// allocate buffer for the data
-				uint8_t* data = (uint8_t*)dtAlloc((int)tiledata.length(), DT_ALLOC_PERM);
-				memcpy(data, &tiledata[0], tiledata.length());
-
-				dtMeshHeader* tileheader = (dtMeshHeader*)data;
-
-				dtStatus status = navMesh->addTile(data, (int)tiledata.length(), DT_TILE_FREE_DATA, ref, 0);
-				if (status != DT_SUCCESS)
-				{
-					m_ctx->Log(LogLevel::WARNING, "Failed to read tile: %d, %d (%d) = %d",
-						tileheader->x, tileheader->y, tileheader->layer, status);
-				}
-			}
-
-			m_navMesh = std::move(navMesh);
-		}
-		else
-		{
-			m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to initialize navmesh, will continue loading without tiles.");
-		}
-	}
-	else
-	{
-		m_ctx->Log(LogLevel::ERROR, "loadMesh: navmesh has incompatible structure, will continue loading without tiles.");
-	}
-
-	ResetSavedData();
-
-	// load build settings
-	FromProto(file_proto.build_settings(), m_config);
-
-	m_boundsMin = FromProto(file_proto.build_settings().bounds_min());
-	m_boundsMax = FromProto(file_proto.build_settings().bounds_max());
-
-	// load areas
-	for (const auto& proto_area : file_proto.areas())
-	{
-		PolyAreaType area;
-		FromProto(proto_area, area);
-
-		UpdateArea(area);
-	}
-
-	// load convex volumes
-	for (const auto& proto_volume : file_proto.convex_volumes())
-	{
-		std::unique_ptr<ConvexVolume> vol = FromProto(proto_volume);
-		m_volumesById.emplace(vol->id, vol.get());
-		m_volumes.push_back(std::move(vol));
-	}
-
-	// find the next volume id
-	for (const auto& volume : m_volumes)
-	{
-		m_nextVolumeId = std::max(m_nextVolumeId, volume->id + 1);
-	}
+	LoadFromProto(file_proto, PersistedDataFields::All);
 
 	return LoadResult::Success;
 }
@@ -517,31 +607,7 @@ bool NavMesh::SaveMesh(const char* filename)
 	nav::NavMeshFile file_proto;
 	file_proto.set_zone_short_name(m_zoneName);
 
-	// save the navmesh data
-	nav::NavMeshTileSet* tileset = file_proto.mutable_tile_set();
-	tileset->set_compatibility_version(NAVMESH_TILE_COMPAT_VERSION);
-	ToProto(*tileset->mutable_mesh_params(), m_navMesh->getParams());
-	ToProto(*tileset->mutable_tiles(), m_navMesh.get());
-
-	// save build settings
-	ToProto(*file_proto.mutable_build_settings(), m_config);
-	ToProto(*file_proto.mutable_build_settings()->mutable_bounds_min(), m_boundsMin);
-	ToProto(*file_proto.mutable_build_settings()->mutable_bounds_max(), m_boundsMax);
-
-	// save convex volumes
-	for (const auto& volume : m_volumes)
-	{
-		nav::ConvexVolume* proto_vol = file_proto.add_convex_volumes();
-		ToProto(*proto_vol, *volume);
-	}
-
-	// save area definitions
-	for (const PolyAreaType* area: m_polyAreaList)
-	{
-		// only serialize user defined areas
-		nav::PolyAreaType* proto_area = file_proto.add_areas();
-		ToProto(*proto_area, *area);
-	}
+	SaveToProto(file_proto, PersistedDataFields::All);
 
 	// todo: save offmesh connections
 
@@ -743,6 +809,70 @@ uint8_t NavMesh::GetFirstUnusedUserDefinedArea() const
 	}
 
 	return 0;
+}
+
+bool NavMesh::ExportJson(const std::string& filename, PersistedDataFields fields)
+{
+	if (m_zoneName.empty())
+		return false;
+
+	nav::NavMeshFile proto;
+	SaveToProto(proto, fields);
+
+	google::protobuf::util::JsonPrintOptions options;
+	options.add_whitespace = true;
+	options.always_print_primitive_fields = true;
+
+	std::string jsonString;
+	google::protobuf::util::Status status =
+		google::protobuf::util::MessageToJsonString(proto, &jsonString, options);
+	if (status.ok())
+	{
+		fs::path rootPath(filename);
+		boost::system::error_code returnedError;
+		fs::create_directories(rootPath.parent_path(), returnedError);
+
+		std::ofstream ofile(filename.c_str(), std::ios::trunc);
+		if (ofile.is_open())
+		{
+			ofile << jsonString;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool NavMesh::ImportJson(const std::string& filename, PersistedDataFields fields)
+{
+	if (m_zoneName.empty())
+		return false;
+
+	std::string contents;
+	{
+		std::ifstream infile(filename.c_str());
+		if (!infile.is_open())
+			return false;
+
+		std::stringstream buffer;
+		buffer << infile.rdbuf();
+		contents = buffer.str();
+	}
+	
+	google::protobuf::util::JsonParseOptions options;
+	options.ignore_unknown_fields = true;
+
+	nav::NavMeshFile proto;
+	google::protobuf::util::Status status =
+		google::protobuf::util::JsonStringToMessage(contents,
+			&proto, options);
+	if (!status.ok())
+		return false;
+
+	LoadFromProto(proto, fields);
+	OnNavMeshChanged();
+
+	return true;
 }
 
 //============================================================================

@@ -57,3 +57,12 @@ bool IsUserDefinedPolyArea(uint8_t areaId)
 	return areaId >= static_cast<uint8_t>(PolyArea::UserDefinedFirst)
 		&& areaId <= static_cast<uint8_t>(PolyArea::UserDefinedLast);
 }
+
+bool operator==(const PolyAreaType& a, const PolyAreaType& b)
+{
+	auto make_tuple = [](const PolyAreaType& a) {
+		return std::tie(a.id, a.name, a.color, a.flags, a.cost, a.valid);
+	};
+
+	return make_tuple(a) == make_tuple(b);
+}

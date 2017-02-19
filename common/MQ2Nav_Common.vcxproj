@@ -150,6 +150,7 @@
     <ClInclude Include="Context.h" />
     <ClInclude Include="Enum.h" />
     <ClInclude Include="FindPattern.h" />
+    <ClInclude Include="JsonProto.h" />
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NavMeshData.h" />
     <ClInclude Include="NavModule.h" />
@@ -160,6 +161,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FindPattern.cpp" />
+    <ClCompile Include="JsonProto.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NavMeshData.cpp" />
     <ClCompile Include="proto\NavMeshFile.pb.cc" />

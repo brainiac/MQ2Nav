@@ -51,6 +51,9 @@
     <ClInclude Include="NavModule.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="JsonProto.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZoneData.cpp">
@@ -69,6 +72,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NavMeshData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="JsonProto.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

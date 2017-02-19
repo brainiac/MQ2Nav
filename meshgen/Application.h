@@ -31,6 +31,7 @@ class NavMeshTool;
 struct SDL_Surface;
 class ApplicationContext;
 class ZonePicker;
+class ImportExportSettingsDialog;
 
 class Application
 {
@@ -49,15 +50,18 @@ public:
 	void ShowZonePickerDialog();
 	void ShowSettingsDialog();
 
+	void PushEvent(const std::function<void()>& cb);
+
 private:
 	bool InitializeWindow();
 	void DestroyWindow();
 
 	void RenderInterface();
 
+	void DispatchCallbacks();
 
 	// Load a zone's geometry given its shortname.
-	void LoadGeometry(const std::string& zoneShortName);
+	void LoadGeometry(const std::string& zoneShortName, bool loadMesh);
 	void Halt();
 
 	// Reset the camera to the starting point
@@ -77,6 +81,8 @@ private:
 	void UpdateCamera();
 
 	void DrawAreaTypesEditor();
+	void ShowImportExportSettingsDialog(bool import);
+
 
 private:
 	EQConfig m_eqConfig;
@@ -161,6 +167,7 @@ private:
 
 	// zone to load on next pass
 	std::string m_nextZoneToLoad;
+	bool m_loadMeshOnZone = false;
 
 	// The main window surface
 	SDL_Window* m_window = nullptr;
@@ -175,6 +182,11 @@ private:
 	std::thread m_buildThread;
 
 	std::unique_ptr<ZonePicker> m_zonePicker;
+	std::unique_ptr<ImportExportSettingsDialog> m_importExportSettings;
+
+
+	std::vector<std::function<void()>> m_callbackQueue;
+	std::mutex m_callbackMutex;
 };
 
 //----------------------------------------------------------------------------
@@ -219,4 +231,26 @@ private:
 
 	std::deque<std::string> m_logs;
 	mutable std::mutex m_mtx;
+};
+
+//----------------------------------------------------------------------------
+
+class ImportExportSettingsDialog
+{
+public:
+	ImportExportSettingsDialog(const std::shared_ptr<NavMesh>& navMesh, bool import);
+
+	void Show(bool* open = nullptr);
+
+private:
+	bool m_import = false;
+	bool m_failed = false;
+	bool m_fileMissing = false;
+	bool m_firstShow = true;
+	std::weak_ptr<NavMesh> m_navMesh;
+	std::unique_ptr<char[]> m_defaultFilename;
+
+	// by default load all fields except for tiles
+	PersistedDataFields m_fields = PersistedDataFields::All
+		& ~PersistedDataFields::MeshTiles;
 };

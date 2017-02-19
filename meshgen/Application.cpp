@@ -29,11 +29,13 @@
 #include <gl/GLU.h>
 
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
 #include <sstream>
 
 #pragma warning(push)
 #pragma warning(disable: 4244)
 
+namespace fs = boost::filesystem;
 
 //============================================================================
 
@@ -198,6 +200,8 @@ int Application::RunMainLoop()
 		m_rays = glm::unProject(glm::vec3{ m_m.x, m_m.y, 0.0f }, m_model, m_proj, m_view);
 		m_raye = glm::unProject(glm::vec3{ m_m.x, m_m.y, 1.0f }, m_model, m_proj, m_view);
 
+		DispatchCallbacks();
+
 		// Handle input events.
 		HandleEvents();
 
@@ -224,7 +228,12 @@ int Application::RunMainLoop()
 		// Load a zone if a zone load was requested
 		if (!m_nextZoneToLoad.empty())
 		{
-			LoadGeometry(m_nextZoneToLoad);
+			PushEvent([zone = m_nextZoneToLoad, loadMesh = m_loadMeshOnZone, this]()
+			{
+				LoadGeometry(zone, loadMesh);
+			});
+
+			m_loadMeshOnZone = false;
 			m_nextZoneToLoad.clear();
 		}
 	}
@@ -525,6 +534,20 @@ void Application::RenderInterface()
 				m_meshTool->handleGeometryChanged(m_geom.get());
 			}
 
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Export Settings", "", nullptr,
+				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
+			{
+				ShowImportExportSettingsDialog(false);
+			}
+
+			if (ImGui::MenuItem("Import Settings", "", nullptr,
+				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
+			{
+				ShowImportExportSettingsDialog(true);
+			}
+
 			ImGui::EndMenu();
 		}
 
@@ -584,6 +607,16 @@ void Application::RenderInterface()
 
 	ShowSettingsDialog();
 	ShowZonePickerDialog();
+
+	if (m_importExportSettings)
+	{
+		bool show = true;
+		m_importExportSettings->Show(&show);
+		if (!show)
+		{
+			m_importExportSettings.reset();
+		}
+	}
 
 	if (m_showDemo)
 	{
@@ -685,10 +718,10 @@ void Application::RenderInterface()
 		ImGui::End();
 	}
 
-	if (m_showDebug
-		&& ImGui::Begin("Debug", &m_showDebug))
+	if (m_showDebug)
 	{
-		m_meshTool->handleDebug();
+		if (ImGui::Begin("Debug", &m_showDebug))
+			m_meshTool->handleDebug();
 
 		ImGui::End();
 	}
@@ -741,9 +774,10 @@ void Application::RenderInterface()
 		if (ImGui::Begin("Area Types", &m_showMapAreas))
 		{
 			DrawAreaTypesEditor();
-
-			ImGui::End();
 		}
+
+		ImGui::End();
+
 	}
 }
 
@@ -800,7 +834,6 @@ void Application::ShowZonePickerDialog()
 {
 	if (m_meshTool->isBuildingTiles()) {
 		m_showZonePickerDialog = false;
-		return;
 	}
 
 	if (m_showZonePickerDialog) {
@@ -811,6 +844,7 @@ void Application::ShowZonePickerDialog()
 			ImGui::SetNextWindowFocus();
 		}
 		if (m_zonePicker->Show(focus, &m_nextZoneToLoad)) {
+			m_loadMeshOnZone = m_zonePicker->ShouldLoadNavMesh();
 			m_showZonePickerDialog = false;
 		}
 	}
@@ -818,6 +852,11 @@ void Application::ShowZonePickerDialog()
 	if (!m_showZonePickerDialog && m_zonePicker) {
 		m_zonePicker.reset();
 	}
+}
+
+void Application::ShowImportExportSettingsDialog(bool import)
+{
+	m_importExportSettings.reset(new ImportExportSettingsDialog(m_navMesh, import));
 }
 
 static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userIndex = -1)
@@ -1020,7 +1059,7 @@ void Application::Halt()
 	m_meshTool->CancelBuildAllTiles();
 }
 
-void Application::LoadGeometry(const std::string& zoneShortName)
+void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 {
 	std::unique_lock<std::mutex> lock(m_renderMutex);
 
@@ -1063,6 +1102,32 @@ void Application::LoadGeometry(const std::string& zoneShortName)
 	m_navMesh->SetZoneName(m_zoneShortname);
 	m_resetCamera = true;
 	m_zoneLoaded = true;
+
+	if (loadMesh)
+	{
+		m_navMesh->LoadNavMeshFile();
+	}
+}
+
+void Application::PushEvent(const std::function<void()>& cb)
+{
+	std::unique_lock<std::mutex> lock(m_callbackMutex);
+	m_callbackQueue.push_back(cb);
+}
+
+void Application::DispatchCallbacks()
+{
+	std::vector<std::function<void()>> callbacks;
+
+	{
+		std::unique_lock<std::mutex> lock(m_callbackMutex);
+		std::swap(callbacks, m_callbackQueue);
+	}
+
+	for (const auto& cb : callbacks)
+	{
+		cb();
+	}
 }
 
 //============================================================================
@@ -1260,3 +1325,101 @@ void ApplicationContext::Log(LogLevel level, const char* szFormat, ...)
 }
 
 #pragma warning(pop)
+
+//----------------------------------------------------------------------------
+
+ImportExportSettingsDialog::ImportExportSettingsDialog(
+	const std::shared_ptr<NavMesh>& navMesh, bool import)
+	: m_navMesh(navMesh)
+	, m_import(import)
+{
+	fs::path settingsPath = navMesh->GetNavMeshDirectory();
+	settingsPath /= "Setings";
+	settingsPath /= navMesh->GetZoneName() + ".json";
+
+	m_defaultFilename = std::make_unique<char[]>(256);
+	strcpy_s(m_defaultFilename.get(), 256, settingsPath.string().c_str());
+}
+
+void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
+{
+	auto navMesh = m_navMesh.lock();
+
+	if (!navMesh)
+	{
+		*open = false;
+		return;
+	}
+
+	const char* failedDialog = m_import ? "Failed to import" : "Failed to export";
+
+	if (m_failed)
+	{
+		if (ImGui::BeginPopupModal(failedDialog, open))
+		{
+			if (m_import)
+				ImGui::Text("Failed to import settings. Settings file might not exist or it may be invalid.");
+			else
+				ImGui::Text("Failed to export settings. Output directory or file may not be writable.");
+
+			if (ImGui::Button("Close"))
+				ImGui::CloseCurrentPopup();
+
+			ImGui::EndPopup();
+		}
+	}
+	else
+	{
+		ImGui::SetNextWindowPosCenter(ImGuiSetCond_Appearing);
+		ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiSetCond_Appearing);
+
+		if (ImGui::Begin(m_import ? "Import Settings" : "Export Settings", open))
+		{
+			ImGui::Text("Settings File");
+
+			ImGui::PushItemWidth(-1);
+			bool changed = ImGui::InputText("##Edit", m_defaultFilename.get(), 256);
+
+			if (m_import && (m_firstShow || changed))
+			{
+				boost::system::error_code ec;
+				fs::path p(m_defaultFilename.get());
+				m_fileMissing = !fs::is_regular_file(p, ec);
+			}
+			if (m_fileMissing)
+			{
+				ImGui::TextColored(ImColor(255, 0, 0), ICON_FA_EXCLAMATION_TRIANGLE " File is missing");
+			}
+			
+			ImGui::PopItemWidth();
+
+			ImGui::CheckboxFlags("Mesh Settings", (uint32_t*)&m_fields, +PersistedDataFields::BuildSettings);
+			ImGui::CheckboxFlags("Area Types", (uint32_t*)&m_fields, +PersistedDataFields::AreaTypes);
+			ImGui::CheckboxFlags("Convex Volumes", (uint32_t*)&m_fields, +PersistedDataFields::ConvexVolumes);
+
+			if (ImGui::Button(m_import ? "Import" : "Export"))
+			{
+				auto func = m_import ? &NavMesh::ImportJson : &NavMesh::ExportJson;
+
+				bool result = ((*navMesh).*func)(m_defaultFilename.get(), m_fields);
+				if (!result)
+				{
+					m_failed = true;
+				}
+				else
+				{
+					*open = false;
+				}
+			}
+		}
+
+		ImGui::End();
+
+		if (m_failed)
+		{
+			ImGui::OpenPopup(failedDialog);
+		}
+	}
+
+	m_firstShow = false;
+}

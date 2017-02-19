@@ -5,6 +5,7 @@
 #pragma once
 
 #include "common/Context.h"
+#include "common/Enum.h"
 #include "common/NavMeshData.h"
 #include "common/NavModule.h"
 #include "common/Signal.h"
@@ -19,6 +20,23 @@
 class dtNavMesh;
 class dtNavMeshQuery;
 class Context;
+
+namespace nav {
+	class NavMeshFile;
+}
+
+enum struct PersistedDataFields : uint32_t
+{
+	BuildSettings          = 0x0001,
+	MeshTiles              = 0x0002,
+	ConvexVolumes          = 0x0004,
+	AreaTypes              = 0x0008,
+
+	None                   = 0x0000,
+	All                    = 0xffff,
+};
+
+constexpr bool has_bitwise_operations(PersistedDataFields) { return true; }
 
 //============================================================================
 
@@ -60,6 +78,9 @@ public:
 
 	// returns the name of the file that the navmesh was loaded from
 	std::string GetDataFileName() const { return m_dataFile; }
+
+	bool ExportJson(const std::string& filename, PersistedDataFields fields);
+	bool ImportJson(const std::string& filename, PersistedDataFields fields);
 
 	//----------------------------------------------------------------------------
 	// navmesh data
@@ -138,7 +159,10 @@ private:
 	void UpdateDataFile();
 	void InitializeAreas();
 
-	void ResetSavedData();
+	void ResetSavedData(PersistedDataFields fields = PersistedDataFields::All);
+
+	void LoadFromProto(const nav::NavMeshFile& proto, PersistedDataFields fields);
+	void SaveToProto(nav::NavMeshFile& proto, PersistedDataFields fields);
 
 private:
 	Context* m_ctx;

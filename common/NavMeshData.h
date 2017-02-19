@@ -47,6 +47,8 @@ struct PolyAreaType
 	bool valid;
 };
 
+bool operator==(const PolyAreaType& a, const PolyAreaType& b);
+
 extern const std::vector<PolyAreaType> DefaultPolyAreas;
 
 bool IsUserDefinedPolyArea(uint8_t areaId);

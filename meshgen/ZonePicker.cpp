@@ -251,15 +251,18 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 
 		ImGui::EndChild();
 
-		ImGui::PushItemWidth(250);
+		ImGui::PushItemWidth(350);
 		if (ImGui::Button("Cancel") || result) {
 			m_filterText[0] = 0;
 			result = true;
 		}
 		ImGui::PopItemWidth();
 
-		ImGui::End();
+		ImGui::SameLine();
+		ImGui::Checkbox("Load Navmesh if available", &m_loadNavMesh);
+
 	}
+	ImGui::End();
 
 	if (!show) result = true;
 
