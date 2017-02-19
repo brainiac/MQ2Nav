@@ -24,6 +24,8 @@ class ConfigurableRenderState;
 
 class NavMeshRenderer : public Renderable, public NavModule
 {
+	friend class NavMeshDebugDraw;
+
 public:
 	NavMeshRenderer();
 	~NavMeshRenderer();
@@ -45,6 +47,9 @@ private:
 	// stop any pending geometry load
 	void StopLoad();
 	void StartLoad();
+
+	// for NavMeshDebugDraw
+	unsigned int GetColorForPolyArea(uint8_t areaType);
 
 private:
 	IDirect3DDevice9* m_pDevice = nullptr;

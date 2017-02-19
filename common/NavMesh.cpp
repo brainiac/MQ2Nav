@@ -667,7 +667,8 @@ void NavMesh::InitializeAreas()
 	// initialize the array
 	for (uint8_t i = 0; i < m_polyAreas.size(); i++)
 	{
-		m_polyAreas[i] = PolyAreaType{ i, std::string(), duIntToCol(i, 255), 0, 1.f, false };
+		m_polyAreas[i] = PolyAreaType{ i, std::string(), duIntToCol(i, 255),
+			+PolyFlags::Walk, 1.f, false };
 	}
 
 	for (const PolyAreaType& area : DefaultPolyAreas)
@@ -725,7 +726,8 @@ void NavMesh::RemoveUserDefinedArea(uint8_t areaId)
 	if (iter != m_polyAreaList.end())
 		m_polyAreaList.erase(iter);
 
-	m_polyAreas[areaId] = PolyAreaType{ areaId, std::string(), duIntToCol(areaId, 255), 0, 1.f, false };
+	m_polyAreas[areaId] = PolyAreaType{ areaId, std::string(), duIntToCol(areaId, 255),
+		+PolyFlags::Walk, 1.f, false };
 
 	std::sort(m_polyAreaList.begin(), m_polyAreaList.end(),
 		[](const PolyAreaType* typeA, const PolyAreaType* typeB) { return typeA->id < typeB->id; });

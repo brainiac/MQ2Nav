@@ -1208,28 +1208,10 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 		// Update poly flags from areas.
 		for (int i = 0; i < pmesh->npolys; ++i)
 		{
-			if (pmesh->areas[i] == RC_WALKABLE_AREA)
-				pmesh->areas[i] = static_cast<uint16_t>(PolyArea::Ground);
+			if (pmesh->areas[i] >= RC_WALKABLE_AREA)
+				pmesh->areas[i] = static_cast<uint8_t>(PolyArea::Ground);
 
-			switch (static_cast<PolyArea>(pmesh->areas[i]))
-			{
-			case PolyArea::Ground:
-			//case PolyArea::Grass:
-			//case PolyArea::Road:
-				pmesh->flags[i] = +PolyFlags::Walk;
-				break;
-
-			//case PolyArea::Water:
-			//	pmesh->flags[i] = +PolyFlags::Swim;
-			//	break;
-
-			//case PolyArea::Door:
-			//	pmesh->flags[i] = +(PolyFlags::Walk | PolyFlags::Door);
-			//	break;
-
-			default:
-				break;
-			}
+			pmesh->flags[i] = m_navMesh->GetPolyArea(pmesh->areas[i]).flags;
 		}
 
 		dtNavMeshCreateParams params;

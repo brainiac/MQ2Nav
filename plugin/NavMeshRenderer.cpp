@@ -27,6 +27,29 @@ extern IDirect3DDevice9* g_pDevice;
 
 //----------------------------------------------------------------------------
 
+class NavMeshDebugDraw : public DebugDrawDX
+{
+public:
+	NavMeshDebugDraw(NavMeshRenderer* renderer, RenderGroup* grp)
+		: DebugDrawDX(grp)
+		, m_renderer(renderer) {}
+
+	virtual unsigned int polyToCol(const dtPoly* poly) override
+	{
+		if (poly)
+		{
+			return m_renderer->GetColorForPolyArea(poly->getArea());
+		}
+
+		return 0;
+	}
+
+private:
+	NavMeshRenderer* m_renderer = nullptr;
+};
+
+//----------------------------------------------------------------------------
+
 NavMeshRenderer::NavMeshRenderer()
 	: m_pDevice(g_pDevice)
 	, m_state(new ConfigurableRenderState)
@@ -164,7 +187,8 @@ void NavMeshRenderer::StartLoad()
 	std::shared_ptr<const dtNavMesh> navMesh =
 		std::static_pointer_cast<const dtNavMesh>(m_navMesh->GetNavMesh());
 
-	std::shared_ptr<DebugDrawDX> dd = std::make_shared<DebugDrawDX>(m_primGroup.get());
+	std::shared_ptr<NavMeshDebugDraw> dd = std::make_shared<NavMeshDebugDraw>(
+		this, m_primGroup.get());
 
 	for (int i = 0; i < navMesh->getMaxTiles(); ++i)
 	{
@@ -260,6 +284,16 @@ void NavMeshRenderer::OnUpdateUI()
 		m_state->RenderDebugUI();
 	}
 #endif
+}
+
+unsigned int NavMeshRenderer::GetColorForPolyArea(uint8_t areaType)
+{
+	if (m_navMesh)
+	{
+		return m_navMesh->GetPolyArea(areaType).color;
+	}
+
+	return 0;
 }
 
 //----------------------------------------------------------------------------

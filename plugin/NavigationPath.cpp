@@ -147,7 +147,8 @@ void NavigationPath::UpdatePath(bool force)
 
 	if (!startRef)
 	{
-		WriteChatf(PLUGIN_MSG "No start reference");
+		WriteChatf(PLUGIN_MSG "Could not locate starting point on navmesh: %.2f %.2f %.2f)",
+			startOffset[2], startOffset[0], startOffset[1]);
 		return;
 	}
 
@@ -169,7 +170,8 @@ void NavigationPath::UpdatePath(bool force)
 
 		if (!endRef)
 		{
-			WriteChatf(PLUGIN_MSG "No end reference");
+			WriteChatf(PLUGIN_MSG "Could not locate destination on navmesh: %.2f %.2f %.2f",
+				endOffset[2], endOffset[0], endOffset[1]);
 			return;
 		}
 
@@ -222,7 +224,7 @@ void NavigationPath::UpdatePath(bool force)
 		}
 
 		m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath.get(),
-			0, 0, &m_currentPathSize, MAX_POLYS, 0);
+			0, 0, &m_currentPathSize, MAX_POLYS, DT_STRAIGHTPATH_AREA_CROSSINGS);
 
 		// The 0th index is the starting point. Begin by trying to reach the
 		// 2nd point...
