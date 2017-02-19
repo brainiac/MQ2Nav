@@ -8,8 +8,9 @@ MQ2Nav Changelog
 
 **New Areas Tool**
 * MeshGenerator can now define custom area types with cost modifiers. Access it from the Edit menu.
+  * Define custom areas types, give them names, colors, and costs.
 * Convex Volume tool has been given an overhaul, lets you save the volumes and edit existing volumes.
-  * Convex Volumes let you mark parts of the navmesh as different types of areas.
+  * Convex Volumes let you mark parts of the navmesh as different area types.
   * Areas define cost modifiers or can completely exclude areas of the mesh from navigation
   * Navigation will always use the lowest cost path. Mark areas with high cost to avoid them and low cost to prefer them. Default area cost is 1.0
 
