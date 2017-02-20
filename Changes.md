@@ -33,7 +33,11 @@ MQ2Nav Changelog
   * Fixed the order of the x,y,z coordinates in waypoints UI to match /loc
 * Improvements to how the in-game active navigation path line is rendered.
 
-** Command Changes **
+**Misc Changes**
+* Added feature to export/import settings as json files. This can be accessed through the "mesh" menu. By default these settings files well be put into <MQ2Dir>/MQ2Nav/Settings
+* Obligatory mention: fixed lots of bugs.
+
+**Command Changes**
 * Fixed various /nav commands and made many improvements:
   * Removed /nav x y z, replaced with:
     * eq /loc coordinates: /nav loc y x z, /nav locyxz y x z
@@ -42,6 +46,7 @@ MQ2Nav Changelog
 * Remove spam click behavior of /nav item/door as it didn't work right anyways
   * Added /nav spawn <text> - takes same parameters of Spawn TLO to do a spawn search
 * Added new forms of /nav commands. [See the wiki](https://github.com/brainiac/MQ2Nav/wiki/Command-Reference) for more info.
+
 
 
 1.0.0
