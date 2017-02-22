@@ -182,6 +182,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 						const std::string& longName = zonePair.first;
 						const std::string& shortName = zonePair.second;
 
+						ImGui::PushID(shortName.c_str());
+
 						bool selected = false;
 						if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns/* | ImGuiSelectableFlags_MenuItem*/))
 							selected = true;
@@ -189,6 +191,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 						ImGui::SetColumnOffset(-1, 300);
 						ImGui::Text(shortName.c_str());
 						ImGui::NextColumn();
+
+						ImGui::PopID();
 
 						if (selected) {
 							*selected_zone = zonePair.second;
