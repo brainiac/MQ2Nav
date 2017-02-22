@@ -948,7 +948,8 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 			ImU32(col),
 			uint16_t(flags32),
 			cost,
-			true
+			true,
+			true,
 		};
 		navMesh->UpdateArea(areaType);
 	}

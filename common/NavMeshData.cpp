@@ -19,6 +19,7 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 		0,                       // flags
 		0.0f,                    // cost
 		true,                    // valid
+		true,                    // selectable
 	},
 
 	// ground
@@ -29,6 +30,7 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 		+PolyFlags::Walk,        // flags
 		1.0f,                    // cost
 		true,                    // valid
+		true,                    // selectable
 	},
 
 	// jump
@@ -39,6 +41,7 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 		+PolyFlags::Jump,        // flags
 		1.5f,                    // cost
 		true,                    // valid
+		true,                    // selectable
 	},
 
 	// water
@@ -49,6 +52,17 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 		+PolyFlags::Swim,        // flags
 		10.0f,                   // cost
 		true,                    // valid
+		true,                    // selectable
+	},
+
+	PolyAreaType{
+		4,                       // id
+		"Door",                  // name
+		RGBA(0, 255, 255, 255),  // color
+		+(PolyFlags::Walk | PolyFlags::Door),
+		1.1f,                    // cost
+		true,                    // valid
+		false,                   // selectable
 	},
 };
 

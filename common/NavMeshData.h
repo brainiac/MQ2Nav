@@ -19,6 +19,7 @@ enum struct PolyFlags : uint16_t
 	Swim          = 0x02, // ability to swim (water) (unused)
 	Jump          = 0x04, // ability to jump. (unused)
 	Disabled      = 0x08, // disabled polygon
+	Door          = 0x10, // ability to open doors
 
 	All           = 0xffff,
 };
@@ -30,6 +31,7 @@ enum struct PolyArea : uint8_t
 	Ground     = 1,        // RC_WALKABLE_AREA
 	Jump       = 2,
 	Water      = 3,
+	Door       = 4,
 
 	UserDefinedFirst = 10,
 	UserDefinedLast  = 60,
@@ -45,6 +47,7 @@ struct PolyAreaType
 	uint16_t flags;
 	float cost;
 	bool valid;
+	bool selectable;
 };
 
 bool operator==(const PolyAreaType& a, const PolyAreaType& b);

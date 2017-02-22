@@ -1063,13 +1063,16 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 		return 0;
 	}
 
-	// (Optional) Mark areas.
+	// Mark areas.
 	const auto& volumes = m_navMesh->GetConvexVolumes();
 	for (const auto& vol : volumes)
 	{
 		rcMarkConvexPolyArea(m_ctx, glm::value_ptr(vol->verts[0]), static_cast<int>(vol->verts.size()),
 			vol->hmin, vol->hmax, static_cast<uint8_t>(vol->areaType), *chf);
 	}
+
+	// Mark doors.
+
 
 	// Partition the heightfield so that we can use simple algorithm later to triangulate the walkable areas.
 	// There are 3 martitioning methods, each with some pros and cons:

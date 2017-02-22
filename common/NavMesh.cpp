@@ -744,19 +744,20 @@ void NavMesh::InitializeAreas()
 {
 	m_polyAreaList.clear();
 
-	// TODO: Add way to save default custom areas
-
 	// initialize the array
 	for (uint8_t i = 0; i < m_polyAreas.size(); i++)
 	{
 		m_polyAreas[i] = PolyAreaType{ i, std::string(), duIntToCol(i, 255),
-			+PolyFlags::Walk, 1.f, false };
+			+PolyFlags::Walk, 1.f, false, true };
 	}
 
 	for (const PolyAreaType& area : DefaultPolyAreas)
 	{
 		m_polyAreas[area.id] = area;
-		m_polyAreaList.push_back(&m_polyAreas[area.id]);
+		if (area.selectable)
+		{
+			m_polyAreaList.push_back(&m_polyAreas[area.id]);
+		}
 	}
 }
 
@@ -778,6 +779,7 @@ void NavMesh::UpdateArea(const PolyAreaType& areaType)
 		{
 			m_polyAreas[areaType.id] = areaType;
 			m_polyAreas[areaType.id].valid = true;
+			m_polyAreas[areaType.id].selectable = true;
 		}
 		else
 		{
@@ -786,7 +788,10 @@ void NavMesh::UpdateArea(const PolyAreaType& areaType)
 			m_polyAreas[areaType.id].cost = areaType.cost;
 		}
 
-		m_polyAreaList.push_back(&m_polyAreas[areaType.id]);
+		if (areaType.selectable)
+		{
+			m_polyAreaList.push_back(&m_polyAreas[areaType.id]);
+		}
 
 		std::sort(m_polyAreaList.begin(), m_polyAreaList.end(),
 			[](const PolyAreaType* typeA, const PolyAreaType* typeB) { return typeA->id < typeB->id; });
@@ -809,7 +814,7 @@ void NavMesh::RemoveUserDefinedArea(uint8_t areaId)
 		m_polyAreaList.erase(iter);
 
 	m_polyAreas[areaId] = PolyAreaType{ areaId, std::string(), duIntToCol(areaId, 255),
-		+PolyFlags::Walk, 1.f, false };
+		+PolyFlags::Walk, 1.f, false, true };
 
 	std::sort(m_polyAreaList.begin(), m_polyAreaList.end(),
 		[](const PolyAreaType* typeA, const PolyAreaType* typeB) { return typeA->id < typeB->id; });
@@ -829,9 +834,12 @@ uint8_t NavMesh::GetFirstUnusedUserDefinedArea() const
 
 void NavMesh::FillFilterAreaCosts(dtQueryFilter& filter)
 {
-	for (const PolyAreaType* areaType : m_polyAreaList)
+	for (const PolyAreaType& areaType : m_polyAreas)
 	{
-		filter.setAreaCost(areaType->id, areaType->cost);
+		if (areaType.valid)
+		{
+			filter.setAreaCost(areaType.id, areaType.cost);
+		}
 	}
 }
 

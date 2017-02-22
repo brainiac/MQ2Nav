@@ -100,6 +100,7 @@ XCOPY /y "$(ProjectDir)..\resources\VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ClCompile Include="MQ2Nav_Settings.cpp" />
     <ClCompile Include="NavigationPath.cpp" />
     <ClCompile Include="NavigationType.cpp" />
+    <ClCompile Include="Navigator.cpp" />
     <ClCompile Include="NavMeshLoader.cpp" />
     <ClCompile Include="NavMeshRenderer.cpp" />
     <ClCompile Include="PluginMain.cpp" />
@@ -120,6 +121,7 @@ XCOPY /y "$(ProjectDir)..\resources\VolumeLines.fx" "$(OutDir)MQ2Nav"
     <ClInclude Include="MQ2Nav_Util.h" />
     <ClInclude Include="NavigationPath.h" />
     <ClInclude Include="NavigationType.h" />
+    <ClInclude Include="Navigator.h" />
     <ClInclude Include="NavMeshLoader.h" />
     <ClInclude Include="NavMeshRenderer.h" />
     <ClInclude Include="Renderable.h" />
