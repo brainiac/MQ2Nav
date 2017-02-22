@@ -35,7 +35,10 @@ MQ2Nav Changelog
 
 **Misc Changes**
 * Added feature to export/import settings as json files. This can be accessed through the "mesh" menu. By default these settings files well be put into <MQ2Dir>/MQ2Nav/Settings
+* MeshGenerator is now a 64-bit application
 * Obligatory mention: fixed lots of bugs.
+  * EOK Zones should now load all objects. Please note that performance is going to be pretty terrible, please have patience - i'm still working on improving handling large zones.
+  * Fixed issues that would cause your character to get stuck running back and forth when running near edges of the navmesh
 
 **Command Changes**
 * Fixed various /nav commands and made many improvements:
