@@ -2,10 +2,12 @@ MQ2Nav Changelog
 ================
 
 
-1.1.0 - 2/21/2017
------------------
+1.1.1
+-----
 
-*  Fix boost::filesystem Crash when loading from InnerSpace
+**Bug Fixes**
+* Fix crash when loading MQ2Nav while also running InnerSpace
+* Fix problem selecting zones that have duplicate names in the zone picker
 
 
 1.1.0
