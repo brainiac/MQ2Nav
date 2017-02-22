@@ -2,6 +2,12 @@ MQ2Nav Changelog
 ================
 
 
+1.1.0 - 2/21/2017
+-----------------
+
+*  Fix boost::filesystem Crash when loading from InnerSpace
+
+
 1.1.0
 -----
 *NOTE* This version is not compatible with navmeshes made with previous versions. You will need to rebuild your meshes!

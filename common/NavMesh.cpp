@@ -22,9 +22,9 @@
 #include <Recast.h>
 
 #include <fstream>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 
-namespace fs = boost::filesystem;
+namespace fs = std::experimental::filesystem::v1;
 
 //============================================================================
 
@@ -853,7 +853,7 @@ bool NavMesh::ExportJson(const std::string& filename, PersistedDataFields fields
 	if (status.ok())
 	{
 		fs::path rootPath(filename);
-		boost::system::error_code returnedError;
+		std::error_code returnedError;
 		fs::create_directories(rootPath.parent_path(), returnedError);
 
 		std::ofstream ofile(filename.c_str(), std::ios::trunc);
