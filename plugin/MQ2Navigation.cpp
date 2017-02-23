@@ -1103,8 +1103,6 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 			if (ImGui::Checkbox("Render pathing debug draw", &settings.debug_render_pathing))
 				settingsChanged = true;
-			if (ImGui::Checkbox("Use Pathing Corridor (experimental)", &settings.debug_use_pathing_corridor))
-				settingsChanged = true;
 
 			if (settingsChanged)
 				mq2nav::SaveSettings();
