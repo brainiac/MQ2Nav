@@ -119,12 +119,7 @@ private:
 
 	// we own the query
 	deleting_unique_ptr<dtNavMeshQuery> m_query;
-
-	bool m_useCorridor = false;
-	// used by corridor
 	std::unique_ptr<float[]> m_currentPath;
-	std::unique_ptr<uint8_t[]> m_cornerFlags;
-	std::unique_ptr<dtPathCorridor> m_corridor;
 
 	bool m_renderPaths;
 	std::shared_ptr<NavigationLine> m_line;
