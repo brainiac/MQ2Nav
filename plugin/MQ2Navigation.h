@@ -85,6 +85,8 @@ struct DestinationInfo
 std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine,
 	NotifyType notify = NotifyType::Errors);
 
+glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn);
+
 //----------------------------------------------------------------------------
 
 class PluginContext : public Context

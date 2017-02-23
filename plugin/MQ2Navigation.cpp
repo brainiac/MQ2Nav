@@ -795,6 +795,18 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 	return pDoor;
 }
 
+glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn)
+{
+	if (pSpawn)
+	{
+		bool use_floor_height = mq2nav::GetSettings().use_spawn_floor_height;
+
+		return glm::vec3{ pSpawn->X, pSpawn->Y, use_floor_height ? pSpawn->FloorHeight : pSpawn->Z };
+	}
+
+	return glm::vec3{};
+}
+
 std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType notify)
 {
 	CHAR buffer[MAX_STRING] = { 0 };
@@ -818,7 +830,7 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 			PSPAWNINFO target = (PSPAWNINFO)pTarget;
 
 			result->pSpawn = target;
-			result->eqDestinationPos = { target->X, target->Y, target->Z };
+			result->eqDestinationPos = GetSpawnPosition(target);
 			result->valid = true;
 
 			if (notify == NotifyType::All)
@@ -855,7 +867,7 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 		if (notify == NotifyType::All)
 			WriteChatf(PLUGIN_MSG "Navigating to spawn: %s (%d)", target->Name, target->SpawnID);
 
-		result->eqDestinationPos = { target->X, target->Y, target->Z };
+		result->eqDestinationPos = GetSpawnPosition(target);
 		result->pSpawn = target;
 		result->type = DestinationType::Spawn;
 		result->valid = true;
@@ -874,7 +886,7 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 
 		if (PSPAWNINFO pSpawn = SearchThroughSpawns(&sSpawn, (PSPAWNINFO)pCharSpawn))
 		{
-			result->eqDestinationPos = { pSpawn->X, pSpawn->Y, pSpawn->Z };
+			result->eqDestinationPos = GetSpawnPosition(pSpawn);
 			result->pSpawn = pSpawn;
 			result->type = DestinationType::Spawn;
 			result->valid = true;
