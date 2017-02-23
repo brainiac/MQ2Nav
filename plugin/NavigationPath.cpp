@@ -3,16 +3,18 @@
 //
 
 #include "NavigationPath.h"
-#include "MQ2Navigation.h"
-#include "NavMeshLoader.h"
-#include "RenderHandler.h"
-#include "MQ2Nav_Settings.h"
+
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
-
 #include "DebugDrawDX.h"
-#include "DetourNavMesh.h"
-#include "DetourCommon.h"
+#include "MQ2Navigation.h"
+#include "MQ2Nav_Settings.h"
+#include "NavMeshLoader.h"
+#include "RenderHandler.h"
+
+#include <DetourNavMesh.h>
+#include <DetourCommon.h>
+#include <glm/gtc/type_ptr.hpp>
 
 //----------------------------------------------------------------------------
 // constants
@@ -149,8 +151,16 @@ void NavigationPath::UpdatePath(bool force)
 	m_currentPathCursor = 0;
 	m_currentPathSize = 0;
 
+	auto& settings = mq2nav::GetSettings();
+
+	glm::vec3 extents = m_extents;
+	if (settings.use_find_polygon_extents)
+	{
+		extents = settings.find_polygon_extents;
+	}
+
 	dtPolyRef startRef, endRef;
-	m_query->findNearestPoly(startOffset, m_extents, &m_filter, &startRef, spos);
+	m_query->findNearestPoly(startOffset, glm::value_ptr(extents), &m_filter, &startRef, spos);
 
 	if (!startRef)
 	{
@@ -173,7 +183,7 @@ void NavigationPath::UpdatePath(bool force)
 			m_corridor->reset(startRef, startOffset);
 		}
 
-		m_query->findNearestPoly(endOffset, m_extents, &m_filter, &endRef, epos);
+		m_query->findNearestPoly(endOffset, glm::value_ptr(extents), &m_filter, &endRef, epos);
 
 		if (!endRef)
 		{
@@ -238,7 +248,7 @@ void NavigationPath::UpdatePath(bool force)
 		if (m_currentPathSize > 1)
 			m_currentPathCursor = 1;
 
-		if (m_debugDrawGrp && mq2nav::GetSettings().debug_render_pathing)
+		if (m_debugDrawGrp && settings.debug_render_pathing)
 		{
 			DebugDrawDX dd(m_debugDrawGrp.get());
 
@@ -264,7 +274,7 @@ void NavigationPath::UpdatePath(bool force)
 		}
 	}
 
-	if (m_line && mq2nav::GetSettings().show_nav_path)
+	if (m_line && settings.show_nav_path)
 	{
 		m_line->Update();
 	}

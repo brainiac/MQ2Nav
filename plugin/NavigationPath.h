@@ -130,7 +130,7 @@ private:
 	std::shared_ptr<NavigationLine> m_line;
 
 	dtQueryFilter m_filter;
-	float m_extents[3] = { 2, 4, 2 }; // note: X, Z, Y
+	glm::vec3 m_extents = { 2, 10, 2 }; // note: X, Z, Y
 
 	Signal<>::ScopedConnection m_navMeshConn;
 };
