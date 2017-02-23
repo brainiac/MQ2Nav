@@ -4,6 +4,8 @@
 
 #include "MQ2Nav_Settings.h"
 
+#include <boost/lexical_cast.hpp>
+
 namespace mq2nav {
 
 //----------------------------------------------------------------------------
@@ -24,9 +26,46 @@ static inline bool LoadBoolSetting(const std::string& name, bool default)
 	return (!_strnicmp(szTemp, "on", 3));
 }
 
+static inline glm::vec3 LoadVec3Setting(const std::string& name, const glm::vec3& defaultValue)
+{
+	try
+	{
+		char szTemp[MAX_STRING] = { 0 };
+		glm::vec3 value;
+
+		GetPrivateProfileString("Settings", (name + "X").c_str(),
+			boost::lexical_cast<std::string>(defaultValue.x).c_str(), szTemp, MAX_STRING, INIFileName);
+		value.x = boost::lexical_cast<float>(szTemp);
+
+		GetPrivateProfileString("Settings", (name + "Y").c_str(),
+			boost::lexical_cast<std::string>(defaultValue.y).c_str(), szTemp, MAX_STRING, INIFileName);
+		value.y = boost::lexical_cast<float>(szTemp);
+
+		GetPrivateProfileString("Settings", (name + "Z").c_str(),
+			boost::lexical_cast<std::string>(defaultValue.z).c_str(), szTemp, MAX_STRING, INIFileName);
+		value.z = boost::lexical_cast<float>(szTemp);
+
+		return value;
+	}
+	catch (const boost::bad_lexical_cast&)
+	{
+		return defaultValue;
+	}
+}
+
 static inline void SaveBoolSetting(const std::string& name, bool value)
 {
 	WritePrivateProfileString("Settings", name.c_str(), value ? "on" : "off", INIFileName);
+}
+
+static inline void SaveVec3Setting(const std::string& name, const glm::vec3& value)
+{
+	WritePrivateProfileString("Settings", (name + "X").c_str(),
+		boost::lexical_cast<std::string>(value.x).c_str(), INIFileName);
+	WritePrivateProfileString("Settings", (name + "Y").c_str(),
+		boost::lexical_cast<std::string>(value.y).c_str(), INIFileName);
+	WritePrivateProfileString("Settings", (name + "Z").c_str(),
+		boost::lexical_cast<std::string>(value.z).c_str(), INIFileName);
 }
 
 void LoadSettings(bool showMessage/* = true*/)
@@ -45,11 +84,13 @@ void LoadSettings(bool showMessage/* = true*/)
 	settings.show_navmesh_overlay = LoadBoolSetting("ShowNavMesh", defaults.show_navmesh_overlay);
 	settings.show_nav_path = LoadBoolSetting("ShowNavPath", defaults.show_nav_path);
 	settings.attempt_unstuck = LoadBoolSetting("AttemptUnstuck", defaults.attempt_unstuck);
+	settings.use_spawn_floor_height = LoadBoolSetting("UseSpawnFloorHeight", defaults.use_spawn_floor_height);
+
+	settings.use_find_polygon_extents = LoadBoolSetting("UseFindPolygonExtents", defaults.use_find_polygon_extents);
+	settings.find_polygon_extents = LoadVec3Setting("FindPolygonExtents", defaults.find_polygon_extents);
 
 	// debug settings
 	settings.debug_render_pathing = LoadBoolSetting("DebugRenderPathing", defaults.debug_render_pathing);
-
-	SaveSettings(false);
 }
 
 void SaveSettings(bool showMessage/* = true*/)
@@ -66,6 +107,10 @@ void SaveSettings(bool showMessage/* = true*/)
 	SaveBoolSetting("ShowUI", g_settings.show_ui);
 	SaveBoolSetting("ShowNavMesh", g_settings.show_navmesh_overlay);
 	SaveBoolSetting("ShowNavPath", g_settings.show_nav_path);
+	SaveBoolSetting("UseSpawnFloorHeight", g_settings.use_spawn_floor_height);
+
+	SaveBoolSetting("UseFindPolygonExtents", g_settings.use_find_polygon_extents);
+	SaveVec3Setting("FindPolygonExtents", g_settings.find_polygon_extents);
 
 	// debug settings
 	SaveBoolSetting("DebugRenderPathing", g_settings.debug_render_pathing);

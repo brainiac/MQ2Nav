@@ -12,8 +12,9 @@
 
 #define IMGUI_INCLUDE_IMGUI_USER_H
 #include <imgui.h>
-
 #include <imgui_custom/imgui_user.h>
+
+#include <glm/gtc/type_ptr.hpp>
 
 namespace
 {
@@ -125,7 +126,9 @@ void UiController::PerformUpdateTab(TabPage page)
 		if (ImGui::Checkbox("Attempt to get unstuck", &settings.attempt_unstuck))
 			changed = true;
 		if (ImGui::IsItemHovered())
+		{
 			ImGui::SetTooltip("Automatically try to get unstuck of movement is impeeded.\nThis will do things like jump and click randomly. Use with caution!");
+		}
 
 		if (ImGui::Checkbox("Auto update nav mesh", &settings.autoreload))
 		{
@@ -133,6 +136,30 @@ void UiController::PerformUpdateTab(TabPage page)
 		}
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Automatically reload the navmesh when it is modified");
+
+		if (ImGui::Checkbox("Use FloorHeight for path planning", &settings.use_spawn_floor_height))
+			changed = true;
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Use FloorHeight instead of Z for vertical spawn position when\ncalculating positions for pathing");
+		}
+
+		if (ImGui::Checkbox("Custom Polygon search extents", &settings.use_find_polygon_extents))
+			changed = true;
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Customize the distance to search when locating positions outside the mesh.\nWARNING: setting these values can produce erratic results");
+		}
+		if (settings.use_find_polygon_extents)
+		{
+			if (ImGui::InputFloat3("Polygon search extents", glm::value_ptr(settings.find_polygon_extents), 1))
+				changed = true;
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("When finding a location on the navmesh, the search distance along\neach access to find a polygon ([X, Y, Z] - 3d coordinates. Y is up/down)");
+			}
+		}
+
 
 		if (changed)
 			mq2nav::SaveSettings();

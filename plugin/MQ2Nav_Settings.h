@@ -31,11 +31,15 @@ struct SettingsData
 	// attempt to get unstuck
 	bool attempt_unstuck = false;
 
+	// use floor height for spawn z axis
+	bool use_spawn_floor_height = true;
+
+	// use custom extents in findNearestPoly
+	bool use_find_polygon_extents = false;
+	glm::vec3 find_polygon_extents{ 2, 4, 2 };
+
 	// render pathing 3d debugging
 	bool debug_render_pathing = false;
-
-	// use corridor method (buggy, not finished...)
-	bool debug_use_pathing_corridor = false;
 };
 SettingsData& GetSettings();
 

@@ -3,16 +3,18 @@
 //
 
 #include "NavigationPath.h"
-#include "MQ2Navigation.h"
-#include "NavMeshLoader.h"
-#include "RenderHandler.h"
-#include "MQ2Nav_Settings.h"
+
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
-
 #include "DebugDrawDX.h"
-#include "DetourNavMesh.h"
-#include "DetourCommon.h"
+#include "MQ2Navigation.h"
+#include "MQ2Nav_Settings.h"
+#include "NavMeshLoader.h"
+#include "RenderHandler.h"
+
+#include <DetourNavMesh.h>
+#include <DetourCommon.h>
+#include <glm/gtc/type_ptr.hpp>
 
 //----------------------------------------------------------------------------
 // constants
@@ -26,15 +28,12 @@ const int MAX_PATH_SIZE = 2048 * 4;
 //----------------------------------------------------------------------------
 
 NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
-	: m_renderPaths(false)
 {
 	auto* mesh = g_mq2Nav->Get<NavMesh>();
 	m_navMeshConn = mesh->OnNavMeshChanged.Connect(
 		[this, mesh]() { SetNavMesh(mesh->GetNavMesh()); });
 	
 	SetNavMesh(mesh->GetNavMesh(), false);
-
-	m_useCorridor = mq2nav::GetSettings().debug_use_pathing_corridor;
 
 	SetDestination(dest);
 }
@@ -100,7 +99,6 @@ void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
 	m_navMesh = navMesh;
 
 	m_query.reset();
-	m_corridor.reset();
 
 	m_filter = dtQueryFilter{};
 	m_filter.setIncludeFlags(+PolyFlags::All);
@@ -149,8 +147,16 @@ void NavigationPath::UpdatePath(bool force)
 	m_currentPathCursor = 0;
 	m_currentPathSize = 0;
 
+	auto& settings = mq2nav::GetSettings();
+
+	glm::vec3 extents = m_extents;
+	if (settings.use_find_polygon_extents)
+	{
+		extents = settings.find_polygon_extents;
+	}
+
 	dtPolyRef startRef, endRef;
-	m_query->findNearestPoly(startOffset, m_extents, &m_filter, &startRef, spos);
+	m_query->findNearestPoly(startOffset, glm::value_ptr(extents), &m_filter, &startRef, spos);
 
 	if (!startRef)
 	{
@@ -162,63 +168,31 @@ void NavigationPath::UpdatePath(bool force)
 	dtPolyRef polys[MAX_POLYS];
 	int numPolys = 0;
 
-	if (!m_corridor)
+
+	m_query->findNearestPoly(endOffset, glm::value_ptr(extents), &m_filter, &endRef, epos);
+
+	if (!endRef)
 	{
-		if (m_useCorridor)
-		{
-			// initialize planning
-			m_corridor.reset(new dtPathCorridor);
-			m_corridor->init(MAX_PATH_SIZE);
-
-			m_corridor->reset(startRef, startOffset);
-		}
-
-		m_query->findNearestPoly(endOffset, m_extents, &m_filter, &endRef, epos);
-
-		if (!endRef)
-		{
-			WriteChatf(PLUGIN_MSG "Could not locate destination on navmesh: %.2f %.2f %.2f",
-				endOffset[2], endOffset[0], endOffset[1]);
-			return;
-		}
-
-		dtStatus status = m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
-		if (status & DT_OUT_OF_NODES)
-			DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: out of nodes",
-				startOffset[0], startOffset[1], startOffset[2],
-				endOffset[0], endOffset[1], endOffset[2]);
-		if (status & DT_PARTIAL_RESULT)
-			DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
-				startOffset[0], startOffset[1], startOffset[2],
-				endOffset[0], endOffset[1], endOffset[2]);
-
-		if (m_corridor)
-		{
-			m_corridor->setCorridor(endOffset, polys, numPolys);
-		}
-	}
-	else
-	{
-		// this is an update
-		m_corridor->movePosition(startOffset, m_query.get(), &m_filter);
+		WriteChatf(PLUGIN_MSG "Could not locate destination on navmesh: %.2f %.2f %.2f",
+			endOffset[2], endOffset[0], endOffset[1]);
+		return;
 	}
 
-	if (m_corridor)
+	dtStatus status = m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
+	if (status & DT_OUT_OF_NODES)
 	{
-		m_corridor->optimizePathTopology(m_query.get(), &m_filter);
-
-		if (!m_currentPath)
-		{
-			m_currentPath = std::unique_ptr<float[]>(new float[MAX_POLYS * 3]);
-		}
-		if (!m_cornerFlags)
-		{
-			m_cornerFlags = std::unique_ptr<uint8_t[]>(new uint8_t[MAX_POLYS]);
-		}
-
-		m_currentPathSize = m_corridor->findCorners(m_currentPath.get(),
-			m_cornerFlags.get(), polys, 10, m_query.get(), &m_filter);
+		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: out of nodes",
+			startOffset[0], startOffset[1], startOffset[2],
+			endOffset[0], endOffset[1], endOffset[2]);
 	}
+
+	if (status & DT_PARTIAL_RESULT)
+	{
+		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
+			startOffset[0], startOffset[1], startOffset[2],
+			endOffset[0], endOffset[1], endOffset[2]);
+	}
+
 
 	if (m_debugDrawGrp)
 		m_debugDrawGrp->Reset();
@@ -238,7 +212,7 @@ void NavigationPath::UpdatePath(bool force)
 		if (m_currentPathSize > 1)
 			m_currentPathCursor = 1;
 
-		if (m_debugDrawGrp && mq2nav::GetSettings().debug_render_pathing)
+		if (m_debugDrawGrp && settings.debug_render_pathing)
 		{
 			DebugDrawDX dd(m_debugDrawGrp.get());
 
@@ -264,7 +238,7 @@ void NavigationPath::UpdatePath(bool force)
 		}
 	}
 
-	if (m_line && mq2nav::GetSettings().show_nav_path)
+	if (m_line && settings.show_nav_path)
 	{
 		m_line->Update();
 	}
