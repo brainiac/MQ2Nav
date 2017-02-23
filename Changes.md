@@ -9,6 +9,10 @@ MQ2Nav Changelog
 * Fix crash when loading MQ2Nav while also running InnerSpace
 * Fix problem selecting zones that have duplicate names in the zone picker
 
+**Improvements**
+* Use FloorHeight instead of Z for calculating spawn positions, should avoid some cases of "unable to find destination" problems.
+  * This behavior can be disabled in the settings window of MQ2Nav if it causes problems
+
 
 1.1.0
 -----
