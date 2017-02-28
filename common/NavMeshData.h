@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -124,3 +125,11 @@ struct ConvexVolume
 	std::string name;
 };
 
+//----------------------------------------------------------------------------
+
+// Max Zone Extents
+// these are the limits to the extents of geometry we are willing to load. This
+// is used to exclude junk geometry from very far away parts of the mesh. Values
+// of 0 are ignored.
+
+extern std::map<std::string, std::pair<glm::vec3, glm::vec3>> MaxZoneExtents;

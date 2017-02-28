@@ -5,8 +5,11 @@
 #include "MapGeometryLoader.h"
 
 #include "common/ZoneData.h"
+#include "common/NavMeshData.h"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
+
 #include <rapidjson/document.h>
 #include <zone-utilities/log/log_macros.h>
 #include <zone-utilities/common/compression.h>
@@ -76,6 +79,14 @@ MapGeometryLoader::~MapGeometryLoader()
 	delete [] m_tris;
 }
 
+void MapGeometryLoader::SetMaxExtents(const std::pair<glm::vec3, glm::vec3>& maxExtents)
+{
+	m_maxExtents.first = maxExtents.first.zxy;
+	m_maxExtents.second = maxExtents.second.zxy;
+
+	m_maxExtentsSet = true;
+}
+
 void MapGeometryLoader::addVertex(float x, float y, float z)
 {
 	if (m_vertCount+1 > vcap)
@@ -121,7 +132,10 @@ auto GetScale = [](auto obj) -> glm::vec3 {
 auto GetRotation = [](auto obj) -> glm::vec3 {
 	return glm::vec3(obj->GetRotateX(), obj->GetRotateY(), obj->GetRotateZ());
 };
-
+auto GetRotationRad = [](auto obj) -> glm::vec3 {
+	return glm::vec3(glm::radians(obj->GetRotateX()), 
+		glm::radians(obj->GetRotateY()), glm::radians(obj->GetRotateZ()));
+};
 
 bool MapGeometryLoader::load()
 {
@@ -149,13 +163,15 @@ bool MapGeometryLoader::load()
 			float x = tile->GetX();
 			float y = tile->GetY();
 
-
 			if (flat)
 			{
 				float z = tile->GetFloats()[0];
 
 				// get x,y of corner point for this quad
 				float dt = quads_per_tile * units_per_vertex;
+
+				if (ArePointsOutsideExtents(glm::vec3{ y, x, z }))
+					continue;
 
 				addVertex(x,      z, y);
 				addVertex(x + dt, z, y);
@@ -190,6 +206,9 @@ bool MapGeometryLoader::load()
 					float z3 = floats[quad + row_number + quads_per_tile + 2];
 					float z4 = floats[quad + row_number + 1];
 
+					if (ArePointsOutsideExtents(glm::vec3{ _y, _x, z1 }))
+						continue;
+
 					addVertex(_x,      z1, _y);
 					addVertex(_x + dt, z2, _y);
 					addVertex(_x + dt, z3, _y + dt);
@@ -204,21 +223,21 @@ bool MapGeometryLoader::load()
 		}
 	}
 
-	for (uint32_t index = 0; index < collide_indices.size(); index += 3, counter += 3)
+	for (uint32_t index = 0; index < collide_indices.size(); index += 3)
 	{
-		uint32_t vert_index1 = collide_indices[index];
-		const glm::vec3& vert1 = collide_verts[vert_index1];
+		const glm::vec3& vert1 = collide_verts[collide_indices[index]];
+		const glm::vec3& vert2 = collide_verts[collide_indices[index + 2]];
+		const glm::vec3& vert3 = collide_verts[collide_indices[index + 1]];
+
+		if (ArePointsOutsideExtents(vert1.yxz, vert2.yxz, vert3.yxz))
+			continue;
+
 		addVertex(vert1.x, vert1.z, vert1.y);
-
-		uint32_t vert_index2 = collide_indices[index + 2];
-		const glm::vec3& vert2 = collide_verts[vert_index2];
 		addVertex(vert2.x, vert2.z, vert2.y);
-
-		uint32_t vert_index3 = collide_indices[index + 1];
-		const glm::vec3& vert3 = collide_verts[vert_index3];
 		addVertex(vert3.x, vert3.z, vert3.y);
 
 		addTriangle(counter, counter + 2, counter + 1);
+		counter += 3;
 	}
 
 	auto isVisible = [](int flags)
@@ -248,7 +267,7 @@ bool MapGeometryLoader::load()
 					visible, poly.flags });
 		}
 
-		m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
+		m_models.emplace(std::move(name), std::move(entry));
 	}
 
 	for (auto iter : map_eqg_models)
@@ -274,11 +293,10 @@ bool MapGeometryLoader::load()
 					visible, poly.flags });
 		}
 
-		m_models.emplace(std::make_pair(std::move(name), std::move(entry)));
-
+		m_models.emplace(std::move(name), std::move(entry));
 	}
 
-	auto AddTriangle = [&](const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
+	auto AddTriangle = [&](glm::vec3 v1, glm::vec3 v2, glm::vec3 v3)
 	{
 		addVertex(v1.y, v1.z, v1.x);
 		addVertex(v2.y, v2.z, v2.x);
@@ -296,9 +314,21 @@ bool MapGeometryLoader::load()
 		if (modelIter == m_models.end())
 			continue;
 
+		glm::mat4x4 mtx;
+		mtx = glm::translate(mtx, GetTranslation(obj));
+		mtx = glm::scale(mtx, GetScale(obj));
+		mtx *= glm::mat4_cast(glm::quat(GetRotation(obj)));
+
 		// some objects have a really low z, just ignore them.
 		if (obj->GetZ() < -30000 || obj->GetX() > 15000 || obj->GetY() > 15000 || obj->GetZ() > 15000)
 			continue;
+
+		if (IsPointOutsideExtents(glm::vec3{ mtx * glm::vec4{ 0., 0., 0., 1. } }))
+		{
+			eqLogMessage(LogWarn, "Ignoring placement of '%s' at { %.2f %.2f %.2f } due to being outside of max extents",
+				obj->GetFileName().c_str(), obj->GetX(), obj->GetY(), obj->GetZ());
+			continue;
+		}
 
 		const auto& model = modelIter->second;
 		for (const auto& poly : model->polys)
@@ -308,13 +338,7 @@ bool MapGeometryLoader::load()
 
 			glm::vec3 v[3];
 			for (int i = 0; i < 3; i++)
-			{
-				v[i] = model->verts[poly.indices[i]];
-
-				RotateVertex(v[i], GetRotation(obj));
-				ScaleVertex(v[i], GetScale(obj));
-				TranslateVertex(v[i], GetTranslation(obj));
-			}
+				v[i] = glm::vec3(mtx * glm::vec4(model->verts[poly.indices[i]], 1));
 
 			AddTriangle(v[0], v[1], v[2]);
 		}
@@ -322,6 +346,14 @@ bool MapGeometryLoader::load()
 
 	for (const auto& group : map_group_placeables)
 	{
+		glm::mat4x4 grp_mat;
+		grp_mat = glm::translate(grp_mat, glm::vec3{ group->GetTileX(), group->GetTileY(), group->GetTileZ() });
+		grp_mat = glm::translate(grp_mat, GetTranslation(group));
+		grp_mat = glm::scale(grp_mat, GetScale(group));
+		grp_mat *= glm::mat4_cast(glm::quat{
+			glm::vec3{ glm::radians(group->GetRotationX()), glm::radians(group->GetRotationY()), glm::radians(group->GetRotationZ()) }
+		});
+
 		for (const auto& obj : group->GetPlaceables())
 		{
 			const std::string& name = obj->GetFileName();
@@ -330,45 +362,30 @@ bool MapGeometryLoader::load()
 			if (modelIter == m_models.end())
 				continue;
 
+			glm::mat4x4 mtx;
+			mtx = glm::translate(mtx, GetTranslation(obj));
+			mtx = glm::scale(mtx, GetScale(obj));
+			mtx *= glm::mat4_cast(glm::quat(GetRotationRad(obj)));
+
+			glm::vec3 pos{ grp_mat * mtx * glm::vec4{ 0., 0., 0., 1. } };
+			if (IsPointOutsideExtents(pos))
+			{
+				eqLogMessage(LogWarn, "Ignoring placement of '%s' at { %.2f %.2f %.2f } due to being outside of max extents",
+					obj->GetFileName().c_str(), pos.x, pos.y, pos.z);
+				continue;
+			}
+
 			const auto& model = modelIter->second;
 			for (const auto& poly : model->polys)
 			{
 				if (!poly.vis)
 					continue;
 
-				glm::vec3 v_[3];
+				glm::vec3 v[3];
 				for (int i = 0; i < 3; i++)
-				{
-					glm::vec3& v = v_[i];
-					v = model->verts[poly.indices[i]];
+					v[i] = glm::vec3{ grp_mat * mtx * glm::vec4{ model->verts[poly.indices[i]], 1.0 } };
 
-					ScaleVertex(v, GetScale(obj));
-					TranslateVertex(v, GetTranslation(obj));
-
-					RotateVertex(v, group->GetRotationX() * M_PI / 180, 0, 0);
-					RotateVertex(v, 0, group->GetRotationY() * M_PI / 180, 0);
-
-					glm::vec3 correction = GetTranslation(obj);
-
-					RotateVertex(correction, group->GetRotationX() * M_PI / 180, 0, 0);
-
-					TranslateVertex(v, -correction.x, -correction.y, -correction.z);
-
-					RotateVertex(v, obj->GetRotateX() * M_PI / 180, 0, 0);
-					RotateVertex(v, 0, -obj->GetRotateY() * M_PI / 180, 0);
-					RotateVertex(v, 0, 0, obj->GetRotateZ() * M_PI / 180);
-
-					TranslateVertex(v, correction.x, correction.y, correction.z);
-
-					RotateVertex(v, 0, 0, group->GetRotationZ() * M_PI / 180);
-
-					ScaleVertex(v, GetScale(group));
-
-					TranslateVertex(v, group->GetTileX(), group->GetTileY(), group->GetTileZ());
-					TranslateVertex(v, GetTranslation(group));
-				}
-
-				AddTriangle(v_[0], v_[1], v_[2]);
+				AddTriangle(v[0], v[1], v[2]);
 			}
 		}
 	}
@@ -477,7 +494,7 @@ void MapGeometryLoader::LoadDoors()
 		params.id = (*iter)["ID"].GetInt();
 		params.name = (*iter)["Name"].GetString();
 		params.type = (*iter)["Type"].GetInt();
-		params.scale = (*iter)["Scale"].GetDouble();
+		params.scale = (float)(*iter)["Scale"].GetDouble();
 
 		// only add stationary objects
 		if (!IsSwitchStationary(params.type))
@@ -488,7 +505,7 @@ void MapGeometryLoader::LoadDoors()
 		{
 			for (int j = 0; j < 4; j++)
 			{
-				params.transform[i][j] = t[i][j].GetDouble();
+				params.transform[i][j] = (float)t[i][j].GetDouble();
 			}
 		}
 

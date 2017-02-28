@@ -41,6 +41,8 @@ public:
 		const std::string& mesh_path);
 	~MapGeometryLoader();
 
+	void SetMaxExtents(const std::pair<glm::vec3, glm::vec3>& maxExtents);
+
 	bool load();
 
 	inline const std::string& getFileName() const { return m_zoneName; }
@@ -108,7 +110,35 @@ private:
 	};
 	std::map<std::string, std::shared_ptr<ModelEntry>> m_models;
 
+	std::pair<glm::vec3, glm::vec3> m_maxExtents;
+	bool m_maxExtentsSet = false;
 
+	template <typename VecT>
+	inline bool IsPointOutsideExtents(const VecT& p)
+	{
+		if (!m_maxExtentsSet)
+			return false;
+
+		for (int i = 0; i < 3; i++)
+		{
+			if ((m_maxExtents.first[i] != 0. && p[i] < m_maxExtents.first[i])
+				|| (m_maxExtents.second[i] != 0. && p[i] > m_maxExtents.second[i]))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	template<typename... Args>
+	inline bool ArePointsOutsideExtents(Args &&... args)
+	{
+		bool outside = false;
+		(void) std::initializer_list<bool>{
+			outside = outside || IsPointOutsideExtents(std::forward<Args>(args))...};
+		return outside;
+	}
 
 	//---------------------------------------------------------------------------
 	

@@ -21,9 +21,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/compatibility.hpp>
 
-// Uncomment this to dump all the requests in stdout.
-#define DUMP_REQS
-
 // Returns a random number [0..1)
 static float frand()
 {
@@ -227,8 +224,12 @@ void NavMeshTesterTool::init(NavMeshTool* meshTool)
 
 void NavMeshTesterTool::handleMenu()
 {
-	ImGui::InputFloat3("Start Pos", &m_spos[0]);
-	ImGui::InputFloat3("End Pos", &m_epos[0]);
+	glm::vec3 start = m_spos.zxy;
+	if (ImGui::InputFloat3("Start loc", glm::value_ptr(start)))
+		m_spos = start.yzx;
+	glm::vec3 end = m_epos.zxy;
+	if (ImGui::InputFloat3("End loc", glm::value_ptr(end)))
+		m_epos = end.yzx;
 
 
 	if (ImGui::RadioButton("Pathfind Follow", m_toolMode == ToolMode::PATHFIND_FOLLOW))
@@ -659,12 +660,6 @@ void NavMeshTesterTool::recalc()
 		m_pathIterNum = 0;
 		if (m_sposSet && m_eposSet && m_startRef && m_endRef)
 		{
-#ifdef DUMP_REQS
-			printf("pi  %f %f %f  %f %f %f  0x%x 0x%x\n",
-				m_spos[0], m_spos[1], m_spos[2], m_epos[0], m_epos[1], m_epos[2],
-				m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
-#endif
-
 			m_navQuery->findPath(m_startRef, m_endRef, glm::value_ptr(m_spos), glm::value_ptr(m_epos),
 				&m_filter, m_polys, &m_npolys, MAX_POLYS);
 
@@ -805,11 +800,6 @@ void NavMeshTesterTool::recalc()
 	{
 		if (m_sposSet && m_eposSet && m_startRef && m_endRef)
 		{
-#ifdef DUMP_REQS
-			printf("ps  %f %f %f  %f %f %f  0x%x 0x%x\n",
-				m_spos[0], m_spos[1], m_spos[2], m_epos[0], m_epos[1], m_epos[2],
-				m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
-#endif
 			m_navQuery->findPath(m_startRef, m_endRef, glm::value_ptr(m_spos),
 				glm::value_ptr(m_epos), &m_filter, m_polys, &m_npolys, MAX_POLYS);
 			m_nstraightPath = 0;
@@ -836,11 +826,6 @@ void NavMeshTesterTool::recalc()
 	{
 		if (m_sposSet && m_eposSet && m_startRef && m_endRef)
 		{
-#ifdef DUMP_REQS
-			printf("ps  %f %f %f  %f %f %f  0x%x 0x%x\n",
-				m_spos[0], m_spos[1], m_spos[2], m_epos[0], m_epos[1], m_epos[2],
-				m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
-#endif
 			m_npolys = 0;
 			m_nstraightPath = 0;
 
@@ -858,11 +843,6 @@ void NavMeshTesterTool::recalc()
 		m_nstraightPath = 0;
 		if (m_sposSet && m_eposSet && m_startRef)
 		{
-#ifdef DUMP_REQS
-			printf("rc  %f %f %f  %f %f %f  0x%x 0x%x\n",
-				m_spos[0], m_spos[1], m_spos[2], m_epos[0], m_epos[1], m_epos[2],
-				m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
-#endif
 			float t = 0;
 			m_npolys = 0;
 			m_nstraightPath = 2;
@@ -899,11 +879,6 @@ void NavMeshTesterTool::recalc()
 		m_distanceToWall = 0;
 		if (m_sposSet && m_startRef)
 		{
-#ifdef DUMP_REQS
-			printf("dw  %f %f %f  %f  0x%x 0x%x\n",
-				m_spos[0], m_spos[1], m_spos[2], 100.0f,
-				m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
-#endif
 			m_distanceToWall = 0.0f;
 			m_navQuery->findDistanceToWall(m_startRef, glm::value_ptr(m_spos), 100.0f, &m_filter,
 				&m_distanceToWall, glm::value_ptr(m_hitPos), glm::value_ptr(m_hitNormal));
@@ -916,11 +891,6 @@ void NavMeshTesterTool::recalc()
 			const float dx = m_epos.x - m_spos.x;
 			const float dz = m_epos.z - m_spos.z;
 			float dist = glm::sqrt(dx*dx + dz*dz);
-#ifdef DUMP_REQS
-			printf("fpc  %f %f %f  %f  0x%x 0x%x\n",
-				m_spos[0], m_spos[1], m_spos[2], dist,
-				m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
-#endif
 			m_navQuery->findPolysAroundCircle(m_startRef, glm::value_ptr(m_spos), dist, &m_filter,
 				m_polys, m_parent, 0, &m_npolys, MAX_POLYS);
 
@@ -950,14 +920,6 @@ void NavMeshTesterTool::recalc()
 			m_queryPoly[3].y = m_epos.y + agentHeight / 2;
 			m_queryPoly[3].z = m_epos.z + nz;
 
-#ifdef DUMP_REQS
-			printf("fpp  %f %f %f  %f %f %f  %f %f %f  %f %f %f  0x%x 0x%x\n",
-				m_queryPoly[0].x, m_queryPoly[0].y, m_queryPoly[0].z,
-				m_queryPoly[1].x, m_queryPoly[1].y, m_queryPoly[1].z,
-				m_queryPoly[2].x, m_queryPoly[2].y, m_queryPoly[2].z,
-				m_queryPoly[3].x, m_queryPoly[3].y, m_queryPoly[3].z,
-				m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
-#endif
 			m_navQuery->findPolysAroundShape(m_startRef, glm::value_ptr(m_queryPoly[0]), 4, &m_filter,
 				m_polys, m_parent, 0, &m_npolys, MAX_POLYS);
 		}
@@ -966,11 +928,6 @@ void NavMeshTesterTool::recalc()
 	{
 		if (m_sposSet && m_startRef)
 		{
-#ifdef DUMP_REQS
-			printf("fln  %f %f %f  %f  0x%x 0x%x\n",
-				m_spos[0], m_spos[1], m_spos[2], m_neighbourhoodRadius,
-				m_filter.getIncludeFlags(), m_filter.getExcludeFlags());
-#endif
 			m_navQuery->findLocalNeighbourhood(m_startRef, glm::value_ptr(m_spos),
 				m_neighbourhoodRadius, &m_filter, m_polys, m_parent, &m_npolys, MAX_POLYS);
 		}

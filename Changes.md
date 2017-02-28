@@ -8,10 +8,15 @@ MQ2Nav Changelog
 **Bug Fixes**
 * Zones.ini: fix shortname for Chelsith Reborn.
 
-**Improvements**
+**Improvements - MQ2Nav**
 * New feature: active navigation path will now be displayed on the map if MQ2Map is loaded.
   * Color, layer and toggle added to MQ2Nav settings.
 * Waypoints now use FloorHeight when calculating player position (if enabled in settings).
+
+**Improvements - MeshGenerator**
+* New feature: Maximum Zone Extents
+  * Some zones have geometry that exists far outside the normal zone area, leading to issues generating the mesh for that zone. Added a new feature that will filter out geometry that exists outside these maximum boundaries on certain zones. See NavMeshData for the list of existing zones that support this feature. 
+  * This feature has a checkbox to disable it in settings if you want to be a rebel and see the filtered out geometry.
 
 1.1.1
 -----

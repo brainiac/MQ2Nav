@@ -101,6 +101,7 @@ public:
 	void handleDebug();
 	void handleTools();
 	void handleRender();
+	void handleUpdate(float dt);
 	void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 	void handleGeometryChanged(InputGeom* geom);
 
@@ -156,8 +157,6 @@ private:
 
 	void handleToggle();
 	void handleStep();
-
-	void handleUpdate(float dt);
 
 	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize) const;
 
