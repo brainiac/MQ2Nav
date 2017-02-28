@@ -99,6 +99,8 @@ public:
 	dtNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
 
+	Signal<> PathUpdated;
+
 private:
 	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
 		bool updatePath = true);
@@ -207,4 +209,6 @@ private:
 	};
 
 	std::vector<RenderStyle> m_renderPasses;
+
+	Signal<>::ScopedConnection m_pathUpdated;
 };

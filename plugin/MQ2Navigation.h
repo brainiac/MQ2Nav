@@ -5,6 +5,7 @@
 #pragma once
 
 #include "MQ2Plugin.h"
+#include "MapAPI.h"
 
 #include "common/Context.h"
 #include "common/NavModule.h"
@@ -34,6 +35,7 @@ class dtNavMesh;
 class MQ2NavigationPlugin;
 class MQ2NavigationType;
 class NavigationPath;
+class NavigationMapLine;
 class ModelLoader;
 class RenderHandler;
 class NavMeshLoader;
@@ -174,6 +176,9 @@ public:
 	// Get the currently active path
 	std::shared_ptr<NavigationPath> GetCurrentPath();
 
+	// Get the map line object
+	std::shared_ptr<NavigationMapLine> GetMapLine() const { return m_mapLine; }
+
 private:
 	void InitializeRenderer();
 	void ShutdownRenderer();
@@ -201,6 +206,10 @@ private:
 	std::unique_ptr<PluginContext> m_context;
 
 	std::shared_ptr<NavigationPath> m_activePath;
+
+	// todo: factor out the navpath rendering and map line into
+	//       modules based on active path.
+	std::shared_ptr<NavigationMapLine> m_mapLine;
 
 	Signal<>::ScopedConnection m_uiConn;
 
@@ -237,10 +246,30 @@ private:
 	std::unordered_map<size_t, std::unique_ptr<NavModule>> m_modules;
 };
 
-
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
 
 extern std::unique_ptr<RenderHandler> g_renderHandler;
 extern std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
+
+//----------------------------------------------------------------------------
+
+class NavigationMapLine : public nav::MapLine
+{
+public:
+	NavigationMapLine();
+
+	bool GetEnabled() const { return m_enabled; };
+	void SetEnabled(bool enabled);
+
+	void SetNavigationPath(NavigationPath* path);
+
+private:
+	void RebuildLine();
+
+private:
+	NavigationPath* m_path = nullptr;
+	bool m_enabled = true;
+	Signal<>::ScopedConnection m_updateConn;
+};
 
 //============================================================================

@@ -63,8 +63,11 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 	}
 	else
 	{
-		g_renderHandler->RemoveRenderable(m_debugDrawGrp.get());
-		g_renderHandler->RemoveRenderable(m_line.get());
+		if (m_debugDrawGrp)
+			g_renderHandler->RemoveRenderable(m_debugDrawGrp.get());
+
+		if (m_line)
+			g_renderHandler->RemoveRenderable(m_line.get());
 
 		m_line.reset();
 		m_debugDrawGrp.reset();
@@ -238,10 +241,7 @@ void NavigationPath::UpdatePath(bool force)
 		}
 	}
 
-	if (m_line && settings.show_nav_path)
-	{
-		m_line->Update();
-	}
+	PathUpdated();
 }
 
 float NavigationPath::GetPathTraversalDistance() const
@@ -299,6 +299,9 @@ NavigationLine::NavigationLine(NavigationPath* path)
 	m_renderPasses.push_back(RenderStyle{ ImColor(0, 0, 0, 200), 0.9f });
 	m_renderPasses.push_back(RenderStyle{ ImColor(52, 152, 219, 200), 0.5f });
 	m_renderPasses.push_back(RenderStyle{ ImColor(241, 196, 15, 200), 0.5f });
+
+	m_pathUpdated = path->PathUpdated.Connect(
+		[this]() { if (mq2nav::GetSettings().show_nav_path) Update(); });
 }
 
 NavigationLine::~NavigationLine()

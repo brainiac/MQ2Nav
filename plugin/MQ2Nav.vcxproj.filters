@@ -71,6 +71,9 @@
     <ClCompile Include="RenderList.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MapAPI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="KeybindHandler.h">
@@ -125,6 +128,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RenderHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MapAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -146,6 +146,7 @@ void MQ2NavigationPlugin::Plugin_OnBeginZone()
 	m_isActive = false;
 	m_isPaused = false;
 	m_activePath.reset();
+	m_mapLine->SetNavigationPath(m_activePath.get());
 
 	for (const auto& m : m_modules)
 	{
@@ -252,6 +253,8 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 
 	auto ui = Get<UiController>();
 	m_updateTabConn = ui->OnTabUpdate.Connect([=](TabPage page) { OnUpdateTab(page); });
+
+	m_mapLine = std::make_shared<NavigationMapLine>();
 }
 
 void MQ2NavigationPlugin::Plugin_Shutdown()
@@ -476,6 +479,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	m_pEndingDoor = nullptr;
 	m_pEndingItem = nullptr;
 	m_activePath.reset();
+	m_mapLine->SetNavigationPath(m_activePath.get());
 
 	if (!destInfo->valid)
 		return;
@@ -498,6 +502,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 		m_activePath->SetShowNavigationPaths(true);
 		m_isActive = m_activePath->GetPathSize() > 0;
 	}
+	m_mapLine->SetNavigationPath(m_activePath.get());
 
 	if (m_isActive)
 	{
@@ -1067,6 +1072,7 @@ void MQ2NavigationPlugin::Stop()
 	}
 
 	m_activePath.reset();
+	m_mapLine->SetNavigationPath(m_activePath.get());
 	m_isActive = false;
 	m_isPaused = false;
 
@@ -1160,6 +1166,65 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 		navmeshRenderer->OnUpdateUI();
 
 		if (m_activePath) m_activePath->RenderUI();
+	}
+}
+
+//----------------------------------------------------------------------------
+
+NavigationMapLine::NavigationMapLine()
+{
+	m_enabled = mq2nav::GetSettings().map_line_enabled;
+	SetColor(mq2nav::GetSettings().map_line_color);
+	SetLayer(mq2nav::GetSettings().map_line_layer);
+}
+
+void NavigationMapLine::SetEnabled(bool enabled)
+{
+	if (m_enabled == enabled)
+		return;
+
+	m_enabled = enabled;
+
+	if (m_enabled)
+	{
+		RebuildLine();
+	}
+	else
+	{
+		Clear();
+	}
+}
+
+void NavigationMapLine::SetNavigationPath(NavigationPath* path)
+{
+	if (m_path == path)
+		return;
+
+	m_path = path;
+	m_updateConn.Disconnect();
+	
+	if (m_path)
+	{
+		m_updateConn = m_path->PathUpdated.Connect([this]() { RebuildLine(); });
+		RebuildLine();
+	}
+	else
+	{
+		Clear();
+	}
+}
+
+void NavigationMapLine::RebuildLine()
+{
+	if (!m_enabled || !m_path)
+		return;
+
+	Clear();
+
+	int length = m_path->GetPathSize();
+	for (int i = 0; i < m_path->GetPathSize(); ++i)
+	{
+		AddPoint(m_path->GetPosition(i));
 	}
 }
 
