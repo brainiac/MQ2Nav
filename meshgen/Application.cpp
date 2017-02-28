@@ -159,6 +159,8 @@ int Application::RunMainLoop()
 	m_time = 0.0f;
 	m_lastTime = SDL_GetTicks();
 
+	float timeAcc = 0.0f;
+
 	while (!m_done)
 	{
 		// fractional time since last update
@@ -166,6 +168,17 @@ int Application::RunMainLoop()
 		m_timeDelta = (time - m_lastTime) / 1000.0f;
 		m_lastTime = time;
 		m_time += m_timeDelta;
+
+		const float SIM_RATE = 20;
+		const float DELTA_TIME = 1.0f / SIM_RATE;
+		timeAcc = rcClamp(timeAcc + m_timeDelta, -1.0f, 1.0f);
+		int simIter = 0;
+		while (timeAcc > DELTA_TIME) {
+			timeAcc -= DELTA_TIME;
+			if (simIter < 5 && m_meshTool)
+				m_meshTool->handleUpdate(DELTA_TIME);
+			simIter++;
+		}
 
 		glViewport(0, 0, m_width, m_height);
 		glClearColor(0.3f, 0.3f, 0.32f, 1.0f);
