@@ -5,6 +5,9 @@ MQ2Nav Changelog
 1.1.2
 -----
 
+**Bug Fixes**
+* Zones.ini: fix shortname for Chelsith Reborn
+
 **Improvements**
 * New feature: active navigation path will now be displayed on the map if MQ2Map is loaded.
   * Color, layer and toggle added to MQ2Nav settings
