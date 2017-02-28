@@ -381,7 +381,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 
 		if (PSPAWNINFO pChar = (GetCharInfo() ? GetCharInfo()->pSpawn : NULL))
 		{
-			glm::vec3 loc = { pChar->X, pChar->Y, pChar->Z };
+			glm::vec3 loc = GetSpawnPosition(pChar);
 
 			mq2nav::AddWaypoint(mq2nav::Waypoint{ waypointName, loc, desc });
 			WriteChatf(PLUGIN_MSG "Recorded waypoint: %s at %.2f %.2f %.2f", waypointName.c_str(), loc.y, loc.x, loc.z);
@@ -410,7 +410,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		WriteChatf(PLUGIN_MSG "Usage:");
 		WriteChatf(PLUGIN_MSG "\ag/nav [save | load]\ax - save/load settings");
 		WriteChatf(PLUGIN_MSG "\ag/nav reload\ax - reload navmesh");
-		WriteChatf(PLUGIN_MSG "\ag/nav recordwaypoint <waypoint name> <waypoint tag>\ax - create a waypoint");
+		WriteChatf(PLUGIN_MSG "\ag/nav recordwaypoint|rwp \"<waypoint name>\" [\"<waypoint description>\"]\ax - create a waypoint at current location");
 
 		WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
 		WriteChatf(PLUGIN_MSG "\ag/nav target\ax - navigate to target");

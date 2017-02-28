@@ -322,7 +322,7 @@ void RenderWaypointsUI()
 
 		ImGui::SameLine(ImGui::GetWindowWidth() - 41);
 		if (ImGui::Button("/loc", ImVec2(40, 0))) {
-			editWaypoint.location = { pCharacterSpawn->X, pCharacterSpawn->Y, pCharacterSpawn->Z };
+			editWaypoint.location = GetSpawnPosition(pCharacterSpawn);
 		}
 
 		ImGui::Text("Description");
