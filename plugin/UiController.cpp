@@ -156,11 +156,41 @@ void UiController::PerformUpdateTab(TabPage page)
 				changed = true;
 			if (ImGui::IsItemHovered())
 			{
-				ImGui::SetTooltip("When finding a location on the navmesh, the search distance along\neach access to find a polygon ([X, Y, Z] - 3d coordinates. Y is up/down)");
+				ImGui::SetTooltip("When finding a location on the navmesh, the search distance along\neach axis to find a polygon ([X, Y, Z] - 3d coordinates. Y is up/down)");
 			}
 		}
 
+		// map line
+		//
+		if (ImGui::Checkbox("Enable navigation path map line", &settings.map_line_enabled))
+		{
+			g_mq2Nav->GetMapLine()->SetEnabled(settings.map_line_enabled);
+			changed = true;
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("When a navigation path is active, highlight the path on the map. Requires MQ2Map to be loaded.");
 
+		ARGBCOLOR mapLineColor;
+		mapLineColor.ARGB = g_mq2Nav->GetMapLine()->GetColor();
+		float mapLineRGB[3] = { mapLineColor.R / 255.f, mapLineColor.G / 255.f, mapLineColor.B / 255.f };
+		if (ImGuiEx::ColorEdit3("Map line color", mapLineRGB, ImGuiColorEditFlags_RGB))
+		{
+			mapLineColor.R = mapLineRGB[0] * 255;
+			mapLineColor.G = mapLineRGB[1] * 255;
+			mapLineColor.B = mapLineRGB[2] * 255;
+			g_mq2Nav->GetMapLine()->SetColor(mapLineColor.ARGB);
+			settings.map_line_color = mapLineColor.ARGB;
+			changed = true;
+		}
+
+		if (ImGui::SliderInt("Map line layer", &settings.map_line_layer, 0, 3))
+		{
+			g_mq2Nav->GetMapLine()->SetLayer(settings.map_line_layer);
+			changed = true;
+		}
+
+		// save the settings
+		//
 		if (changed)
 			mq2nav::SaveSettings();
 	}

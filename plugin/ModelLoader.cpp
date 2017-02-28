@@ -623,6 +623,15 @@ if (!m_showDoorsUI)
 		if (ImGui::Button("Click"))
 			ClickDoor(door);
 
+		ImGui::SameLine();
+		if (ImGui::Button("Nav"))
+		{
+			std::string command = "door id " + std::to_string(door->ID) + " click";
+
+			auto info = ParseDestination(command.c_str(), NotifyType::None);
+			g_mq2Nav->BeginNavigation(info);
+		}
+
 		if (targetted)
 		{
 			ImGui::SameLine();

@@ -224,6 +224,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 
 				if (boost::ifind_first(shortName, text) || boost::ifind_first(longName, text))
 				{
+					ImGui::PushID(shortName.c_str());
+
 					std::string displayName = longName + " (" + shortName + ")";
 					lastZone = shortName;
 					bool selected = false;
@@ -233,6 +235,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 					ImGui::SetColumnOffset(-1, 300);
 					ImGui::Text(shortName.c_str());
 					ImGui::NextColumn();
+
+					ImGui::PopID();
 					if (selected) {
 						*selected_zone = shortName;
 						result = true;

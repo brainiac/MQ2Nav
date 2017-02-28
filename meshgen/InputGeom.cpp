@@ -62,13 +62,13 @@ InputGeom::~InputGeom()
 {
 }
 
-bool InputGeom::loadGeometry(rcContext* ctx)
+bool InputGeom::loadGeometry(std::unique_ptr<MapGeometryLoader> loader, rcContext* ctx)
 {
 	m_chunkyMesh.reset();
 	m_offMeshConCount = 0;
 	m_volumes.clear();
 
-	m_loader.reset(new MapGeometryLoader(m_zoneShortName, m_eqPath, m_meshPath));
+	m_loader = std::move(loader);
 	if (!m_loader->load())
 	{
 		ctx->log(RC_LOG_ERROR, "buildTiledNavigation: Could not load '%s'",

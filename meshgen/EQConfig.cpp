@@ -162,6 +162,11 @@ void EQConfig::LoadConfigFromIni()
 	{
 		m_outputPath = outPath;
 	}
+
+	char szTemp[10] = { 0 };
+	GetPrivateProfileString("General", "ZoneMaxExtents", m_useMaxExtents ? "true" : "false",
+		szTemp, 10, fullPath);
+	m_useMaxExtents = !_stricmp(szTemp, "true");
 }
 
 void EQConfig::SaveConfigToIni()
@@ -174,6 +179,7 @@ void EQConfig::SaveConfigToIni()
 
 	WritePrivateProfileString("General", "EverQuest Path", m_everquestPath.c_str(), fullPath);
 	WritePrivateProfileString("General", "Output Path", m_outputPath.c_str(), fullPath);
+	WritePrivateProfileString("General", "ZoneMaxExtents", m_useMaxExtents ? "true" : "false", fullPath);
 }
 
 void EQConfig::LoadZones()

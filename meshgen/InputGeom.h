@@ -17,7 +17,7 @@ public:
 	InputGeom(const std::string& zoneShortName, const std::string& eqPath, const std::string& meshPath);
 	~InputGeom();
 
-	bool loadGeometry(class rcContext* ctx);
+	bool loadGeometry(std::unique_ptr<MapGeometryLoader> loader, class rcContext* ctx);
 
 	// Method to return static mesh data.
 	inline const glm::vec3& getMeshBoundsMin() const { return m_meshBMin; }

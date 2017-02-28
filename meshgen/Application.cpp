@@ -8,6 +8,7 @@
 
 #include "ImGuiSDL.h"
 #include "InputGeom.h"
+#include "MapGeometryLoader.h"
 #include "NavMeshTool.h"
 #include "ZonePicker.h"
 #include "common/Utilities.h"
@@ -159,6 +160,8 @@ int Application::RunMainLoop()
 	m_time = 0.0f;
 	m_lastTime = SDL_GetTicks();
 
+	float timeAcc = 0.0f;
+
 	while (!m_done)
 	{
 		// fractional time since last update
@@ -166,6 +169,17 @@ int Application::RunMainLoop()
 		m_timeDelta = (time - m_lastTime) / 1000.0f;
 		m_lastTime = time;
 		m_time += m_timeDelta;
+
+		const float SIM_RATE = 20;
+		const float DELTA_TIME = 1.0f / SIM_RATE;
+		timeAcc = rcClamp(timeAcc + m_timeDelta, -1.0f, 1.0f);
+		int simIter = 0;
+		while (timeAcc > DELTA_TIME) {
+			timeAcc -= DELTA_TIME;
+			if (simIter < 5 && m_meshTool)
+				m_meshTool->handleUpdate(DELTA_TIME);
+			simIter++;
+		}
 
 		glViewport(0, 0, m_width, m_height);
 		glClearColor(0.3f, 0.3f, 0.32f, 1.0f);
@@ -811,16 +825,45 @@ void Application::ShowSettingsDialog()
 
 	if (ImGui::BeginPopupModal("Settings", NULL, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		ImGui::Text("EQ Path:"); ImGui::SameLine();
-		ImGui::TextColored(ImColor(244, 250, 125), "%s", m_eqConfig.GetEverquestPath().c_str());
+		ImGui::Text("EQ Path");
+		ImGui::PushItemWidth(400);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImColor(244, 250, 125));
+		ImGui::InputText("##EQPath", (char*)m_eqConfig.GetEverquestPath().c_str(),
+			m_eqConfig.GetEverquestPath().length(), ImGuiInputTextFlags_ReadOnly);
+		ImGui::PopStyleColor(1);
+		ImGui::PopItemWidth();
+		ImGui::SameLine();
+		ImGui::PushItemWidth(125);
 		if (ImGui::Button("Change##EverquestPath", ImVec2(120, 0)))
 			m_eqConfig.SelectEverquestPath();
+		ImGui::PopItemWidth();
 
-		ImGui::Text("Navmesh Path:"); ImGui::SameLine();
-		ImGui::TextColored(ImColor(244, 250, 125), "%s", m_eqConfig.GetOutputPath().c_str());
+		ImGui::Text("Navmesh Path");
+		ImGui::PushItemWidth(400);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImColor(244, 250, 125));
+		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetOutputPath().c_str(),
+			m_eqConfig.GetOutputPath().length(), ImGuiInputTextFlags_ReadOnly);
+		ImGui::PopStyleColor(1);
+		ImGui::PopItemWidth();
+		ImGui::SameLine();
+		ImGui::PushItemWidth(125);
 		if (ImGui::Button("Change##OutputPath", ImVec2(120, 0)))
 			m_eqConfig.SelectOutputPath();
+		ImGui::PopItemWidth();
 
+		bool useExtents = m_eqConfig.GetUseMaxExtents();
+		if (ImGui::Checkbox("Apply max extents to zones with far away geometry", &useExtents))
+			m_eqConfig.SetUseMaxExtents(useExtents);
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::Text("Some zones have geometry that is really far away, either\n"
+				"horizontally or vertically. Some zones can be configured to strip\n"
+				"out this far away geometry in code. See NavMeshData.cpp to add your\n"
+				"own. Disable this feature if it is causing issues with mesh generation.\n\n"
+				"The zone will need to be reloaded to apply this change");
+			ImGui::EndTooltip();
+		}
 		ImGui::Separator();
 
 		if (ImGui::Button("Close", ImVec2(120, 0)))
@@ -1066,8 +1109,25 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 
 	Halt();
 
-	auto ptr = std::make_unique<InputGeom>(zoneShortName, m_eqConfig.GetEverquestPath(), m_eqConfig.GetOutputPath());
-	if (!ptr->loadGeometry(m_rcContext.get()))
+	std::string eqPath = m_eqConfig.GetEverquestPath();
+	std::string outputPath = m_eqConfig.GetOutputPath();
+
+	auto ptr = std::make_unique<InputGeom>(
+		zoneShortName, eqPath, outputPath);
+
+	auto geomLoader = std::make_unique<MapGeometryLoader>(
+		zoneShortName, eqPath, outputPath);
+
+	if (m_eqConfig.GetUseMaxExtents())
+	{
+		auto iter = MaxZoneExtents.find(zoneShortName);
+		if (iter != MaxZoneExtents.end())
+		{
+			geomLoader->SetMaxExtents(iter->second);
+		}
+	}
+
+	if (!ptr->loadGeometry(std::move(geomLoader), m_rcContext.get()))
 	{
 		m_showFailedToLoadZone = true;
 

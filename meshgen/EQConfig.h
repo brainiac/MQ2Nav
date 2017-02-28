@@ -25,6 +25,9 @@ public:
 	void SelectEverquestPath();
 	void SelectOutputPath();
 
+	bool GetUseMaxExtents() const { return m_useMaxExtents; }
+	void SetUseMaxExtents(bool use) { m_useMaxExtents = use; SaveConfigToIni(); }
+
 	// loaded maps, keyed by their expansion group. Data is loaded from Zones.ini
 	typedef std::pair<std::string /*shortName*/, std::string /*longName*/> ZoneNamePair;
 
@@ -49,6 +52,7 @@ private:
 
 	std::string m_everquestPath;
 	std::string m_outputPath;
+	bool m_useMaxExtents = true;
 
 	MapList m_loadedMaps;
 

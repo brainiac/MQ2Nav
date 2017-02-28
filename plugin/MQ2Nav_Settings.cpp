@@ -30,19 +30,19 @@ static inline glm::vec3 LoadVec3Setting(const std::string& name, const glm::vec3
 {
 	try
 	{
-		char szTemp[MAX_STRING] = { 0 };
+		char szTemp[40] = { 0 };
 		glm::vec3 value;
 
 		GetPrivateProfileString("Settings", (name + "X").c_str(),
-			boost::lexical_cast<std::string>(defaultValue.x).c_str(), szTemp, MAX_STRING, INIFileName);
+			boost::lexical_cast<std::string>(defaultValue.x).c_str(), szTemp, 40, INIFileName);
 		value.x = boost::lexical_cast<float>(szTemp);
 
 		GetPrivateProfileString("Settings", (name + "Y").c_str(),
-			boost::lexical_cast<std::string>(defaultValue.y).c_str(), szTemp, MAX_STRING, INIFileName);
+			boost::lexical_cast<std::string>(defaultValue.y).c_str(), szTemp, 40, INIFileName);
 		value.y = boost::lexical_cast<float>(szTemp);
 
 		GetPrivateProfileString("Settings", (name + "Z").c_str(),
-			boost::lexical_cast<std::string>(defaultValue.z).c_str(), szTemp, MAX_STRING, INIFileName);
+			boost::lexical_cast<std::string>(defaultValue.z).c_str(), szTemp, 40, INIFileName);
 		value.z = boost::lexical_cast<float>(szTemp);
 
 		return value;
@@ -53,9 +53,34 @@ static inline glm::vec3 LoadVec3Setting(const std::string& name, const glm::vec3
 	}
 }
 
+template <typename T>
+static inline T LoadNumberSetting(const std::string& name, T defaultValue)
+{
+	T value = T{};
+
+	try
+	{
+		char szTemp[40] = { 0 };
+
+		GetPrivateProfileString("Settings", name.c_str(),
+			boost::lexical_cast<std::string>(defaultValue).c_str(), szTemp, 40, INIFileName);
+
+		value = boost::lexical_cast<T>(szTemp);
+	}
+	catch (const boost::bad_lexical_cast&) {}
+
+	return value;
+}
+
 static inline void SaveBoolSetting(const std::string& name, bool value)
 {
 	WritePrivateProfileString("Settings", name.c_str(), value ? "on" : "off", INIFileName);
+}
+
+template <typename T>
+static inline void SaveNumberSetting(const std::string& name, T value)
+{
+	WritePrivateProfileString("Settings", name.c_str(), std::to_string(value).c_str(), INIFileName);
 }
 
 static inline void SaveVec3Setting(const std::string& name, const glm::vec3& value)
@@ -89,6 +114,10 @@ void LoadSettings(bool showMessage/* = true*/)
 	settings.use_find_polygon_extents = LoadBoolSetting("UseFindPolygonExtents", defaults.use_find_polygon_extents);
 	settings.find_polygon_extents = LoadVec3Setting("FindPolygonExtents", defaults.find_polygon_extents);
 
+	settings.map_line_enabled = LoadBoolSetting("MapLineEnabled", defaults.map_line_enabled);
+	settings.map_line_color = LoadNumberSetting("MapLineColor", defaults.map_line_color);
+	settings.map_line_layer = LoadNumberSetting("MapLineLayer", defaults.map_line_layer);
+
 	// debug settings
 	settings.debug_render_pathing = LoadBoolSetting("DebugRenderPathing", defaults.debug_render_pathing);
 }
@@ -111,6 +140,10 @@ void SaveSettings(bool showMessage/* = true*/)
 
 	SaveBoolSetting("UseFindPolygonExtents", g_settings.use_find_polygon_extents);
 	SaveVec3Setting("FindPolygonExtents", g_settings.find_polygon_extents);
+
+	SaveBoolSetting("MapLineEnabled", g_settings.map_line_enabled);
+	SaveNumberSetting("MapLineColor", g_settings.map_line_color);
+	SaveNumberSetting("MapLineLayer", g_settings.map_line_layer);
 
 	// debug settings
 	SaveBoolSetting("DebugRenderPathing", g_settings.debug_render_pathing);
