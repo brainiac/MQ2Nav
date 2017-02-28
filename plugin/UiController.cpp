@@ -179,6 +179,7 @@ void UiController::PerformUpdateTab(TabPage page)
 			mapLineColor.G = mapLineRGB[1] * 255;
 			mapLineColor.B = mapLineRGB[2] * 255;
 			g_mq2Nav->GetMapLine()->SetColor(mapLineColor.ARGB);
+			settings.map_line_color = mapLineColor.ARGB;
 			changed = true;
 		}
 
