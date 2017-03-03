@@ -809,24 +809,47 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
 
 	ImGui::Separator();
 
-	ImGui::Text("ID: %d Type: %d State: %d", door->ID, door->Type, door->State);
+	ImGui::Text("ID: %d Type: %d", door->ID, door->Type);
+	ImGui::LabelText("Name", "%s", door->Name);
 	if (door->SpellID != -1)
 	{
 		const char* zone = GetTeleportName(door->SpellID);
 		ImGui::TextColored(ImColor(255, 255, 0), "Zone Point: %s (%d)", zone, door->SpellID);
 	}
 
-	ImGui::DragFloat3("Position", &door->Y);
-	ImGui::DragFloat("Heading", &door->Heading);
-	ImGui::DragFloat("Angle", &door->DoorAngle);
-	ImGui::LabelText("Scale", "%.2f", GetDoorScale(door));
-	
-	ImGui::DragFloat2("Top Speed 1", &door->TopSpeed1);
+	ImGui::LabelText("State", "%d", door->State);
+	ImGui::LabelText("Default State", "%d", door->DefaultState);
 
 	ImGui::DragFloat3("Default Position", &door->DefaultY);
+	ImGui::DragFloat3("Position", &door->Y);
 	ImGui::DragFloat("Default Heading", &door->DefaultHeading);
+	ImGui::DragFloat("Heading", &door->Heading);
 	ImGui::DragFloat("Default Angle", &door->DefaultDoorAngle);
+	ImGui::DragFloat("Angle", &door->DoorAngle);
 
+	ImGui::LabelText("Scale", "%.2f", GetDoorScale(door));
+	ImGui::DragFloat2("Top Speed", &door->TopSpeed1);
+
+	ImGui::LabelText("Self Activated", "%d", door->SelfActivated);
+	ImGui::LabelText("Dependent", "%d", door->Dependent);
+	ImGui::LabelText("bTemplate", "%d", door->bTemplate);
+	ImGui::LabelText("Difficulty", "%d", door->Difficulty);
+	ImGui::LabelText("Key", "%d", door->Key);
+	ImGui::LabelText("SpellID", "%d", door->SpellID);
+	ImGui::LabelText("TargetID", "%hhX%hhX%hhX%hhX%hhX", door->TargetID[0], door->TargetID[1], door->TargetID[2], door->TargetID[3], door->TargetID[4]);
+	ImGui::LabelText("Script", "%s", door->Script);
+	ImGui::LabelText("TimeStamp", "%d", door->TimeStamp);
+	ImGui::LabelText("AlwaysActive", "%d", door->AlwaysActive);
+	ImGui::DragFloat("Return Pos", &door->ReturnY);
+	ImGui::LabelText("DynDoorID", "%d", door->DynDoorID);
+	ImGui::LabelText("bHasScript", "%d", door->bHasScript);
+	ImGui::LabelText("SomeID", "%d", door->SomeID);
+	ImGui::LabelText("bUsable", "%d", door->bUsable);
+	ImGui::LabelText("bRemainOpen", "%d", door->bRemainOpen);
+	ImGui::LabelText("bVisible", "%d", door->bVisible);
+	ImGui::LabelText("bHeadingChanged", "%d", door->bHeadingChanged);
+	ImGui::LabelText("bALlowCorpseDrag", "%d", door->bAllowCorpseDrag);
+	ImGui::LabelText("RealEstateDoorID", "%d", door->RealEstateDoorID);
 
 	if (ImGui::Button("Target"))
 	{

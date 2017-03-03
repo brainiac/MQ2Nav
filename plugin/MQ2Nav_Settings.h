@@ -45,6 +45,9 @@ struct SettingsData
 	bool map_line_enabled = true;
 	uint32_t map_line_color = 0xff00ff00;
 	int map_line_layer = 3;
+
+	// open doors while navigation
+	bool open_doors = true;
 };
 SettingsData& GetSettings();
 

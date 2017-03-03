@@ -118,6 +118,8 @@ void LoadSettings(bool showMessage/* = true*/)
 	settings.map_line_color = LoadNumberSetting("MapLineColor", defaults.map_line_color);
 	settings.map_line_layer = LoadNumberSetting("MapLineLayer", defaults.map_line_layer);
 
+	settings.open_doors = LoadBoolSetting("OpenDoors", defaults.open_doors);
+
 	// debug settings
 	settings.debug_render_pathing = LoadBoolSetting("DebugRenderPathing", defaults.debug_render_pathing);
 }
@@ -140,6 +142,8 @@ void SaveSettings(bool showMessage/* = true*/)
 
 	SaveBoolSetting("UseFindPolygonExtents", g_settings.use_find_polygon_extents);
 	SaveVec3Setting("FindPolygonExtents", g_settings.find_polygon_extents);
+
+	SaveBoolSetting("OpenDoors", g_settings.open_doors);
 
 	SaveBoolSetting("MapLineEnabled", g_settings.map_line_enabled);
 	SaveNumberSetting("MapLineColor", g_settings.map_line_color);
