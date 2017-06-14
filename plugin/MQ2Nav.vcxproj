@@ -60,8 +60,8 @@
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</StringPooling>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</StringPooling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NOMINMAX</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">_DEBUG;NOMINMAX</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NOMINMAX;GLM_SWIZZLE</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">_DEBUG;NOMINMAX;GLM_SWIZZLE</PreprocessorDefinitions>
       <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
       <BufferSecurityCheck Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</BufferSecurityCheck>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>

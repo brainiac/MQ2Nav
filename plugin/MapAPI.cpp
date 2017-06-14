@@ -2,7 +2,6 @@
 // MapAPI.cpp
 //
 
-#define GLM_SWIZZLE
 #include <glm/glm.hpp>
 
 #include "MapAPI.h"

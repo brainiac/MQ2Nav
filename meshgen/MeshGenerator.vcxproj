@@ -177,7 +177,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;GLM_SWIZZLE;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -205,7 +205,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>GLM_SWIZZLE;_WIN64;_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLM_SWIZZLE;_WIN64;_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;GLM_SWIZZLE;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -234,7 +234,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;GLM_SWIZZLE;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
@@ -263,7 +263,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>GLM_SWIZZLE;_WIN64;_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLM_SWIZZLE;_WIN64;_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;GLM_SWIZZLE;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>

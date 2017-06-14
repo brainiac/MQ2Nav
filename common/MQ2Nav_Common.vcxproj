@@ -89,7 +89,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;$(ProjectDir)..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
-      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;_DEBUG;_LIB;NOMINMAX</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;GLM_SWIZZLE;WIN32;_DEBUG;_LIB;NOMINMAX</PreprocessorDefinitions>
       <StringPooling>false</StringPooling>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MinimalRebuild>false</MinimalRebuild>
@@ -103,7 +103,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;$(ProjectDir)..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
-      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;_DEBUG;_LIB;NOMINMAX</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;GLM_SWIZZLE;WIN32;_DEBUG;_LIB;NOMINMAX</PreprocessorDefinitions>
       <StringPooling>false</StringPooling>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MinimalRebuild>false</MinimalRebuild>
@@ -117,7 +117,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;$(ProjectDir)..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;NDEBUG;_LIB;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;GLM_SWIZZLE;WIN32;NDEBUG;_LIB;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <StringPooling>true</StringPooling>
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
@@ -136,7 +136,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\glm;$(ProjectDir)..\dependencies\glm\glm;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\imgui;$(ProjectDir)..\dependencies\sdl\include;$(ProjectDir)..\dependencies\zlib\include;$(ProjectDir)..\dependencies\rapidjson\include;$(ProjectDir)..\dependencies\protobuf\src;$(ProjectDir)..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;WIN32;NDEBUG;_LIB;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;GLM_FORCE_RADIANS;GLM_SWIZZLE;WIN32;NDEBUG;_LIB;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <StringPooling>true</StringPooling>
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
