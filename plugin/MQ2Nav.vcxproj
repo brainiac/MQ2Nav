@@ -40,13 +40,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)..\$(Configuration)\</OutDir>
+    <OutDir>$(ProjectDir)..\..\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
-    <OutDir>$(SolutionDir)..\$(Configuration)\</OutDir>
+    <OutDir>$(ProjectDir)..\..\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -82,7 +82,7 @@
     <PostBuildEvent>
       <Command>MKDIR "$(OutDir)MQ2Nav"
 XCOPY /y "$(ProjectDir)..\resources\VolumeLines.fx" "$(OutDir)MQ2Nav"
-</Command>
+XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
