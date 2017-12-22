@@ -9,7 +9,7 @@
 
 //----------------------------------------------------------------------------
 
-class KeybindHandler : NavModule
+class KeybindHandler : public NavModule
 {
 public:
 	KeybindHandler();
