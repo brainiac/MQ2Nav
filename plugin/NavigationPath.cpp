@@ -163,7 +163,7 @@ void NavigationPath::UpdatePath(bool force)
 
 	if (!startRef)
 	{
-		WriteChatf(PLUGIN_MSG "Could not locate starting point on navmesh: %.2f %.2f %.2f)",
+		WriteChatf(PLUGIN_MSG "Could not locate starting point on navmesh: %.2f %.2f %.2f",
 			startOffset[2], startOffset[0], startOffset[1]);
 		return;
 	}
