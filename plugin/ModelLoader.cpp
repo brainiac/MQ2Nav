@@ -34,12 +34,7 @@ float GetDoorScale(PDOOR door)
 }
 
 #if defined(Teleport_Table_x) && defined(Teleport_Table_Size_x)
-
-#define INITIALIZE_EQGAME_OFFSET(var) DWORD var = (((DWORD)var##_x - 0x400000) + baseAddress)
-INITIALIZE_EQGAME_OFFSET(Teleport_Table_Size);
-INITIALIZE_EQGAME_OFFSET(Teleport_Table);
 #define USE_TP_COORDS
-
 #endif
 
 
