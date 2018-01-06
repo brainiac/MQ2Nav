@@ -17,7 +17,7 @@
 #include <iterator>
 #include <filesystem>
 
-using namespace std::tr2;
+namespace fs = std::experimental::filesystem::v1;
 
 typedef std::shared_ptr<EQEmu::EQG::Geometry> ModelPtr;
 typedef std::shared_ptr<EQEmu::S3D::Geometry> OldModelPtr;
@@ -48,7 +48,7 @@ public:
 
 	static bool IsValid(ZoneData* zd)
 	{
-		return sys::exists(GetZoneFile(zd), std::error_code());
+		return fs::exists(GetZoneFile(zd), std::error_code());
 	}
 
 	virtual bool Load() override
@@ -62,7 +62,7 @@ public:
 		// next we need to try to read an _assets file and load more eqg based data.
 		std::string assets_file = base_filename + "_assets.txt";
 		std::error_code ec;
-		if (sys::exists(assets_file, ec))
+		if (fs::exists(assets_file, ec))
 		{
 			std::vector<std::string> filenames;
 			std::ifstream assets(assets_file.c_str());
@@ -179,7 +179,7 @@ public:
 			% zd->GetEQPath()
 			% zd->GetZoneName()).str();
 
-		return sys::exists(filename, std::error_code());
+		return fs::exists(filename, std::error_code());
 	}
 
 	virtual bool Load() override
@@ -230,7 +230,7 @@ public:
 		// next we need to try to read an _assets file and load more eqg based data.
 		std::string assets_file = base_filename + "_assets.txt";
 		std::error_code ec;
-		if (sys::exists(assets_file, ec))
+		if (fs::exists(assets_file, ec))
 		{
 			std::vector<std::string> filenames;
 			std::ifstream assets(assets_file.c_str());

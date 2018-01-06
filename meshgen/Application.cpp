@@ -30,13 +30,14 @@
 #include <gl/GLU.h>
 
 #include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
+
+#include <filesystem>
 #include <sstream>
 
 #pragma warning(push)
 #pragma warning(disable: 4244)
 
-namespace fs = boost::filesystem;
+namespace fs = std::experimental::filesystem::v1;
 
 //============================================================================
 
@@ -1443,7 +1444,7 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 
 			if (m_import && (m_firstShow || changed))
 			{
-				boost::system::error_code ec;
+				std::error_code ec;
 				fs::path p(m_defaultFilename.get());
 				m_fileMissing = !fs::is_regular_file(p, ec);
 			}
