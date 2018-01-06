@@ -583,7 +583,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	if (file_proto.zone_short_name() != m_zoneName)
 	{
 		m_ctx->Log(LogLevel::ERROR, "loadMesh: zone name mismatch! mesh is for '%s'",
-			file_proto.zone_short_name());
+			file_proto.zone_short_name().c_str());
 		return LoadResult::ZoneMismatch;
 	}
 
