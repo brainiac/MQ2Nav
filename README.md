@@ -1,6 +1,8 @@
 MQ2Nav
 ======
 
+[![Build Status](https://jenkins.mmobugs.com/buildStatus/icon?job=MQ2Nav-Release)](https://github.com/brainiac/MQ2Nav)
+
 NavMesh based navigation and pathfinding plugin for [MacroQuest2](http://www.macroquest2.com). Navigation is based on the RecastNavigation library. The plugin also includes an ingame overlay to display navigation meshes as well as a debugging UI provided by [imgui](https://github.com/ocornut/imgui/).
 
 This project consists of two parts: The MQ2 Plugin (MQ2Nav.dll), and the Mesh Generator (MeshGenerator.exe)
