@@ -1,8 +1,6 @@
 MQ2Nav
 ======
 
-[![build status](https://ci.appveyor.com/api/projects/status/github/brainiac/MQ2Nav?svg=true)](https://ci.appveyor.com/project/brainiac/mq2nav)
-
 NavMesh based navigation and pathfinding plugin for [MacroQuest2](http://www.macroquest2.com). Navigation is based on the RecastNavigation library. The plugin also includes an ingame overlay to display navigation meshes as well as a debugging UI provided by [imgui](https://github.com/ocornut/imgui/).
 
 This project consists of two parts: The MQ2 Plugin (MQ2Nav.dll), and the Mesh Generator (MeshGenerator.exe)
