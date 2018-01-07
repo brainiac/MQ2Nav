@@ -1,6 +1,18 @@
 MQ2Nav Changelog
 ================
 
+1.2.1
+-----
+
+**Improvements - MQ2Nav**
+* Updated source to latest version of MQ2 core
+* Destination zone name on switches (for example, pok stones) is now available to debug tools and will eventually be introduced into other features
+* D3DX9_43.dll is now included in the build to avoid requiring DX9 runtime installer.
+
+**Bug Fixes**
+* Zones.ini: Add new zones for Ring of Scale expansion
+* Fixed a crash when trying to load a mesh that had been created with an incorrect zone name.
+* Fixed a typo in log message complaining about not finding a starting point.
 
 1.2.0
 -----

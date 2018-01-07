@@ -14,9 +14,10 @@
 #include <zone-utilities/log/log_macros.h>
 #include <zone-utilities/common/compression.h>
 
+#include <filesystem>
 #include <sstream>
-#include <boost/filesystem.hpp>
 
+namespace fs = std::experimental::filesystem::v1;
 
 static inline void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
 {
@@ -464,8 +465,8 @@ void MapGeometryLoader::LoadDoors()
 	//
 	std::string filename = m_meshPath + "\\MQ2Nav\\" + m_zoneName + "_doors.json";
 
-	boost::system::error_code ec;
-	if (!boost::filesystem::is_regular_file(filename, ec))
+	std::error_code ec;
+	if (!fs::is_regular_file(filename, ec))
 		return;
 
 	std::stringstream ss;
