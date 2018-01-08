@@ -6,6 +6,7 @@ MQ2Nav Changelog
 
 **Improvements - MQ2Nav**
 * Updated source to latest version of MQ2 core
+* Now built using the latest Windows SDK and Visual Studio 2017.
 * Destination zone name on switches (for example, pok stones) is now available to debug tools and will eventually be introduced into other features
 * D3DX9_43.dll is now included in the build to avoid requiring DX9 runtime installer.
 
