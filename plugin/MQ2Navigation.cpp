@@ -21,6 +21,8 @@
 
 #include "DetourCommon.h"
 
+#include <glm/gtc/constants.hpp>
+#include <glm/trigonometric.hpp>
 #include <boost/lexical_cast.hpp>
 #include <chrono>
 #include <set>
@@ -638,9 +640,10 @@ void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 
 	PSPAWNINFO pSpawn = GetCharInfo()->pSpawn;
 	
-	gFaceAngle = (atan2(pos.x - pSpawn->X, pos.y - pSpawn->Y)  * 256.0f / PI);
+	gFaceAngle = glm::atan(pos.x - pSpawn->X, pos.y - pSpawn->Y) * 256.0f / glm::pi<float>();
 	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
-	if (gFaceAngle<0.0f) gFaceAngle += 512.0f;
+	if (gFaceAngle < 0.0f) gFaceAngle += 512.0f;
+
 	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)gFaceAngle;
 
 	// This is a sentinel value telling MQ2 to not adjust the face angle
@@ -650,8 +653,10 @@ void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 
 	if (pSpawn->UnderWater == 5 || pSpawn->FeetWet == 5)
 	{
-		FLOAT distance = (FLOAT)GetDistance(pSpawn->X, pSpawn->Y, pos.x, pos.y);
-		pSpawn->CameraAngle = (FLOAT)(atan2(pos.z - pSpawn->FloorHeight, distance) * 256.0f / PI);
+		glm::vec3 spawnPos{ pSpawn->X, pSpawn->Y, pSpawn->Z };
+		float distance = glm::distance(spawnPos, pos);
+
+		pSpawn->CameraAngle = glm::atan(pos.z - pSpawn->Z, distance) * 256.0f / glm::pi<float>();
 	}
 	else if (pSpawn->mPlayerPhysicsClient.Levitate == 2)
 	{
