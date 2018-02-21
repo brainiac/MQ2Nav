@@ -51,32 +51,97 @@ static inline DWORD FixEQGraphicsOffset(DWORD nOffset)
 #define ZoneRender_InjectionOffset_x                        0x10072EB0
 INITIALIZE_EQGRAPHICS_OFFSET(ZoneRender_InjectionOffset);
 
+// you can find this one near one of the D3DPERF_EndEvent Calls:
+//
+// .text:10018E38                 call    sub_10071560 <--
+// .text:10018E3D                 mov     eax, dword_101B1E5C
+// .text:10018E42                 mov     dword ptr [eax+0BCh], 0FFFFFFFFh
+// .text:10018E4C                 mov     ecx, [edi+8]
+// .text:10018E4F                 call    sub_10023A60
+// .text:10018E54                 call    D3DPERF_EndEvent
+
+#if defined(TEST)
+// 0x10071560 - 2018-01-26
+const char* ZoneRender_InjectionMask = "xxxxxxxx????xxxxxxxxxxx????xxxxxx????xxxx????xxxxxxxxxxx????";
+const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x8B\xF1\x8D\x46\x14\x50\xE8\x00\x00\x00\x00\x85\xC0\x78\x38\x8D\x46\x5C\x8B\xCE\x50\xE8\x00\x00\x00\x00\x85\xC0\x78\x29\x8D\x86\x00\x00\x00\x00\x8B\xCE\x50\xE8\x00\x00\x00\x00\x85\xC0\x78\x17\x8D\x46\x38\x8B\xCE\x50\xE8\x00\x00\x00\x00";
+#else
+// 0x10072c30 - 2018-01-28
 const char* ZoneRender_InjectionMask = "xxxxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxx";
 const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x8b\xf1\x57\x8d\x46\x14\x50\x83\xcf\xff\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x4e\x5c\x51\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x96\x80\x00\x00\x00\x52\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x46\x38\x50\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x5f\x33\xc0\x5e\xc3";
-
+#endif
 
 //----------------------------------------------------------------------------
 // eqgame.exe offsets
 
-DWORD __GetMouseDataRel = 0;
-
-const char* GetMouseDataRel_Mask = "xx????x????xxxxxxxxxxxxxxxxxxxxxxxx????xx????xx????xxxxxxxxxxxxx?xxxxxx????x";
-const unsigned char* GetMouseDataRel_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x53\x33\xdb\x53\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\xc7\x44\x24\x10\x80\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x8b\x08\x6a\x14\x50\x8b\x41\x28\xff\xd0\x85\xc0\x79\x00\x8d\x43\x07\x5b\x81\xc4\x00\x00\x00\x00\xc3";
-
 DWORD __ProcessMouseEvent = 0;
 
+// The function that calls __ProcessKeyboardEvent also calls __ProcessMouseEvent right before it
+//
+// .text:00584420 sub_584420      proc near               ; CODE XREF: sub_584490+13↓p
+// .text:00584420                                         ; sub_5844C0+20B↓p ...
+//
+// .text:00584420                 push    ebp
+// .text:00584421                 mov     ebp, esp
+// .text:00584423                 push    ecx
+// .text:00584424                 call    __ProcessMouseEvent <--
+// .text:00584429                 push    0FFFFFFFFh
+// .text:0058442B                 call    sub_640260
+// .text:00584430                 add     esp, 4
+// .text:00584433                 cmp     dword_1733E9C, 0
+// .text:0058443A                 jnz     short loc_584441
+// .text:0058443C                 call    __ProcessKeyboardEvent <--
+
+#if defined(TEST)
+// 0x68a1e0 - 2018-01-26
+const char* ProcessMouseEvent_Mask = "x????xxxxx????xxxxxxxxxxxxxxxxxx????";
+const unsigned char* ProcessMouseEvent_Pattern = (const unsigned char*)"\xA1\x00\x00\x00\x00\x83\xEC\x10\x8B\x80\x00\x00\x00\x00\x53\x32\xDB\x83\xF8\x02\x74\x0E\x83\xF8\x01\x74\x09\x83\xF8\x05\x0F\x85\x00\x00\x00\x00";
+#else
+// 0x583bc0 - 2018-01-28
 const char* ProcessMouseEvent_Mask = "xxxx????xxxxxxxxxxx????xxxxxxx?xxxx?xxxxx????xx????xxxx????xx????xx????xx????x?x????xxxxxxxx";
 const unsigned char* ProcessMouseEvent_Pattern = (const unsigned char*)"\x83\xec\x14\xa1\x00\x00\x00\x00\x8b\x80\xc8\x05\x00\x00\x53\x56\x33\xdb\xbe\x00\x00\x00\x00\x88\x5c\x24\x0b\x3b\xc6\x74\x00\x83\xf8\x01\x74\x00\x83\xf8\x05\x0f\x85\x00\x00\x00\x00\xff\x15\x00\x00\x00\x00\x3b\xc3\x0f\x84\x00\x00\x00\x00\x3b\x05\x00\x00\x00\x00\x0f\x85\x00\x00\x00\x00\x39\x1d\x00\x00\x00\x00\x74\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2";
+#endif
 
 DWORD __ProcessKeyboardEvent = 0;
 
+// Calls __FlushDxKeyboard, GetAsyncKeyState, and GetForegroundWindow multiple times. Look for function that
+// calls GetAsyncKeyState a bunch, with GetforegroundWindow and __FlushDxKeyboard calls in the first block.
+
+#if defined(TEST)
+// 0x740740 - 2018-01-26
+const char* ProcessKeyboardEvent_Mask = "xx????xxx?????xx????xxxxxx????xxx????xxxxxxx????xxxxxxx";
+const unsigned char* ProcessKeyboardEvent_Pattern = (const unsigned char*)"\x81\xEC\x00\x00\x00\x00\xC7\x44\x24\x00\x00\x00\x00\x00\xFF\x15\x00\x00\x00\x00\x85\xC0\x74\x35\x3B\x05\x00\x00\x00\x00\x75\x2D\xA1\x00\x00\x00\x00\x50\x8B\x08\xFF\x51\x1C\xA1\x00\x00\x00\x00\x8D\x54\x24\x04\x6A\x00\x52";
+#else
+// 0x643e16 - 2018-01-28
 const char* ProcessKeyboardEvent_Mask = "xx????xxxxxxxxxx????xxx?xx????x?x????xxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????";
 const unsigned char* ProcessKeyboardEvent_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xc7\x44\x24\x04\x20\x00\x00\x00\xff\x15\x00\x00\x00\x00\x85\xc0\x74\x00\x3b\x05\x00\x00\x00\x00\x75\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2\xa1\x00\x00\x00\x00\x8b\x08\x6a\x00\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\x6a\x14\x50\x8b\x41\x28\xff\xd0\x85\xc0\x74\x00\xe8\x00\x00\x00\x00";
+#endif
 
 DWORD __FlushDxKeyboard = 0;
 
+// Called from inside WndProc, twice with the same pattern of code:
+//
+// .text:0074191E loc_74191E:                             ; CODE XREF: WndProc+166↑j
+// .text:0074191E                 call    __FlushDxKeyboard <--
+// .text:00741923                 pop     edi
+// .text:00741924                 pop     esi
+// .text:00741925                 mov     dword_C668D8, ebp
+// .text:0074192B                 mov     eax, ebp
+// .text:0074192D                 pop     ebp
+// .text:0074192E                 pop     ebx
+// .text:0074192F                 mov     ecx, [esp+34h+var_C]
+// .text:00741933                 mov     large fs:0, ecx
+// .text:0074193A                 add     esp, 34h
+// .text:0074193D                 retn    10h
+
+#if defined(TEST)
+// 0x73e9b0 - 2018-01-26
+const char* FlushDxKeyboard_Mask = "xx????x????xxxxxxxxxxxxx?????xxxxxxxxx";
+const unsigned char* FlushDxKeyboard_Pattern = (const unsigned char*)"\x81\xEC\x00\x00\x00\x00\xA1\x00\x00\x00\x00\x8D\x14\x24\x6A\x00\x52\x8D\x54\x24\x0C\xC7\x44\x24\x00\x00\x00\x00\x00\x8B\x08\x52\x6A\x14\x50\xFF\x51\x28";
+#else
+// 0x640f00 - 2018-01-28
 const char* FlushDxKeyboard_Mask = "xx????x????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xx????xx????xx????xxxx?x????xxxxx????x";
 const unsigned char* FlushDxKeyboard_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x53\x33\xdb\x53\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\xc7\x44\x24\x10\x20\x00\x00\x00\x8b\x08\x6a\x14\x50\x8b\x41\x28\xff\xd0\x8b\x0d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x88\x1d\x00\x00\x00\x00\x3b\xcb\x5b\x74\x00\xe8\x00\x00\x00\x00\x8b\x04\x24\x81\xc4\x00\x00\x00\x00\xc3";
+#endif
 
 FUNCTION_AT_ADDRESS(int FlushDxKeyboard(), __FlushDxKeyboard);
 
@@ -84,8 +149,26 @@ FUNCTION_AT_ADDRESS(int FlushDxKeyboard(), __FlushDxKeyboard);
 // Unless we're attached to a session of innerspace, then the wndproc is all fubar.
 DWORD __WndProc = 0;
 
+// Look for construction of WndClass
+//
+// .text:0073FC95                 push    6Bh             ; lpIconName
+// .text:0073FC97                 push    ebp             ; hInstance
+// .text:0073FC98                 mov     [esp+488h+WndClass.hCursor], 0Bh
+// .text:0073FCA0                 mov     [esp+488h+WndClass.hbrBackground], offset WndProc <--
+// .text:0073FCA8                 mov     [esp+488h+WndClass.lpszMenuName], 0
+// .text:0073FCB0                 mov     [esp+488h+WndClass.lpszClassName], 0
+// .text:0073FCB8                 mov     [esp+488h+var_41C], ebp
+// .text:0073FCBC                 call    ds:LoadIconA
+
+#if defined(TEST)
+// 0x7417b0 - 2018-01-26
+const char* WndProc_Mask = "xx????xxx????xxxx????xxxxx????xxxxxxxxxxxxxxxxxxxxxxx????xxxxxx????xxx";
+const unsigned char* WndProc_Pattern = (const unsigned char*)"\x64\xA1\x00\x00\x00\x00\x6A\xFF\x68\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xEC\x28\x8B\x0D\x00\x00\x00\x00\x53\x8B\x5C\x24\x40\x55\x56\x8B\x74\x24\x50\x33\xED\x57\x8B\x7C\x24\x50\x85\xC9\x74\x1F\xE8\x00\x00\x00\x00\x84\xC0\x74\x16\x8B\x0D\x00\x00\x00\x00\x56\x57\x53";
+#else
+// 0x6431f0 - 2018-01-28
 const char* WndProc_Mask = "xxx????xx????xxxx????xxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????xxx?xx????xxxx????xxxx????xx????";
 const unsigned char* WndProc_Pattern = (const unsigned char*)"\x6a\xff\x68\x00\x00\x00\x00\x64\xa1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xec\x2c\x8b\x0d\x00\x00\x00\x00\x53\x55\x8b\x6c\x24\x4c\x56\x8b\x74\x24\x54\x33\xdb\x57\x8b\x7c\x24\x50\x89\x5c\x24\x10\x3b\xcb\x74\x00\xe8\x00\x00\x00\x00\x84\xc0\x74\x00\x8b\x0d\x00\x00\x00\x00\x56\x55\x57\xe8\x00\x00\x00\x00\x85\xc0\x0f\x84\x00\x00\x00\x00\x39\x1d\x00\x00\x00\x00";
+#endif
 
 //----------------------------------------------------------------------------
 
@@ -95,19 +178,19 @@ bool GetOffsets()
 		ZoneRender_InjectionPattern, ZoneRender_InjectionMask)) == 0)
 		return false;
 
-	if ((__ProcessMouseEvent = FindPattern(FixOffset(0x500000), 0x100000,
+	if ((__ProcessMouseEvent = FindPattern(FixOffset(0x500000), 0x200000,
 		ProcessMouseEvent_Pattern, ProcessMouseEvent_Mask)) == 0)
 		return false;
 
-	if ((__ProcessKeyboardEvent = FindPattern(FixOffset(0x600000), 0x100000,
+	if ((__ProcessKeyboardEvent = FindPattern(FixOffset(0x600000), 0x200000,
 		ProcessKeyboardEvent_Pattern, ProcessKeyboardEvent_Mask)) == 0)
 		return false;
 
-	if ((__FlushDxKeyboard = FindPattern(FixOffset(0x600000), 0x100000,
+	if ((__FlushDxKeyboard = FindPattern(FixOffset(0x600000), 0x200000,
 		FlushDxKeyboard_Pattern, FlushDxKeyboard_Mask)) == 0)
 		return false;
 
-	if ((__WndProc = FindPattern(FixOffset(0x5A0000), 0x100000,
+	if ((__WndProc = FindPattern(FixOffset(0x600000), 0x200000,
 		WndProc_Pattern, WndProc_Mask)) == 0)
 		return false;
 
