@@ -91,6 +91,7 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="SwitchHandler.cpp" />
     <ClCompile Include="ImGuiDX9.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
     <ClCompile Include="KeybindHandler.cpp" />
@@ -129,6 +130,7 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="RenderList.h" />
+    <ClInclude Include="SwitchHandler.h" />
     <ClInclude Include="UiController.h" />
     <ClInclude Include="Waypoints.h" />
   </ItemGroup>

@@ -14,7 +14,9 @@ enum class TabPage {
 	Waypoints,
 	Settings,
 	Tools,
+#if defined(_DEBUG)
 	Theme,
+#endif
 
 	Max
 };

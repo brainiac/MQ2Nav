@@ -22,8 +22,10 @@ namespace
 		"Navigation",
 		"Waypoints",
 		"Settings",
-		"Tools",
+		"Debug Tools",
+#if defined(_DEBUG)
 		"Theme",
+#endif
 	};
 }
 
@@ -82,9 +84,12 @@ void UiController::PerformUpdateUI()
 
 	ImGui::Separator();
 
+	ImGui::BeginChild("tab frame");
+
 	PerformUpdateTab(selectedTab);
 	OnTabUpdate(selectedTab);
 
+	ImGui::EndChild();
 	ImGui::End();
 }
 
@@ -206,9 +211,11 @@ void UiController::PerformUpdateTab(TabPage page)
 		mq2nav::RenderWaypointsUI();
 	}
 
+#if defined(_DEBUG)
 	else if (page == TabPage::Theme)
 	{
 		ImGui::ShowStyleEditor();
 		ImGui::ShowTestWindow();
 	}
+#endif
 }

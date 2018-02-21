@@ -77,6 +77,9 @@
     <ClCompile Include="Navigator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SwitchHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="KeybindHandler.h">
@@ -137,6 +140,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Navigator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SwitchHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
