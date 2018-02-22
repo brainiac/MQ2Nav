@@ -1,6 +1,16 @@
 MQ2Nav Changelog
 ================
 
+1.2.2
+-----
+
+Updated latest EQ LIVE (2/21/2018)
+
+**Bug Fixes**
+* Don't try to initialize the plugin until we enter the game
+* Use actual position and distance when calculating the camera angle when following a path.
+* Fixed an issue with the automatic door opener that was causing it to ignore most RoS doors. The restrictions have been relaxed while still trying to avoid switches such as teleporters.
+
 1.2.1
 -----
 
