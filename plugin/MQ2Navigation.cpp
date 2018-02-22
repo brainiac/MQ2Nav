@@ -119,6 +119,10 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 {
 	if (!m_initialized)
 	{
+		// don't try to initialize until we get into the game
+		if (GetGameState() != GAMESTATE_INGAME)
+			return;
+
 		if (m_retryHooks)
 		{
 			m_retryHooks = false;
