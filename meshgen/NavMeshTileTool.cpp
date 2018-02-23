@@ -1,8 +1,8 @@
-﻿//
+//
 // NavMeshTileTool.cpp
 //
 
-#include "NavMeshTileTool.h"
+#include "meshgen/NavMeshTileTool.h"
 
 #include <DebugDraw.h>
 

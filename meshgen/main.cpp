@@ -2,7 +2,7 @@
 // Main.cpp
 //
 
-#include "Application.h"
+#include "meshgen/Application.h"
 
 #include <Recast.h>
 #include <RecastDebugDraw.h>

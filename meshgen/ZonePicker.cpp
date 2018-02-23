@@ -2,7 +2,7 @@
 // ZonePicker.h
 //
 
-#include "ZonePicker.h"
+#include "meshgen/ZonePicker.h"
 
 #include <imgui/imgui.h>
 #include <boost/algorithm/string.hpp>
@@ -16,6 +16,8 @@
 #include <imgui/stb_image.h>
 
 #pragma warning (pop)
+
+#define EXPANSION_BUTTONS 0
 
 //----------------------------------------------------------------------------
 
@@ -56,12 +58,13 @@ std::pair<int, glm::ivec2> FindExpansionImage(int expansion, bool active)
 	return{ imageFile, pos };
 }
 
-ZonePicker::ZonePicker(const EQConfig& eqConfig)
+ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
 	: m_mapList(eqConfig.GetMapList())
 	, m_allMaps(eqConfig.GetAllMaps())
 	, m_eqDirectory(eqConfig.GetEverquestPath())
+	, m_batchMode(batchMode)
 {
-#if 0
+#if EXPANSION_BUTTONS
 	for (const auto& expansionFile : ExpansionLogoFiles)
 	{
 		std::string path = m_eqDirectory + "\\" + expansionFile;
@@ -91,7 +94,7 @@ ZonePicker::~ZonePicker()
 	}
 }
 
-#if 0
+#if EXPANSION_BUTTONS
 static bool ExpansionButton(const IMAGEDATA& tgaData, const glm::ivec2& pos)
 {
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
@@ -103,7 +106,6 @@ static bool ExpansionButton(const IMAGEDATA& tgaData, const glm::ivec2& pos)
 		ImVec2((float)pos.x / (float)tgaData.width, (float)pos.y / (float)tgaData.height),
 		ImVec2((float)(pos.x + ExpansionLogoSize.x) / (float)tgaData.width, (float)(pos.y + ExpansionLogoSize.y) / (float)tgaData.height),
 		0);
-
 
 	ImGui::PopStyleColor(3);
 	return result;
@@ -132,7 +134,7 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 
 		std::string text(m_filterText);
 
-#if 0
+#if EXPANSION_BUTTONS
 		ImGui::PushItemWidth(130);
 		static int selectedIndex = 0;
 
@@ -171,7 +173,6 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 			for (const auto& mapIter : m_mapList)
 			{
 				const std::string& expansionName = mapIter.first;
-
 
 				if (ImGui::TreeNode(expansionName.c_str()))
 				{

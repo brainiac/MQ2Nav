@@ -2,7 +2,7 @@
 // EQConfig.cpp
 //
 
-#include "EQConfig.h"
+#include "meshgen/EQConfig.h"
 
 #include <atlbase.h>
 #include <windows.h>

@@ -1,10 +1,10 @@
-﻿//
+//
 // NavMeshPruneTool.h
 //
 
 #pragma once
 
-#include "NavMeshTool.h"
+#include "meshgen/NavMeshTool.h"
 
 #include <glm/glm.hpp>
 #include <memory>

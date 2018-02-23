@@ -1,9 +1,9 @@
-﻿//
+//
 // ConvexVolumeTool.cpp
 //
-#include "ConvexVolumeTool.h"
-#include "InputGeom.h"
-#include "NavMeshTool.h"
+#include "meshgen/ConvexVolumeTool.h"
+#include "meshgen/InputGeom.h"
+#include "meshgen/NavMeshTool.h"
 #include "common/Utilities.h"
 
 #include <Recast.h>

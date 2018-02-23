@@ -6,12 +6,11 @@
 
 #pragma once
 
-#include "EQConfig.h"
+#include "meshgen/EQConfig.h"
 #include "common/Context.h"
 #include "common/NavMesh.h"
 
-#include "Recast.h"
-
+#include <Recast.h>
 #include <SDL.h>
 #include <glm/glm.hpp>
 
@@ -183,7 +182,6 @@ private:
 
 	std::unique_ptr<ZonePicker> m_zonePicker;
 	std::unique_ptr<ImportExportSettingsDialog> m_importExportSettings;
-
 
 	std::vector<std::function<void()>> m_callbackQueue;
 	std::mutex m_callbackMutex;

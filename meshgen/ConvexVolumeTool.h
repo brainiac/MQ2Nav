@@ -1,10 +1,10 @@
-﻿//
+//
 // ConvexVolumeTool.h
 //
 
 #pragma once
 
-#include "NavMeshTool.h"
+#include "meshgen/NavMeshTool.h"
 #include "common/NavMeshData.h"
 
 #include <glm/glm.hpp>

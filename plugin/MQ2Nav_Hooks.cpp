@@ -61,9 +61,12 @@ INITIALIZE_EQGRAPHICS_OFFSET(ZoneRender_InjectionOffset);
 // .text:10018E54                 call    D3DPERF_EndEvent
 
 #if defined(EMU)
-// 0x10072c30 - 2018-02-18
-const char* ZoneRender_InjectionMask = "xxxxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxxxxxxx????xxx?xxxxxxx????xxx?xxxxx";
-const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x8b\xf1\x57\x8d\x46\x14\x50\x83\xcf\xff\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x4e\x5c\x51\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x96\x80\x00\x00\x00\x52\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x8d\x46\x38\x50\x8b\xce\xe8\x00\x00\x00\x00\x85\xc0\x78\x00\x5f\x33\xc0\x5e\xc3";
+// 0x10072110 rof2
+//Sig: 56 8B F1 57 8D 46 14 50 83 CF FF E8 ? ? ? ? 85 C0 78 35 8D 4E 5C 51 8B CE E8 ? ? ? ? 
+//Sig: \x56\x8B\xF1\x57\x8D\x46\x14\x50\x83\xCF\xFF\xE8\x00\x00\x00\x00\x85\xC0\x78\x35\x8D\x4E\x5C\x51\x8B\xCE\xE8\x00\x00\x00\x00
+//
+const char* ZoneRender_InjectionMask = "xxxxxxxxxxxx????xxxxxxxxxxx????";
+const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x8B\xF1\x57\x8D\x46\x14\x50\x83\xCF\xFF\xE8\x00\x00\x00\x00\x85\xC0\x78\x35\x8D\x4E\x5C\x51\x8B\xCE\xE8\x00\x00\x00\x00";
 #else
 //56 8B F1 8D 46 14 50 E8 ? ? ? ? 85 C0 78 38 8D 46 5C 8B CE 50 E8 ? ? ? ? 85 C0 78 29 8D 86 ? ? ? ? 8B CE 50 E8 ? ? ? ? 85 C0 78 17 8D 46 38 8B CE 50 E8 ? ? ? ? 33 C9 85 C0 5E 0F 99 C1 8D 41 FF C3
 const char* ZoneRender_InjectionMask = "xxxxxxxx????xxxxxxxxxxx????xxxxxx????xxxx????xxxxxxxxxxx????xxxxxxxxxxxx";
@@ -108,7 +111,7 @@ DWORD __ProcessKeyboardEvent = 0;
 const char* ProcessKeyboardEvent_Mask = "xx????xxxxxxxxxx????xxx?xx????x?x????xxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????";
 const unsigned char* ProcessKeyboardEvent_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xc7\x44\x24\x04\x20\x00\x00\x00\xff\x15\x00\x00\x00\x00\x85\xc0\x74\x00\x3b\x05\x00\x00\x00\x00\x75\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2\xa1\x00\x00\x00\x00\x8b\x08\x6a\x00\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\x6a\x14\x50\x8b\x41\x28\xff\xd0\x85\xc0\x74\x00\xe8\x00\x00\x00\x00";
 #else
-//81 EC ? ? ? ? C7 44 24 ? ? ? ? ? 
+// Sig: 81 EC ? ? ? ? C7 44 24 ? ? ? ? ?
 const char* ProcessKeyboardEvent_Mask = "xx????xxx?????";
 const unsigned char* ProcessKeyboardEvent_Pattern = (const unsigned char*)"\x81\xEC\x00\x00\x00\x00\xC7\x44\x24\x00\x00\x00\x00\x00";
 #endif
@@ -132,6 +135,7 @@ DWORD __FlushDxKeyboard = 0;
 
 #if defined(EMU)
 // 0x640f00 - 2018-02-18
+// Sig: 0x81 0xEC ? ? ? ? 0xA1 ? ? ? ? 0x53 0x33 0xDB 0x53 0x8D 0x54 0x24 0x08 0x52 0x8D 0x54 0x24 0x10 0x52 0xC7 0x44 0x24 0x10 0x20 0x00 0x00 0x00 0x8B 0x08 0x6A 0x14 0x50 0x8B 0x41 0x28 0xFF 0xD0 0x8B 0x0D ? ? ? ? 0x89 0x1D ? ? ? ? 0x89 0x1D ? ? ? ? 0x88 0x1D ? ? ? ? 0x3B 0xCB 0x5B 0x74 ? 0xE8 ? ? ? ? 0x8B 0x04 0x24 0x81 0xC4 ? ? ? ? 0xC3
 const char* FlushDxKeyboard_Mask = "xx????x????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xx????xx????xx????xxxx?x????xxxxx????x";
 const unsigned char* FlushDxKeyboard_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x53\x33\xdb\x53\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\xc7\x44\x24\x10\x20\x00\x00\x00\x8b\x08\x6a\x14\x50\x8b\x41\x28\xff\xd0\x8b\x0d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x88\x1d\x00\x00\x00\x00\x3b\xcb\x5b\x74\x00\xe8\x00\x00\x00\x00\x8b\x04\x24\x81\xc4\x00\x00\x00\x00\xc3";
 #else
@@ -159,11 +163,12 @@ DWORD __WndProc = 0;
 
 #if defined(EMU)
 // 0x6431f0 - 2018-02-18
-const char* WndProc_Mask = "xxx????xx????xxxx????xxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????xxx?xx????xxxx????xxxx????xx????";
-const unsigned char* WndProc_Pattern = (const unsigned char*)"\x6a\xff\x68\x00\x00\x00\x00\x64\xa1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xec\x2c\x8b\x0d\x00\x00\x00\x00\x53\x55\x8b\x6c\x24\x4c\x56\x8b\x74\x24\x54\x33\xdb\x57\x8b\x7c\x24\x50\x89\x5c\x24\x10\x3b\xcb\x74\x00\xe8\x00\x00\x00\x00\x84\xc0\x74\x00\x8b\x0d\x00\x00\x00\x00\x56\x55\x57\xe8\x00\x00\x00\x00\x85\xc0\x0f\x84\x00\x00\x00\x00\x39\x1d\x00\x00\x00\x00";
+// Sig: 6A FF 68 ? ? ? ? 64 A1 ? ? ? ? 50 64 89 25 ? ? ? ? 83 EC 40 8B 0D ? ? ? ? 55 8B 6C 24 5C 56 8B 74 24 5C 57
+const char* WndProc_Mask = "xxx????xx????xxxx????xxxxx????xxxxxxxxxxx";
+const unsigned char* WndProc_Pattern = (const unsigned char*)"\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xEC\x40\x8B\x0D\x00\x00\x00\x00\x55\x8B\x6C\x24\x5C\x56\x8B\x74\x24\x5C\x57";
 #else
-//apr 10 2018 test eqgame
-//55 8B EC 64 A1 ? ? ? ? 6A FF 68 ? ? ? ? 50 64 89 25 ? ? ? ? 83 EC 1C 8B 0D ? ? ? ?
+// apr 10 2018 test eqgame
+// Sig: 55 8B EC 64 A1 ? ? ? ? 6A FF 68 ? ? ? ? 50 64 89 25 ? ? ? ? 83 EC 1C 8B 0D ? ? ? ?
 const char* WndProc_Mask = "xxxxx????xxx????xxxx????xxxxx????";
 const unsigned char* WndProc_Pattern = (const unsigned char*)"\x55\x8B\xEC\x64\xA1\x00\x00\x00\x00\x6A\xFF\x68\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xEC\x1C\x8B\x0D\x00\x00\x00\x00";
 #endif

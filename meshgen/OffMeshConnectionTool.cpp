@@ -2,9 +2,9 @@
 // OffMeshConnectionTool.cpp
 //
 
-#include "OffMeshConnectionTool.h"
-#include "InputGeom.h"
-#include "NavMeshTool.h"
+#include "meshgen/OffMeshConnectionTool.h"
+#include "meshgen/InputGeom.h"
+#include "meshgen/NavMeshTool.h"
 
 #include "common/NavMeshData.h"
 

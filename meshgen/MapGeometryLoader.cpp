@@ -2,7 +2,7 @@
 // MapGeometryLoader.cpp
 //
 
-#include "MapGeometryLoader.h"
+#include "meshgen/MapGeometryLoader.h"
 
 #include "common/ZoneData.h"
 #include "common/NavMeshData.h"

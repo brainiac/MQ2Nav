@@ -2,7 +2,7 @@
 // InputGeom.cpp
 //
 
-#include "InputGeom.h"
+#include "meshgen/InputGeom.h"
 
 #include <DebugDraw.h>
 #include <DetourNavMesh.h>

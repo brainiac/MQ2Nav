@@ -2,8 +2,7 @@
 // NavMeshTesterTool.cpp
 //
 
-#include "NavMeshTesterTool.h"
-
+#include "meshgen/NavMeshTesterTool.h"
 #include "common/NavMeshData.h"
 
 #include <Recast.h>

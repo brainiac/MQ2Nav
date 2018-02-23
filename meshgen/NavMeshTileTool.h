@@ -1,10 +1,10 @@
-﻿//
+//
 // NavMeshTileTool.h
 //
 
 #pragma once
 
-#include "NavMeshTool.h"
+#include "meshgen/NavMeshTool.h"
 
 class NavMeshTileTool : public Tool
 {

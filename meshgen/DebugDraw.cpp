@@ -2,7 +2,7 @@
 // GLUtilities.cpp
 //
 
-#include "DebugDraw.h"
+#include "meshgen/DebugDraw.h"
 
 #include <SDL.h>
 #include <SDL_OpenGL.h>

@@ -2,10 +2,9 @@
 // NavMeshPruneTool.cpp
 //
 
-#include "NavMeshPruneTool.h"
-
-#include "InputGeom.h"
-#include "NavMeshTool.h"
+#include "meshgen/NavMeshPruneTool.h"
+#include "meshgen/InputGeom.h"
+#include "meshgen/NavMeshTool.h"
 #include "common/NavMeshData.h"
 
 #include <DetourNavMesh.h>

@@ -1,25 +1,23 @@
-﻿//
+//
 // NavMeshTool.h
 //
 
 #pragma once
 
-#include "ChunkyTriMesh.h"
-#include "DebugDraw.h"
+#include "meshgen/ChunkyTriMesh.h"
+#include "meshgen/DebugDraw.h"
 
 #include "common/Enum.h"
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
 
-// recast/detour headers
 #include <DebugDraw.h>
 #include <DetourNavMesh.h>
 #include <Recast.h>
 #include <RecastDump.h>
 
 #include <glm/glm.hpp>
-
 #include <atomic>
 #include <functional>
 #include <map>

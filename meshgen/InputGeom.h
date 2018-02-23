@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ChunkyTriMesh.h"
-#include "MapGeometryLoader.h"
+#include "meshgen/ChunkyTriMesh.h"
+#include "meshgen/MapGeometryLoader.h"
 
 #include "common/NavMeshData.h"
 

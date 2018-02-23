@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "EQConfig.h"
+#include "meshgen/EQConfig.h"
 
 #include <map>
 #include <memory>
@@ -20,7 +20,7 @@ struct IMAGEDATA
 class ZonePicker
 {
 public:
-	ZonePicker(const EQConfig& eqConfig);
+	ZonePicker(const EQConfig& eqConfig, bool batchMode = false);
 	~ZonePicker();
 
 	bool Show(bool focus, std::string* selected_zone = nullptr);
@@ -36,6 +36,7 @@ private:
 	char m_filterText[64] = { 0 };
 
 	bool m_loadNavMesh = true;
+	bool m_batchMode = false;
 
 	std::vector<IMAGEDATA> m_tgaData;
 };

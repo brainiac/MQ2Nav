@@ -1,7 +1,7 @@
 // ImGui SDL2 binding with OpenGL
 // https://github.com/ocornut/imgui
 
-#include "ImGuiSDL.h"
+#include "meshgen/ImGuiSDL.h"
 
 #include <SDL.h>
 #include <SDL_syswm.h>

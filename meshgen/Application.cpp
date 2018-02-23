@@ -4,19 +4,16 @@
 
 // Implementation of main GUI interface for EQNavigation
 
-#include "Application.h"
-
-#include "ImGuiSDL.h"
-#include "InputGeom.h"
-#include "MapGeometryLoader.h"
-#include "NavMeshTool.h"
-#include "ZonePicker.h"
+#include "meshgen/Application.h"
+#include "meshgen/ImGuiSDL.h"
+#include "meshgen/InputGeom.h"
+#include "meshgen/MapGeometryLoader.h"
+#include "meshgen/NavMeshTool.h"
+#include "meshgen/ZonePicker.h"
+#include "meshgen/resource.h"
 #include "common/Utilities.h"
 
-#include "resource.h"
-
 #include <RecastDebugDraw.h>
-
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <imgui/imgui_custom/imgui_user.h>
@@ -26,7 +23,6 @@
 #include <imgui/addons/imguidock/imguidock.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
 #include <gl/GLU.h>
 
 #include <boost/algorithm/string.hpp>

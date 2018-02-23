@@ -1,10 +1,10 @@
-﻿//
+//
 // OffMeshConnectionTool.h
 //
 
 #pragma once
 
-#include "NavMeshTool.h"
+#include "meshgen/NavMeshTool.h"
 
 #include <cstdint>
 

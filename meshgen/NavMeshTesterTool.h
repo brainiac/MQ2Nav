@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "NavMeshTool.h"
+#include "meshgen/NavMeshTool.h"
 
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
