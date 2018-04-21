@@ -1996,6 +1996,7 @@ inline bool GeneratedMessageReflection::HasBit(
     // always present" in the proto3 docs, because MergeFrom() semantics
     // require presence as "present on wire", and reflection-based merge
     // (which uses HasField()) needs to be consistent with this.
+#pragma warning (disable : 4065)
     switch (field->cpp_type()) {
       case FieldDescriptor::CPPTYPE_STRING:
         switch (field->options().ctype()) {
@@ -2028,6 +2029,7 @@ inline bool GeneratedMessageReflection::HasBit(
     return false;
   }
 }
+#pragma warning (default : 4065)
 
 inline void GeneratedMessageReflection::SetBit(
     Message* message, const FieldDescriptor* field) const {
