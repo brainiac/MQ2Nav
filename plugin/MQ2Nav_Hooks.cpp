@@ -187,15 +187,15 @@ bool GetOffsets()
 		return false;
 #endif
 
-	if ((__ProcessKeyboardEvent = FindPattern(FixOffset(0x600000), 0x200000,
+	if ((__ProcessKeyboardEvent = FindPattern(FixOffset(0x550000), 0x200000,
 		ProcessKeyboardEvent_Pattern, ProcessKeyboardEvent_Mask)) == 0)
 		return false;
 
-	if ((__FlushDxKeyboard = FindPattern(FixOffset(0x600000), 0x200000,
+	if ((__FlushDxKeyboard = FindPattern(FixOffset(0x550000), 0x200000,
 		FlushDxKeyboard_Pattern, FlushDxKeyboard_Mask)) == 0)
 		return false;
 
-	if ((__WndProc = FindPattern(FixOffset(0x600000), 0x200000,
+	if ((__WndProc = FindPattern(FixOffset(0x550000), 0x200000,
 		WndProc_Pattern, WndProc_Mask)) == 0)
 		return false;
 
