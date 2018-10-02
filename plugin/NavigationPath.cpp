@@ -78,24 +78,24 @@ void NavigationPath::SetDestination(const std::shared_ptr<DestinationInfo>& info
 {
 	m_destinationInfo = info;
 
-    // do this here because we don't want to keep calculating this every time an update is called
+	// do this here because we don't want to keep calculating this every time an update is called
 	auto* mesh = g_mq2Nav->Get<NavMesh>();
-    if (m_destinationInfo && m_destinationInfo->heightType == HeightType::Nearest && mesh)
-    {
-        glm::vec3 transformed = { m_destinationInfo->eqDestinationPos.x, m_destinationInfo->eqDestinationPos.z, m_destinationInfo->eqDestinationPos.y };
-        auto heights = mesh->GetHeights(transformed);
+	if (m_destinationInfo && m_destinationInfo->heightType == HeightType::Nearest && mesh)
+	{
+		glm::vec3 transformed = { m_destinationInfo->eqDestinationPos.x, m_destinationInfo->eqDestinationPos.z, m_destinationInfo->eqDestinationPos.y };
+		auto heights = mesh->GetHeights(transformed);
 
-        // we don't actually want to calculate the path at  the current height since there is no guarantee it is on the mesh
-        float current_distance = std::numeric_limits<float>().max();
+		// we don't actually want to calculate the path at  the current height since there is no guarantee it is on the mesh
+		float current_distance = std::numeric_limits<float>().max();
 
-        for (auto height : heights) {
-            float current_height = m_destinationInfo->eqDestinationPos.z;
-            m_destinationInfo->eqDestinationPos.z = height;
-            if (!FindPath() || GetPathTraversalDistance() > current_distance) {
-                m_destinationInfo->eqDestinationPos.z = current_height;
-            } // else leave it, it's a better height
-        }
-    }
+		for (auto height : heights) {
+			float current_height = m_destinationInfo->eqDestinationPos.z;
+			m_destinationInfo->eqDestinationPos.z = height;
+			if (!FindPath() || GetPathTraversalDistance() > current_distance) {
+				m_destinationInfo->eqDestinationPos.z = current_height;
+			} // else leave it, it's a better height
+		}
+	}
 }
 
 bool NavigationPath::FindPath()

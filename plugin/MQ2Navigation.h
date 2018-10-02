@@ -65,8 +65,8 @@ enum class ClickType
 
 enum class HeightType
 {
-    Explicit,
-    Nearest
+	Explicit,
+	Nearest
 };
 
 enum class NotifyType
@@ -87,7 +87,7 @@ struct DestinationInfo
 	PDOOR pDoor = nullptr;
 	PGROUNDITEM pGroundItem = nullptr;
 	ClickType clickType = ClickType::None;
-    HeightType heightType = HeightType::Explicit;
+	HeightType heightType = HeightType::Explicit;
 
 	bool valid = false;
 };
