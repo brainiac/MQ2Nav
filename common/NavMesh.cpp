@@ -907,4 +907,44 @@ bool NavMesh::ImportJson(const std::string& filename, PersistedDataFields fields
 	return true;
 }
 
+std::vector<float> NavMesh::GetHeights(const glm::vec3& pos) {
+    std::vector<float> heights;
+
+    const float center[3] = { pos.x, pos.y, pos.z };
+    const float extents[3] = { 1.f, m_boundsMax.y - m_boundsMin.y, 1.f };
+    dtQueryFilter filter;
+    dtPolyRef polys[128];
+    int polyCount;
+    
+    // we will still get success on 0 polys, but it won't matter
+    auto query = GetNavMeshQuery();
+    if (IsNavMeshLoaded() && query && !(query->queryPolygons(center, extents, &filter, polys, &polyCount, 128) & DT_FAILURE)) {
+        for (int idx_poly = 0; idx_poly < polyCount; ++idx_poly) {
+            dtPolyRef poly = polys[idx_poly];
+            float height;
+
+            // this can fail with valid coords, so we need to make sure we are only adding valid heights.
+            if (!(query->getPolyHeight(poly, center, &height) & DT_FAILURE))
+                heights.push_back(height);
+        }
+    }
+
+    return heights;
+}
+
+float NavMesh::GetClosestHeight(const glm::vec3& pos) {
+    float height = pos.y;
+    auto heights = GetHeights(pos);
+    std::sort(heights.begin(), heights.end());
+
+    auto height_it = std::lower_bound(heights.begin(), heights.end(), pos.y);
+    if (height_it == heights.end() && height_it != heights.begin())
+        --height_it;
+    else if (height_it != heights.end() && height_it != heights.begin() &&
+        std::abs(*height_it - pos.y) > std::abs(*(height_it - 1) - pos.y))
+        --height_it;
+
+    return height_it == heights.end() ? pos.y : *height_it;
+}
+
 //============================================================================

@@ -86,6 +86,12 @@ public:
 	bool ExportJson(const std::string& filename, PersistedDataFields fields);
 	bool ImportJson(const std::string& filename, PersistedDataFields fields);
 
+    //----------------------------------------------------------------------------
+    // navmesh queries
+
+    std::vector<float> GetHeights(const glm::vec3& pos);
+    float GetClosestHeight(const glm::vec3& pos);
+
 	//----------------------------------------------------------------------------
 	// navmesh data
 
