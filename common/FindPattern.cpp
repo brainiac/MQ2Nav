@@ -33,6 +33,17 @@ uintptr_t FindPattern(uintptr_t dwAddress, uint32_t dwLen, const uint8_t* bMask,
 
 	return 0;
 }
+
+uintptr_t FindPattern(uintptr_t dwAddress, uint32_t dwLen, uintptr_t dwAddressUpperBound, const uint8_t* bMask, const char* szMask)
+{
+	if (dwAddress + dwLen >= dwAddressUpperBound)
+	{
+		dwLen = dwAddressUpperBound - dwAddress;
+	}
+
+	return FindPattern(dwAddress, dwLen, bMask, szMask);
+}
+
 // --------------------------------------------------------------------------------------
 
 uint32_t GetDWordAt(uintptr_t address, uint32_t numBytes)

@@ -85,3 +85,69 @@ PLUGIN_API void OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 	if (g_mq2Nav)
 		g_mq2Nav->Plugin_OnRemoveGroundItem(pGroundItem);
 }
+
+//============================================================================
+// Wrappers for other plugins to access MQ2Nav
+
+// Used to check if MQ2Nav is initialized.
+// TODO check if this is needed, the other stuff should catch if this failed
+PLUGIN_API bool NavInitialized()
+{
+	if (g_mq2Nav)
+	{
+		return g_mq2Nav->IsInitialized();
+	}
+	return false;
+}
+
+// Used to check if a path is active
+PLUGIN_API bool NavPathActive()
+{
+	if (g_mq2Nav && g_mq2Nav->IsInitialized())
+	{
+		return g_mq2Nav->IsActive();
+	}
+	return false;
+}
+
+ // Used to check if path is paused
+PLUGIN_API bool NavPathPaused()
+{
+	if (g_mq2Nav && g_mq2Nav->IsInitialized())
+	{
+		return g_mq2Nav->IsPaused();
+	}
+	return false;
+}
+
+// Check if path is possible to the specified target
+PLUGIN_API bool NavPossible(PCHAR szLine)
+{
+	if (g_mq2Nav && g_mq2Nav->IsInitialized())
+	{
+		return g_mq2Nav->CanNavigateToPoint(szLine);
+	}
+	return false;
+}
+
+// Check path length
+PLUGIN_API float NavPathLength(PCHAR szLine)
+{
+	if (g_mq2Nav && g_mq2Nav->IsInitialized())
+	{
+		return g_mq2Nav->GetNavigationPathLength(szLine);
+	}
+	return -1;
+}
+
+// used to pass mq2nav commands
+PLUGIN_API void NavCommand(PSPAWNINFO pChar, PCHAR szLine)
+{
+	if (g_mq2Nav && g_mq2Nav->IsInitialized())
+	{
+		g_mq2Nav->Command_Navigate(pChar, szLine);
+	}
+	return;
+}
+
+//============================================================================

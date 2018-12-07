@@ -3,6 +3,7 @@
 //
 
 #include <Shlobj.h>
+#include <Psapi.h>
 
 #include "MQ2Nav_Hooks.h"
 #include "MQ2Navigation.h"
@@ -60,7 +61,7 @@ INITIALIZE_EQGRAPHICS_OFFSET(ZoneRender_InjectionOffset);
 // .text:10018E4F                 call    sub_10023A60
 // .text:10018E54                 call    D3DPERF_EndEvent
 
-#if defined(EMU)
+#if defined(ROF2EMU) || defined(UFEMU)
 // 0x10072110 rof2
 //Sig: 56 8B F1 57 8D 46 14 50 83 CF FF E8 ? ? ? ? 85 C0 78 35 8D 4E 5C 51 8B CE E8 ? ? ? ? 
 //Sig: \x56\x8B\xF1\x57\x8D\x46\x14\x50\x83\xCF\xFF\xE8\x00\x00\x00\x00\x85\xC0\x78\x35\x8D\x4E\x5C\x51\x8B\xCE\xE8\x00\x00\x00\x00
@@ -76,40 +77,19 @@ const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x
 //----------------------------------------------------------------------------
 // eqgame.exe offsets
 
-#if defined(EMU)
-DWORD __ProcessMouseEvent = 0;
-
-// The function that calls __ProcessKeyboardEvent also calls __ProcessMouseEvent right before it
-//
-// .text:00584420 sub_584420      proc near               ; CODE XREF: sub_584490+13↓p
-// .text:00584420                                         ; sub_5844C0+20B↓p ...
-//
-// .text:00584420                 push    ebp
-// .text:00584421                 mov     ebp, esp
-// .text:00584423                 push    ecx
-// .text:00584424                 call    __ProcessMouseEvent <--
-// .text:00584429                 push    0FFFFFFFFh
-// .text:0058442B                 call    sub_640260
-// .text:00584430                 add     esp, 4
-// .text:00584433                 cmp     dword_1733E9C, 0
-// .text:0058443A                 jnz     short loc_584441
-// .text:0058443C                 call    __ProcessKeyboardEvent <--
-
-// 0x583bc0 - 2018-02-18
-const char* ProcessMouseEvent_Mask = "xxxx????xxxxxxxxxxx????xxxxxxx?xxxx?xxxxx????xx????xxxx????xx????xx????xx????x?x????xxxxxxxx";
-const unsigned char* ProcessMouseEvent_Pattern = (const unsigned char*)"\x83\xec\x14\xa1\x00\x00\x00\x00\x8b\x80\xc8\x05\x00\x00\x53\x56\x33\xdb\xbe\x00\x00\x00\x00\x88\x5c\x24\x0b\x3b\xc6\x74\x00\x83\xf8\x01\x74\x00\x83\xf8\x05\x0f\x85\x00\x00\x00\x00\xff\x15\x00\x00\x00\x00\x3b\xc3\x0f\x84\x00\x00\x00\x00\x3b\x05\x00\x00\x00\x00\x0f\x85\x00\x00\x00\x00\x39\x1d\x00\x00\x00\x00\x74\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2";
-#else
 INITIALIZE_EQGAME_OFFSET(__ProcessMouseEvent);
-#endif
-
 // Calls __FlushDxKeyboard, GetAsyncKeyState, and GetForegroundWindow multiple times. Look for function that
 // calls GetAsyncKeyState a bunch, with GetforegroundWindow and __FlushDxKeyboard calls in the first block.
 
 DWORD __ProcessKeyboardEvent = 0;
-#if defined(EMU)
+#if defined(ROF2EMU) || defined(UFEMU)
+// Sig: 81 EC ? ? ? ? C7 44 24 ? ? ? ? ?
+const char* ProcessKeyboardEvent_Mask = "xx????xxx?????";
+const unsigned char* ProcessKeyboardEvent_Pattern = (const unsigned char*)"\x81\xEC\x00\x00\x00\x00\xC7\x44\x24\x00\x00\x00\x00\x00";
+
 // 0x643e16 - 2018-02-18
-const char* ProcessKeyboardEvent_Mask = "xx????xxxxxxxxxx????xxx?xx????x?x????xxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????";
-const unsigned char* ProcessKeyboardEvent_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xc7\x44\x24\x04\x20\x00\x00\x00\xff\x15\x00\x00\x00\x00\x85\xc0\x74\x00\x3b\x05\x00\x00\x00\x00\x75\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2\xa1\x00\x00\x00\x00\x8b\x08\x6a\x00\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\x6a\x14\x50\x8b\x41\x28\xff\xd0\x85\xc0\x74\x00\xe8\x00\x00\x00\x00";
+//const char* ProcessKeyboardEvent_Mask = "xx????xxxxxxxxxx????xxx?xx????x?x????xxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????";
+//const unsigned char* ProcessKeyboardEvent_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xc7\x44\x24\x04\x20\x00\x00\x00\xff\x15\x00\x00\x00\x00\x85\xc0\x74\x00\x3b\x05\x00\x00\x00\x00\x75\x00\xa1\x00\x00\x00\x00\x8b\x08\x8b\x51\x1c\x50\xff\xd2\xa1\x00\x00\x00\x00\x8b\x08\x6a\x00\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\x6a\x14\x50\x8b\x41\x28\xff\xd0\x85\xc0\x74\x00\xe8\x00\x00\x00\x00";
 #else
 // Sig: 81 EC ? ? ? ? C7 44 24 ? ? ? ? ?
 const char* ProcessKeyboardEvent_Mask = "xx????xxx?????";
@@ -133,9 +113,9 @@ DWORD __FlushDxKeyboard = 0;
 // .text:0074193A                 add     esp, 34h
 // .text:0074193D                 retn    10h
 
-#if defined(EMU)
+#if defined(ROF2EMU) || defined(UFEMU)
 // 0x640f00 - 2018-02-18
-// Sig: 0x81 0xEC ? ? ? ? 0xA1 ? ? ? ? 0x53 0x33 0xDB 0x53 0x8D 0x54 0x24 0x08 0x52 0x8D 0x54 0x24 0x10 0x52 0xC7 0x44 0x24 0x10 0x20 0x00 0x00 0x00 0x8B 0x08 0x6A 0x14 0x50 0x8B 0x41 0x28 0xFF 0xD0 0x8B 0x0D ? ? ? ? 0x89 0x1D ? ? ? ? 0x89 0x1D ? ? ? ? 0x88 0x1D ? ? ? ? 0x3B 0xCB 0x5B 0x74 ? 0xE8 ? ? ? ? 0x8B 0x04 0x24 0x81 0xC4 ? ? ? ? 0xC3
+// 0x81 0xEC ? ? ? ? 0xA1 ? ? ? ? 0x53 0x33 0xDB 0x53 0x8D 0x54 0x24 0x08 0x52 0x8D 0x54 0x24 0x10 0x52 0xC7 0x44 0x24 0x10 0x20 0x00 0x00 0x00 0x8B 0x08 0x6A 0x14 0x50 0x8B 0x41 0x28 0xFF 0xD0 0x8B 0x0D ? ? ? ? 0x89 0x1D ? ? ? ? 0x89 0x1D ? ? ? ? 0x88 0x1D ? ? ? ? 0x3B 0xCB 0x5B 0x74 ? 0xE8 ? ? ? ? 0x8B 0x04 0x24 0x81 0xC4 ? ? ? ? 0xC3
 const char* FlushDxKeyboard_Mask = "xx????x????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xx????xx????xx????xxxx?x????xxxxx????x";
 const unsigned char* FlushDxKeyboard_Pattern = (const unsigned char*)"\x81\xec\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x53\x33\xdb\x53\x8d\x54\x24\x08\x52\x8d\x54\x24\x10\x52\xc7\x44\x24\x10\x20\x00\x00\x00\x8b\x08\x6a\x14\x50\x8b\x41\x28\xff\xd0\x8b\x0d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x89\x1d\x00\x00\x00\x00\x88\x1d\x00\x00\x00\x00\x3b\xcb\x5b\x74\x00\xe8\x00\x00\x00\x00\x8b\x04\x24\x81\xc4\x00\x00\x00\x00\xc3";
 #else
@@ -161,14 +141,16 @@ DWORD __WndProc = 0;
 // .text:0073FCB8                 mov     [esp+488h+var_41C], ebp
 // .text:0073FCBC                 call    ds:LoadIconA
 
-#if defined(EMU)
-// 0x6431f0 - 2018-02-18
+#if defined(ROF2EMU) || defined(UFEMU)
 // Sig: 6A FF 68 ? ? ? ? 64 A1 ? ? ? ? 50 64 89 25 ? ? ? ? 83 EC 40 8B 0D ? ? ? ? 55 8B 6C 24 5C 56 8B 74 24 5C 57
 const char* WndProc_Mask = "xxx????xx????xxxx????xxxxx????xxxxxxxxxxx";
 const unsigned char* WndProc_Pattern = (const unsigned char*)"\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xEC\x40\x8B\x0D\x00\x00\x00\x00\x55\x8B\x6C\x24\x5C\x56\x8B\x74\x24\x5C\x57";
+// 0x6431f0 - 2018-02-18
+//const char* WndProc_Mask = "xxx????xx????xxxx????xxxxx????xxxxxxxxxxxxxxxxxxxxxxxxx?x????xxx?xx????xxxx????xxxx????xx????";
+//const unsigned char* WndProc_Pattern = (const unsigned char*)"\x6a\xff\x68\x00\x00\x00\x00\x64\xa1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xec\x2c\x8b\x0d\x00\x00\x00\x00\x53\x55\x8b\x6c\x24\x4c\x56\x8b\x74\x24\x54\x33\xdb\x57\x8b\x7c\x24\x50\x89\x5c\x24\x10\x3b\xcb\x74\x00\xe8\x00\x00\x00\x00\x84\xc0\x74\x00\x8b\x0d\x00\x00\x00\x00\x56\x55\x57\xe8\x00\x00\x00\x00\x85\xc0\x0f\x84\x00\x00\x00\x00\x39\x1d\x00\x00\x00\x00";
 #else
 // apr 10 2018 test eqgame
-// Sig: 55 8B EC 64 A1 ? ? ? ? 6A FF 68 ? ? ? ? 50 64 89 25 ? ? ? ? 83 EC 1C 8B 0D ? ? ? ?
+// 55 8B EC 64 A1 ? ? ? ? 6A FF 68 ? ? ? ? 50 64 89 25 ? ? ? ? 83 EC 1C 8B 0D ? ? ? ?
 const char* WndProc_Mask = "xxxxx????xxx????xxxx????xxxxx????";
 const unsigned char* WndProc_Pattern = (const unsigned char*)"\x55\x8B\xEC\x64\xA1\x00\x00\x00\x00\x6A\xFF\x68\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x83\xEC\x1C\x8B\x0D\x00\x00\x00\x00";
 #endif
@@ -177,25 +159,36 @@ const unsigned char* WndProc_Pattern = (const unsigned char*)"\x55\x8B\xEC\x64\x
 
 bool GetOffsets()
 {
-	if ((ZoneRender_InjectionOffset = FindPattern(FixEQGraphicsOffset(0x10000000), 0x100000,
+	//----------------------------------------------------------------------------
+	// EQGraphicsDX9.dll Offset
+
+	// Find the EQGraphicsDX9.dll image size, and use it to calculate the upper bound of
+	// each signature search range.
+
+	MODULEINFO EQGraphicsModInfo = { 0 };
+	GetModuleInformation(GetCurrentProcess(), (HMODULE)EQGraphicsBaseAddress, &EQGraphicsModInfo, sizeof(MODULEINFO));
+	int EQGraphicsUpperBound = EQGraphicsBaseAddress + EQGraphicsModInfo.SizeOfImage;
+
+	if ((ZoneRender_InjectionOffset = FindPattern(FixEQGraphicsOffset(0x10000000), 0x500000, EQGraphicsUpperBound,
 		ZoneRender_InjectionPattern, ZoneRender_InjectionMask)) == 0)
 		return false;
 
-#if defined(EMU)
-	if ((__ProcessMouseEvent = FindPattern(FixOffset(0x500000), 0x200000,
-		ProcessMouseEvent_Pattern, ProcessMouseEvent_Mask)) == 0)
-		return false;
-#endif
+	//----------------------------------------------------------------------------
+	// EQGame.exe Offsets
 
-	if ((__ProcessKeyboardEvent = FindPattern(FixOffset(0x550000), 0x200000,
+	MODULEINFO EQGameModInfo = { 0 };
+	GetModuleInformation(GetCurrentProcess(), (HMODULE)baseAddress, &EQGameModInfo, sizeof(MODULEINFO));
+	int EQGameUpperBound = baseAddress + EQGameModInfo.SizeOfImage;
+
+	if ((__ProcessKeyboardEvent = FindPattern(FixOffset(0x550000), 0x400000, EQGameUpperBound,
 		ProcessKeyboardEvent_Pattern, ProcessKeyboardEvent_Mask)) == 0)
 		return false;
 
-	if ((__FlushDxKeyboard = FindPattern(FixOffset(0x550000), 0x200000,
+	if ((__FlushDxKeyboard = FindPattern(FixOffset(0x550000), 0x400000, EQGameUpperBound,
 		FlushDxKeyboard_Pattern, FlushDxKeyboard_Mask)) == 0)
 		return false;
 
-	if ((__WndProc = FindPattern(FixOffset(0x550000), 0x200000,
+	if ((__WndProc = FindPattern(FixOffset(0x550000), 0x400000, EQGameUpperBound,
 		WndProc_Pattern, WndProc_Mask)) == 0)
 		return false;
 
