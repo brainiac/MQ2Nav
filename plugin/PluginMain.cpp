@@ -93,31 +93,25 @@ PLUGIN_API void OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 // TODO check if this is needed, the other stuff should catch if this failed
 PLUGIN_API bool NavInitialized()
 {
-	if (g_mq2Nav)
-	{
-		return g_mq2Nav->IsInitialized();
-	}
-	return false;
+	return g_mq2Nav && g_mq2Nav->IsInitialized();
+}
+
+// Used to check if mesh is loaded
+PLUGIN_API bool NavMeshLoaded()
+{
+	return g_mq2Nav && g_mq2Nav->IsMeshLoaded();
 }
 
 // Used to check if a path is active
 PLUGIN_API bool NavPathActive()
 {
-	if (g_mq2Nav && g_mq2Nav->IsInitialized())
-	{
-		return g_mq2Nav->IsActive();
-	}
-	return false;
+	return g_mq2Nav && g_mq2Nav->IsActive();
 }
 
  // Used to check if path is paused
 PLUGIN_API bool NavPathPaused()
 {
-	if (g_mq2Nav && g_mq2Nav->IsInitialized())
-	{
-		return g_mq2Nav->IsPaused();
-	}
-	return false;
+	return (g_mq2Nav && g_mq2Nav->IsPaused());
 }
 
 // Check if path is possible to the specified target
@@ -127,6 +121,7 @@ PLUGIN_API bool NavPossible(PCHAR szLine)
 	{
 		return g_mq2Nav->CanNavigateToPoint(szLine);
 	}
+
 	return false;
 }
 
@@ -137,6 +132,7 @@ PLUGIN_API float NavPathLength(PCHAR szLine)
 	{
 		return g_mq2Nav->GetNavigationPathLength(szLine);
 	}
+
 	return -1;
 }
 
@@ -147,7 +143,6 @@ PLUGIN_API void NavCommand(PSPAWNINFO pChar, PCHAR szLine)
 	{
 		g_mq2Nav->Command_Navigate(pChar, szLine);
 	}
-	return;
 }
 
 //============================================================================

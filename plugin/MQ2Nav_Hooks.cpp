@@ -63,8 +63,8 @@ INITIALIZE_EQGRAPHICS_OFFSET(ZoneRender_InjectionOffset);
 
 #if defined(ROF2EMU) || defined(UFEMU)
 // 0x10072110 rof2
-//Sig: 56 8B F1 57 8D 46 14 50 83 CF FF E8 ? ? ? ? 85 C0 78 35 8D 4E 5C 51 8B CE E8 ? ? ? ? 
-//Sig: \x56\x8B\xF1\x57\x8D\x46\x14\x50\x83\xCF\xFF\xE8\x00\x00\x00\x00\x85\xC0\x78\x35\x8D\x4E\x5C\x51\x8B\xCE\xE8\x00\x00\x00\x00
+// Sig: 56 8B F1 57 8D 46 14 50 83 CF FF E8 ? ? ? ? 85 C0 78 35 8D 4E 5C 51 8B CE E8 ? ? ? ?
+// Sig: \x56\x8B\xF1\x57\x8D\x46\x14\x50\x83\xCF\xFF\xE8\x00\x00\x00\x00\x85\xC0\x78\x35\x8D\x4E\x5C\x51\x8B\xCE\xE8\x00\x00\x00\x00
 //
 const char* ZoneRender_InjectionMask = "xxxxxxxxxxxx????xxxxxxxxxxx????";
 const unsigned char* ZoneRender_InjectionPattern = (const unsigned char*)"\x56\x8B\xF1\x57\x8D\x46\x14\x50\x83\xCF\xFF\xE8\x00\x00\x00\x00\x85\xC0\x78\x35\x8D\x4E\x5C\x51\x8B\xCE\xE8\x00\x00\x00\x00";
@@ -180,15 +180,15 @@ bool GetOffsets()
 	GetModuleInformation(GetCurrentProcess(), (HMODULE)baseAddress, &EQGameModInfo, sizeof(MODULEINFO));
 	int EQGameUpperBound = baseAddress + EQGameModInfo.SizeOfImage;
 
-	if ((__ProcessKeyboardEvent = FindPattern(FixOffset(0x550000), 0x400000, EQGameUpperBound,
+	if ((__ProcessKeyboardEvent = FindPattern(FixOffset(0x550000), 0x600000, EQGameUpperBound,
 		ProcessKeyboardEvent_Pattern, ProcessKeyboardEvent_Mask)) == 0)
 		return false;
 
-	if ((__FlushDxKeyboard = FindPattern(FixOffset(0x550000), 0x400000, EQGameUpperBound,
+	if ((__FlushDxKeyboard = FindPattern(FixOffset(0x550000), 0x600000, EQGameUpperBound,
 		FlushDxKeyboard_Pattern, FlushDxKeyboard_Mask)) == 0)
 		return false;
 
-	if ((__WndProc = FindPattern(FixOffset(0x550000), 0x400000, EQGameUpperBound,
+	if ((__WndProc = FindPattern(FixOffset(0x550000), 0x600000, EQGameUpperBound,
 		WndProc_Pattern, WndProc_Mask)) == 0)
 		return false;
 

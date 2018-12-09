@@ -47,15 +47,7 @@ static void NavigateCommand(PSPAWNINFO pChar, PCHAR szLine)
 
 static void ClickSwitch(CVector3 pos, EQSwitch* pSwitch)
 {
-	int randclickY = (rand() % 10) - 5;
-	int randclickX = (rand() % 10) - 5;
-	int randclickZ = (rand() % 10) - 5;
-
-	pos.Y = pos.Y + (randclickY * 0.1);
-	pos.X = pos.X + (randclickX * 0.1);
-	pos.Z = pos.Z + (randclickZ * 0.1);
-
-	pSwitch->UseSwitch(GetCharInfo()->pSpawn->SpawnID, 0xFFFFFFFF, 0, &pos);
+	pSwitch->UseSwitch(GetCharInfo()->pSpawn->SpawnID, 0xFFFFFFFF, 0, nullptr);
 }
 
 void ClickDoor(PDOOR pDoor)
@@ -526,7 +518,12 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 
 bool MQ2NavigationPlugin::IsMeshLoaded() const
 {
-	return Get<NavMesh>()->IsNavMeshLoaded();
+	if (NavMesh* mesh = Get<NavMesh>())
+	{
+		return mesh->IsNavMeshLoaded();
+	}
+
+	return false;
 }
 
 void MQ2NavigationPlugin::OnMovementKeyPressed()
