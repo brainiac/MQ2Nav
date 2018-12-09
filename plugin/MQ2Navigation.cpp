@@ -569,33 +569,6 @@ void MQ2NavigationPlugin::AttemptClick()
 	}
 }
 
-bool MQ2NavigationPlugin::ClickNearestClosedDoor(float cDistance)
-{
-	if (!ppSwitchMgr || !pSwitchMgr) return false;
-
-	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
-	PDOOR pDoor = NULL;
-	PSPAWNINFO pChar = GetCharInfo()->pSpawn;
-
-	for (DWORD index = 0; index < pDoorTable->NumEntries; index++)
-	{
-		if (pDoorTable->pDoor[index]->Z <= pChar->Z + gZFilter &&
-			pDoorTable->pDoor[index]->Z >= pChar->Z - gZFilter)
-		{
-			FLOAT Distance = GetDistance(pDoorTable->pDoor[index]->X, pDoorTable->pDoor[index]->Y);
-			if (Distance < cDistance) {
-				pDoor = pDoorTable->pDoor[index];
-				cDistance = Distance;
-			}
-		}
-	}
-	if (pDoor) {
-		ClickDoor(pDoor);
-		return true;
-	}
-	return false;
-}
-
 void MQ2NavigationPlugin::StuckCheck()
 {
 	if (m_isPaused)
@@ -615,7 +588,6 @@ void MQ2NavigationPlugin::StuckCheck()
 			if (GetCharInfo()->pSpawn->SpeedMultiplier != -10000
 				&& FindSpeed(GetCharInfo()->pSpawn)
 				&& (GetDistance(m_stuckX, m_stuckY) < FindSpeed(GetCharInfo()->pSpawn) / 600)
-				&& !ClickNearestClosedDoor(25)
 				&& !GetCharInfo()->pSpawn->mPlayerPhysicsClient.Levitate
 				&& !GetCharInfo()->pSpawn->UnderWater
 				&& !GetCharInfo()->Stunned

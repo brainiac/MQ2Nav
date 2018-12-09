@@ -194,7 +194,6 @@ private:
 	float GetNavigationPathLength(const std::shared_ptr<DestinationInfo>& pos);
 
 	void AttemptClick();
-	bool ClickNearestClosedDoor(float cDistance = 30);
 
 	void StuckCheck();
 
