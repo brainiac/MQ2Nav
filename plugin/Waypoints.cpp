@@ -60,8 +60,14 @@ void LoadWaypoints(int zoneId)
 	g_zoneName = GetFullZone(zoneId);
 	g_currentZone = zoneId;
 
-	WriteChatf(PLUGIN_MSG "Loading waypoints for zone: %s", g_shortZone.c_str());
 	g_waypoints.clear();
+
+	if (zoneId == -1)
+	{
+		return;
+	}
+
+	WriteChatf(PLUGIN_MSG "Loading waypoints for zone: %s", g_shortZone.c_str());
 
 	CHAR pchKeys[MAX_STRING * 10] = { 0 };
 	CHAR pchValue[MAX_STRING];

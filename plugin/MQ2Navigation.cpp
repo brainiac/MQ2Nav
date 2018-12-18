@@ -184,6 +184,9 @@ void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
 	if (GameState == GAMESTATE_INGAME) {
 		UpdateCurrentZone();
 	}
+	else if (GameState == GAMESTATE_CHARSELECT) {
+		SetCurrentZone(-1);
+	}
 
 	for (const auto& m : m_modules)
 	{
@@ -443,10 +446,13 @@ void MQ2NavigationPlugin::UpdateCurrentZone()
 		zoneId &= 0x7FFF;
 		if (zoneId >= MAX_ZONES)
 			zoneId = -1;
-		if (zoneId == m_zoneId)
-			return;
 	}
 
+	SetCurrentZone(zoneId);
+}
+
+void MQ2NavigationPlugin::SetCurrentZone(int zoneId)
+{
 	if (m_zoneId != zoneId)
 	{
 		m_zoneId = zoneId;

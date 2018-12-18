@@ -187,6 +187,8 @@ private:
 	void ShutdownRenderer();
 
 	void UpdateCurrentZone();
+	void SetCurrentZone(int zoneId);
+
 	void OnUpdateTab(TabPage tabId);
 
 	//----------------------------------------------------------------------------
