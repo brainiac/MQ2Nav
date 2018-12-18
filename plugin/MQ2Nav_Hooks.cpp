@@ -197,11 +197,71 @@ bool GetOffsets()
 
 //----------------------------------------------------------------------------
 
+// have detours been installed already?
+bool g_hooksInstalled = false;
+
+// the handle to the graphics dll
+HMODULE g_dx9Module = 0;
+
+struct HookInfo
+{
+	std::string name;
+	DWORD address = 0;
+
+	std::function<void(HookInfo&)> patch = nullptr;
+};
+
+// list of installed hooks at their address, if they are already patched in
+std::vector<HookInfo> g_hooks;
+
+void InstallHook(HookInfo hi)
+{
+	auto iter = std::find_if(std::begin(g_hooks), std::end(g_hooks),
+		[&hi](const HookInfo& hookInfo)
+	{
+		return hi.name == hookInfo.name;
+	});
+
+	if (iter != std::end(g_hooks))
+	{
+		// hook already installed. Remove it.
+		if (iter->address != 0)
+		{
+			RemoveDetour(iter->address);
+		}
+		g_hooks.erase(iter);
+	}
+
+	hi.patch(hi);
+	g_hooks.push_back(hi);
+}
+
+template <typename T>
+void InstallDetour(DWORD address, const T& detour, const T& trampoline, PCHAR name)
+{
+	HookInfo hookInfo;
+	hookInfo.name = name;
+	hookInfo.address = 0;
+	hookInfo.patch = [&detour, &trampoline, address](HookInfo& hi)
+	{
+		hi.address = address;
+		AddDetourf(hi.address, detour, trampoline, hi.name.c_str());
+	};
+
+	InstallHook(hookInfo);
+}
+
 // the global direct3d device that we are "borrowing"
 IDirect3DDevice9* g_pDevice = nullptr;
 
 // represents whether the device has been acquired and is good to use.
 bool g_deviceAcquired = false;
+
+HMODULE g_d3d9Module = 0;
+using D3D9CREATEEXPROC = HRESULT(WINAPI*)(UINT, IDirect3D9Ex**);
+
+// Address of the Reset() function
+DWORD g_resetDeviceAddress = 0;
 
 // check if we are in the keyboard event handler during shutdown
 std::atomic_bool g_inKeyboardEventHandler = false;
@@ -214,6 +274,35 @@ public:
 
 	// this is only valid during a d3d9 hook detour
 	IDirect3DDevice9* GetThisDevice() { return reinterpret_cast<IDirect3DDevice9*>(this); }
+
+	// Install hooks on actual instance of the device once we have it.
+	bool DetectResetDeviceHook()
+	{
+		bool changed = false;
+
+		// IDirect3DDevice9 virtual function hooks
+		DWORD* d3dDevice_vftable = *(DWORD**)this;
+
+		DWORD resetDevice = d3dDevice_vftable[0x10];
+
+		if (resetDevice != g_resetDeviceAddress)
+		{
+			if (g_resetDeviceAddress != 0)
+			{
+				WriteChatf(PLUGIN_MSG "\arDetected a change in the rendering device. Attempting to recover. Please check for compat flags...");
+			}
+			g_resetDeviceAddress = resetDevice;
+
+			InstallDetour(d3dDevice_vftable[0x10],
+				&RenderHooks::Reset_Detour,
+				&RenderHooks::Reset_Trampoline,
+				"d3dDevice_Reset");
+
+			changed = true;
+		}
+
+		return changed;
+	}
 
 	HRESULT WINAPI Reset_Trampoline(D3DPRESENT_PARAMETERS* pPresentationParameters);
 	HRESULT WINAPI Reset_Detour(D3DPRESENT_PARAMETERS* pPresentationParameters)
@@ -241,12 +330,6 @@ public:
 		return BeginScene_Trampoline();
 	}
 
-	HRESULT WINAPI TestCooperativeLevel_Trampoline();
-	HRESULT WINAPI TestCooperativeLevel_Detour()
-	{
-		return TestCooperativeLevel_Trampoline();
-	}
-
 	HRESULT WINAPI EndScene_Trampoline();
 	HRESULT WINAPI EndScene_Detour()
 	{
@@ -265,6 +348,15 @@ public:
 			if (result == D3D_OK)
 			{
 				g_deviceAcquired = true;
+
+				if (DetectResetDeviceHook())
+				{
+					if (g_renderHandler)
+					{
+						g_renderHandler->InvalidateDeviceObjects();
+					}
+				}
+
 				if (g_renderHandler)
 				{
 					g_renderHandler->CreateDeviceObjects();
@@ -317,10 +409,81 @@ public:
 };
 
 DETOUR_TRAMPOLINE_EMPTY(void RenderHooks::ZoneRender_Injection_Trampoline());
-DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::TestCooperativeLevel_Trampoline());
 DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::Reset_Trampoline(D3DPRESENT_PARAMETERS* pPresentationParameters));
 DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::BeginScene_Trampoline());
 DETOUR_TRAMPOLINE_EMPTY(HRESULT RenderHooks::EndScene_Trampoline());
+
+bool InstallD3D9Hooks()
+{
+	bool success = false;
+
+	WCHAR lpD3D9Path[MAX_PATH];
+	SHGetFolderPathW(NULL, CSIDL_SYSTEM, NULL, SHGFP_TYPE_CURRENT, lpD3D9Path);
+	wcscat_s(lpD3D9Path, MAX_PATH, L"\\d3d9.dll");
+
+	if (g_d3d9Module = LoadLibraryW(lpD3D9Path))
+	{
+		D3D9CREATEEXPROC d3d9CreateEx = (D3D9CREATEEXPROC)GetProcAddress(g_d3d9Module, "Direct3DCreate9Ex");
+		if (d3d9CreateEx)
+		{
+			HRESULT hRes;
+			IDirect3D9Ex* d3d9ex;
+
+			if (SUCCEEDED(hRes = (*d3d9CreateEx)(D3D_SDK_VERSION, &d3d9ex)))
+			{
+				D3DPRESENT_PARAMETERS pp;
+				ZeroMemory(&pp, sizeof(pp));
+				pp.Windowed = 1;
+				pp.SwapEffect = D3DSWAPEFFECT_FLIP;
+				pp.BackBufferFormat = D3DFMT_A8R8G8B8;
+				pp.BackBufferCount = 1;
+				pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+
+				IDirect3DDevice9Ex* deviceEx;
+				if (SUCCEEDED(hRes = d3d9ex->CreateDeviceEx(
+					D3DADAPTER_DEFAULT,
+					D3DDEVTYPE_NULLREF,
+					0,
+					D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_NOWINDOWCHANGES,
+					&pp, NULL, &deviceEx)))
+				{
+					success = true;
+
+					// IDirect3DDevice9 virtual function hooks
+					DWORD* d3dDevice_vftable = *(DWORD**)deviceEx;
+
+					InstallDetour(d3dDevice_vftable[0x29],
+						&RenderHooks::BeginScene_Detour,
+						&RenderHooks::BeginScene_Trampoline,
+						"d3dDevice_BeginScene");
+					InstallDetour(d3dDevice_vftable[0x2a],
+						&RenderHooks::EndScene_Detour,
+						&RenderHooks::EndScene_Trampoline,
+						"d3dDevice_EndScene");
+
+					deviceEx->Release();
+				}
+				else
+				{
+					DebugSpewAlways("InstallD3D9Hooks: failed to CreateDeviceEx. Result=%x", hRes);
+				}
+
+				d3d9ex->Release();
+			}
+			else
+			{
+				DebugSpewAlways("InstallD3D9Hooks: failed Direct3DCreate9Ex failed. Result=%x", hRes);
+			}
+		}
+		else
+		{
+			DebugSpewAlways("InitD3D9CApture: failed to get address of Direct3DCreate9Ex");
+		}
+	}
+
+	return success;
+}
+
 
 //----------------------------------------------------------------------------
 // mouse / keyboard handling
@@ -522,106 +685,6 @@ DETOUR_TRAMPOLINE_EMPTY(void EQSwitch_Detour::UseSwitch_Trampoline(UINT, int, in
 
 //----------------------------------------------------------------------------
 
-// have detours been installed already?
-bool g_hooksInstalled = false;
-
-// the handle to the graphics dll
-HMODULE g_dx9Module = 0;
-
-// list of installed hooks at their address, also whether they should be removed
-// immediately or deferred. true = defer until later.
-std::map<DWORD, bool> g_installedHooks;
-
-template <typename T>
-void InstallDetour(DWORD address, const T& detour, const T& trampoline,
-	PCHAR name, bool deferred = false)
-{
-	AddDetourf(address, detour, trampoline, name);
-	g_installedHooks[address] = deferred;
-}
-
-HMODULE g_d3d9Module = 0;
-typedef HRESULT(WINAPI * D3D9CREATEEXPROC)(UINT, IDirect3D9Ex**);
-
-bool InstallD3D9Hooks()
-{
-	bool success = false;
-
-	WCHAR lpD3D9Path[MAX_PATH];
-	SHGetFolderPathW(NULL, CSIDL_SYSTEM, NULL, SHGFP_TYPE_CURRENT, lpD3D9Path);
-	wcscat_s(lpD3D9Path, MAX_PATH, L"\\d3d9.dll");
-
-	if (g_d3d9Module = LoadLibraryW(lpD3D9Path))
-	{
-		D3D9CREATEEXPROC d3d9CreateEx = (D3D9CREATEEXPROC)GetProcAddress(g_d3d9Module, "Direct3DCreate9Ex");
-		if (d3d9CreateEx)
-		{
-			HRESULT hRes;
-			IDirect3D9Ex* d3d9ex;
-
-			if (SUCCEEDED(hRes = (*d3d9CreateEx)(D3D_SDK_VERSION, &d3d9ex)))
-			{
-				D3DPRESENT_PARAMETERS pp;
-				ZeroMemory(&pp, sizeof(pp));
-				pp.Windowed = 1;
-				pp.SwapEffect = D3DSWAPEFFECT_FLIP;
-				pp.BackBufferFormat = D3DFMT_A8R8G8B8;
-				pp.BackBufferCount = 1;
-				pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-
-				IDirect3DDevice9Ex* deviceEx;
-				if (SUCCEEDED(hRes = d3d9ex->CreateDeviceEx(
-					D3DADAPTER_DEFAULT,
-					D3DDEVTYPE_NULLREF,
-					0,
-					D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_NOWINDOWCHANGES,
-					&pp, NULL, &deviceEx)))
-				{
-					success = true;
-
-					// IDirect3DDevice9 virtual function hooks
-					DWORD* d3dDevice_vftable = *(DWORD**)deviceEx;
-
-					InstallDetour(d3dDevice_vftable[0x3],
-						&RenderHooks::TestCooperativeLevel_Detour,
-						&RenderHooks::TestCooperativeLevel_Trampoline,
-						"d3dDevice_TestCooperativeLevel");
-					InstallDetour(d3dDevice_vftable[0x10],
-						&RenderHooks::Reset_Detour,
-						&RenderHooks::Reset_Trampoline,
-						"d3dDevice_Reset");
-					InstallDetour(d3dDevice_vftable[0x29],
-						&RenderHooks::BeginScene_Detour,
-						&RenderHooks::BeginScene_Trampoline,
-						"d3dDevice_BeginScene");
-					InstallDetour(d3dDevice_vftable[0x2a],
-						&RenderHooks::EndScene_Detour,
-						&RenderHooks::EndScene_Trampoline,
-						"d3dDevice_EndScene");
-
-					deviceEx->Release();
-				}
-				else
-				{
-					DebugSpewAlways("InstallD3D9Hooks: failed to CreateDeviceEx. Result=%x", hRes);
-				}
-
-				d3d9ex->Release();
-			}
-			else
-			{
-				DebugSpewAlways("InstallD3D9Hooks: failed Direct3DCreate9Ex failed. Result=%x", hRes);
-			}
-		}
-		else
-		{
-			DebugSpewAlways("InitD3D9CApture: failed to get address of Direct3DCreate9Ex");
-		}
-	}
-
-	return success;
-}
-
 HookStatus InitializeHooks()
 {
 	if (g_hooksInstalled)
@@ -655,7 +718,7 @@ HookStatus InitializeHooks()
 		ProcessMouseEvent_Trampoline,
 		"__ProcessMouseEvent");
 
-	// Intercepts keyboard events. Unload must be deferred
+	// Intercepts keyboard events.
 	InstallDetour(__ProcessKeyboardEvent,
 		ProcessKeyboardEvent_Detour,
 		ProcessKeyboardEvent_Trampoline,
@@ -678,11 +741,14 @@ HookStatus InitializeHooks()
 
 static void RemoveDetours()
 {
-	for (auto iter = g_installedHooks.begin(); iter != g_installedHooks.end(); ++iter)
+	for (HookInfo& hook : g_hooks)
 	{
-		RemoveDetour(iter->first);
+		if (hook.address != 0)
+		{
+			RemoveDetour(hook.address);
+			hook.address = 0;
+		}
 	}
-	g_installedHooks.clear();
 }
 
 void ShutdownHooks()
@@ -691,7 +757,9 @@ void ShutdownHooks()
 		return;
 
 	RemoveDetours();
+
 	g_hooksInstalled = false;
+	g_hooks.clear();
 
 	// Release our Direct3D device before freeing the dx9 library
 	if (g_pDevice)
