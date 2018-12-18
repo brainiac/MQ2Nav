@@ -47,13 +47,12 @@ class ModelData : public Renderable
 {
 public:
 	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo, IDirect3DDevice9* device)
-		: Renderable("ModelData")
-		, m_doorId(doorId)
+		: m_doorId(doorId)
 		, m_modelInfo(modelInfo)
 	{
-		m_grpBB = std::make_unique<RenderGroup>("ModelData", device);
+		m_grpBB = std::make_unique<RenderGroup>(device);
 #if RENDER_MODELS
-		m_grpModel = std::make_unique<RenderGroup>("ModelData", device);
+		m_grpModel = std::make_unique<RenderGroup>(device);
 #endif
 		RegenerateMesh();
 

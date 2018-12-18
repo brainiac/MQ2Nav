@@ -122,7 +122,6 @@ void LoadSettings(bool showMessage/* = true*/)
 
 	// debug settings
 	settings.debug_render_pathing = LoadBoolSetting("DebugRenderPathing", defaults.debug_render_pathing);
-	settings.renderer_debug_logging = LoadBoolSetting("RendererDebugLogging", defaults.renderer_debug_logging);
 }
 
 void SaveSettings(bool showMessage/* = true*/)
@@ -152,7 +151,6 @@ void SaveSettings(bool showMessage/* = true*/)
 
 	// debug settings
 	SaveBoolSetting("DebugRenderPathing", g_settings.debug_render_pathing);
-	SaveBoolSetting("RendererDebugLogging", g_settings.renderer_debug_logging);
 }
 
 //----------------------------------------------------------------------------

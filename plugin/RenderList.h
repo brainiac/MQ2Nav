@@ -6,7 +6,6 @@
 #pragma once
 
 #include "Renderable.h"
-#include "MQ2Nav_Settings.h"
 
 #include <d3dx9.h>
 
@@ -32,7 +31,7 @@ public:
 		Prim_Count
 	};
 
-	RenderList(const std::string& name, IDirect3DDevice9* d3dDevice, PrimitiveType type);
+	RenderList(IDirect3DDevice9* d3dDevice, PrimitiveType type);
 	~RenderList();
 
 	void Reset();
@@ -131,13 +130,11 @@ private:
 class RenderGroup : public Renderable
 {
 public:
-	RenderGroup(const std::string& name, IDirect3DDevice9* device)
-		: Renderable("RenderGroup-" + name)
+	RenderGroup(IDirect3DDevice9* device)
 	{
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
 		{
-			m_primLists[i] = std::make_unique<RenderList>(
-				GetName() + "-", device, static_cast<RenderList::PrimitiveType>(i));
+			m_primLists[i].reset(new RenderList(device, static_cast<RenderList::PrimitiveType>(i)));
 			m_primsEnabled[i] = true;
 		}
 	}
@@ -189,38 +186,16 @@ public:
 
 	virtual bool CreateDeviceObjects() override
 	{
-		bool debugLogging = mq2nav::GetSettings().renderer_debug_logging;
-
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
-		{
-			auto& renderable = m_primLists[i];
-
-			if (debugLogging)
-			{
-				DebugSpewAlwaysFile("[MQ2Nav] CreateDeviceObjects(group): %s", renderable->GetName().c_str());
-			}
-
-			renderable->CreateDeviceObjects();
-		}
+			m_primLists[i]->CreateDeviceObjects();
 
 		return true;
 	}
 
 	virtual void InvalidateDeviceObjects() override
 	{
-		bool debugLogging = mq2nav::GetSettings().renderer_debug_logging;
-
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
-		{
-			auto& renderable = m_primLists[i];
-
-			if (debugLogging)
-			{
-				DebugSpewAlwaysFile("[MQ2Nav] InvalidateDeviceObjects(group): %s", renderable->GetName().c_str());
-			}
-
 			m_primLists[i]->InvalidateDeviceObjects();
-		}
 	}
 
 	//----------------------------------------------------------------------------

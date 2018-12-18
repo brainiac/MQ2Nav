@@ -48,9 +48,6 @@ struct SettingsData
 
 	// open doors while navigation
 	bool open_doors = true;
-
-	// renderer debug logging
-	bool renderer_debug_logging = false;
 };
 SettingsData& GetSettings();
 
