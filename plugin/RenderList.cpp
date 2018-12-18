@@ -28,8 +28,9 @@ static inline int PrimVertexCount(RenderList::PrimitiveType type)
 	return 0;
 }
 
-RenderList::RenderList(IDirect3DDevice9* pDevice, PrimitiveType type)
-	: m_pDevice(pDevice)
+RenderList::RenderList(const std::string& name, IDirect3DDevice9* pDevice, PrimitiveType type)
+	: Renderable("RenderList(" + std::to_string(static_cast<int>(type)) + ")-" + name)
+	, m_pDevice(pDevice)
 	, m_type(type)
 	, m_tempMax(PrimVertexCount(type))
 	, m_currentPrim(nullptr)

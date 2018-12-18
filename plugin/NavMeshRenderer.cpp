@@ -51,9 +51,10 @@ private:
 //----------------------------------------------------------------------------
 
 NavMeshRenderer::NavMeshRenderer()
-	: m_pDevice(g_pDevice)
+	: Renderable("NavMesh")
+	, m_pDevice(g_pDevice)
 	, m_state(new ConfigurableRenderState)
-	, m_primGroup(std::make_unique<RenderGroup>(g_pDevice))
+	, m_primGroup(std::make_unique<RenderGroup>("NavMesh", g_pDevice))
 {
 }
 
@@ -91,7 +92,7 @@ void NavMeshRenderer::CleanupObjects()
 	m_primGroup->Reset();
 	m_primGroup->InvalidateDeviceObjects();
 
-	m_primGroup.reset(new RenderGroup(g_pDevice));
+	m_primGroup = std::make_unique<RenderGroup>("NavMesh", g_pDevice);
 }
 
 bool NavMeshRenderer::CreateDeviceObjects()

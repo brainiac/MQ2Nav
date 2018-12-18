@@ -295,11 +295,11 @@ std::string MQ2NavigationPlugin::GetDataDirectory() const
 
 void MQ2NavigationPlugin::InitializeRenderer()
 {
-	g_renderHandler.reset(new RenderHandler());
+	g_renderHandler = std::make_unique<RenderHandler>();
 
 	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
 
-	g_imguiRenderer.reset(new ImGuiRenderer(eqhwnd, g_pDevice));
+	g_imguiRenderer = std::make_unique<ImGuiRenderer>(eqhwnd, g_pDevice);
 	g_renderHandler->AddRenderable(g_imguiRenderer.get());
 }
 

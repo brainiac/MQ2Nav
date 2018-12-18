@@ -14,7 +14,8 @@
 //----------------------------------------------------------------------------
 
 ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
-	: m_pDevice(device)
+	: Renderable("ImGuiRenderer")
+	, m_pDevice(device)
 {
 	m_context = GImGuiGlobalSharedPointer;
 

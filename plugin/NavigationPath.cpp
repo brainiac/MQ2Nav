@@ -58,7 +58,7 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 		m_line->SetVisible(mq2nav::GetSettings().show_nav_path);
 		g_renderHandler->AddRenderable(m_line.get());
 
-		m_debugDrawGrp = std::make_unique<RenderGroup>(g_pDevice);
+		m_debugDrawGrp = std::make_unique<RenderGroup>("NavigationPath", g_pDevice);
 		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
 	}
 	else
@@ -291,7 +291,8 @@ glm::vec3 NavigationPath::GetDestination() const
 //----------------------------------------------------------------------------
 
 NavigationLine::NavigationLine(NavigationPath* path)
-	: m_path(path)
+	: Renderable("NavigationLine")
+	, m_path(path)
 {
 	// temp!
 	m_shaderFile = std::string(gszINIPath) + "\\MQ2Nav\\VolumeLines.fx";

@@ -5,11 +5,14 @@
 
 #pragma once
 
+#include <string>
+
 //----------------------------------------------------------------------------
 
 class Renderable
 {
 public:
+	Renderable(const std::string& name);
 	virtual ~Renderable() {}
 
 	enum RenderPhase {
@@ -20,4 +23,11 @@ public:
 	virtual void Render(RenderPhase phase) = 0;
 	virtual bool CreateDeviceObjects() = 0;
 	virtual void InvalidateDeviceObjects() = 0;
+
+	const std::string& GetName() const {
+		return m_name;
+	};
+
+private:
+	std::string m_name;
 };

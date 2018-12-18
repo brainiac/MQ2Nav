@@ -5,6 +5,7 @@
 #include "RenderHandler.h"
 #include "MQ2Nav_Hooks.h"
 #include "MQ2Navigation.h"
+#include "MQ2Nav_Settings.h"
 
 #include "ImGuiDX9.h"
 
@@ -15,6 +16,18 @@
 
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
+
+#include <sstream>
+
+//----------------------------------------------------------------------------
+
+Renderable::Renderable(const std::string& name)
+{
+	std::stringstream ss;
+	ss << std::hex << name << " (" << static_cast<void*>(this) << ")";
+
+	m_name = ss.str();
+}
 
 //============================================================================
 
@@ -38,8 +51,15 @@ void RenderHandler::CreateDeviceObjects()
 	if (!g_pDevice)
 		return;
 
+	bool debugLogging = mq2nav::GetSettings().renderer_debug_logging;
+
 	for (auto& p : m_renderables)
 	{
+		if (debugLogging)
+		{
+			DebugSpewAlwaysFile("[MQ2Nav] CreateDeviceObjects: %s", p->GetName().c_str());
+		}
+
 		p->CreateDeviceObjects();
 	}
 	m_deviceAcquired = true;
@@ -51,8 +71,15 @@ void RenderHandler::InvalidateDeviceObjects()
 		return;
 	m_deviceAcquired = false;
 
+	bool debugLogging = mq2nav::GetSettings().renderer_debug_logging;
+
 	for (auto& p : m_renderables)
 	{
+		if (debugLogging)
+		{
+			DebugSpewAlwaysFile("[MQ2Nav] InvalidateDeviceObjects: %s", p->GetName().c_str());
+		}
+
 		p->InvalidateDeviceObjects();
 	}
 }
@@ -62,6 +89,13 @@ void RenderHandler::AddRenderable(Renderable* renderable)
 	assert(std::find(m_renderables.begin(), m_renderables.end(), renderable) == m_renderables.cend());
 
 	m_renderables.push_back(renderable);
+
+	bool debugLogging = mq2nav::GetSettings().renderer_debug_logging;
+
+	if (debugLogging)
+	{
+		DebugSpewAlwaysFile("[MQ2Nav] AddRenderable: %s", renderable->GetName().c_str());
+	}
 
 	if (m_deviceAcquired)
 	{
@@ -73,6 +107,13 @@ void RenderHandler::RemoveRenderable(Renderable* renderable)
 {
 	auto iter = std::find(m_renderables.begin(), m_renderables.end(), renderable);
 	assert(iter != m_renderables.end());
+
+	bool debugLogging = mq2nav::GetSettings().renderer_debug_logging;
+
+	if (debugLogging)
+	{
+		DebugSpewAlwaysFile("[MQ2Nav] RemoveRenderable: %s", renderable->GetName().c_str());
+	}
 
 	if (m_deviceAcquired)
 	{

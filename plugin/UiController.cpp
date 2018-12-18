@@ -194,6 +194,11 @@ void UiController::PerformUpdateTab(TabPage page)
 			changed = true;
 		}
 
+		if (ImGui::Checkbox("Enable Renderer Debug Logging", &settings.renderer_debug_logging))
+		{
+			changed = true;
+		}
+
 		// save the settings
 		//
 		if (changed)
