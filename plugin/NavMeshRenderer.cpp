@@ -61,6 +61,10 @@ NavMeshRenderer::NavMeshRenderer()
 NavMeshRenderer::~NavMeshRenderer()
 {
 	CleanupObjects();
+
+	// Destruction might occur before Shutdown() is called from the plugin if
+	// the application exits unexpectedly.
+	Shutdown();
 }
 
 void NavMeshRenderer::Initialize()
@@ -71,11 +75,20 @@ void NavMeshRenderer::Initialize()
 		[this]() { UpdateNavMesh(); });
 
 	g_renderHandler->AddRenderable(this);
+
+	m_initialized = true;
 }
 
 void NavMeshRenderer::Shutdown()
 {
+	if (!m_initialized)
+	{
+		return;
+	}
+
 	g_renderHandler->RemoveRenderable(this);
+
+	m_initialized = false;
 }
 
 //----------------------------------------------------------------------------

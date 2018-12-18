@@ -33,7 +33,11 @@ Renderable::Renderable(const std::string& name)
 
 RenderHandler::RenderHandler()
 {
-	CreateDeviceObjects();
+	// TODO: Fixme, i shouldn't need to be here
+	if (g_deviceAcquired)
+	{
+		CreateDeviceObjects();
+	}
 }
 
 RenderHandler::~RenderHandler()

@@ -24,6 +24,8 @@ extern bool MouseBlocked;
 
 extern IDirect3DDevice9* g_pDevice;
 
+extern bool g_deviceAcquired;
+
 // Mouse state, pointed to by EQADDR_DIMOUSECOPY
 struct MouseStateData {
 	DWORD x;

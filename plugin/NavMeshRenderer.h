@@ -57,6 +57,7 @@ private:
 
 	bool m_enabled = false;
 	bool m_loaded = false;
+	bool m_initialized = false;
 
 	std::unique_ptr<RenderGroup> m_primGroup;
 	Signal<>::ScopedConnection m_meshConn;

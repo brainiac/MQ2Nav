@@ -298,19 +298,12 @@ void MQ2NavigationPlugin::InitializeRenderer()
 	g_renderHandler = std::make_unique<RenderHandler>();
 
 	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
-
 	g_imguiRenderer = std::make_unique<ImGuiRenderer>(eqhwnd, g_pDevice);
-	g_renderHandler->AddRenderable(g_imguiRenderer.get());
 }
 
 void MQ2NavigationPlugin::ShutdownRenderer()
 {
-	if (g_imguiRenderer)
-	{
-		g_renderHandler->RemoveRenderable(g_imguiRenderer.get());
-		g_imguiRenderer.reset();
-	}
-
+	g_imguiRenderer.reset();
 	g_renderHandler.reset();
 }
 

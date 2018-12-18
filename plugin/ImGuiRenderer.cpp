@@ -6,6 +6,7 @@
 #include "ImGuiDX9.h"
 #include "MQ2Navigation.h"
 #include "MQ2Nav_Hooks.h"
+#include "RenderHandler.h"
 
 #include <imgui.h>
 #include <imgui/imgui_custom/imgui_user.h>
@@ -33,10 +34,14 @@ ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 
 	m_prevHistoryPoint = std::chrono::system_clock::now();
 	m_renderFrameRateHistory.clear();
+
+	g_renderHandler->AddRenderable(this);
 }
 
 ImGuiRenderer::~ImGuiRenderer()
 {
+	g_renderHandler->RemoveRenderable(this);
+
 	InvalidateDeviceObjects();
 
 	// Cleanup the ImGui overlay
