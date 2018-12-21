@@ -424,8 +424,11 @@ void rcMarkConvexPolyArea(rcContext* ctx, const float* verts, const int nverts,
 			for (int i = (int)c.index, ni = (int)(c.index+c.count); i < ni; ++i)
 			{
 				rcCompactSpan& s = chf.spans[i];
-				if (chf.areas[i] == RC_NULL_AREA)
+
+				// Allow reassignment of area to allow creating pathable segments 
+				if (chf.areas[i] == RC_NULL_AREA && areaId != 1)
 					continue;
+
 				if ((int)s.y >= miny && (int)s.y <= maxy)
 				{
 					float p[3];
