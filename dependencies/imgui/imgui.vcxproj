@@ -52,9 +52,6 @@
     <ClInclude Include="misc\fonts\IconsMaterialDesign.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="imgui_user.inl" />
-  </ItemGroup>
-  <ItemGroup>
     <Natvis Include="misc\natvis\imgui.natvis" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

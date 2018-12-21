@@ -114,11 +114,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="imgui_user.inl">
-      <Filter>Header Files</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <Natvis Include="misc\natvis\imgui.natvis" />
   </ItemGroup>
 </Project>

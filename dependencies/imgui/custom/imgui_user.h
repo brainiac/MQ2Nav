@@ -25,33 +25,31 @@
 
 namespace ImGui
 {
-    void RenderText(const ImVec2& pos, const ImVec4& color, const char* fmt, ...);
+	void RenderText(const ImVec2& pos, const ImVec4& color, const char* fmt, ...);
 
-    // alternate form
-    void RenderText(int x, int y, const ImVec4& color, const char* fmt, ...);
+	// alternate form
+	void RenderText(int x, int y, const ImVec4& color, const char* fmt, ...);
 
-    void RenderTextCentered(const ImVec2& pos, const ImVec4& color, const char* fmt, ...);
+	void RenderTextCentered(const ImVec2& pos, const ImVec4& color, const char* fmt, ...);
 
-    void RenderTextCentered(int x, int y, const ImVec4& color, const char* fmt, ...);
+	void RenderTextCentered(int x, int y, const ImVec4& color, const char* fmt, ...);
 
-    void RenderTextRight(const ImVec2& pos, const ImVec4& color, const char* fmt, ...);
+	void RenderTextRight(const ImVec2& pos, const ImVec4& color, const char* fmt, ...);
 
-    void RenderTextRight(int x, int y, const ImVec4& color, const char* fmt, ...);
+	void RenderTextRight(int x, int y, const ImVec4& color, const char* fmt, ...);
 
-    //bool TabLabels(int numTabs, const char** tabLabels, int& selectedIndex, const char** tabLabelTooltips, bool autoLayout, int *pOptionalHoveredIndex);
-
-    bool CollapsingSubHeader(const char* label, bool* p_open, ImGuiTreeNodeFlags flags = 0);
-    bool CollapsingSubHeader(const char* label, ImGuiTreeNodeFlags flags = 0);
+	bool CollapsingSubHeader(const char* label, bool* p_open, ImGuiTreeNodeFlags flags = 0);
+	bool CollapsingSubHeader(const char* label, ImGuiTreeNodeFlags flags = 0);
 
 }
 
 namespace ImGuiEx
 {
-    void SetupImGuiStyle2();
+	void SetupImGuiStyle2();
 
-    bool ColoredButton(const char* text, const ImVec2& size, float hue);
+	bool ColoredButton(const char* text, const ImVec2& size, float hue);
 
-    bool ColorCombo(const char* label, int* current_item, bool(*items_getter)(void*, int, ImColor* color, const char**),
-        void* data, int items_count, int height_in_items);
+	bool ColorCombo(const char* label, int* current_item, bool(*items_getter)(void*, int, ImColor* color, const char**),
+		void* data, int items_count, int height_in_items);
 }
 
