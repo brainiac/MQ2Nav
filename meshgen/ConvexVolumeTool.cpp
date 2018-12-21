@@ -189,16 +189,28 @@ void ConvexVolumeTool::handleMenu()
 
 	ImGui::Text("%d Volumes", navMesh->GetConvexVolumeCount());
 	ImGui::BeginChild("VolumeList", ImVec2(0, 200), true);
-	int volumeListWidth = ImGui::GetContentRegionAvailWidth();
+
+	ImGuiStyle& style = ImGui::GetStyle();
+	float w = ImGui::GetContentRegionAvail().x;
+	float spacing = style.ItemInnerSpacing.x;
+	float button_sz = ImGui::GetFrameHeight();
+
+	ImGui::Columns(2, nullptr, false);
 
 	for (size_t i = 0; i < navMesh->GetConvexVolumeCount(); ++i)
 	{
 		ConvexVolume* volume = navMesh->GetConvexVolume(i);
 		const PolyAreaType& area = navMesh->GetPolyArea(volume->areaType);
 
+		ImGui::PushID((int)i);
+
+		bool isFirst = (i == 0);
+		bool isLast = (i == navMesh->GetConvexVolumeCount() - 1);
+
 		char label[256];
 		const char* volumeName = volume->name.empty() ? "unnamed" : volume->name.c_str();
 
+		ImGui::SetColumnWidth(-1, w - spacing * 2.0f - button_sz * 2.0f);
 
 		if (!area.valid)
 		{
@@ -216,13 +228,8 @@ void ConvexVolumeTool::handleMenu()
 
 		bool selected = (m_state->m_currentVolumeId == volume->id);
 
-		ImGuiStyle& style = ImGui::GetStyle();
-		float w = ImGui::CalcItemWidth();
-		float spacing = style.ItemInnerSpacing.x;
-		float button_sz = ImGui::GetFrameHeight();
 
-		ImGui::PushItemWidth(w - spacing * 2.0f - button_sz * 2.0f);
-		if (ImGui::Selectable(label, &selected, 0))
+		if (ImGui::Selectable(label, &selected))
 		{
 			if (selected)
 			{
@@ -232,21 +239,76 @@ void ConvexVolumeTool::handleMenu()
 				m_editing = false;
 			}
 		}
-		ImGui::PopItemWidth();
 
 		if (!area.valid)
 		{
 			ImGui::PopStyleColor(1);
 		}
 
-		ImGui::SameLine(0, spacing);
-		ImGui::PushItemWidth(button_sz);
-		ImGui::Button(ICON_MD_ARROW_UPWARD);
-		ImGui::SameLine(0, spacing);
-		ImGui::Button(ICON_MD_ARROW_DOWNWARD);
-		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+
+		bool moved = false;
+
+		if (isFirst)
+		{
+			// Maybe could be made into a helper function
+			ImGui::PushStyleColor(ImGuiCol_Text, GImGui->Style.Colors[ImGuiCol_TextDisabled]);
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+			ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+		}
+
+		if (ImGui::ArrowButton("##up", ImGuiDir_Up) && !isFirst)
+		{
+			navMesh->MoveConvexVolumeToIndex(volume->id, i - 1);
+			moved = true;
+		}
+
+		if (isFirst)
+		{
+			ImGui::PopStyleVar();
+			ImGui::PopItemFlag();
+			ImGui::PopStyleColor();
+		}
+
+		ImGui::SameLine();
+
+		if (isLast)
+		{
+			// Maybe could be made into a helper function
+			ImGui::PushStyleColor(ImGuiCol_Text, GImGui->Style.Colors[ImGuiCol_TextDisabled]);
+			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+			ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+		}
+
+		if (ImGui::ArrowButton("##down", ImGuiDir_Down) && !isLast)
+		{
+			navMesh->MoveConvexVolumeToIndex(volume->id, i + 1);
+			moved = true;
+		}
+
+		if (isLast)
+		{
+			ImGui::PopStyleVar();
+			ImGui::PopItemFlag();
+			ImGui::PopStyleColor();
+		}
+
+		ImGui::NextColumn();
+
+		if (moved)
+		{
+			auto modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume->id);
+			if (!modifiedTiles.empty())
+			{
+				m_meshTool->RebuildTiles(modifiedTiles);
+			}
+		}
+
+		ImGui::PopID();
 	}
 	ImGui::EndChild();
+
+	ImGui::Columns(1);
 
 	{
 		ImGui::BeginChild("##buttons", ImVec2(0, 30), false);

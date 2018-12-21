@@ -151,6 +151,8 @@ public:
 
 	std::vector<dtTileRef> GetTilesIntersectingConvexVolume(uint32_t volumeId);
 
+	void MoveConvexVolumeToIndex(uint32_t id, size_t index);
+
 	//------------------------------------------------------------------------
 	// events
 

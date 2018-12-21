@@ -738,6 +738,26 @@ std::vector<dtTileRef> NavMesh::GetTilesIntersectingConvexVolume(uint32_t id)
 	return tiles;
 }
 
+void NavMesh::MoveConvexVolumeToIndex(uint32_t id, size_t toIndex)
+{
+	// get iterator and index of id
+	auto fromIter = std::find_if(std::begin(m_volumes),
+		std::end(m_volumes),
+		[id](const auto& vol) { return vol->id == id; });
+	size_t fromIndex = std::distance(std::begin(m_volumes), fromIter);
+
+	auto toIter = std::next(std::begin(m_volumes), toIndex);
+
+	if (toIndex > fromIndex)
+	{
+		std::rotate(fromIter, std::next(fromIter), std::next(toIter));
+	}
+	else
+	{
+		std::rotate(toIter, fromIter, std::next(fromIter));
+	}
+}
+
 //----------------------------------------------------------------------------
 
 void NavMesh::InitializeAreas()
