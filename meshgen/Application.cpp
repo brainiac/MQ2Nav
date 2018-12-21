@@ -526,7 +526,7 @@ void Application::RenderInterface()
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("Mesh"))
+		if (ImGui::BeginMenu("Zone"))
 		{
 			if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr,
 				!m_meshTool->isBuildingTiles()))
@@ -547,6 +547,11 @@ void Application::RenderInterface()
 
 			ImGui::Separator();
 
+			if (ImGui::MenuItem("Area Types..."))
+				m_showMapAreas = !m_showMapAreas;
+
+			ImGui::Separator();
+
 			if (ImGui::MenuItem("Export Settings", "", nullptr,
 				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
 			{
@@ -558,14 +563,6 @@ void Application::RenderInterface()
 			{
 				ShowImportExportSettingsDialog(true);
 			}
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("Edit"))
-		{
-			if (ImGui::MenuItem("Area Types"))
-				m_showMapAreas = !m_showMapAreas;
 
 			ImGui::EndMenu();
 		}
