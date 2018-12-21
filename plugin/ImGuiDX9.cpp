@@ -189,7 +189,7 @@ LRESULT ImGui_ImplDX9_WndProcHandler(HWND, UINT msg, WPARAM wParam, LPARAM lPara
 	return 0;
 }
 
-bool    ImGui_ImplDX9_Init(void* hwnd, IDirect3DDevice9* device)
+bool ImGui_ImplDX9_Init(void* hwnd, IDirect3DDevice9* device)
 {
 	g_hWnd = (HWND)hwnd;
 	g_pd3dDevice = device;
@@ -198,6 +198,8 @@ bool    ImGui_ImplDX9_Init(void* hwnd, IDirect3DDevice9* device)
 		return false;
 	if (!QueryPerformanceCounter((LARGE_INTEGER *)&g_Time))
 		return false;
+
+	ImGui::CreateContext();
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.KeyMap[ImGuiKey_Tab] = VK_TAB;                              // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array that we will update during the application lifetime.
@@ -229,7 +231,9 @@ bool    ImGui_ImplDX9_Init(void* hwnd, IDirect3DDevice9* device)
 void ImGui_ImplDX9_Shutdown()
 {
 	ImGui_ImplDX9_InvalidateDeviceObjects();
-	ImGui::Shutdown();
+
+	ImGui::DestroyContext();
+
 	g_pd3dDevice = NULL;
 	g_hWnd = 0;
 }

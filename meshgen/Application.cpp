@@ -16,11 +16,9 @@
 #include <RecastDebugDraw.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
-#include <imgui/imgui_custom/imgui_user.h>
-#include <imgui/fonts/IconsFontAwesome.h>
-#include <imgui/fonts/IconsMaterialDesign.h>
-#include <imgui/imgui_custom/ImGuiUtils.h>
-#include <imgui/addons/imguidock/imguidock.h>
+#include <imgui/misc/fonts/IconsFontAwesome.h>
+#include <imgui/misc/fonts/IconsMaterialDesign.h>
+#include <imgui/custom/imgui_utils.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <gl/GLU.h>
@@ -117,6 +115,8 @@ bool Application::InitializeWindow()
 			::SetClassLongPtrA(hwnd, GCLP_HICON, reinterpret_cast<LONG_PTR>(icon));
 		}
 	}
+
+	ImGui::CreateContext();
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.IniFilename = m_iniFile.c_str();
@@ -631,7 +631,7 @@ void Application::RenderInterface()
 
 	if (m_showDemo)
 	{
-		ImGui::ShowTestWindow(&m_showDemo);
+		ImGui::ShowDemoWindow(&m_showDemo);
 	}
 
 	if (m_showProperties)
@@ -824,7 +824,7 @@ void Application::ShowSettingsDialog()
 	{
 		ImGui::Text("EQ Path");
 		ImGui::PushItemWidth(400);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImColor(244, 250, 125));
+		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(244, 250, 125));
 		ImGui::InputText("##EQPath", (char*)m_eqConfig.GetEverquestPath().c_str(),
 			m_eqConfig.GetEverquestPath().length(), ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
@@ -837,7 +837,7 @@ void Application::ShowSettingsDialog()
 
 		ImGui::Text("Navmesh Path");
 		ImGui::PushItemWidth(400);
-		ImGui::PushStyleColor(ImGuiCol_Text, ImColor(244, 250, 125));
+		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(244, 250, 125));
 		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetOutputPath().c_str(),
 			m_eqConfig.GetOutputPath().length(), ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
@@ -917,8 +917,8 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 
 	if (areaId != 0) // no color for 0
 	{
-		changed |= ImGuiEx::ColorEdit4("##color", &col.Value.x,
-			ImGuiColorEditFlags_NoSliders);
+		changed |= ImGui::ColorEdit4("##color", &col.Value.x,
+			0/*ImGuiColorEditFlags_NoSliders*/);
 	}
 
 	ImGui::NextColumn();
@@ -945,7 +945,7 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 
 	if (builtIn)
 	{
-		ImGui::PushStyleColor(ImGuiCol_Text, ImColor(128, 128, 128));
+		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(128, 128, 128));
 		useNewName = ImGui::InputText("##name", name, 256, ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 	}
@@ -969,7 +969,7 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 
 	if (areaId == 0)
 	{
-		ImGui::PushStyleColor(ImGuiCol_Text, ImColor(128, 128, 128));
+		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(128, 128, 128));
 		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, 1, ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 	}

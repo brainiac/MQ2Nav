@@ -14,7 +14,7 @@
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
-#include <imgui/imgui_custom/imgui_user.h>
+#include <imgui/custom/imgui_user.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>

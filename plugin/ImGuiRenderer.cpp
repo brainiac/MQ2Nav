@@ -9,16 +9,14 @@
 #include "RenderHandler.h"
 
 #include <imgui.h>
-#include <imgui/imgui_custom/imgui_user.h>
-#include <imgui/imgui_custom/ImGuiUtils.h>
+#include <imgui/custom/imgui_user.h>
+#include <imgui/custom/imgui_utils.h>
 
 //----------------------------------------------------------------------------
 
 ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	: m_pDevice(device)
 {
-	m_context = GImGuiGlobalSharedPointer;
-
 	// Iniialize the ImGui overlay
 	ImGui_ImplDX9_Init(eqhwnd, device);
 
@@ -47,7 +45,7 @@ ImGuiRenderer::~ImGuiRenderer()
 	ImGui_ImplDX9_Shutdown();
 
 	m_pDevice->Release();
-	m_pDevice = nullptr;
+	m_pDevice = nullptr;);
 }
 
 void ImGuiRenderer::InvalidateDeviceObjects()

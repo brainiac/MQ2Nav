@@ -17,11 +17,11 @@
 #include <DetourDebugDraw.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshBuilder.h>
-#include <imgui/fonts/IconsMaterialDesign.h>
+#include <imgui/misc/fonts/IconsMaterialDesign.h>
 
 #include <SDL.h>
 #include <imgui/imgui.h>
-#include <imgui/imgui_custom/imgui_user.h>
+#include <imgui/custom/imgui_user.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -175,7 +175,7 @@ bool ToolButton(const char* text, const char* tooltip, bool active)
 {
 	if (!active)
 	{
-		ImGui::PushStyleColor(ImGuiCol_Button, ImColor(100, 100, 100, 255));
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor(100, 100, 100, 255));
 	}
 
 	ImGui::PushFont(ImGuiEx::LargeIconFont);

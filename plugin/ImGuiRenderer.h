@@ -20,8 +20,6 @@
 
 //----------------------------------------------------------------------------
 
-struct ImGuiContext;
-
 class ImGuiRenderer : public Renderable
 {
 public:
@@ -57,9 +55,6 @@ private:
 	// fps counter
 	std::vector<float> m_renderFrameRateHistory;
 	std::chrono::system_clock::time_point m_prevHistoryPoint;
-
-	// we hold onto this so it doesn't go away while we're still using it.
-	std::shared_ptr<ImGuiContext> m_context;
 
 	std::string m_iniFileName;
 };

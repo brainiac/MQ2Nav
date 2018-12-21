@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -19,31 +19,43 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="fonts\font_droidsans_ttf.cpp" />
-    <ClCompile Include="fonts\font_fontawesome_ttf.cpp" />
-    <ClCompile Include="fonts\font_materialicons_ttf.cpp" />
-    <ClCompile Include="fonts\font_roboto_medium_ttf.cpp" />
-    <ClCompile Include="fonts\font_roboto_regular_ttf.cpp" />
+    <ClCompile Include="misc\fonts\font_droidsans_ttf.cpp" />
+    <ClCompile Include="misc\fonts\font_fontawesome_ttf.cpp" />
+    <ClCompile Include="misc\fonts\font_materialicons_ttf.cpp" />
+    <ClCompile Include="misc\fonts\font_roboto_medium_ttf.cpp" />
+    <ClCompile Include="misc\fonts\font_roboto_regular_ttf.cpp" />
+    <ClCompile Include="custom\imgui_column_headers.cpp" />
+    <ClCompile Include="custom\imgui_user.cpp" />
     <ClCompile Include="imgui.cpp" />
-    <ClCompile Include="imgui_custom\imgui_column_headers.cpp" />
-    <ClCompile Include="imgui_custom\imgui_user.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />
+    <ClCompile Include="imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="custom\imgui_user.h" />
     <ClInclude Include="imconfig.h" />
     <ClInclude Include="imgui.h" />
-    <ClInclude Include="imgui_custom\ImGuiUtils.h" />
-    <ClInclude Include="imgui_custom\imgui_column_headers.h" />
+    <ClInclude Include="custom\imgui_utils.h" />
+    <ClInclude Include="custom\imgui_column_headers.h" />
     <ClInclude Include="imgui_custom\imgui_user.h" />
     <ClInclude Include="imgui_internal.h" />
     <ClInclude Include="imgui_user.h" />
-    <ClInclude Include="stb_rect_pack.h" />
-    <ClInclude Include="stb_textedit.h" />
-    <ClInclude Include="stb_truetype.h" />
+    <ClInclude Include="imstb_rect_pack.h" />
+    <ClInclude Include="imstb_textedit.h" />
+    <ClInclude Include="imstb_truetype.h" />
+    <ClInclude Include="misc\fonts\font_droidsans_ttf.h" />
+    <ClInclude Include="misc\fonts\font_fontawesome_ttf.h" />
+    <ClInclude Include="misc\fonts\font_materialicons_ttf.h" />
+    <ClInclude Include="misc\fonts\font_roboto_medium_ttf.h" />
+    <ClInclude Include="misc\fonts\font_roboto_regular_ttf.h" />
+    <ClInclude Include="misc\fonts\IconsFontAwesome.h" />
+    <ClInclude Include="misc\fonts\IconsMaterialDesign.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="imgui_user.inl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="misc\natvis\imgui.natvis" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{81EA8021-75BF-4D3F-8F60-12755690F6F6}</ProjectGuid>

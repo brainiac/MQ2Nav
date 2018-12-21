@@ -5,11 +5,11 @@
 #include "Utilities.h"
 
 #include <imgui/imgui.h>
-#include <imgui/fonts/font_fontawesome_ttf.h>
-#include <imgui/fonts/font_roboto_regular_ttf.h>
-#include <imgui/fonts/font_materialicons_ttf.h>
-#include <imgui/fonts/IconsFontAwesome.h>
-#include <imgui/fonts/IconsMaterialDesign.h>
+#include <imgui/misc/fonts/font_fontawesome_ttf.h>
+#include <imgui/misc/fonts/font_roboto_regular_ttf.h>
+#include <imgui/misc/fonts/font_materialicons_ttf.h>
+#include <imgui/misc/fonts/IconsFontAwesome.h>
+#include <imgui/misc/fonts/IconsMaterialDesign.h>
 
 #include <zlib.h>
 

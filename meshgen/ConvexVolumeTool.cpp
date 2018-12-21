@@ -11,10 +11,11 @@
 #include <DetourDebugDraw.h>
 
 #include <imgui/imgui.h>
+#include <imgui/misc/fonts/IconsMaterialDesign.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_PLACEMENT_NEW
 #include <imgui/imgui_internal.h>
-#include <imgui/imgui_custom/imgui_user.h>
+#include <imgui/custom/imgui_user.h>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <functional>
@@ -95,36 +96,71 @@ void ConvexVolumeTool::reset()
 static bool AreaTypeCombo(NavMesh* navMesh, uint8_t* areaType)
 {
 	const auto& polyAreas = navMesh->GetPolyAreas();
-	bool changed = false;
-
-	struct Iter {
-		decltype(polyAreas)& polys;
-	};
-	Iter data{ polyAreas };
-
-	static auto getter = [](void* data, int index, ImColor* color, const char** text) -> bool
-	{
-		Iter* p = (Iter*)data;
-
-		*color = p->polys[index]->color;
-		color->Value.w = 1.0f; // no transparency
-		*text = p->polys[index]->name.c_str();
-		return true;
-	};
-
 	int size = (int)polyAreas.size();
-	int selected = 0;
+	bool changed = false;
+	int selectedIndex = -1;
 
+	ImVec2 combo_pos = ImGui::GetCursorScreenPos();
+
+	// find the selected index
 	for (int i = 0; i < size; ++i)
 	{
 		if (polyAreas[i]->id == *areaType)
-			selected = i;
+		{
+			selectedIndex = i;
+		}
 	}
 
-	if (ImGuiEx::ColorCombo("Area Type", &selected, getter, &data, size, 10))
+	ImGuiStyle& style = ImGui::GetStyle();
+
+	if (ImGui::BeginCombo("Area Type", ""))
 	{
-		*areaType = polyAreas[selected]->id;
-		changed = true;
+		float h = ImGui::GetTextLineHeight();
+
+		for (int i = 0; i < size; ++i)
+		{
+			ImGui::PushID(i);
+
+			bool selected = selectedIndex == i;
+			if (selected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+
+			float default_size = ImGui::GetFrameHeight();
+			ImVec2 size{ default_size - 6, default_size - 6 };
+
+			ImColor color{ polyAreas[i]->color };
+			color.Value.w = 1.0f; // no transparency
+
+			changed = ImGui::Selectable("", selected);
+			ImGui::SameLine();
+
+			ImGui::ColorButton("##color", color, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoTooltip, size);
+
+			ImGui::SameLine();
+			ImGui::Text(polyAreas[i]->name.c_str());
+
+			if (changed)
+			{
+				*areaType = polyAreas[i]->id;
+			}
+
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
+	}
+
+	if (selectedIndex != -1)
+	{
+		ImVec2 backup_pos = ImGui::GetCursorScreenPos();
+		ImGui::SetCursorScreenPos(ImVec2(combo_pos.x + style.FramePadding.x, combo_pos.y));
+		ImColor color{ polyAreas[selectedIndex]->color };
+		color.Value.w = 1.0f; // no transparency
+		ImGui::ColorButton("##selectedColor", color, 0);
+		ImGui::SameLine();
+		ImGui::Text(polyAreas[selectedIndex]->name.c_str());
+		ImGui::SetCursorScreenPos(backup_pos);
 	}
 
 	return changed;
@@ -153,6 +189,8 @@ void ConvexVolumeTool::handleMenu()
 
 	ImGui::Text("%d Volumes", navMesh->GetConvexVolumeCount());
 	ImGui::BeginChild("VolumeList", ImVec2(0, 200), true);
+	int volumeListWidth = ImGui::GetContentRegionAvailWidth();
+
 	for (size_t i = 0; i < navMesh->GetConvexVolumeCount(); ++i)
 	{
 		ConvexVolume* volume = navMesh->GetConvexVolume(i);
@@ -161,9 +199,10 @@ void ConvexVolumeTool::handleMenu()
 		char label[256];
 		const char* volumeName = volume->name.empty() ? "unnamed" : volume->name.c_str();
 
+
 		if (!area.valid)
 		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImColor(255, 0, 0));
+			ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(255, 0, 0));
 
 			sprintf_s(label, "%04d: %s (Invalid Area Type: %d)", volume->id, volumeName, volume->areaType);
 		}
@@ -177,7 +216,13 @@ void ConvexVolumeTool::handleMenu()
 
 		bool selected = (m_state->m_currentVolumeId == volume->id);
 
-		if (ImGui::Selectable(label, &selected))
+		ImGuiStyle& style = ImGui::GetStyle();
+		float w = ImGui::CalcItemWidth();
+		float spacing = style.ItemInnerSpacing.x;
+		float button_sz = ImGui::GetFrameHeight();
+
+		ImGui::PushItemWidth(w - spacing * 2.0f - button_sz * 2.0f);
+		if (ImGui::Selectable(label, &selected, 0))
 		{
 			if (selected)
 			{
@@ -187,11 +232,19 @@ void ConvexVolumeTool::handleMenu()
 				m_editing = false;
 			}
 		}
+		ImGui::PopItemWidth();
 
 		if (!area.valid)
 		{
 			ImGui::PopStyleColor(1);
 		}
+
+		ImGui::SameLine(0, spacing);
+		ImGui::PushItemWidth(button_sz);
+		ImGui::Button(ICON_MD_ARROW_UPWARD);
+		ImGui::SameLine(0, spacing);
+		ImGui::Button(ICON_MD_ARROW_DOWNWARD);
+		ImGui::PopItemWidth();
 	}
 	ImGui::EndChild();
 
