@@ -43,4 +43,8 @@ bool AddWaypoint(const Waypoint& waypoint);
 
 void RenderWaypointsUI();
 
+using Waypoints = std::vector<Waypoint>;
+
+extern Waypoints g_waypoints;
+
 } // namespace mq2nav

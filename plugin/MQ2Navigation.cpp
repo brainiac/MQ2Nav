@@ -389,6 +389,18 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		return;
 	}
 
+	if (!_stricmp(buffer, "listwp"))
+	{
+		WriteChatf(PLUGIN_MSG "\ag%d\ax waypoint(s) for \ag%s\ax:", mq2nav::g_waypoints.size(), GetShortZone(m_zoneId));
+
+		for (const mq2nav::Waypoint& wp : mq2nav::g_waypoints)
+		{
+			WriteChatf(PLUGIN_MSG "  \at%s\ax: \a-w%s\ax \ay(%.2f, %.2f, %.2f)",
+				wp.name.c_str(), wp.description.c_str(), wp.location.y, wp.location.x, wp.location.z);
+		}
+		return;
+	}
+
 	// parse /nav load
 	if (!_stricmp(buffer, "load"))
 	{
@@ -410,6 +422,7 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		WriteChatf(PLUGIN_MSG "\ag/nav [save | load]\ax - save/load settings");
 		WriteChatf(PLUGIN_MSG "\ag/nav reload\ax - reload navmesh");
 		WriteChatf(PLUGIN_MSG "\ag/nav recordwaypoint|rwp \"<waypoint name>\" [\"<waypoint description>\"]\ax - create a waypoint at current location");
+		WriteChatf(PLUGIN_MSG "\ag/nav listwp\ax - list waypoints");
 
 		WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
 		WriteChatf(PLUGIN_MSG "\ag/nav target\ax - navigate to target");

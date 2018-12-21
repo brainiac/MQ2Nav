@@ -10,7 +10,6 @@ namespace mq2nav {
 
 //----------------------------------------------------------------------------
 
-typedef std::vector<Waypoint> Waypoints;
 Waypoints g_waypoints;
 std::string g_zoneName;
 std::string g_shortZone;
