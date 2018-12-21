@@ -918,7 +918,10 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	if (areaId != 0) // no color for 0
 	{
 		changed |= ImGui::ColorEdit4("##color", &col.Value.x,
-			0/*ImGuiColorEditFlags_NoSliders*/);
+			ImGuiColorEditFlags_NoInputs
+			| ImGuiColorEditFlags_NoTooltip
+			| ImGuiColorEditFlags_NoOptions
+			| ImGuiColorEditFlags_NoDragDrop);
 	}
 
 	ImGui::NextColumn();

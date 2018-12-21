@@ -588,8 +588,8 @@ void NavigationLine::RenderUI()
 			ImGui::PushID(i);
 			auto& config = m_renderPasses[i];
 			ImGui::Checkbox("Enabled", &config.enabled);
-			ImGui::ColorEditMode(ImGuiColorEditMode_RGB);
-			ImGui::ColorEdit4("Color", (float*)&config.render_color);
+			ImGui::ColorEdit4("Color", (float*)&config.render_color,
+				ImGuiColorEditFlags_RGB);
 			ImGui::InputFloat("Width", &config.width);
 
 			ImGui::PopID();

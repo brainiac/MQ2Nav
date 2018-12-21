@@ -12,7 +12,7 @@
 
 #define IMGUI_INCLUDE_IMGUI_USER_H
 #include <imgui.h>
-#include <imgui_custom/imgui_user.h>
+#include <imgui/custom/imgui_user.h>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -79,7 +79,22 @@ void UiController::PerformUpdateUI()
 		return;
 	}
 
-	ImGui::TabLabels(static_cast<int>(TabPage::Max), s_tabNames, m_selectedTab);
+	if (ImGui::BeginTabBar("##main", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton | ImGuiTabBarFlags_FittingPolicyScroll))
+	{
+		for (int i = 0; i < static_cast<int>(TabPage::Max); ++i)
+		{
+			bool isActive = m_selectedTab == i;
+			if (ImGui::BeginTabItem(s_tabNames[i]))
+			{
+				m_selectedTab = i;
+
+				ImGui::EndTabItem();
+			}
+		}
+
+		ImGui::EndTabBar();
+	}
+
 	TabPage selectedTab = static_cast<TabPage>(m_selectedTab);
 
 	ImGui::Separator();
@@ -178,7 +193,7 @@ void UiController::PerformUpdateTab(TabPage page)
 		ARGBCOLOR mapLineColor;
 		mapLineColor.ARGB = g_mq2Nav->GetMapLine()->GetColor();
 		float mapLineRGB[3] = { mapLineColor.R / 255.f, mapLineColor.G / 255.f, mapLineColor.B / 255.f };
-		if (ImGuiEx::ColorEdit3("Map line color", mapLineRGB, ImGuiColorEditFlags_RGB))
+		if (ImGui::ColorEdit3("Map line color", mapLineRGB, ImGuiColorEditFlags_RGB))
 		{
 			mapLineColor.R = mapLineRGB[0] * 255;
 			mapLineColor.G = mapLineRGB[1] * 255;

@@ -10,7 +10,7 @@
 #include "MQ2Nav_Util.h"
 
 #include <imgui.h>
-#include "imgui_custom/imgui_column_headers.h"
+#include <imgui/custom/imgui_column_headers.h>
 
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
@@ -595,7 +595,7 @@ if (!m_showDoorsUI)
 
 		bool targetted = (m_lastDoorTargetId == door->ID);
 		if (targetted)
-			ImGui::PushStyleColor(ImGuiCol_Text, ImColor(0, 255, 0));
+			ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(0, 255, 0));
 
 		ImGui::Text("%d", door->ID); ImGui::NextColumn();
 
@@ -708,7 +708,7 @@ void ModelLoader::OnUpdateUI()
 
 				if (door)
 				{
-					ImGui::PushStyleColor(ImGuiCol_Text, ImColor(0, 255, 0));
+					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(0, 255, 0));
 
 					if (ImGui::TreeNode("Target Object", "Door Target: %s (%d)", door->Name, door->ID))
 					{

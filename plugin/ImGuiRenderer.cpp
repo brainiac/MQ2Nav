@@ -45,7 +45,7 @@ ImGuiRenderer::~ImGuiRenderer()
 	ImGui_ImplDX9_Shutdown();
 
 	m_pDevice->Release();
-	m_pDevice = nullptr;);
+	m_pDevice = nullptr;
 }
 
 void ImGuiRenderer::InvalidateDeviceObjects()
@@ -100,7 +100,7 @@ void RenderInputUI();
 
 static void DrawMatrix(D3DXMATRIX& matrix, const char* name)
 {
-	if (ImGui::CollapsingHeader(name, 0, true, true))
+	if (ImGui::CollapsingHeader(name, 0, ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::Columns(4, name);
 		ImGui::Separator();
@@ -170,7 +170,7 @@ void RenderInputUI()
 {
 	return;
 
-	if (ImGui::CollapsingHeader("Keyboard", "##keyboard", true, true))
+	if (ImGui::CollapsingHeader("Keyboard", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::Text("Keyboard");
 		ImGui::SameLine();
@@ -186,7 +186,7 @@ void RenderInputUI()
 		ImGui::InputText("Test Edit", testEdit, 256);
 	}
 
-	if (ImGui::CollapsingHeader("Mouse", "##mouse", true, true))
+	if (ImGui::CollapsingHeader("Mouse", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::Text("Position: (%d, %d)", MouseLocation, MouseLocation.y);
 

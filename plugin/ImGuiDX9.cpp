@@ -9,8 +9,8 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 
-#include <imgui/imgui_custom/ImGuiUtils.h>
-#include <imgui/fonts/font_roboto_regular_ttf.h>
+#include <imgui/custom/imgui_utils.h>
+#include <imgui/misc/fonts/font_roboto_regular_ttf.h>
 //#include <imgui/fonts/font_fontawesome_ttf.h>
 
 // Data
