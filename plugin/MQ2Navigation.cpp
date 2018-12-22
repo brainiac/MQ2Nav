@@ -429,6 +429,8 @@ void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
 		WriteChatf(PLUGIN_MSG "\ag/nav id #\ax - navigate to target with ID = #");
 		WriteChatf(PLUGIN_MSG "\ag/nav loc[yxz] Y X Z\ax - navigate to coordinates");
 		WriteChatf(PLUGIN_MSG "\ag/nav locxyz X Y Z\ax - navigate to coordinates");
+		WriteChatf(PLUGIN_MSG "\ag/nav locyx Y X\ax - navigate to 2d coordinates");
+		WriteChatf(PLUGIN_MSG "\ag/nav locxy X Y\ax - navigate to 2d coordinates");
 		WriteChatf(PLUGIN_MSG "\ag/nav item [click]\ax - navigate to item (and click it)");
 		WriteChatf(PLUGIN_MSG "\ag/nav door [item_name | id #] [click]\ax - navigate to door/object (and click it)");
 		WriteChatf(PLUGIN_MSG "\ag/nav spawn <spawn search>\ax - navigate to spawn via spawn search query");
@@ -983,14 +985,20 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 	}
 
 	// parse /nav x y z
-	if (!_stricmp(buffer, "loc") || !_stricmp(buffer, "locxyz") || !_stricmp(buffer, "locyxz") || !_stricmp(buffer, "locxy") || !_stricmp(buffer, "locyx"))
+	if (!_stricmp(buffer, "loc")
+		|| !_stricmp(buffer, "locxyz")
+		|| !_stricmp(buffer, "locyxz")
+		|| !_stricmp(buffer, "locxy")
+		|| !_stricmp(buffer, "locyx"))
 	{
 		glm::vec3 tmpDestination;
 		bool noflip = !_stricmp(buffer, "locxyz") || !_stricmp(buffer, "locxy");
 		if (!_stricmp(buffer, "locyx") || !_stricmp(buffer, "locxy"))
 		{
 			PCHARINFO pChar = GetCharInfo();
-			tmpDestination[2] = pChar && pChar->pSpawn ? pChar->pSpawn->Z : 0.f; // this will get overridden if we provide a height arg
+
+			// this will get overridden if we provide a height arg
+			tmpDestination[2] = pChar->pSpawn->Z;
 			result->heightType = HeightType::Nearest;
 		}
 
@@ -1006,13 +1014,18 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 		}
 		if (i == 3 || (i == 2 && result->heightType == HeightType::Nearest))
 		{
-			if (notify == NotifyType::All) {
+			if (notify == NotifyType::All)
+			{
 				if (result->heightType == HeightType::Nearest)
+				{
 					WriteChatf(PLUGIN_MSG "Navigating to loc: %.2f, %.2f, Nearest To (%.2f)",
 						tmpDestination.x, tmpDestination.y, tmpDestination.z);
+				}
 				else
+				{
 					WriteChatf(PLUGIN_MSG "Navigating to loc: %.2f, %.2f, %.2f",
 						tmpDestination.x, tmpDestination.y, tmpDestination.z);
+				}
 			}
 
 			// swap the x/y coordinates for silly eq coordinate system
