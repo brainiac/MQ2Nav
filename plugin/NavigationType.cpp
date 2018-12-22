@@ -105,6 +105,7 @@ void InitializeMQ2NavMacroData()
 {
 	g_mq2NavigationType = std::make_unique<MQ2NavigationType>();
 	AddMQ2Data("Navigation", NavigateData);
+	AddMQ2Data("Nav", NavigateData);
 
 	g_mq2NavPathType = std::make_unique<MQ2NavPathType>();
 }
@@ -112,7 +113,8 @@ void InitializeMQ2NavMacroData()
 void ShutdownMQ2NavMacroData()
 {
 	RemoveMQ2Data("Navigation");
-	g_mq2NavigationType.reset();
+	RemoveMQ2Data("Nav");
 
+	g_mq2NavigationType.reset();
 	g_mq2NavPathType.reset();
 }
