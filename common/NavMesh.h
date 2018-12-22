@@ -87,6 +87,12 @@ public:
 	bool ImportJson(const std::string& filename, PersistedDataFields fields);
 
 	//----------------------------------------------------------------------------
+	// navmesh queries
+
+	std::vector<float> GetHeights(const glm::vec3& pos);
+	float GetClosestHeight(const glm::vec3& pos);
+
+	//----------------------------------------------------------------------------
 	// navmesh data
 
 	// try to reload the navmesh for the current zone. Returns true if the navmesh
