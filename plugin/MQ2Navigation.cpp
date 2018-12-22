@@ -42,7 +42,9 @@ std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
 static void NavigateCommand(PSPAWNINFO pChar, PCHAR szLine)
 {
 	if (g_mq2Nav)
-		g_mq2Nav->Command_Navigate(pChar, szLine);
+	{
+		g_mq2Nav->Command_Navigate(szLine);
+	}
 }
 
 static void ClickSwitch(CVector3 pos, EQSwitch* pSwitch)
@@ -312,7 +314,7 @@ void MQ2NavigationPlugin::ShutdownRenderer()
 
 //----------------------------------------------------------------------------
 
-void MQ2NavigationPlugin::Command_Navigate(PSPAWNINFO pChar, PCHAR szLine)
+void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 {
 	CHAR buffer[MAX_STRING] = { 0 };
 	int i = 0;
@@ -1057,7 +1059,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const std::shared_ptr<Destina
 	return -1;
 }
 
-float MQ2NavigationPlugin::GetNavigationPathLength(PCHAR szLine)
+float MQ2NavigationPlugin::GetNavigationPathLength(const char* szLine)
 {
 	float result = -1.f;
 
@@ -1070,7 +1072,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(PCHAR szLine)
 	return result;
 }
 
-bool MQ2NavigationPlugin::CanNavigateToPoint(PCHAR szLine)
+bool MQ2NavigationPlugin::CanNavigateToPoint(const char* szLine)
 {
 	bool result = false;
 	auto dest = ParseDestination(szLine);

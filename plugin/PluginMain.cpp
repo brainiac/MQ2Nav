@@ -3,6 +3,7 @@
 //
 
 #include "MQ2Navigation.h"
+#include "../PluginAPI.h"
 
 PreSetup("MQ2Nav");
 PLUGIN_VERSION(1.30);
@@ -90,32 +91,31 @@ PLUGIN_API void OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 // Wrappers for other plugins to access MQ2Nav
 
 // Used to check if MQ2Nav is initialized.
-// TODO check if this is needed, the other stuff should catch if this failed
-PLUGIN_API bool NavInitialized()
+NAV_API bool IsNavInitialized()
 {
 	return g_mq2Nav && g_mq2Nav->IsInitialized();
 }
 
 // Used to check if mesh is loaded
-PLUGIN_API bool NavMeshLoaded()
+NAV_API bool IsNavMeshLoaded()
 {
 	return g_mq2Nav && g_mq2Nav->IsMeshLoaded();
 }
 
 // Used to check if a path is active
-PLUGIN_API bool NavPathActive()
+NAV_API bool IsNavPathActive()
 {
 	return g_mq2Nav && g_mq2Nav->IsActive();
 }
 
  // Used to check if path is paused
-PLUGIN_API bool NavPathPaused()
+NAV_API bool IsNavPathPaused()
 {
-	return (g_mq2Nav && g_mq2Nav->IsPaused());
+	return g_mq2Nav && g_mq2Nav->IsPaused();
 }
 
 // Check if path is possible to the specified target
-PLUGIN_API bool NavPossible(PCHAR szLine)
+NAV_API bool IsNavPossible(const char* szLine)
 {
 	if (g_mq2Nav && g_mq2Nav->IsInitialized())
 	{
@@ -126,7 +126,7 @@ PLUGIN_API bool NavPossible(PCHAR szLine)
 }
 
 // Check path length
-PLUGIN_API float NavPathLength(PCHAR szLine)
+NAV_API float GetNavPathLength(const char* szLine)
 {
 	if (g_mq2Nav && g_mq2Nav->IsInitialized())
 	{
@@ -137,12 +137,82 @@ PLUGIN_API float NavPathLength(PCHAR szLine)
 }
 
 // used to pass mq2nav commands
-PLUGIN_API void NavCommand(PSPAWNINFO pChar, PCHAR szLine)
+NAV_API bool ExecuteNavCommand(const char* szLine)
 {
 	if (g_mq2Nav && g_mq2Nav->IsInitialized())
 	{
-		g_mq2Nav->Command_Navigate(pChar, szLine);
+		g_mq2Nav->Command_Navigate(szLine);
+		return true;
+	}
+
+	return false;
+}
+
+//============================================================================
+// These are old, unofficial exports. These are deprecated.
+// They will be removed in a future version.
+
+inline void DeprecatedCheck(const char* exportName)
+{
+	static bool once = false;
+	if (!once)
+	{
+		WriteChatf(PLUGIN_MSG "Deprecated export '%s' was used. Please make sure "
+			"to use the documented exports, as deprecated names will be removed in "
+			"a future update.", exportName);
+		once = true;
 	}
 }
+
+PLUGIN_API bool NavInitialized()
+{
+	DeprecatedCheck("NavInitialized");
+	return IsNavInitialized();
+}
+
+
+// Used to check if mesh is loaded
+PLUGIN_API bool NavMeshLoaded()
+{
+	DeprecatedCheck("NavMeshLoaded");
+	return IsNavMeshLoaded();
+}
+
+// Used to check if a path is active
+PLUGIN_API bool NavPathActive()
+{
+	DeprecatedCheck("NavPathActive");
+	return IsNavPathActive();
+}
+
+// Used to check if path is paused
+PLUGIN_API bool NavPathPaused()
+{
+	DeprecatedCheck("NavPathPaused");
+	return IsNavPathPaused();
+}
+
+// Check if path is possible to the specified target
+PLUGIN_API bool NavPossible(PCHAR szLine)
+{
+	DeprecatedCheck("NavPossible");
+	return IsNavPossible(szLine);
+}
+
+// Check path length
+PLUGIN_API float NavPathLength(PCHAR szLine)
+{
+	DeprecatedCheck("NavPathLength");
+	return GetNavPathLength(szLine);
+}
+
+// used to pass mq2nav commands
+PLUGIN_API void NavCommand(PSPAWNINFO pChar, PCHAR szLine)
+{
+	DeprecatedCheck("NavCommand");
+	ExecuteNavCommand(szLine);
+}
+
+
 
 //============================================================================

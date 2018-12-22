@@ -132,7 +132,7 @@ public:
 	bool InitializationFailed() const { return m_initializationFailed; }
 
 	// Handler for /navigate
-	void Command_Navigate(PSPAWNINFO pChar, PCHAR szLine);
+	void Command_Navigate(const char* szLine);
 
 	std::string GetDataDirectory() const;
 
@@ -175,10 +175,10 @@ public:
 	bool IsMeshLoaded() const;
 
 	// Check if a point is pathable (given a coordinate string)
-	bool CanNavigateToPoint(PCHAR szLine);
+	bool CanNavigateToPoint(const char* szLine);
 
 	// Check how far away a point is (given a coordinate string)
-	float GetNavigationPathLength(PCHAR szLine);
+	float GetNavigationPathLength(const char* szLine);
 
 	// Begin navigating to a point
 	void BeginNavigation(const std::shared_ptr<DestinationInfo>& dest);
