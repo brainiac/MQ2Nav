@@ -60,6 +60,7 @@ void ImGuiEx::ConfigureFonts()
 	// font: FontAwesome
 	ImFontConfig faConfig;
 	faConfig.MergeMode = true;
+	faConfig.GlyphMinAdvanceX = 14.0f;
 	static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 	io.Fonts->AddFontFromMemoryCompressedTTF(GetFontAwesomeCompressedData(),
 		GetFontAwesomeCompressedSize(), 14.0f, &faConfig, icon_ranges);
@@ -67,17 +68,20 @@ void ImGuiEx::ConfigureFonts()
 	// font: Material Design Icons
 	ImFontConfig mdConfig;
 	mdConfig.MergeMode = true;
+	mdConfig.GlyphMinAdvanceX = 13.0f;
 	static const ImWchar md_icon_ranges[] = { ICON_MIN_MD, ICON_MAX_MD, 0 };
 	io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
 		GetMaterialIconsCompressedSize(), 13.0f, &mdConfig, md_icon_ranges);
 
 	// font: Material Design Icons (Large)
 	ImFontConfig mdConfig2;
+	mdConfig2.GlyphMinAdvanceX = 16.0f;
 	LargeIconFont = io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
 		GetMaterialIconsCompressedSize(), 16.0f, &mdConfig2, md_icon_ranges);
 
 	mdConfig2.DstFont = LargeIconFont;
 	mdConfig2.MergeMode = true;
+
 	io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
 		GetRobotoRegularCompressedSize(), 16.0, &mdConfig2);
 
