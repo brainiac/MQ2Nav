@@ -1,0 +1,3 @@
+#include "EmbedResources.h"
+
+IDR_VOLUMELINES_FX      TEXT                    "..\\resources\\VolumeLines.fx"

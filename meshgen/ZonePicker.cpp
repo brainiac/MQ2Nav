@@ -211,7 +211,7 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 		}
 		else
 		{
-			bool count = 0;
+			int count = 0;
 			std::string lastZone;
 
 			ImGui::PushID("ZonesByFilter");

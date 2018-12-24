@@ -6,11 +6,13 @@
 
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
-#include "DebugDrawDX.h"
-#include "MQ2Navigation.h"
-#include "MQ2Nav_Settings.h"
-#include "NavMeshLoader.h"
-#include "RenderHandler.h"
+#include "common/Utilities.h"
+#include "plugin/DebugDrawDX.h"
+#include "plugin/EmbedResources.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/MQ2Nav_Settings.h"
+#include "plugin/NavMeshLoader.h"
+#include "plugin/RenderHandler.h"
 
 #include <DetourNavMesh.h>
 #include <DetourCommon.h>
@@ -324,9 +326,6 @@ glm::vec3 NavigationPath::GetDestination() const
 NavigationLine::NavigationLine(NavigationPath* path)
 	: m_path(path)
 {
-	// temp!
-	m_shaderFile = std::string(gszINIPath) + "\\MQ2Nav\\VolumeLines.fx";
-
 	m_renderPasses.push_back(RenderStyle{ ImColor(0, 0, 0, 200), 0.9f });
 	m_renderPasses.push_back(RenderStyle{ ImColor(52, 152, 219, 200), 0.5f });
 	m_renderPasses.push_back(RenderStyle{ ImColor(241, 196, 15, 200), 0.5f });
@@ -345,11 +344,23 @@ bool NavigationLine::CreateDeviceObjects()
 	if (!m_visible)
 		return true;
 
-	ID3DXBuffer* errors = 0;
-	HRESULT hr;
+	auto shaderFile = LoadResource(IDR_VOLUMELINES_FX);
+	if (shaderFile.empty())
+		return false;
 
-	hr = D3DXCreateEffectFromFileA(g_pDevice, m_shaderFile.c_str(),
-		NULL, NULL, 0, NULL, &m_effect, &errors);
+	ID3DXBuffer* errors = 0;
+
+	HRESULT hr = D3DXCreateEffect(
+		g_pDevice,
+		shaderFile.data(),
+		shaderFile.length(),
+		nullptr,
+		nullptr,
+		0,
+		nullptr,
+		&m_effect,
+		&errors);
+
 	if (FAILED(hr))
 	{
 		if (errors)

@@ -731,8 +731,11 @@ std::vector<dtTileRef> NavMesh::GetTilesIntersectingConvexVolume(uint32_t id)
 			}
 		}
 
+		// sort the tiles and unique-ify them.
 		std::sort(tiles.begin(), tiles.end());
-		std::unique(tiles.begin(), tiles.end());
+
+		auto last = std::unique(tiles.begin(), tiles.end());
+		tiles.erase(last, tiles.end());
 	}
 
 	return tiles;

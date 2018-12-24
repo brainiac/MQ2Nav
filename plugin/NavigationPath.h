@@ -159,7 +159,6 @@ public:
 private:
 	NavigationPath* m_path;
 
-	std::string m_shaderFile;
 	ID3DXEffect* m_effect = nullptr;
 
 	// The vertex structure we'll be using for line drawing. Each line is defined as two vertices,

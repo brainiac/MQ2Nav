@@ -14,9 +14,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\resources\DoorAdjustments.txt">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="..\resources\Zones.ini">
       <Filter>Resource Files</Filter>
     </None>
@@ -148,5 +145,13 @@
     <ClInclude Include="..\PluginAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="EmbedResources.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

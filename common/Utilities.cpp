@@ -12,16 +12,16 @@
 #include <imgui/misc/fonts/IconsMaterialDesign.h>
 
 #include <zlib.h>
+#include <cstdio>
 
-#include <stdio.h>
-
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 ImFont* ImGuiEx::DefaultFont = nullptr;
 ImFont* ImGuiEx::ConsoleFont = nullptr;
 ImFont* ImGuiEx::LargeIconFont = nullptr;
 
 //============================================================================
-
 
 void ImGuiEx::HelpMarker(const char* desc, float width, ImFont* tooltipFont)
 {
@@ -179,4 +179,37 @@ bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& 
 
 	out_data.swap(buffer);
 	return true;
+}
+
+//----------------------------------------------------------------------------
+
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+
+inline HINSTANCE GetComponentInstance()
+{
+	return (HINSTANCE)&__ImageBase;
+}
+
+std::string_view LoadResource(int resourceId)
+{
+	std::string_view ret;
+	HINSTANCE hModule = GetComponentInstance();
+
+	HRSRC hResource = FindResourceW(hModule, MAKEINTRESOURCEW(resourceId), L"TEXT");
+	if (hResource)
+	{
+		HGLOBAL hMemory = LoadResource(hModule, hResource);
+		if (hMemory)
+		{
+			size_t size = SizeofResource(hModule, hResource);
+			void* ptr = LockResource(hMemory);
+
+			if (ptr != nullptr)
+			{
+				ret = { reinterpret_cast<const char*>(ptr), size };
+			}
+		}
+	}
+
+	return ret;
 }

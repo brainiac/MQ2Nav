@@ -1,4 +1,4 @@
-﻿//
+//
 // Utilities.h
 //
 
@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 //----------------------------------------------------------------------------
@@ -109,8 +110,10 @@ private:
 	std::function<void()> f;
 };
 
-
-
 template <typename T>
 using deleting_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
+
+//----------------------------------------------------------------------------
+
+std::string_view LoadResource(int resourceId);
 
