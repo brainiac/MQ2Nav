@@ -145,7 +145,7 @@
     <ClInclude Include="..\PluginAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
+    <ClInclude Include="EmbedResources.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

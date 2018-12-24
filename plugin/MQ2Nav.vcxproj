@@ -114,6 +114,7 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="..\PluginAPI.h" />
     <ClInclude Include="DebugDrawDX.h" />
+    <ClInclude Include="EmbedResources.h" />
     <ClInclude Include="ImGuiDX9.h" />
     <ClInclude Include="ImGuiRenderer.h" />
     <ClInclude Include="KeybindHandler.h" />
@@ -131,7 +132,6 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="RenderList.h" />
-    <ClInclude Include="resource.h" />
     <ClInclude Include="SwitchHandler.h" />
     <ClInclude Include="UiController.h" />
     <ClInclude Include="Waypoints.h" />
