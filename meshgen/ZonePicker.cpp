@@ -102,7 +102,7 @@ static bool ExpansionButton(const IMAGEDATA& tgaData, const glm::ivec2& pos)
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
 
 	bool result = ImGui::ImageButton((ImTextureID)tgaData.textureId,
-		ImVec2((float)ExpansionLogoSize.x / 1.2f, (float)ExpansionLogoSize.y / 1.2f),
+		ImVec2((float)ExpansionLogoSize.x,(float)ExpansionLogoSize.y),
 		ImVec2((float)pos.x / (float)tgaData.width, (float)pos.y / (float)tgaData.height),
 		ImVec2((float)(pos.x + ExpansionLogoSize.x) / (float)tgaData.width, (float)(pos.y + ExpansionLogoSize.y) / (float)tgaData.height),
 		0);
@@ -116,11 +116,22 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 {
 	bool result = false;
 
-	ImGui::SetNextWindowSize(ImVec2(500, 575), ImGuiSetCond_Once);
-	ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
+	float width = 900;
+	ImVec2 avail = ImGui::GetIO().DisplaySize;
+
+	float xPos = std::max((avail.x - width) / 2.f, 0.f);
+	width = std::min(width, avail.x);
+
+	float yPos = 30;
+	float height = avail.y - (yPos * 2);
+
+	ImGui::SetNextWindowPos(ImVec2(xPos, yPos), ImGuiSetCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiSetCond_Always);
+
 	bool show = true;
 
-	if (ImGui::Begin("Open Zone", &show, ImGuiWindowFlags_NoSavedSettings))
+	if (ImGui::Begin("Open Zone", &show,
+		ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
 	{
 		ImGui::Text("Select a zone or type to filter by name");
 

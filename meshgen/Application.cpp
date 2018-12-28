@@ -481,18 +481,7 @@ void Application::UpdateCamera()
 
 void Application::RenderInterface()
 {
-	m_meshTool->handleRenderOverlay(m_proj, m_model, m_view);
-
 	char buffer[240] = { 0, };
-
-	// Help text.
-	static const char msg[] = "Hotkey List -> W/S/A/D: Move  "
-		"RMB: Rotate   "
-		"LMB: Place Start   "
-		"LMB+SHIFT: Place End   ";
-
-	ImGui::RenderTextCentered(ImVec2(m_width / 2, 20),
-		ImColor(255, 255, 255, 128), "%s", msg);
 
 	if (!m_activityMessage.empty())
 	{
@@ -589,6 +578,24 @@ void Application::RenderInterface()
 		ImGui::EndMainMenuBar();
 	}
 
+	ShowZonePickerDialog();
+
+	if (m_showZonePickerDialog)
+	{
+		return;
+	}
+
+	m_meshTool->handleRenderOverlay(m_proj, m_model, m_view);
+
+	// Help text.
+	static const char msg[] = "Hotkey List -> W/S/A/D: Move  "
+		"RMB: Rotate   "
+		"LMB: Place Start   "
+		"LMB+SHIFT: Place End   ";
+
+	ImGui::RenderTextCentered(ImVec2(m_width / 2, 20),
+		ImColor(255, 255, 255, 128), "%s", msg);
+
 	if (m_showFailedToOpenDialog)
 		ImGui::OpenPopup("Failed To Open");
 	if (ImGui::BeginPopupModal("Failed To Open"))
@@ -614,7 +621,6 @@ void Application::RenderInterface()
 	}
 
 	ShowSettingsDialog();
-	ShowZonePickerDialog();
 
 	if (m_importExportSettings)
 	{
