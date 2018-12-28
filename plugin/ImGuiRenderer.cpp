@@ -2,11 +2,11 @@
 // ImGuiRenderer.cpp
 //
 
-#include "ImGuiRenderer.h"
-#include "ImGuiDX9.h"
-#include "MQ2Navigation.h"
-#include "MQ2Nav_Hooks.h"
-#include "RenderHandler.h"
+#include "plugin/ImGuiRenderer.h"
+#include "plugin/ImGuiDX9.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/PluginHooks.h"
+#include "plugin/RenderHandler.h"
 
 #include <imgui.h>
 #include <imgui/custom/imgui_user.h>

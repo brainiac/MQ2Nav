@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "MQ2Plugin.h"
-
 #include "common/Context.h"
 #include "common/NavMesh.h"
 #include "common/NavModule.h"
 #include "common/Signal.h"
+
+#include <MQ2Plugin.h>
 
 #include <chrono>
 #include <string>

@@ -4,11 +4,11 @@
 
 #include "UiController.h"
 
-#include "MQ2Nav_Settings.h"
-#include "MQ2Navigation.h"
-#include "ModelLoader.h"
-#include "ImGuiRenderer.h"
-#include "Waypoints.h"
+#include "plugin/PluginSettings.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/ModelLoader.h"
+#include "plugin/ImGuiRenderer.h"
+#include "plugin/Waypoints.h"
 
 #define IMGUI_INCLUDE_IMGUI_USER_H
 #include <imgui.h>
@@ -42,7 +42,7 @@ void UiController::Shutdown()
 
 bool UiController::IsUiOn() const
 {
-	return mq2nav::GetSettings().show_ui;
+	return nav::GetSettings().show_ui;
 }
 
 void UiController::OnBeginZone()
@@ -70,8 +70,8 @@ void UiController::PerformUpdateUI()
 	bool do_ui = ImGui::Begin("MQ2Nav Tools", &show_ui, ImVec2(400, 400), -1, 0);
 
 	if (!show_ui) {
-		mq2nav::GetSettings().show_ui = false;
-		mq2nav::SaveSettings();
+		nav::GetSettings().show_ui = false;
+		nav::SaveSettings();
 	}
 
 	if (!do_ui) {
@@ -114,7 +114,7 @@ void UiController::PerformUpdateTab(TabPage page)
 	{
 		// "Settings" section (maybe make a separate window?)
 		bool changed = false;
-		auto& settings = mq2nav::GetSettings();
+		auto& settings = nav::GetSettings();
 
 		enum BreakBehavior {
 			DoNothing = 0,
@@ -212,7 +212,7 @@ void UiController::PerformUpdateTab(TabPage page)
 		// save the settings
 		//
 		if (changed)
-			mq2nav::SaveSettings();
+			nav::SaveSettings();
 	}
 
 	else if (page == TabPage::Tools)
@@ -223,7 +223,7 @@ void UiController::PerformUpdateTab(TabPage page)
 
 	else if (page == TabPage::Waypoints)
 	{
-		mq2nav::RenderWaypointsUI();
+		nav::RenderWaypointsUI();
 	}
 
 #if defined(_DEBUG)

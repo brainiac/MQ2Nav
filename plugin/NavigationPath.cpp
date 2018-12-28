@@ -10,7 +10,7 @@
 #include "plugin/DebugDrawDX.h"
 #include "plugin/EmbedResources.h"
 #include "plugin/MQ2Navigation.h"
-#include "plugin/MQ2Nav_Settings.h"
+#include "plugin/PluginSettings.h"
 #include "plugin/NavMeshLoader.h"
 #include "plugin/RenderHandler.h"
 
@@ -57,7 +57,7 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 	if (m_renderPaths)
 	{
 		m_line = std::make_shared<NavigationLine>(this);
-		m_line->SetVisible(mq2nav::GetSettings().show_nav_path);
+		m_line->SetVisible(nav::GetSettings().show_nav_path);
 		g_renderHandler->AddRenderable(m_line.get());
 
 		m_debugDrawGrp = std::make_unique<RenderGroup>(g_pDevice);
@@ -183,7 +183,7 @@ void NavigationPath::UpdatePath(bool force)
 	m_currentPathCursor = 0;
 	m_currentPathSize = 0;
 
-	auto& settings = mq2nav::GetSettings();
+	auto& settings = nav::GetSettings();
 
 	glm::vec3 extents = m_extents;
 	if (settings.use_find_polygon_extents)
@@ -298,13 +298,13 @@ float NavigationPath::GetPathTraversalDistance() const
 
 void NavigationPath::RenderUI()
 {
-	bool showPath = mq2nav::GetSettings().show_nav_path;
+	bool showPath = nav::GetSettings().show_nav_path;
 	if (ImGui::Checkbox("Show navigation path", &showPath))
 	{
 		SetShowNavigationPaths(showPath);
 
-		mq2nav::GetSettings().show_nav_path = showPath;
-		mq2nav::SaveSettings(false);
+		nav::GetSettings().show_nav_path = showPath;
+		nav::SaveSettings(false);
 
 		if (m_line)
 			m_line->SetVisible(showPath);
@@ -331,7 +331,7 @@ NavigationLine::NavigationLine(NavigationPath* path)
 	m_renderPasses.push_back(RenderStyle{ ImColor(241, 196, 15, 200), 0.5f });
 
 	m_pathUpdated = path->PathUpdated.Connect(
-		[this]() { if (mq2nav::GetSettings().show_nav_path) Update(); });
+		[this]() { if (nav::GetSettings().show_nav_path) Update(); });
 }
 
 NavigationLine::~NavigationLine()

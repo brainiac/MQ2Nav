@@ -1,14 +1,14 @@
 //
-// MQ2Nav_Util.h
+// Utilities.h
 //
 
 #pragma once
 
-#include "MQ2Navigation.h"
+#include "plugin/MQ2Navigation.h"
 
 #include <functional>
 
-namespace mq2nav {
+namespace nav {
 
 //----------------------------------------------------------------------------
 // Utility
@@ -18,6 +18,6 @@ inline bool ValidIngame(bool bCheckDead)
 	return (GetGameState() == GAMESTATE_INGAME && GetCharInfo()->pSpawn && GetCharInfo2() && GetCharInfo() && GetCharInfo()->Stunned != 3);
 }
 
-} // namespace mq2nav
+} // namespace nav
 
 void ClickDoor(PDOOR pDoor);

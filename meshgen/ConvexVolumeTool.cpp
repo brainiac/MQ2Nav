@@ -607,7 +607,7 @@ std::vector<dtTileRef> ConvexVolumeToolState::handleVolumeClick(const glm::vec3&
 
 		// If end point close enough, delete it.
 		if (nearestIndex != -1)
-		{ 
+		{
 			const ConvexVolume* volume = navMesh->GetConvexVolume(nearestIndex);
 			modifiedTiles = navMesh->GetTilesIntersectingConvexVolume(volume->id);
 			m_meshTool->GetNavMesh()->DeleteConvexVolumeById(volume->id);

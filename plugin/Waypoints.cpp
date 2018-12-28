@@ -6,7 +6,7 @@
 
 #include <imgui.h>
 
-namespace mq2nav {
+namespace nav {
 
 //----------------------------------------------------------------------------
 
@@ -240,7 +240,7 @@ void RenderWaypointsUI()
 	static bool changedForNext = false;
 
 	bool changed = false;
-	int waypoints = mq2nav::g_waypoints.size();
+	int waypoints = nav::g_waypoints.size();
 
 	// initialize current waypoint
 	if (currentWaypoint == -1) {
@@ -400,4 +400,4 @@ void RenderWaypointsUI()
 	} // end of RightPane
 }
 
-} // namespace mq2nav
+} // namespace nav

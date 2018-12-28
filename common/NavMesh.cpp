@@ -3,6 +3,7 @@
 //
 
 #include "NavMesh.h"
+
 #include "common/Enum.h"
 #include "common/JsonProto.h"
 #include "common/Utilities.h"

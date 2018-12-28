@@ -1,12 +1,14 @@
 //
-// MQ2Nav_Settings.cpp
+// PluginSettings.cpp
 //
 
-#include "MQ2Nav_Settings.h"
+#include "PluginSettings.h"
+
+#include "plugin/MQ2Navigation.h"
 
 #include <boost/lexical_cast.hpp>
 
-namespace mq2nav {
+namespace nav {
 
 //----------------------------------------------------------------------------
 
@@ -106,7 +108,6 @@ void LoadSettings(bool showMessage/* = true*/)
 	settings.autopause = LoadBoolSetting("AutoPause", defaults.autopause);
 	settings.autoreload = LoadBoolSetting("AutoReload", defaults.autoreload);
 	settings.show_ui = LoadBoolSetting("ShowUI", defaults.show_ui);
-	settings.show_navmesh_overlay = LoadBoolSetting("ShowNavMesh", defaults.show_navmesh_overlay);
 	settings.show_nav_path = LoadBoolSetting("ShowNavPath", defaults.show_nav_path);
 	settings.attempt_unstuck = LoadBoolSetting("AttemptUnstuck", defaults.attempt_unstuck);
 	settings.use_spawn_floor_height = LoadBoolSetting("UseSpawnFloorHeight", defaults.use_spawn_floor_height);
@@ -136,7 +137,6 @@ void SaveSettings(bool showMessage/* = true*/)
 	SaveBoolSetting("AutoPause", g_settings.autopause);
 	SaveBoolSetting("AutoReload", g_settings.autoreload);
 	SaveBoolSetting("ShowUI", g_settings.show_ui);
-	SaveBoolSetting("ShowNavMesh", g_settings.show_navmesh_overlay);
 	SaveBoolSetting("ShowNavPath", g_settings.show_nav_path);
 	SaveBoolSetting("UseSpawnFloorHeight", g_settings.use_spawn_floor_height);
 
@@ -155,4 +155,4 @@ void SaveSettings(bool showMessage/* = true*/)
 
 //----------------------------------------------------------------------------
 
-} // namespace mq2nav
+} // namespace nav

@@ -8,9 +8,8 @@
 #include "plugin/ImGuiRenderer.h"
 #include "plugin/KeybindHandler.h"
 #include "plugin/ModelLoader.h"
-#include "plugin/MQ2Nav_Hooks.h"
-#include "plugin/MQ2Nav_Settings.h"
-#include "plugin/MQ2Nav_Util.h"
+#include "plugin/PluginHooks.h"
+#include "plugin/PluginSettings.h"
 #include "plugin/NavigationPath.h"
 #include "plugin/NavigationType.h"
 #include "plugin/NavMeshLoader.h"
@@ -18,6 +17,7 @@
 #include "plugin/RenderHandler.h"
 #include "plugin/SwitchHandler.h"
 #include "plugin/UiController.h"
+#include "plugin/Utilities.h"
 #include "plugin/Waypoints.h"
 
 #include <imgui.h>
@@ -130,7 +130,7 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 		m.second->OnPulse();
 	}
 
-	if (m_initialized && mq2nav::ValidIngame(TRUE))
+	if (m_initialized && nav::ValidIngame(TRUE))
 	{
 		AttemptMovement();
 		StuckCheck();
@@ -222,7 +222,7 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 		return;
 	}
 
-	mq2nav::LoadSettings();
+	nav::LoadSettings();
 
 	InitializeRenderer();
 
@@ -249,7 +249,7 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 
 	// initialize mesh loader's settings
 	auto meshLoader = Get<NavMeshLoader>();
-	meshLoader->SetAutoReload(mq2nav::GetSettings().autoreload);
+	meshLoader->SetAutoReload(nav::GetSettings().autoreload);
 
 	m_initialized = true;
 
@@ -323,8 +323,8 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 
 	// parse /nav ui
 	if (!_stricmp(buffer, "ui")) {
-		mq2nav::GetSettings().show_ui = !mq2nav::GetSettings().show_ui;
-		mq2nav::SaveSettings(false);
+		nav::GetSettings().show_ui = !nav::GetSettings().show_ui;
+		nav::SaveSettings(false);
 		return;
 	}
 	
@@ -384,7 +384,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 		{
 			glm::vec3 loc = GetSpawnPosition(pChar);
 
-			mq2nav::AddWaypoint(mq2nav::Waypoint{ waypointName, loc, desc });
+			nav::AddWaypoint(nav::Waypoint{ waypointName, loc, desc });
 			WriteChatf(PLUGIN_MSG "Recorded waypoint: %s at %.2f %.2f %.2f", waypointName.c_str(), loc.y, loc.x, loc.z);
 		}
 
@@ -393,9 +393,9 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 
 	if (!_stricmp(buffer, "listwp"))
 	{
-		WriteChatf(PLUGIN_MSG "\ag%d\ax waypoint(s) for \ag%s\ax:", mq2nav::g_waypoints.size(), GetShortZone(m_zoneId));
+		WriteChatf(PLUGIN_MSG "\ag%d\ax waypoint(s) for \ag%s\ax:", nav::g_waypoints.size(), GetShortZone(m_zoneId));
 
-		for (const mq2nav::Waypoint& wp : mq2nav::g_waypoints)
+		for (const nav::Waypoint& wp : nav::g_waypoints)
 		{
 			WriteChatf(PLUGIN_MSG "  \at%s\ax: \a-w%s\ax \ay(%.2f, %.2f, %.2f)",
 				wp.name.c_str(), wp.description.c_str(), wp.location.y, wp.location.x, wp.location.z);
@@ -406,14 +406,14 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	// parse /nav load
 	if (!_stricmp(buffer, "load"))
 	{
-		mq2nav::LoadSettings(true);
+		nav::LoadSettings(true);
 		return;
 	}
 	
 	// parse /nav save
 	if (!_stricmp(buffer, "save"))
 	{
-		mq2nav::SaveSettings(true);
+		nav::SaveSettings(true);
 		return;
 	}
 
@@ -479,7 +479,7 @@ void MQ2NavigationPlugin::SetCurrentZone(int zoneId)
 		else
 			DebugSpewAlways("Switching to zone: %d", m_zoneId);
 
-		mq2nav::LoadWaypoints(m_zoneId);
+		nav::LoadWaypoints(m_zoneId);
 
 		for (const auto& m : m_modules)
 		{
@@ -546,11 +546,11 @@ void MQ2NavigationPlugin::OnMovementKeyPressed()
 {
 	if (m_isActive)
 	{
-		if (mq2nav::GetSettings().autobreak)
+		if (nav::GetSettings().autobreak)
 		{
 			Stop();
 		}
-		else if (mq2nav::GetSettings().autopause)
+		else if (nav::GetSettings().autopause)
 		{
 			m_isPaused = true;
 		}
@@ -590,7 +590,7 @@ void MQ2NavigationPlugin::StuckCheck()
 	if (m_isPaused)
 		return;
 
-	if (!mq2nav::GetSettings().attempt_unstuck)
+	if (!nav::GetSettings().attempt_unstuck)
 		return;
 
 	clock::time_point now = clock::now();
@@ -808,7 +808,7 @@ glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn)
 {
 	if (pSpawn)
 	{
-		bool use_floor_height = mq2nav::GetSettings().use_spawn_floor_height;
+		bool use_floor_height = nav::GetSettings().use_spawn_floor_height;
 
 		return glm::vec3{ pSpawn->X, pSpawn->Y, use_floor_height ? pSpawn->FloorHeight : pSpawn->Z };
 	}
@@ -970,8 +970,8 @@ std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine, NotifyType
 	{
 		GetArg(buffer, szLine, 2);
 
-		mq2nav::Waypoint wp;
-		if (mq2nav::GetWaypoint(buffer, wp))
+		nav::Waypoint wp;
+		if (nav::GetWaypoint(buffer, wp))
 		{
 			result->type = DestinationType::Waypoint;
 			result->eqDestinationPos = { wp.location.x, wp.location.y, wp.location.z };
@@ -1133,13 +1133,13 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 		if (ImGui::CollapsingHeader("Pathing Debug"))
 		{
 			bool settingsChanged = false;
-			auto& settings = mq2nav::GetSettings();
+			auto& settings = nav::GetSettings();
 
 			if (ImGui::Checkbox("Render pathing debug draw", &settings.debug_render_pathing))
 				settingsChanged = true;
 
 			if (settingsChanged)
-				mq2nav::SaveSettings();
+				nav::SaveSettings();
 
 			if (m_activePath)
 			{
@@ -1204,9 +1204,9 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 NavigationMapLine::NavigationMapLine()
 {
-	m_enabled = mq2nav::GetSettings().map_line_enabled;
-	SetColor(mq2nav::GetSettings().map_line_color);
-	SetLayer(mq2nav::GetSettings().map_line_layer);
+	m_enabled = nav::GetSettings().map_line_enabled;
+	SetColor(nav::GetSettings().map_line_color);
+	SetLayer(nav::GetSettings().map_line_layer);
 }
 
 void NavigationMapLine::SetEnabled(bool enabled)

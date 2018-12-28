@@ -2,9 +2,10 @@
 // MapAPI.cpp
 //
 
-#include <glm/glm.hpp>
-
 #include "MapAPI.h"
+
+#include <MQ2Plugin.h>
+#include <glm/glm.hpp>
 
 namespace nav {
 

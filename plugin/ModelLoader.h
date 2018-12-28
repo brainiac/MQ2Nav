@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "MQ2Navigation.h"
 #include "common/Signal.h"
 #include "common/NavModule.h"
 #include "common/ZoneData.h"
+#include "plugin/MQ2Navigation.h"
 
 #include "dependencies/zone-utilities/common/eqg_loader.h"
 #include "dependencies/zone-utilities/common/s3d_loader.h"

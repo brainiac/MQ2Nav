@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include "Renderable.h"
-#include "RenderList.h"
-
 #include "common/NavModule.h"
 #include "common/Signal.h"
+#include "plugin/Renderable.h"
+#include "plugin/RenderList.h"
 
 #include <d3dx9.h>
 #include <d3d9caps.h>

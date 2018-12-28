@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "MQ2Navigation.h"
+#include "plugin/MQ2Navigation.h"
 
 #include <glm/vec3.hpp>
 
@@ -12,7 +12,7 @@
 #include <map>
 #include <sstream>
 
-namespace mq2nav {
+namespace nav {
 
 // ----------------------------------------
 
@@ -47,4 +47,4 @@ using Waypoints = std::vector<Waypoint>;
 
 extern Waypoints g_waypoints;
 
-} // namespace mq2nav
+} // namespace nav

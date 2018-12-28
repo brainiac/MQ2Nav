@@ -3,14 +3,14 @@
 //
 
 #include "NavMeshRenderer.h"
-#include "ImGuiRenderer.h"
-#include "MQ2Navigation.h"
-#include "MQ2Nav_Settings.h"
-#include "RenderHandler.h"
-#include "DebugDrawDX.h"
-#include "NavMeshLoader.h"
 
 #include "common/NavMesh.h"
+#include "plugin/ImGuiRenderer.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/PluginSettings.h"
+#include "plugin/RenderHandler.h"
+#include "plugin/DebugDrawDX.h"
+#include "plugin/NavMeshLoader.h"
 
 #include <cassert>
 #include <DetourDebugDraw.h>
@@ -267,11 +267,7 @@ void NavMeshRenderer::OnUpdateUI()
 		g_mq2Nav->Get<NavMeshLoader>()->LoadNavMesh();
 	}
 
-
-	if (ImGui::Checkbox("Show navmesh", &m_enabled)) {
-		//mq2nav::GetSettings().show_navmesh_overlay = m_enabled;
-		//mq2nav::SaveSettings(false);
-	}
+	ImGui::Checkbox("Show navmesh", &m_enabled);
 
 	if (m_enabled && m_loading)
 	{

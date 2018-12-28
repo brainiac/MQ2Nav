@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include "MQ2Plugin.h"
-
 #include "common/NavModule.h"
 
-#include <chrono>
-
+#include <MQ2Plugin.h>
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+
+#include <chrono>
 
 //----------------------------------------------------------------------------
 

@@ -28,7 +28,8 @@ public:
 	bool ShouldLoadNavMesh() const { return m_loadNavMesh; }
 
 private:
-	typedef std::map<std::string, std::string> ZoneCollection;
+	// Mapping of Zones to Expansions
+	using ZoneCollection = std::map<std::string, std::string>;
 	ZoneCollection m_allMaps;
 	EQConfig::MapList m_mapList;
 

@@ -65,14 +65,14 @@ void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, 
 		float nearestDist = FLT_MAX;
 		int nearestIndex = -1;
 		const float* verts = geom->getOffMeshConnectionVerts();
-		for (int i = 0; i < geom->getOffMeshConnectionCount()*2; ++i)
+		for (int i = 0; i < geom->getOffMeshConnectionCount() * 2; ++i)
 		{
-			const float* v = &verts[i*3];
+			const float* v = &verts[i * 3];
 			float d = rcVdistSqr(glm::value_ptr(p), v);
 			if (d < nearestDist)
 			{
 				nearestDist = d;
-				nearestIndex = i/2; // Each link has two vertices.
+				nearestIndex = i / 2; // Each link has two vertices.
 			}
 		}
 		// If end point close enough, delete it.
@@ -119,7 +119,7 @@ void OffMeshConnectionTool::handleRender()
 	const float s = m_meshTool->GetNavMesh()->GetNavMeshConfig().agentRadius;
 
 	if (m_hitPosSet)
-		duDebugDrawCross(&dd, m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2], s, duRGBA(0,0,0,128), 2.0f);
+		duDebugDrawCross(&dd, m_hitPos[0], m_hitPos[1] + 0.1f, m_hitPos[2], s, duRGBA(0, 0, 0, 128), 2.0f);
 
 	InputGeom* geom = m_meshTool->getInputGeom();
 	if (geom)

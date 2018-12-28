@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Renderable.h"
 #include "common/Signal.h"
+#include "plugin/Renderable.h"
 
 #include <chrono>
 #include <memory>

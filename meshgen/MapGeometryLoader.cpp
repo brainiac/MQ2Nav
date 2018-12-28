@@ -75,9 +75,9 @@ MapGeometryLoader::MapGeometryLoader(const std::string& zoneShortName,
 
 MapGeometryLoader::~MapGeometryLoader()
 {
-	delete [] m_verts;
-	delete [] m_normals;
-	delete [] m_tris;
+	delete[] m_verts;
+	delete[] m_normals;
+	delete[] m_tris;
 }
 
 void MapGeometryLoader::SetMaxExtents(const std::pair<glm::vec3, glm::vec3>& maxExtents)
@@ -90,19 +90,19 @@ void MapGeometryLoader::SetMaxExtents(const std::pair<glm::vec3, glm::vec3>& max
 
 void MapGeometryLoader::addVertex(float x, float y, float z)
 {
-	if (m_vertCount+1 > vcap)
+	if (m_vertCount + 1 > vcap)
 	{
 		vcap = !vcap ? 8 : vcap * 2;
 		float* nv = new float[vcap * 3];
 		if (m_vertCount)
-			memcpy(nv, m_verts, m_vertCount*3*sizeof(float));
-		delete [] m_verts;
+			memcpy(nv, m_verts, m_vertCount * 3 * sizeof(float));
+		delete[] m_verts;
 		m_verts = nv;
 	}
-	float* dst = &m_verts[m_vertCount*3];
-	*dst++ = x*m_scale;
-	*dst++ = y*m_scale;
-	*dst++ = z*m_scale;
+	float* dst = &m_verts[m_vertCount * 3];
+	*dst++ = x * m_scale;
+	*dst++ = y * m_scale;
+	*dst++ = z * m_scale;
 	m_vertCount++;
 }
 
@@ -113,11 +113,11 @@ void MapGeometryLoader::addTriangle(int a, int b, int c)
 		tcap = !tcap ? 8 : tcap * 2;
 		int* nv = new int[tcap * 3];
 		if (m_triCount)
-			memcpy(nv, m_tris, m_triCount*3*sizeof(int));
-		delete [] m_tris;
+			memcpy(nv, m_tris, m_triCount * 3 * sizeof(int));
+		delete[] m_tris;
 		m_tris = nv;
 	}
-	int* dst = &m_tris[m_triCount*3];
+	int* dst = &m_tris[m_triCount * 3];
 	*dst++ = a;
 	*dst++ = b;
 	*dst++ = c;
@@ -134,7 +134,7 @@ auto GetRotation = [](auto obj) -> glm::vec3 {
 	return glm::vec3(obj->GetRotateX(), obj->GetRotateY(), obj->GetRotateZ());
 };
 auto GetRotationRad = [](auto obj) -> glm::vec3 {
-	return glm::vec3(glm::radians(obj->GetRotateX()), 
+	return glm::vec3(glm::radians(obj->GetRotateX()),
 		glm::radians(obj->GetRotateY()), glm::radians(obj->GetRotateZ()));
 };
 
@@ -174,10 +174,10 @@ bool MapGeometryLoader::load()
 				if (ArePointsOutsideExtents(glm::vec3{ y, x, z }))
 					continue;
 
-				addVertex(x,      z, y);
+				addVertex(x, z, y);
 				addVertex(x + dt, z, y);
 				addVertex(x + dt, z, y + dt);
-				addVertex(x,      z, y + dt);
+				addVertex(x, z, y + dt);
 
 				addTriangle(counter + 0, counter + 2, counter + 1);
 				addTriangle(counter + 2, counter + 0, counter + 3);
@@ -210,10 +210,10 @@ bool MapGeometryLoader::load()
 					if (ArePointsOutsideExtents(glm::vec3{ _y, _x, z1 }))
 						continue;
 
-					addVertex(_x,      z1, _y);
+					addVertex(_x, z1, _y);
 					addVertex(_x + dt, z2, _y);
 					addVertex(_x + dt, z3, _y + dt);
-					addVertex(_x,      z4, _y + dt);
+					addVertex(_x, z4, _y + dt);
 
 					addTriangle(counter + 0, counter + 2, counter + 1);
 					addTriangle(counter + 2, counter + 0, counter + 3);
@@ -353,7 +353,7 @@ bool MapGeometryLoader::load()
 		grp_mat = glm::scale(grp_mat, GetScale(group));
 		grp_mat *= glm::mat4_cast(glm::quat{
 			glm::vec3{ glm::radians(group->GetRotationX()), glm::radians(group->GetRotationY()), glm::radians(group->GetRotationZ()) }
-		});
+			});
 
 		for (const auto& obj : group->GetPlaceables())
 		{
@@ -413,12 +413,12 @@ bool MapGeometryLoader::load()
 	LoadDoors();
 
 	//message = "Calculating Surface Normals...";
-	m_normals = new float[m_triCount*3];
-	for (int i = 0; i < m_triCount*3; i += 3)
+	m_normals = new float[m_triCount * 3];
+	for (int i = 0; i < m_triCount * 3; i += 3)
 	{
-		const float* v0 = &m_verts[m_tris[i]*3];
-		const float* v1 = &m_verts[m_tris[i+1]*3];
-		const float* v2 = &m_verts[m_tris[i+2]*3];
+		const float* v0 = &m_verts[m_tris[i] * 3];
+		const float* v1 = &m_verts[m_tris[i + 1] * 3];
+		const float* v2 = &m_verts[m_tris[i + 2] * 3];
 		float e0[3], e1[3];
 		for (int j = 0; j < 3; ++j)
 		{
@@ -426,13 +426,13 @@ bool MapGeometryLoader::load()
 			e1[j] = v2[j] - v0[j];
 		}
 		float* n = &m_normals[i];
-		n[0] = e0[1]*e1[2] - e0[2]*e1[1];
-		n[1] = e0[2]*e1[0] - e0[0]*e1[2];
-		n[2] = e0[0]*e1[1] - e0[1]*e1[0];
-		float d = sqrtf(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
+		n[0] = e0[1] * e1[2] - e0[2] * e1[1];
+		n[1] = e0[2] * e1[0] - e0[0] * e1[2];
+		n[2] = e0[0] * e1[1] - e0[1] * e1[0];
+		float d = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
 		if (d > 0)
 		{
-			d = 1.0f/d;
+			d = 1.0f / d;
 			n[0] *= d;
 			n[1] *= d;
 			n[2] *= d;

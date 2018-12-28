@@ -48,8 +48,8 @@ static int compareItemY(const void* va, const void* vb)
 }
 
 static void calcExtends(const BoundsItem* items, const int /*nitems*/,
-						const int imin, const int imax,
-						float* bmin, float* bmax)
+	const int imin, const int imax,
+	float* bmin, float* bmax)
 {
 	bmin[0] = items[imin].bmin[0];
 	bmin[1] = items[imin].bmin[1];
@@ -57,7 +57,7 @@ static void calcExtends(const BoundsItem* items, const int /*nitems*/,
 	bmax[0] = items[imin].bmax[0];
 	bmax[1] = items[imin].bmax[1];
 
-	for (int i = imin+1; i < imax; ++i)
+	for (int i = imin + 1; i < imax; ++i)
 	{
 		const BoundsItem& it = items[i];
 		if (it.bmin[0] < bmin[0]) bmin[0] = it.bmin[0];
@@ -74,8 +74,8 @@ inline int longestAxis(float x, float y)
 }
 
 static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int trisPerChunk,
-					  int& curNode, rcChunkyTriMeshNode* nodes, const int maxNodes,
-					  int& curTri, int* outTris, const int* inTris)
+	int& curNode, rcChunkyTriMeshNode* nodes, const int maxNodes,
+	int& curTri, int* outTris, const int* inTris)
 {
 	int inum = imax - imin;
 	int icur = curNode;
@@ -96,8 +96,8 @@ static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int tri
 
 		for (int i = imin; i < imax; ++i)
 		{
-			const int* src = &inTris[items[i].i*3];
-			int* dst = &outTris[curTri*3];
+			const int* src = &inTris[items[i].i * 3];
+			int* dst = &outTris[curTri * 3];
 			curTri++;
 			dst[0] = src[0];
 			dst[1] = src[1];
@@ -110,20 +110,20 @@ static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int tri
 		calcExtends(items, nitems, imin, imax, node.bmin, node.bmax);
 
 		int	axis = longestAxis(node.bmax[0] - node.bmin[0],
-							   node.bmax[1] - node.bmin[1]);
+			node.bmax[1] - node.bmin[1]);
 
 		if (axis == 0)
 		{
 			// Sort along x-axis
-			qsort(items+imin, inum, sizeof(BoundsItem), compareItemX);
+			qsort(items + imin, inum, sizeof(BoundsItem), compareItemX);
 		}
 		else if (axis == 1)
 		{
 			// Sort along y-axis
-			qsort(items+imin, inum, sizeof(BoundsItem), compareItemY);
+			qsort(items + imin, inum, sizeof(BoundsItem), compareItemY);
 		}
 
-		int isplit = imin+inum/2;
+		int isplit = imin + inum / 2;
 
 		// Left
 		subdivide(items, nitems, imin, isplit, trisPerChunk, curNode, nodes, maxNodes, curTri, outTris, inTris);
@@ -139,10 +139,10 @@ static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int tri
 bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 	int trisPerChunk, rcChunkyTriMesh* cm)
 {
-	int nchunks = (ntris + trisPerChunk-1) / trisPerChunk;
+	int nchunks = (ntris + trisPerChunk - 1) / trisPerChunk;
 
-	cm->nodes = new rcChunkyTriMeshNode[nchunks*4];
-	cm->tris = new int[ntris*3];
+	cm->nodes = new rcChunkyTriMeshNode[nchunks * 4];
+	cm->tris = new int[ntris * 3];
 	cm->ntris = ntris;
 
 	// Build tree
@@ -150,15 +150,15 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 
 	for (int i = 0; i < ntris; i++)
 	{
-		const int* t = &tris[i*3];
+		const int* t = &tris[i * 3];
 		BoundsItem& it = items[i];
 		it.i = i;
 		// Calc triangle XZ bounds.
-		it.bmin[0] = it.bmax[0] = verts[t[0]*3+0];
-		it.bmin[1] = it.bmax[1] = verts[t[0]*3+2];
+		it.bmin[0] = it.bmax[0] = verts[t[0] * 3 + 0];
+		it.bmin[1] = it.bmax[1] = verts[t[0] * 3 + 2];
 		for (int j = 1; j < 3; ++j)
 		{
-			const float* v = &verts[t[j]*3];
+			const float* v = &verts[t[j] * 3];
 			if (v[0] < it.bmin[0]) it.bmin[0] = v[0];
 			if (v[2] < it.bmin[1]) it.bmin[1] = v[2];
 
@@ -169,9 +169,9 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 
 	int curTri = 0;
 	int curNode = 0;
-	subdivide(items, ntris, 0, ntris, trisPerChunk, curNode, cm->nodes, nchunks*4, curTri, cm->tris, tris);
+	subdivide(items, ntris, 0, ntris, trisPerChunk, curNode, cm->nodes, nchunks * 4, curTri, cm->tris, tris);
 
-	delete [] items;
+	delete[] items;
 
 	cm->nnodes = curNode;
 
@@ -191,7 +191,7 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 
 
 inline bool checkOverlapRect(const float amin[2], const float amax[2],
-							 const float bmin[2], const float bmax[2])
+	const float bmin[2], const float bmax[2])
 {
 	bool overlap = true;
 	overlap = (amin[0] > bmax[0] || amax[0] < bmin[0]) ? false : overlap;
@@ -200,8 +200,8 @@ inline bool checkOverlapRect(const float amin[2], const float amax[2],
 }
 
 int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm,
-							   float bmin[2], float bmax[2],
-							   int* ids, const int maxIds)
+	float bmin[2], float bmax[2],
+	int* ids, const int maxIds)
 {
 	// Traverse tree
 	int i = 0;
@@ -236,7 +236,7 @@ int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm,
 
 
 static bool checkOverlapSegment(const float p[2], const float q[2],
-								const float bmin[2], const float bmax[2])
+	const float bmin[2], const float bmax[2])
 {
 	static const float EPSILON = 1e-6f;
 
@@ -270,8 +270,8 @@ static bool checkOverlapSegment(const float p[2], const float q[2],
 }
 
 int rcGetChunksOverlappingSegment(const rcChunkyTriMesh* cm,
-								  float p[2], float q[2],
-								  int* ids, const int maxIds)
+	float p[2], float q[2],
+	int* ids, const int maxIds)
 {
 	// Traverse tree
 	int i = 0;

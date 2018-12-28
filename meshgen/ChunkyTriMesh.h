@@ -26,14 +26,14 @@ struct rcChunkyTriMeshNode
 
 struct rcChunkyTriMesh
 {
-	inline rcChunkyTriMesh() : nodes(0), tris(0) {};
-	inline ~rcChunkyTriMesh() { delete [] nodes; delete [] tris; }
+	inline rcChunkyTriMesh() = default;
+	inline ~rcChunkyTriMesh() { delete[] nodes; delete[] tris; }
 
-	rcChunkyTriMeshNode* nodes;
-	int nnodes;
-	int* tris;
-	int ntris;
-	int maxTrisPerChunk;
+	rcChunkyTriMeshNode* nodes = nullptr;
+	int nnodes = 0;
+	int* tris = nullptr;
+	int ntris = 0;
+	int maxTrisPerChunk = 0;
 };
 
 // Creates partitioned triangle mesh (AABB tree),

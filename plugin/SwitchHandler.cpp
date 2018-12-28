@@ -4,10 +4,10 @@
 // Handles proximity door/switch management during navigation.
 //
 
-#include "plugin/SwitchHandler.h"
+#include "SwitchHandler.h"
 
-#include "MQ2Navigation.h"
-#include "MQ2Nav_Settings.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/PluginSettings.h"
 
 #include <imgui.h>
 
@@ -82,7 +82,7 @@ void SwitchHandler::OnPulse()
 	{
 		if (!m_active)
 			return;
-		if (!mq2nav::GetSettings().open_doors)
+		if (!nav::GetSettings().open_doors)
 			return;
 	}
 
@@ -186,7 +186,7 @@ void SwitchHandler::DebugUI()
 {
 	ImGui::Checkbox("Force enabled", &m_activeOverride);
 
-	bool enabled = m_activeOverride || (m_active && mq2nav::GetSettings().open_doors);
+	bool enabled = m_activeOverride || (m_active && nav::GetSettings().open_doors);
 	ImGui::TextColored(enabled ? ImColor(0, 255, 0) : ImColor(255, 0, 0), "%s", enabled ? "Active" : "Inactive");
 
 	ImGui::DragFloat("Trigger distance", &c_triggerThreshold);

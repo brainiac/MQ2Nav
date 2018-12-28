@@ -3,8 +3,9 @@
 //
 
 #include "NavMeshLoader.h"
-#include "MQ2Nav_Util.h"
-#include "MQ2Navigation.h"
+
+#include "plugin/MQ2Navigation.h"
+#include "plugin/Utilities.h"
 
 #include <DetourNavMesh.h>
 #include <DetourCommon.h>

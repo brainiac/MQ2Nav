@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Renderable.h"
-#include "Signal.h"
+#include "common/Signal.h"
+#include "plugin/Renderable.h"
 
 #include <d3dx9.h>
 #include <imgui.h>
@@ -35,8 +35,6 @@ private:
 	void InvalidateDeviceObjects();
 
 	void PerformRender(Renderable::RenderPhase phase);
-
-	void Render3D();
 
 private:
 	bool m_deviceAcquired = false; // implies that g_pDevice is valid to use

@@ -135,13 +135,13 @@ private:
 	inline bool ArePointsOutsideExtents(Args &&... args)
 	{
 		bool outside = false;
-		(void) std::initializer_list<bool>{
+		(void)std::initializer_list<bool>{
 			outside = outside || IsPointOutsideExtents(std::forward<Args>(args))...};
 		return outside;
 	}
 
 	//---------------------------------------------------------------------------
-	
+
 	void addVertex(float x, float y, float z);
 	void addTriangle(int a, int b, int c);
 

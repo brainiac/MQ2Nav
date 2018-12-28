@@ -1,4 +1,5 @@
 #include "string_util.h"
+#include <string>
 
 std::vector<std::string> EQEmu::SplitString(const std::string &str, char delim) {
 	std::vector<std::string> ret;

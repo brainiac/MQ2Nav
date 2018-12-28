@@ -1,12 +1,12 @@
 //
-// MQ2Nav_Settings.h
+// PluginSettings.h
 //
 
 #pragma once
 
-#include "MQ2Navigation.h"
+#include <glm/glm/vec3.hpp>
 
-namespace mq2nav {
+namespace nav {
 
 struct SettingsData
 {
@@ -21,9 +21,6 @@ struct SettingsData
 
 	// show the MQ2Nav Tools debug ui
 	bool show_ui = true;
-
-	// show the navmesh overlay
-	bool show_navmesh_overlay = false;
 
 	// show the current navigation path
 	bool show_nav_path = true;

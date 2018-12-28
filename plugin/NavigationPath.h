@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include "MQ2Navigation.h"
-#include "Renderable.h"
-#include "RenderList.h"
-
 #include "common/Signal.h"
 #include "common/Utilities.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/Renderable.h"
+#include "plugin/RenderList.h"
 
 #include <DetourNavMeshQuery.h>
 #include <DetourPathCorridor.h>

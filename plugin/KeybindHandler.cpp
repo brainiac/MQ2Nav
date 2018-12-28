@@ -3,7 +3,8 @@
 //
 
 #include "KeybindHandler.h"
-#include "MQ2Navigation.h"
+
+#include "plugin/MQ2Navigation.h"
 
 #include <string>
 #include <vector>

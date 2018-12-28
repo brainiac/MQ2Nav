@@ -3,11 +3,12 @@
 //
 
 #include "ModelLoader.h"
-#include "ImGuiRenderer.h"
-#include "DebugDrawDX.h"
-#include "Renderable.h"
-#include "RenderHandler.h"
-#include "MQ2Nav_Util.h"
+
+#include "plugin/ImGuiRenderer.h"
+#include "plugin/DebugDrawDX.h"
+#include "plugin/Renderable.h"
+#include "plugin/RenderHandler.h"
+#include "plugin/Utilities.h"
 
 #include <imgui.h>
 #include <imgui/custom/imgui_column_headers.h>

@@ -32,7 +32,7 @@ inline bool inRange(const glm::vec3& v1, const glm::vec3& v2, float r, float h)
 	const float dx = v2[0] - v1[0];
 	const float dy = v2[1] - v1[1];
 	const float dz = v2[2] - v1[2];
-	return (dx*dx + dz*dz) < r*r && glm::abs(dy) < h;
+	return (dx*dx + dz * dz) < r*r && glm::abs(dy) < h;
 }
 
 static int fixupCorridor(dtPolyRef* path, const int npath, const int maxPath,
@@ -889,7 +889,7 @@ void NavMeshTesterTool::recalc()
 		{
 			const float dx = m_epos.x - m_spos.x;
 			const float dz = m_epos.z - m_spos.z;
-			float dist = glm::sqrt(dx*dx + dz*dz);
+			float dist = glm::sqrt(dx * dx + dz * dz);
 			m_navQuery->findPolysAroundCircle(m_startRef, glm::value_ptr(m_spos), dist, &m_filter,
 				m_polys, m_parent, 0, &m_npolys, MAX_POLYS);
 
@@ -1158,7 +1158,7 @@ void NavMeshTesterTool::handleRender()
 			dd.depthMask(false);
 			float dx = m_epos.x - m_spos.x;
 			float dz = m_epos.z - m_spos.z;
-			float dist = glm::sqrt(dx*dx + dz*dz);
+			float dist = glm::sqrt(dx*dx + dz * dz);
 			duDebugDrawCircle(&dd, m_spos.x, m_spos.y + agentHeight / 2, m_spos.z, dist, duRGBA(64, 16, 0, 220), 2.0f);
 			dd.depthMask(true);
 		}
@@ -1220,7 +1220,7 @@ void NavMeshTesterTool::handleRender()
 			dd.begin(DU_DRAW_LINES, 2.0f);
 			for (int j = 0; j < nsegs; ++j)
 			{
-				glm::vec3 (&s)[2] = segs[j];
+				glm::vec3(&s)[2] = segs[j];
 
 				// Skip too distant segments.
 				float tseg;

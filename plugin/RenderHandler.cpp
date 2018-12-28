@@ -2,11 +2,10 @@
 // RenderHandler.cpp
 //
 
-#include "RenderHandler.h"
-#include "MQ2Nav_Hooks.h"
-#include "MQ2Navigation.h"
-
-#include "ImGuiDX9.h"
+#include "plugin/RenderHandler.h"
+#include "plugin/PluginHooks.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/ImGuiDX9.h"
 
 #include <cassert>
 #include <DetourDebugDraw.h>

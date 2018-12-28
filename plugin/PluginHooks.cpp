@@ -1,18 +1,14 @@
 //
-// MQ2Nav_Hooks.cpp
+// PluginHooks.cpp
 //
 
-#include <Shlobj.h>
-#include <Psapi.h>
+#include "PluginHooks.h"
 
-#include "MQ2Nav_Hooks.h"
-#include "MQ2Navigation.h"
-#include "MQ2Nav_Settings.h"
-#include "ImGuiRenderer.h"
-#include "RenderHandler.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/PluginSettings.h"
+#include "plugin/ImGuiRenderer.h"
+#include "plugin/RenderHandler.h"
 #include "common/FindPattern.h"
-
-#include <imgui.h>
 
 #ifdef DIRECTINPUT_VERSION
 #undef DIRECTINPUT_VERSION
@@ -20,6 +16,9 @@
 #define DIRECTINPUT_VERSION 0x0800
 
 #include <dinput.h>
+#include <Shlobj.h>
+#include <Psapi.h>
+#include <imgui.h>
 
 #include <atomic>
 #include <thread>
@@ -552,7 +551,7 @@ void ProcessMouseEvent_Detour()
 		return;
 	}
 
-	if (!mq2nav::GetSettings().show_ui)
+	if (!nav::GetSettings().show_ui)
 	{
 		ProcessMouseEvent_Trampoline();
 		return;

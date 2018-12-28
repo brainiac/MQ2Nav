@@ -418,8 +418,8 @@ void Application::HandleEvents()
 			{
 				int dx = m_m.x - m_orig.x;
 				int dy = m_m.y - m_orig.y;
-				m_r.x = m_origr.x - dy*0.25f;
-				m_r.y = m_origr.y + dx*0.25f;
+				m_r.x = m_origr.x - dy * 0.25f;
+				m_r.y = m_origr.y + dx * 0.25f;
 			}
 			break;
 
@@ -705,7 +705,7 @@ void Application::RenderInterface()
 			{
 				int tw, th, tm;
 				m_meshTool->getTileStatistics(tw, th, tm);
-				int tt = tw*th;
+				int tt = tw * th;
 
 				float percent = (float)m_meshTool->getTilesBuilt() / (float)tt;
 
@@ -931,7 +931,7 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	if (builtIn)
 		ImGui::Text("Built-in %d", areaId);
 	else
-		ImGui::Text("User %d",  userIndex != -1 ? userIndex : areaId);
+		ImGui::Text("User %d", userIndex != -1 ? userIndex : areaId);
 
 	window->DC.CurrentLineTextBaseOffset = offset;
 
@@ -1448,7 +1448,7 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 			{
 				ImGui::TextColored(ImColor(255, 0, 0), ICON_FA_EXCLAMATION_TRIANGLE " File is missing");
 			}
-			
+
 			ImGui::PopItemWidth();
 
 			ImGui::CheckboxFlags("Mesh Settings", (uint32_t*)&m_fields, +PersistedDataFields::BuildSettings);

@@ -1,10 +1,10 @@
 //
-// MQ2Nav_Hooks.h
+// PluginHooks.h
 //
 
 #pragma once
 
-#include "MQ2Navigation.h"
+#include "plugin/MQ2Navigation.h"
 
 #include <d3dx9.h>
 

@@ -143,10 +143,10 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 	if (!isectSegAABB(src, dst, &m_meshBMin[0], &m_meshBMax[0], btmin, btmax))
 		return false;
 	float p[2], q[2];
-	p[0] = src[0] + (dst[0]-src[0])*btmin;
-	p[1] = src[2] + (dst[2]-src[2])*btmin;
-	q[0] = src[0] + (dst[0]-src[0])*btmax;
-	q[1] = src[2] + (dst[2]-src[2])*btmax;
+	p[0] = src[0] + (dst[0] - src[0])*btmin;
+	p[1] = src[2] + (dst[2] - src[2])*btmin;
+	q[0] = src[0] + (dst[0] - src[0])*btmax;
+	q[1] = src[2] + (dst[2] - src[2])*btmax;
 
 	int cid[512];
 	const int ncid = rcGetChunksOverlappingSegment(m_chunkyMesh.get(), p, q, cid, 512);
@@ -160,17 +160,17 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 	for (int i = 0; i < ncid; ++i)
 	{
 		const rcChunkyTriMeshNode& node = m_chunkyMesh->nodes[cid[i]];
-		const int* tris = &m_chunkyMesh->tris[node.i*3];
+		const int* tris = &m_chunkyMesh->tris[node.i * 3];
 		const int ntris = node.n;
 
-		for (int j = 0; j < ntris*3; j += 3)
+		for (int j = 0; j < ntris * 3; j += 3)
 		{
 			float t = 1;
 			if (intersectSegmentTriangle(
 				src, dst,
-				&verts[tris[j]*3],
-				&verts[tris[j+1]*3],
-				&verts[tris[j+2]*3], t))
+				&verts[tris[j] * 3],
+				&verts[tris[j + 1] * 3],
+				&verts[tris[j + 2] * 3], t))
 			{
 				if (t < tmin)
 					tmin = t;
@@ -188,7 +188,7 @@ void InputGeom::addOffMeshConnection(const float* spos, const float* epos, const
 	unsigned char bidir, unsigned char area, unsigned short flags)
 {
 	if (m_offMeshConCount >= MAX_OFFMESH_CONNECTIONS) return;
-	float* v = &m_offMeshConVerts[m_offMeshConCount*3*2];
+	float* v = &m_offMeshConVerts[m_offMeshConCount * 3 * 2];
 	m_offMeshConRads[m_offMeshConCount] = rad;
 	m_offMeshConDirs[m_offMeshConCount] = bidir;
 	m_offMeshConAreas[m_offMeshConCount] = area;
@@ -202,8 +202,8 @@ void InputGeom::addOffMeshConnection(const float* spos, const float* epos, const
 void InputGeom::deleteOffMeshConnection(int i)
 {
 	m_offMeshConCount--;
-	float* src = &m_offMeshConVerts[m_offMeshConCount*3*2];
-	float* dst = &m_offMeshConVerts[i*3*2];
+	float* src = &m_offMeshConVerts[m_offMeshConCount * 3 * 2];
+	float* dst = &m_offMeshConVerts[i * 3 * 2];
 	rcVcopy(&dst[0], &src[0]);
 	rcVcopy(&dst[3], &src[3]);
 	m_offMeshConRads[i] = m_offMeshConRads[m_offMeshConCount];
@@ -214,27 +214,27 @@ void InputGeom::deleteOffMeshConnection(int i)
 
 void InputGeom::drawOffMeshConnections(duDebugDraw* dd, bool hilight)
 {
-	unsigned int conColor = duRGBA(192,0,128,192);
-	unsigned int baseColor = duRGBA(0,0,0,64);
+	unsigned int conColor = duRGBA(192, 0, 128, 192);
+	unsigned int baseColor = duRGBA(0, 0, 0, 64);
 	dd->depthMask(false);
 
 	dd->begin(DU_DRAW_LINES, 2.0f);
 	for (int i = 0; i < m_offMeshConCount; ++i)
 	{
-		float* v = &m_offMeshConVerts[i*3*2];
+		float* v = &m_offMeshConVerts[i * 3 * 2];
 
-		dd->vertex(v[0],v[1],v[2], baseColor);
-		dd->vertex(v[0],v[1]+0.2f,v[2], baseColor);
+		dd->vertex(v[0], v[1], v[2], baseColor);
+		dd->vertex(v[0], v[1] + 0.2f, v[2], baseColor);
 
-		dd->vertex(v[3],v[4],v[5], baseColor);
-		dd->vertex(v[3],v[4]+0.2f,v[5], baseColor);
+		dd->vertex(v[3], v[4], v[5], baseColor);
+		dd->vertex(v[3], v[4] + 0.2f, v[5], baseColor);
 
-		duAppendCircle(dd, v[0],v[1]+0.1f,v[2], m_offMeshConRads[i], baseColor);
-		duAppendCircle(dd, v[3],v[4]+0.1f,v[5], m_offMeshConRads[i], baseColor);
+		duAppendCircle(dd, v[0], v[1] + 0.1f, v[2], m_offMeshConRads[i], baseColor);
+		duAppendCircle(dd, v[3], v[4] + 0.1f, v[5], m_offMeshConRads[i], baseColor);
 
 		if (hilight)
 		{
-			duAppendArc(dd, v[0],v[1],v[2], v[3],v[4],v[5], 0.25f,
+			duAppendArc(dd, v[0], v[1], v[2], v[3], v[4], v[5], 0.25f,
 				(m_offMeshConDirs[i] & 1) ? 0.6f : 0.0f, 0.6f, conColor);
 		}
 	}

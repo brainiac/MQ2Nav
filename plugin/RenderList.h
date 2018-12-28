@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "Renderable.h"
+#include "plugin/Renderable.h"
 
 #include <d3dx9.h>
 

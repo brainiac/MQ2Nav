@@ -40,8 +40,11 @@ public:
 			while (size > 0)
 			{
 				for (int y = 0; y < size; ++y)
+				{
 					for (int x = 0; x < size; ++x)
-						data[x + y*size] = (x == 0 || y == 0) ? col0 : col1;
+						data[x + y * size] = (x == 0 || y == 0) ? col0 : col1;
+				}
+
 				glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 				size /= 2;
 				level++;

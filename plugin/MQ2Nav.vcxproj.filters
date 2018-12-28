@@ -47,12 +47,6 @@
     <ClCompile Include="NavMeshRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MQ2Nav_Hooks.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MQ2Nav_Settings.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="UiController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -71,10 +65,13 @@
     <ClCompile Include="MapAPI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Navigator.cpp">
+    <ClCompile Include="SwitchHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SwitchHandler.cpp">
+    <ClCompile Include="PluginSettings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PluginHooks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -109,15 +106,6 @@
     <ClInclude Include="NavMeshRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MQ2Nav_Hooks.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MQ2Nav_Settings.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MQ2Nav_Util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="RenderList.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -136,9 +124,6 @@
     <ClInclude Include="MapAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Navigator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SwitchHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -146,6 +131,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EmbedResources.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PluginHooks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PluginSettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

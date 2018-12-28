@@ -428,13 +428,13 @@ void NavMeshTool::handleRender()
 	const float s = m_config.tileSize * m_config.cellSize;
 	duDebugDrawGridXZ(&dd, bmin[0], bmin[1], bmin[2], tw, th, s, duRGBA(0, 0, 0, 64), 1.0f);
 
-	if (m_navMesh->IsNavMeshLoaded() &&
-		(m_drawMode == DrawMode::NAVMESH ||
-		 m_drawMode == DrawMode::NAVMESH_TRANS ||
-		 m_drawMode == DrawMode::NAVMESH_BVTREE ||
-		 m_drawMode == DrawMode::NAVMESH_NODES ||
-		 m_drawMode == DrawMode::NAVMESH_PORTALS ||
-		 m_drawMode == DrawMode::NAVMESH_INVIS))
+	if (m_navMesh->IsNavMeshLoaded()
+		&& (m_drawMode == DrawMode::NAVMESH
+			|| m_drawMode == DrawMode::NAVMESH_TRANS
+			|| m_drawMode == DrawMode::NAVMESH_BVTREE
+			|| m_drawMode == DrawMode::NAVMESH_NODES
+			|| m_drawMode == DrawMode::NAVMESH_PORTALS
+			|| m_drawMode == DrawMode::NAVMESH_INVIS))
 	{
 		auto navMesh = m_navMesh->GetNavMesh();
 		auto navQuery = m_navMesh->GetNavMeshQuery();
@@ -681,9 +681,9 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 	const int ty = (int)((pos[2] - bmin[2]) / ts);
 
 	glm::vec3 tileBmin, tileBmax;
-	tileBmin[0] = bmin[0] + tx*ts;
+	tileBmin[0] = bmin[0] + tx * ts;
 	tileBmin[1] = bmin[1];
-	tileBmin[2] = bmin[2] + ty*ts;
+	tileBmin[2] = bmin[2] + ty * ts;
 
 	tileBmax[0] = bmin[0] + (tx + 1)*ts;
 	tileBmax[1] = bmax[1];
@@ -744,7 +744,7 @@ void NavMeshTool::RebuildTile(dtTileRef tileRef)
 
 	const dtMeshTile* tile = navMesh->getTileByRef(tileRef);
 	if (!tile || !tile->header) return;
-	
+
 	auto bmin = tile->header->bmin;
 	auto bmax = tile->header->bmax;
 
@@ -828,9 +828,9 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 			m_buildThread.join();
 
 		m_buildThread = std::thread([this, navMesh]()
-		{
-			BuildAllTiles(navMesh, false);
-		});
+			{
+				BuildAllTiles(navMesh, false);
+			});
 		return;
 	}
 
@@ -864,36 +864,36 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 		for (int y = 0; y < th; y++)
 		{
 			tasks.run([this, x, y, &bmin, &bmax, tcs, &agentTiles]()
-			{
-				if (m_cancelTiles)
-					return;
-
-				++m_tilesBuilt;
-
-				glm::vec3 tileBmin, tileBmax;
-				tileBmin[0] = bmin[0] + x*tcs;
-				tileBmin[1] = bmin[1];
-				tileBmin[2] = bmin[2] + y*tcs;
-
-				tileBmax[0] = bmin[0] + (x + 1)*tcs;
-				tileBmax[1] = bmax[1];
-				tileBmax[2] = bmin[2] + (y + 1)*tcs;
-
-				int dataSize = 0;
-				uint8_t* data = buildTileMesh(x, y, glm::value_ptr(tileBmin),
-					glm::value_ptr(tileBmax), dataSize);
-
-				if (data)
 				{
-					TileDataPtr tileData = std::make_shared<TileData>();
-					tileData->data = data;
-					tileData->length = dataSize;
-					tileData->x = x;
-					tileData->y = y;
+					if (m_cancelTiles)
+						return;
 
-					asend(agentTiles, tileData);
-				}
-			});
+					++m_tilesBuilt;
+
+					glm::vec3 tileBmin, tileBmax;
+					tileBmin[0] = bmin[0] + x * tcs;
+					tileBmin[1] = bmin[1];
+					tileBmin[2] = bmin[2] + y * tcs;
+
+					tileBmax[0] = bmin[0] + (x + 1)*tcs;
+					tileBmax[1] = bmax[1];
+					tileBmax[2] = bmin[2] + (y + 1)*tcs;
+
+					int dataSize = 0;
+					uint8_t* data = buildTileMesh(x, y, glm::value_ptr(tileBmin),
+						glm::value_ptr(tileBmax), dataSize);
+
+					if (data)
+					{
+						TileDataPtr tileData = std::make_shared<TileData>();
+						tileData->data = data;
+						tileData->length = dataSize;
+						tileData->x = x;
+						tileData->y = y;
+
+						asend(agentTiles, tileData);
+					}
+				});
 		}
 	}
 

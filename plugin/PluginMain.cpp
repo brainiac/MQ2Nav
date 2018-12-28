@@ -2,7 +2,7 @@
 // PluginMain.cpp
 //
 
-#include "MQ2Navigation.h"
+#include "plugin/MQ2Navigation.h"
 #include "../PluginAPI.h"
 
 PreSetup("MQ2Nav");

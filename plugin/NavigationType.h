@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "MQ2Plugin.h"
+#include <MQ2Plugin.h>
 
 #include <memory>
 
