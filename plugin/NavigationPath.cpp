@@ -204,7 +204,6 @@ void NavigationPath::UpdatePath(bool force)
 	dtPolyRef polys[MAX_POLYS];
 	int numPolys = 0;
 
-
 	m_query->findNearestPoly(endOffset, glm::value_ptr(extents), &m_filter, &endRef, epos);
 
 	if (!endRef)

@@ -581,15 +581,6 @@ void ProcessMouseEvent_Detour()
 DETOUR_TRAMPOLINE_EMPTY(unsigned int ProcessKeyboardEvent_Trampoline());
 unsigned int ProcessKeyboardEvent_Detour()
 {
-	// This event occurs after the mouse event. Could probably put this in process events
-	if (g_deviceAcquired)
-	{
-		if (g_imguiRenderer)
-		{
-			g_imguiRenderer->BeginNewFrame();
-		}
-	}
-
 	ImGuiIO& io = ImGui::GetIO();
 
 	if (io.WantCaptureKeyboard)
@@ -608,6 +599,9 @@ unsigned int ProcessKeyboardEvent_Detour()
 DETOUR_TRAMPOLINE_EMPTY(LRESULT __stdcall WndProc_Trampoline(HWND, UINT, WPARAM, LPARAM));
 LRESULT __stdcall WndProc_Detour(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	if (ImGui::GetCurrentContext() == nullptr)
+		return WndProc_Trampoline(hWnd, msg, wParam, lParam);
+
 	ImGuiIO& io = ImGui::GetIO();
 
 	switch (msg)

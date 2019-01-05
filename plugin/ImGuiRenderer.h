@@ -33,8 +33,6 @@ public:
 	virtual bool CreateDeviceObjects() override;
 	virtual void Render(RenderPhase phase) override;
 
-	void BeginNewFrame();
-
 	void SetVisible(bool visible);
 
 	// add a signal to do ui stuff
@@ -43,9 +41,6 @@ public:
 private:
 	// indicates whether imgui is ready to be used
 	bool m_imguiReady = false;
-
-	// indicate whether imgui should render a new frame
-	bool m_imguiRender = false;
 
 	bool m_visible = true;
 

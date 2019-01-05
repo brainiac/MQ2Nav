@@ -26,7 +26,7 @@ PLUGIN_API void InitializePlugin()
 
 	WriteChatf(PLUGIN_MSG "v%s by brainiac (\aohttps://github.com/brainiac/MQ2Nav\ax)", MQ2NAV_PLUGIN_VERSION);
 
-	g_mq2Nav.reset(new MQ2NavigationPlugin);
+	g_mq2Nav = std::make_unique<MQ2NavigationPlugin>();
 	g_mq2Nav->Plugin_Initialize();
 
 	if (g_mq2Nav->InitializationFailed())
@@ -212,7 +212,5 @@ PLUGIN_API void NavCommand(PSPAWNINFO pChar, PCHAR szLine)
 	DeprecatedCheck("NavCommand");
 	ExecuteNavCommand(szLine);
 }
-
-
 
 //============================================================================

@@ -57,7 +57,7 @@ void ImGuiRenderer::InvalidateDeviceObjects()
 
 bool ImGuiRenderer::CreateDeviceObjects()
 {
-	return ImGui_ImplDX9_CreateDeviceObjects();
+	return m_imguiReady = ImGui_ImplDX9_CreateDeviceObjects();
 }
 
 void ImGuiRenderer::Render(RenderPhase phase)
@@ -71,22 +71,15 @@ void ImGuiRenderer::Render(RenderPhase phase)
 	{
 		// don't draw ui if we're not in game, but also
 		// do call render so we keep the imgui input state clear.
-		if (gGameState == GAMESTATE_INGAME && m_imguiRender)
+		if (gGameState == GAMESTATE_INGAME)
 		{
-
-			DrawUI();
-
-			m_imguiRender = false;
+			if (ImGui_ImplDX9_NewFrame())
+			{
+				DrawUI();
+				ImGui::Render();
+			}
 		}
-
-		ImGui::Render();
 	}
-}
-
-void ImGuiRenderer::BeginNewFrame()
-{
-	m_imguiReady = ImGui_ImplDX9_NewFrame();
-	m_imguiRender = true;
 }
 
 void ImGuiRenderer::SetVisible(bool visible)
