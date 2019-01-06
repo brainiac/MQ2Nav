@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "common/NavigationRoute.h"
 #include "common/Signal.h"
 #include "common/Utilities.h"
 #include "plugin/MQ2Navigation.h"
@@ -30,6 +31,13 @@ class NavMesh;
 class NavigationLine;
 struct DestinationInfo;
 
+enum struct NavigationState
+{
+	Inactive = 0,
+	Active,
+	OffMeshLink,
+};
+
 class NavigationPath
 {
 	friend class NavigationLine;
@@ -45,7 +53,7 @@ public:
 	bool FindPath();
 
 	// trigger a recalculation of the path towards the destination.
-	void UpdatePath(bool force = false);
+	void UpdatePath();
 
 	// trigger render of the debug ui
 	void RenderUI();
@@ -57,78 +65,49 @@ public:
 	// get the destination point this path is navigating to.
 	glm::vec3 GetDestination() const;
 
+	std::shared_ptr<NavigationRoute> GetRoute() const { return m_route; }
+
 	// get the full length of the path as traversed
 	float GetPathTraversalDistance() const;
 
-	// Get the number of nodes in the path and the index of the current node
-	// along that path.
-	int GetPathSize() const { return m_currentPathSize; }
-	int GetPathIndex() const { return m_currentPathCursor; }
+	NavigationState GetState() const { return m_state; }
 
-	// Check if we are at the end if our path
-	inline bool IsAtEnd() const
-	{
-		return m_currentPathCursor >= m_currentPathSize
-			|| m_currentPathSize <= 0;
-	}
+	bool IsAtEnd() const { return false; }
 
-	inline glm::vec3 GetNextPosition() const
-	{
-		return GetPosition(m_currentPathCursor);
-	}
-
-	// get the coordinates of a point in a raw float3 form
-	inline const float* GetRawPosition(int index) const
-	{
-		assert(index < m_currentPathSize);
-		return &m_currentPath[index * 3];
-	}
-
-	// get the coordinates in silly eq coordinates
-	inline glm::vec3 GetPosition(int index) const
-	{
-		const float* rawcoord = GetRawPosition(index);
-		return glm::vec3(rawcoord[0], rawcoord[1], rawcoord[2]);
-	}
-
-	inline void Increment() { ++m_currentPathCursor; }
-
-	const float* GetCurrentPath() const { return &m_currentPath[0]; }
-
-	dtNavMesh* GetNavMesh() const { return m_navMesh.get(); }
-	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
-
+	size_t GetPathSize() const { return m_route ? m_route->size() : 0; }
+	
 	Signal<> PathUpdated;
 
 private:
 	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
 		bool updatePath = true);
 
-	std::shared_ptr<DestinationInfo> m_destinationInfo;
-
-	std::unique_ptr<RenderGroup> m_debugDrawGrp;
-
-	glm::vec3 m_destination;
-	glm::vec3 m_lastPos;
-
-	int m_currentPathCursor = 0;
-	int m_currentPathSize = 0;
-
+	void ResetState();
+	void UpdatePositions();
+	bool FindRoute();
 
 	// the plugin owns the mesh
 	std::shared_ptr<dtNavMesh> m_navMesh;
-
-	// we own the query
-	deleting_unique_ptr<dtNavMeshQuery> m_query;
-	std::unique_ptr<float[]> m_currentPath;
-
-	bool m_renderPaths;
-	std::shared_ptr<NavigationLine> m_line;
-
-	dtQueryFilter m_filter;
-	glm::vec3 m_extents = { 2, 10, 2 }; // note: X, Z, Y
-
 	Signal<>::ScopedConnection m_navMeshConn;
+
+	std::shared_ptr<DestinationInfo> m_destinationInfo;
+	std::unique_ptr<RenderGroup> m_debugDrawGrp;
+	std::shared_ptr<NavigationLine> m_line;
+	bool m_renderPaths = true;
+
+	std::shared_ptr<NavigationRoute> m_route;
+	std::shared_ptr<Navigator> m_navigator;
+
+	glm::vec3 m_pos, m_target;
+
+	bool m_allowPartial = false;
+	bool m_offMesh = false;
+	glm::vec3 m_offMeshStart, m_offMeshEnd;
+	bool m_needReplan = true;
+	bool m_failed = false;
+	bool m_havePath = false;
+	dtPolyRef m_offMeshPoly = 0;
+	NavigationState m_state = NavigationState::Inactive;
 };
 
 //----------------------------------------------------------------------------

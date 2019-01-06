@@ -4,6 +4,7 @@
 
 #include "NavigationPath.h"
 
+#include "common/Navigator.h"
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
@@ -18,14 +19,7 @@
 #include <DetourCommon.h>
 #include <glm/gtc/type_ptr.hpp>
 
-//----------------------------------------------------------------------------
-// constants
-
-const int MAX_POLYS = 4028 * 4;
-
-const int MAX_NODES = 2048 * 4;
-
-const int MAX_PATH_SIZE = 2048 * 4;
+const int MAX_WHATEVER = 8096;
 
 //----------------------------------------------------------------------------
 
@@ -34,6 +28,7 @@ NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
 	auto* mesh = g_mq2Nav->Get<NavMesh>();
 	m_navMeshConn = mesh->OnNavMeshChanged.Connect(
 		[this, mesh]() { SetNavMesh(mesh->GetNavMesh()); });
+	m_route = std::make_shared<NavigationRoute>();
 	
 	SetNavMesh(mesh->GetNavMesh(), false);
 
@@ -110,6 +105,47 @@ void NavigationPath::SetDestination(const std::shared_ptr<DestinationInfo>& info
 			} // else leave it, it's a better height
 		}
 	}
+
+	m_needReplan = true;
+}
+
+void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
+	bool updatePath)
+{
+	m_navMesh = navMesh;
+	m_navigator = std::make_unique<Navigator>(g_mq2Nav->Get<NavMesh>(), MAX_WHATEVER); // TODO: max nodes = config
+
+	auto& settings = nav::GetSettings();
+	if (settings.use_find_polygon_extents)
+	{
+		m_navigator->SetExtents(settings.find_polygon_extents);
+	}
+
+	auto& filter = m_navigator->GetQueryFilter();
+	filter.setIncludeFlags(+PolyFlags::All);
+	filter.setExcludeFlags(+PolyFlags::Disabled);
+	if (auto* mesh = g_mq2Nav->Get<NavMesh>())
+	{
+		mesh->FillFilterAreaCosts(filter);
+	}
+
+	bool wasRunning = (m_state != NavigationState::Inactive);
+	ResetState();
+
+	if (updatePath && wasRunning)
+	{
+		UpdatePath();
+	}
+}
+
+
+void NavigationPath::ResetState()
+{
+	m_needReplan = true;
+	m_offMesh = false;
+	m_failed = false;
+	m_state = NavigationState::Inactive;
+	m_route->clear();
 }
 
 bool NavigationPath::FindPath()
@@ -120,156 +156,132 @@ bool NavigationPath::FindPath()
 	if (!m_destinationInfo || !m_destinationInfo->valid)
 		return false;
 
-	// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
-	m_currentPathCursor = 0;
-	m_currentPathSize = 0;
+	ResetState();
+	UpdatePositions();
+	m_failed = FindRoute();
+	m_state = m_failed ? NavigationState::Inactive : NavigationState::Active;
 
-	UpdatePath(true);
-
-	return m_currentPathSize > 0;
+	return !m_failed && !m_route->empty();
 }
 
-void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
-	bool updatePath)
+void NavigationPath::UpdatePositions()
 {
-	m_navMesh = navMesh;
-
-	m_query.reset();
-
-	m_filter = dtQueryFilter{};
-	m_filter.setIncludeFlags(+PolyFlags::All);
-	m_filter.setExcludeFlags(+PolyFlags::Disabled);
-	if (auto* mesh = g_mq2Nav->Get<NavMesh>())
+	// we always use our own character as the source.
+	PSPAWNINFO me = GetCharInfo()->pSpawn;
+	if (me != nullptr)
 	{
-		mesh->FillFilterAreaCosts(m_filter);
+		m_pos = { me->X, me->FloorHeight, me->Y };
 	}
 
-	if (updatePath && m_navMesh)
+	if (m_destinationInfo)
 	{
-		UpdatePath();
+		auto& dest = m_destinationInfo->eqDestinationPos;
+		m_target = { dest.x, dest.z, dest.y };
 	}
 }
 
-void NavigationPath::UpdatePath(bool force)
+bool NavigationPath::FindRoute()
 {
+	bool success =
+		m_navigator->FindRoute(m_pos, m_target, m_allowPartial);
+	if (success)
+	{
+		m_navigator->FindCorners(m_route->GetBuffer(), MAX_WHATEVER);
+	}
+	else
+	{
+		WriteChatf("\arFailed!");
+	}
+
+	return success;
+}
+
+void NavigationPath::UpdatePath()
+{
+	// we need a navmesh and a destination before we can start
 	if (m_navMesh == nullptr || m_destinationInfo == nullptr)
 		return;
 
-	if (m_query == nullptr)
-	{
-		m_query = deleting_unique_ptr<dtNavMeshQuery>(dtAllocNavMeshQuery(),
-			[](dtNavMeshQuery* ptr) { dtFreeNavMeshQuery(ptr); });
-
-		m_query->init(m_navMesh.get(), MAX_NODES);
-	}
-
-	PSPAWNINFO me = GetCharInfo()->pSpawn;
-	if (me == nullptr)
+	if (m_failed)
 		return;
 
-	m_destination = m_destinationInfo->eqDestinationPos;
+	UpdatePositions();
 
-	float startOffset[3] = { me->X, me->FloorHeight, me->Y };
-	float endOffset[3] = { m_destination.x, m_destination.z, m_destination.y };
-	float spos[3];
-	float epos[3];
+	// Update my position
+	m_navigator->MovePosition(m_pos);
 
-	glm::vec3 thisPos(startOffset[0], startOffset[1], startOffset[2]);
+	// Update target
+	m_navigator->MoveTargetPosition(m_target);
 
-	if (thisPos == m_lastPos && !force)
-		return;
-	m_lastPos = thisPos;
-
-	m_currentPathCursor = 0;
-	m_currentPathSize = 0;
-
-	auto& settings = nav::GetSettings();
-
-	glm::vec3 extents = m_extents;
-	if (settings.use_find_polygon_extents)
+	if (!m_offMesh)
 	{
-		extents = settings.find_polygon_extents;
+		if (m_needReplan)
+		{
+			if (FindRoute())
+			{
+				m_needReplan = false;
+			}
+		}
+
+		m_havePath = !m_needReplan;
+		dtPolyRef conPoly = 0;
+
+		if (overOffMeshConnectionStart(m_navigator->getPos(),
+			m_route->GetBuffer(), m_navMesh.get(), &conPoly))
+		{
+			m_navigator->MoveOverOffMeshConnection(conPoly,
+				m_offMeshStart, m_offMeshEnd);
+
+			m_offMesh = true;
+			m_state = NavigationState::OffMeshLink;
+		}
 	}
 
-	dtPolyRef startRef, endRef;
-	m_query->findNearestPoly(startOffset, glm::value_ptr(extents), &m_filter, &startRef, spos);
-
-	if (!startRef)
+	if (m_offMesh)
 	{
-		WriteChatf(PLUGIN_MSG "Could not locate starting point on navmesh: %.2f %.2f %.2f",
-			startOffset[2], startOffset[0], startOffset[1]);
-		return;
+		if (withinRadiusOfOffMeshConnection(
+			m_navigator->getPos(), m_offMeshEnd, m_offMeshPoly, m_navMesh.get()))
+		{
+			m_offMesh = false;
+			m_offMeshPoly = 0;
+			m_offMeshStart = m_offMeshEnd = {};
+			m_state = NavigationState::Active;
+		}
 	}
-
-	dtPolyRef polys[MAX_POLYS];
-	int numPolys = 0;
-
-	m_query->findNearestPoly(endOffset, glm::value_ptr(extents), &m_filter, &endRef, epos);
-
-	if (!endRef)
-	{
-		WriteChatf(PLUGIN_MSG "Could not locate destination on navmesh: %.2f %.2f %.2f",
-			endOffset[2], endOffset[0], endOffset[1]);
-		return;
-	}
-
-	dtStatus status = m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
-	if (status & DT_OUT_OF_NODES)
-	{
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: out of nodes",
-			startOffset[0], startOffset[1], startOffset[2],
-			endOffset[0], endOffset[1], endOffset[2]);
-	}
-
-	if (status & DT_PARTIAL_RESULT)
-	{
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
-			startOffset[0], startOffset[1], startOffset[2],
-			endOffset[0], endOffset[1], endOffset[2]);
-	}
-
 
 	if (m_debugDrawGrp)
 		m_debugDrawGrp->Reset();
 
-	if (numPolys > 0)
+	auto& settings = nav::GetSettings();
+
+	if (m_debugDrawGrp && settings.debug_render_pathing)
 	{
-		if (!m_currentPath)
+		DebugDrawDX dd(m_debugDrawGrp.get());
+
+		// draw current position
+		duDebugDrawCross(&dd, m_pos.x, m_pos.y, m_pos.z, 0.5, DXColor(51, 255, 255), 1);
+		int i = 0;
+
+		// Draw the waypoints. Green is next point
+		for (const auto& node : *m_route)
 		{
-			m_currentPath = std::unique_ptr<float[]>(new float[MAX_POLYS * 3]);
-		}
+			int color = DXColor(255, 255, 255);
+			if (i == 0)
+				color = DXColor(0, 102, 204);
+			else if (i == m_route->size() - 1)
+				color = DXColor(255, 0, 0);
+			else
+				color = DXColor(0, 255, 0);
 
-		m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath.get(),
-			0, 0, &m_currentPathSize, MAX_POLYS, DT_STRAIGHTPATH_AREA_CROSSINGS);
-
-		// The 0th index is the starting point. Begin by trying to reach the
-		// 2nd point...
-		if (m_currentPathSize > 1)
-			m_currentPathCursor = 1;
-
-		if (m_debugDrawGrp && settings.debug_render_pathing)
-		{
-			DebugDrawDX dd(m_debugDrawGrp.get());
-
-			// draw current position
-			duDebugDrawCross(&dd, me->X, me->FloorHeight, me->Y, 0.5, DXColor(51, 255, 255), 1);
-
-			// Draw the waypoints. Green is next point
-			for (int i = 0; i < m_currentPathSize; ++i)
+			if (node.flags() & DT_STRAIGHTPATH_OFFMESH_CONNECTION)
 			{
-				int color = DXColor(255, 255, 255);
-				if (i < m_currentPathCursor)
-					color = DXColor(0, 102, 204);
-				if (i == m_currentPathCursor)
-					color = DXColor(0, 255, 0);
-				if (i == m_currentPathSize - 1)
-					color = DXColor(255, 0, 0);
-
-				duDebugDrawCross(&dd, m_currentPath[i * 3],
-					m_currentPath[i * 3 + 1],
-					m_currentPath[i * 3 + 2],
-					0.5, color, 1);
+				color = DXColor(255, 255, 0);
 			}
+
+			const glm::vec3& pos = node.pos();
+
+			duDebugDrawCross(&dd, pos.x, pos.y, pos.z, 0.5, color, 1);
+			++i;
 		}
 	}
 
@@ -278,21 +290,7 @@ void NavigationPath::UpdatePath(bool force)
 
 float NavigationPath::GetPathTraversalDistance() const
 {
-	float result = 0.f;
-
-	if (!m_destinationInfo || !m_destinationInfo->valid)
-		return -1.f;
-
-	for (int i = 0; i < m_currentPathSize - 1; ++i)
-	{
-		const float* first = GetRawPosition(i);
-		const float* second = GetRawPosition(i + 1);
-
-		// accumulate the distance
-		result += dtVdist(first, second);
-	}
-	
-	return result;
+	return m_route ? m_route->GetPathTraversalDistance() : 0.f;
 }
 
 void NavigationPath::RenderUI()
@@ -488,7 +486,11 @@ void NavigationLine::Render(RenderPhase phase)
 
 void NavigationLine::GenerateBuffers()
 {
-	int size = m_path->m_currentPathSize;
+	if (!m_path->GetRoute())
+		return;
+
+	auto& route = *m_path->GetRoute();
+	int size = (int)route.size();
 
 	if (size == m_lastSize)
 	{
@@ -523,7 +525,7 @@ void NavigationLine::GenerateBuffers()
 		return;
 
 	// get the path as if it were a series of 3d points
-	D3DXVECTOR3* pt = (D3DXVECTOR3*)&m_path->m_currentPath[0];
+	D3DXVECTOR3* pt = (D3DXVECTOR3*)&route.begin()->pos();
 
 	int index = 0;
 	m_commands.resize(size - 1);

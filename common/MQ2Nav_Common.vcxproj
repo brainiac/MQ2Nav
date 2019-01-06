@@ -156,8 +156,10 @@
     <ClInclude Include="Enum.h" />
     <ClInclude Include="FindPattern.h" />
     <ClInclude Include="JsonProto.h" />
+    <ClInclude Include="NavigationRoute.h" />
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NavMeshData.h" />
+    <ClInclude Include="Navigator.h" />
     <ClInclude Include="NavModule.h" />
     <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="Signal.h" />
@@ -167,8 +169,10 @@
   <ItemGroup>
     <ClCompile Include="FindPattern.cpp" />
     <ClCompile Include="JsonProto.cpp" />
+    <ClCompile Include="NavigationRoute.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NavMeshData.cpp" />
+    <ClCompile Include="Navigator.cpp" />
     <ClCompile Include="proto\NavMeshFile.pb.cc">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/wd4267 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/wd4267 %(AdditionalOptions)</AdditionalOptions>

@@ -520,7 +520,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	if (m_activePath->FindPath())
 	{
 		m_activePath->SetShowNavigationPaths(true);
-		m_isActive = m_activePath->GetPathSize() > 0;
+		m_isActive = m_activePath->GetState() != NavigationState::Inactive;
 	}
 
 	m_mapLine->SetNavigationPath(m_activePath.get());
@@ -675,7 +675,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 			// update path
 			m_activePath->UpdatePath();
-			m_isActive = m_activePath->GetPathSize() > 0;
+			m_isActive = m_activePath->GetState() != NavigationState::Inactive;
 
 			m_pathfindTimer = now;
 		}
@@ -703,37 +703,37 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 		Stop();
 	}
-	else if (m_activePath->GetPathSize() > 0)
+	else if (m_activePath->GetState() != NavigationState::Inactive)
 	{
 		if (!m_isPaused)
 		{
-			if (!GetCharInfo()->pSpawn->SpeedRun)
-				MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 1, 0);
+			//if (!GetCharInfo()->pSpawn->SpeedRun)
+			//	MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 1, 0);
 		}
 
-		glm::vec3 nextPosition = m_activePath->GetNextPosition();
+		//glm::vec3 nextPosition = m_activePath->GetNextPosition();
 
-		float distanceFromNextPosition = GetDistance(nextPosition.x, nextPosition.z);
+		//float distanceFromNextPosition = GetDistance(nextPosition.x, nextPosition.z);
 
-		if (distanceFromNextPosition < WAYPOINT_PROGRESSION_DISTANCE)
+		//if (distanceFromNextPosition < WAYPOINT_PROGRESSION_DISTANCE)
 		{
-			m_activePath->Increment();
+			//m_activePath->Increment();
 
-			if (!m_activePath->IsAtEnd())
+			//if (!m_activePath->IsAtEnd())
 			{
 				m_activePath->UpdatePath();
-				nextPosition = m_activePath->GetNextPosition();
+				//nextPosition = m_activePath->GetRoute()->;
 			}
 		}
 
-		if (m_currentWaypoint != nextPosition)
-		{
-			m_currentWaypoint = nextPosition;
-			DebugSpewAlways("[MQ2Nav] Moving Towards: %.2f %.2f %.2f", nextPosition.x, nextPosition.z, nextPosition.y);
-		}
+		//if (m_currentWaypoint != nextPosition)
+		//{
+		//	m_currentWaypoint = nextPosition;
+		//	DebugSpewAlways("[MQ2Nav] Moving Towards: %.2f %.2f %.2f", nextPosition.x, nextPosition.z, nextPosition.y);
+		//}
 
-		glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
-		LookAt(eqPoint);
+		//glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
+		//LookAt(eqPoint);
 	}
 }
 
@@ -1141,7 +1141,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 			if (settingsChanged)
 				nav::SaveSettings();
 
-			if (m_activePath)
+			if (m_activePath )
 			{
 				auto dest = m_activePath->GetDestination();
 
@@ -1156,20 +1156,31 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 				ImGui::Separator();
 
 				ImGui::BeginChild("PathNodes");
-				for (int i = 0; i < m_activePath->GetPathSize(); ++i)
+				int i = 0;
+
+				for (const auto& node : *m_activePath->GetRoute())
 				{
 					ImColor color(255, 255, 255);
 
 					if (i == 0)
 						color = ImColor(255, 255, 0);
-					if (i == m_activePath->GetPathIndex())
-						color = ImColor(0, 255, 0);
 					if (i == m_activePath->GetPathSize() - 1)
 						color = ImColor(255, 0, 0);
 
-					auto pos = m_activePath->GetRawPosition(i);
+					if (node.flags() & DT_STRAIGHTPATH_OFFMESH_CONNECTION)
+					{
+						color = ImColor(0, 255, 255);
+					}
+
+					const auto& pos = node.pos();
 					ImGui::TextColored(color, "%04d: (%.2f, %.2f, %.2f)", i,
 						pos[0], pos[1], pos[2]);
+
+					if (node.flags() & DT_STRAIGHTPATH_OFFMESH_CONNECTION)
+					{
+						ImGui::SameLine();
+						ImGui::TextColored(ImColor(128, 128, 128), "(offmesh link)");
+					}
 				}
 				ImGui::EndChild();
 			}
@@ -1252,10 +1263,11 @@ void NavigationMapLine::RebuildLine()
 
 	Clear();
 
-	int length = m_path->GetPathSize();
-	for (int i = 0; i < m_path->GetPathSize(); ++i)
+	auto& route = *m_path->GetRoute();
+
+	for (const auto& node : route)
 	{
-		AddPoint(m_path->GetPosition(i));
+		AddPoint(node.pos());
 	}
 }
 
