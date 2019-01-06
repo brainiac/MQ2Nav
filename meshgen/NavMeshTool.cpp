@@ -233,6 +233,12 @@ void NavMeshTool::handleTools()
 	{
 		setTool(new NavMeshPruneTool);
 	}
+	ImGui::SameLine();
+
+	if (ToolButton(ICON_MD_LINK, "Connections Tool", type == ToolType::OFFMESH_CONNECTION)) // connections tool
+	{
+		setTool(new OffMeshConnectionTool);
+	}
 
 	ImGui::Separator();
 
@@ -414,7 +420,7 @@ void NavMeshTool::handleRender()
 			m_geom->getMeshLoader()->getTriCount(),
 			m_config.agentMaxSlope,
 			texScale);
-		m_geom->drawOffMeshConnections(&dd);
+		//m_geom->drawOffMeshConnections(&dd);
 	}
 
 	dd.depthMask(false);
@@ -695,6 +701,7 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 	tileBmax[2] = bmin[2] + (ty + 1)*ts;
 
 	m_ctx->resetLog();
+	auto offMeshConnections = m_navMesh->CreateOffMeshConnectionBuffer();
 
 	std::shared_ptr<dtNavMesh> navMesh = m_navMesh->GetNavMesh();
 	if (!navMesh)
@@ -723,7 +730,7 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 
 	int dataSize = 0;
 	unsigned char* data = buildTileMesh(tx, ty, glm::value_ptr(tileBmin),
-		glm::value_ptr(tileBmax), dataSize);
+		glm::value_ptr(tileBmax), offMeshConnections, dataSize);
 
 	// Remove any previous data (navmesh owns and deletes the data).
 	dtTileRef tileRef = navMesh->getTileRefAt(tx, ty, 0);
@@ -741,7 +748,9 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 	m_ctx->dumpLog("Build Tile (%d,%d):", tx, ty);
 }
 
-void NavMeshTool::RebuildTile(dtTileRef tileRef)
+void NavMeshTool::RebuildTile(
+	const std::shared_ptr<OffMeshConnectionBuffer> connBuffer,
+	dtTileRef tileRef)
 {
 	if (!m_geom) return;
 	const auto& navMesh = m_navMesh->GetNavMesh();
@@ -754,7 +763,7 @@ void NavMeshTool::RebuildTile(dtTileRef tileRef)
 	auto bmax = tile->header->bmax;
 
 	int dataSize = 0;
-	unsigned char* data = buildTileMesh(tile->header->x, tile->header->y, bmin, bmax, dataSize);
+	unsigned char* data = buildTileMesh(tile->header->x, tile->header->y, bmin, bmax, connBuffer, dataSize);
 
 	navMesh->removeTile(tileRef, 0, 0);
 
@@ -769,8 +778,10 @@ void NavMeshTool::RebuildTile(dtTileRef tileRef)
 
 void NavMeshTool::RebuildTiles(const std::vector<dtTileRef>& tiles)
 {
+	auto connBuffer = m_navMesh->CreateOffMeshConnectionBuffer();
+
 	for (dtTileRef tileRef : tiles)
-		RebuildTile(tileRef);
+		RebuildTile(connBuffer, tileRef);
 }
 
 struct TileData
@@ -853,6 +864,8 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 
 	m_tilesBuilt = 0;
 
+	auto offMeshConnections = m_navMesh->CreateOffMeshConnectionBuffer();
+
 	//concurrency::CurrentScheduler::Create(concurrency::SchedulerPolicy(1, concurrency::MaxConcurrency, 3));
 
 	concurrency::unbounded_buffer<TileDataPtr> agentTiles;
@@ -868,7 +881,7 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 	{
 		for (int y = 0; y < th; y++)
 		{
-			tasks.run([this, x, y, &bmin, &bmax, tcs, &agentTiles]()
+			tasks.run([this, x, y, &bmin, &bmax, tcs, &agentTiles, offMeshConnections]()
 				{
 					if (m_cancelTiles)
 						return;
@@ -886,7 +899,7 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 
 					int dataSize = 0;
 					uint8_t* data = buildTileMesh(x, y, glm::value_ptr(tileBmin),
-						glm::value_ptr(tileBmax), dataSize);
+						glm::value_ptr(tileBmax), offMeshConnections, dataSize);
 
 					if (data)
 					{
@@ -986,7 +999,13 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshTool::rasterizeGeometry(rcConfi
 	return std::move(chf);
 }
 
-unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize) const
+unsigned char* NavMeshTool::buildTileMesh(
+	const int tx,
+	const int ty,
+	const float* bmin,
+	const float* bmax,
+	const std::shared_ptr<OffMeshConnectionBuffer>& offMeshConnections,
+	int& dataSize) const
 {
 	if (!m_geom || !m_geom->getMeshLoader() || !m_geom->getChunkyMesh())
 	{
@@ -1208,13 +1227,8 @@ unsigned char* NavMeshTool::buildTileMesh(const int tx, const int ty, const floa
 		params.detailVertsCount = dmesh->nverts;
 		params.detailTris = dmesh->tris;
 		params.detailTriCount = dmesh->ntris;
-		params.offMeshConVerts = m_geom->getOffMeshConnectionVerts();
-		params.offMeshConRad = m_geom->getOffMeshConnectionRads();
-		params.offMeshConDir = m_geom->getOffMeshConnectionDirs();
-		params.offMeshConAreas = m_geom->getOffMeshConnectionAreas();
-		params.offMeshConFlags = m_geom->getOffMeshConnectionFlags();
-		params.offMeshConUserID = m_geom->getOffMeshConnectionId();
-		params.offMeshConCount = m_geom->getOffMeshConnectionCount();
+
+		offMeshConnections->UpdateNavMeshCreateParams(params);
 		params.walkableHeight = m_config.agentHeight;
 		params.walkableRadius = m_config.agentRadius;
 		params.walkableClimb = m_config.agentMaxClimb;

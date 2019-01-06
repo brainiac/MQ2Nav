@@ -115,7 +115,6 @@ public:
 	void CancelBuildAllTiles(bool wait = true);
 
 	void RebuildTiles(const std::vector<dtTileRef>& tiles);
-	void RebuildTile(dtTileRef tileRef);
 
 	bool isBuildingTiles() const { return m_buildingTiles; }
 
@@ -152,8 +151,17 @@ private:
 	void renderToolStates();
 	void renderOverlayToolStates(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 
+	void RebuildTile(
+		const std::shared_ptr<OffMeshConnectionBuffer> connBuffer,
+		dtTileRef tileRef);
 
-	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize) const;
+	unsigned char* buildTileMesh(
+		const int tx,
+		const int ty,
+		const float* bmin,
+		const float* bmax,
+		const std::shared_ptr<OffMeshConnectionBuffer>& connBuffer,
+		int& dataSize) const;
 
 	void NavMeshUpdated();
 
