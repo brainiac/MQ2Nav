@@ -59,8 +59,6 @@ struct Tool
 	virtual void handleRender() = 0;
 	virtual void handleRenderOverlay(const glm::mat4& proj,
 		const glm::mat4& model, const glm::ivec4& view) = 0;
-	virtual void handleToggle() = 0;
-	virtual void handleStep() = 0;
 	virtual void handleUpdate(float dt) = 0;
 };
 
@@ -153,8 +151,6 @@ private:
 	void renderToolStates();
 	void renderOverlayToolStates(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 
-	void handleToggle();
-	void handleStep();
 
 	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize) const;
 

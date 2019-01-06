@@ -1,4 +1,7 @@
 // Hint files help the Visual Studio IDE interpret Visual C++ identifiers
 // such as names of functions and macros.
 // For more information see https://go.microsoft.com/fwlink/?linkid=865984
+
 #define IMGUI_API
+#define NAV_API extern "C" __declspec(dllexport)
+#define PLUGIN_API extern "C" __declspec(dllexport)

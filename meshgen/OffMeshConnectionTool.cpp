@@ -101,14 +101,6 @@ void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, 
 	}
 }
 
-void OffMeshConnectionTool::handleToggle()
-{
-}
-
-void OffMeshConnectionTool::handleStep()
-{
-}
-
 void OffMeshConnectionTool::handleUpdate(float /*dt*/)
 {
 }

@@ -317,7 +317,7 @@ void NavigationPath::RenderUI()
 
 glm::vec3 NavigationPath::GetDestination() const
 {
-	return m_destinationInfo ? m_destinationInfo->eqDestinationPos : glm::vec3();
+	return m_destinationInfo ? m_destinationInfo->eqDestinationPos : glm::vec3{};
 }
 
 //----------------------------------------------------------------------------
@@ -325,9 +325,9 @@ glm::vec3 NavigationPath::GetDestination() const
 NavigationLine::NavigationLine(NavigationPath* path)
 	: m_path(path)
 {
-	m_renderPasses.push_back(RenderStyle{ ImColor(0, 0, 0, 200), 0.9f });
-	m_renderPasses.push_back(RenderStyle{ ImColor(52, 152, 219, 200), 0.5f });
-	m_renderPasses.push_back(RenderStyle{ ImColor(241, 196, 15, 200), 0.5f });
+	m_renderPasses.emplace_back(ImColor(0, 0, 0, 200), 0.9f);
+	m_renderPasses.emplace_back(ImColor(52, 152, 219, 200), 0.5f);
+	m_renderPasses.emplace_back(ImColor(241, 196, 15, 200), 0.5f);
 
 	m_pathUpdated = path->PathUpdated.Connect(
 		[this]() { if (nav::GetSettings().show_nav_path) Update(); });
@@ -347,7 +347,7 @@ bool NavigationLine::CreateDeviceObjects()
 	if (shaderFile.empty())
 		return false;
 
-	ID3DXBuffer* errors = 0;
+	ID3DXBuffer* errors = nullptr;
 
 	HRESULT hr = D3DXCreateEffect(
 		g_pDevice,

@@ -154,17 +154,18 @@ static bool getSteerTarget(dtNavMeshQuery* navQuery, const glm::vec3& startPos,
 
 	navQuery->findStraightPath(glm::value_ptr(startPos), glm::value_ptr(endPos),
 		path, pathSize, glm::value_ptr(steerPath[0]), steerPathFlags, steerPathPolys,
-		&nsteerPath, MAX_STEER_POINTS);
+		&nsteerPath, MAX_STEER_POINTS, DT_STRAIGHTPATH_AREA_CROSSINGS);
 
 	if (!nsteerPath)
 		return false;
 
 	if (outPoints)
 	{
+		outPoints->clear();
+
 		for (int i = 0; i < nsteerPath; ++i)
 			outPoints->push_back(steerPath[i]);
 	}
-
 
 	// Find vertex far enough to steer to.
 	int ns = 0;
@@ -425,165 +426,6 @@ void NavMeshTesterTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool
 	recalc();
 }
 
-void NavMeshTesterTool::handleStep()
-{
-}
-
-void NavMeshTesterTool::handleToggle()
-{
-	// TODO: merge separate to a path iterator. Use same code in recalc() too.
-	if (m_toolMode != ToolMode::PATHFIND_FOLLOW)
-		return;
-
-	if (!m_sposSet || !m_eposSet || !m_startRef || !m_endRef)
-		return;
-
-	static const float STEP_SIZE = 0.5f;
-	static const float SLOP = 0.01f;
-
-	if (m_pathIterNum == 0)
-	{
-		m_navQuery->findPath(m_startRef, m_endRef, glm::value_ptr(m_spos), glm::value_ptr(m_epos),
-			&m_filter, m_polys, &m_npolys, MAX_POLYS);
-		m_nsmoothPath = 0;
-
-		m_pathIterPolyCount = m_npolys;
-		if (m_pathIterPolyCount)
-			memcpy(m_pathIterPolys, m_polys, sizeof(dtPolyRef)*m_pathIterPolyCount);
-
-		if (m_pathIterPolyCount)
-		{
-			// Iterate over the path to find smooth path on the detail mesh surface.
-			m_navQuery->closestPointOnPoly(m_startRef,
-				glm::value_ptr(m_spos), glm::value_ptr(m_iterPos), 0);
-			m_navQuery->closestPointOnPoly(m_pathIterPolys[m_pathIterPolyCount - 1],
-				glm::value_ptr(m_epos), glm::value_ptr(m_targetPos), 0);
-
-			m_nsmoothPath = 0;
-			m_smoothPath[m_nsmoothPath++] = m_iterPos;
-			m_nsmoothPath++;
-		}
-	}
-
-	m_prevIterPos = m_iterPos;
-	m_pathIterNum++;
-
-	if (!m_pathIterPolyCount)
-		return;
-
-	if (m_nsmoothPath >= MAX_SMOOTH)
-		return;
-
-	// Move towards target a small advancement at a time until target reached or
-	// when ran out of memory to store the path.
-
-	// Find location to steer towards.
-	glm::vec3 steerPos;
-	uint8_t steerPosFlag = 0;
-	dtPolyRef steerPosRef;
-
-	if (!getSteerTarget(m_navQuery, m_iterPos, m_targetPos, SLOP,
-		m_pathIterPolys, m_pathIterPolyCount,
-		steerPos, steerPosFlag, steerPosRef, &m_steerPoints))
-	{
-		return;
-	}
-
-	m_steerPos = steerPos;
-
-	bool endOfPath = (steerPosFlag & DT_STRAIGHTPATH_END) != 0;
-	bool offMeshConnection = (steerPosFlag & DT_STRAIGHTPATH_OFFMESH_CONNECTION) != 0;
-
-	// Find movement delta.
-	glm::vec3 delta = steerPos - m_iterPos;
-	float len = glm::sqrt(glm::dot(delta, delta));
-
-	// If the steer target is end of path or off-mesh link, do not move past the location.
-	if ((endOfPath || offMeshConnection) && len < STEP_SIZE)
-		len = 1;
-	else
-		len = STEP_SIZE / len;
-
-	glm::vec3 moveTgt = m_iterPos + (delta * len);
-
-	// Move
-	glm::vec3 result;
-	dtPolyRef visited[16];
-	int nvisited = 0;
-	m_navQuery->moveAlongSurface(m_pathIterPolys[0], glm::value_ptr(m_iterPos),
-		glm::value_ptr(moveTgt), &m_filter, glm::value_ptr(result), visited, &nvisited, 16);
-	m_pathIterPolyCount = fixupCorridor(m_pathIterPolys, m_pathIterPolyCount, MAX_POLYS, visited, nvisited);
-	m_pathIterPolyCount = fixupShortcuts(m_pathIterPolys, m_pathIterPolyCount, m_navQuery);
-
-	float h = 0;
-	m_navQuery->getPolyHeight(m_pathIterPolys[0], glm::value_ptr(result), &h);
-	result.y = h;
-
-	m_iterPos = result;
-
-	// Handle end of path and off-mesh links when close enough.
-	if (endOfPath && inRange(m_iterPos, steerPos, SLOP, 1.0f))
-	{
-		// Reached end of path.
-		m_iterPos = m_targetPos;
-
-		if (m_nsmoothPath < MAX_SMOOTH)
-		{
-			m_smoothPath[m_nsmoothPath++] = m_iterPos;
-		}
-		return;
-	}
-	else if (offMeshConnection && inRange(m_iterPos, steerPos, SLOP, 1.0f))
-	{
-		// Reached off-mesh connection.
-		glm::vec3 startPos, endPos;
-
-		// Advance the path up to and over the off-mesh connection.
-		dtPolyRef prevRef = 0, polyRef = m_pathIterPolys[0];
-
-		int npos = 0;
-		while (npos < m_pathIterPolyCount && polyRef != steerPosRef)
-		{
-			prevRef = polyRef;
-			polyRef = m_pathIterPolys[npos];
-			npos++;
-		}
-		for (int i = npos; i < m_pathIterPolyCount; ++i)
-			m_pathIterPolys[i - npos] = m_pathIterPolys[i];
-		m_pathIterPolyCount -= npos;
-
-		// Handle the connection.
-		dtStatus status = m_navMesh->getOffMeshConnectionPolyEndPoints(
-			prevRef, polyRef, glm::value_ptr(startPos), glm::value_ptr(endPos));
-		if (dtStatusSucceed(status))
-		{
-			if (m_nsmoothPath < MAX_SMOOTH)
-			{
-				m_smoothPath[m_nsmoothPath++] = startPos;
-
-				// Hack to make the dotted path not visible during off-mesh connection.
-				if (m_nsmoothPath & 1)
-				{
-					m_smoothPath[m_nsmoothPath++] = startPos;
-				}
-			}
-
-			// Move position at the other side of the off-mesh link.
-			m_iterPos = endPos;
-
-			float eh = 0.0f;
-			m_navQuery->getPolyHeight(m_pathIterPolys[0], glm::value_ptr(m_iterPos), &eh);
-			m_iterPos.y = eh;
-		}
-	}
-
-	// Store results.
-	if (m_nsmoothPath < MAX_SMOOTH)
-	{
-		m_smoothPath[m_nsmoothPath++] = m_iterPos;
-	}
-}
-
 void NavMeshTesterTool::handleUpdate(float /*dt*/)
 {
 	if (m_toolMode == ToolMode::PATHFIND_SLICED)
@@ -691,7 +533,8 @@ void NavMeshTesterTool::recalc()
 					dtPolyRef steerPosRef;
 
 					if (!getSteerTarget(m_navQuery, iterPos, targetPos, SLOP,
-						polys, npolys, steerPos, steerPosFlag, steerPosRef))
+						polys, npolys, steerPos, steerPosFlag, steerPosRef,
+						&m_steerPoints))
 					{
 						break;
 					}

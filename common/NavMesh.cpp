@@ -373,7 +373,7 @@ void NavMesh::LoadFromProto(const nav::NavMeshFile& proto, PersistedDataFields f
 
 					dtMeshHeader* tileheader = (dtMeshHeader*)data;
 
-					dtStatus status = navMesh->addTile(data, (int)tiledata.length(), DT_TILE_FREE_DATA, ref, 0);
+					dtStatus status = navMesh->addTile(data, (int)tiledata.length(), DT_TILE_FREE_DATA, ref, nullptr);
 					if (status != DT_SUCCESS)
 					{
 						m_ctx->Log(LogLevel::WARNING, "Failed to read tile: %d, %d (%d) = %d",
@@ -504,7 +504,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	// cache the filename of the file we tried to load
 	m_dataFile = filename;
 
-	FILE* file = 0;
+	FILE* file = nullptr;
 	errno_t err = fopen_s(&file, filename, "rb");
 	if (err == ENOENT)
 		return LoadResult::MissingFile;
@@ -785,6 +785,26 @@ void NavMesh::InitializeAreas()
 	}
 }
 
+std::vector<dtTileRef> NavMesh::GetTileRefsForPoint(const glm::vec3& pos)
+{
+	std::vector<dtTileRef> refs;
+
+	int tilex, tiley;
+	m_navMesh->calcTileLoc(glm::value_ptr(pos), &tilex, &tiley);
+
+	static const int MAX_NEIS = 32;
+	const dtMeshTile* neis[MAX_NEIS];
+
+	const int nneis = m_navMesh->getTilesAt(tilex, tiley, neis, MAX_NEIS);
+	for (int j = 0; j < nneis; j++)
+	{
+		dtTileRef tileRef = m_navMesh->getTileRef(neis[j]);
+		refs.push_back(tileRef);
+	}
+
+	return refs;
+}
+
 void NavMesh::UpdateArea(const PolyAreaType& areaType)
 {
 	// don't read in invalid ids
@@ -953,7 +973,7 @@ std::vector<float> NavMesh::GetHeights(const glm::vec3& pos)
 			float height;
 
 			// this can fail with valid coords, so we need to make sure we are only adding valid heights.
-			if (!(query->getPolyHeight(poly, center, &height) & DT_FAILURE))
+			if (!dtStatusFailed(query->getPolyHeight(poly, center, &height)))
 				heights.push_back(height);
 		}
 	}

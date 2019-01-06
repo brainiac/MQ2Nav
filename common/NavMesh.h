@@ -120,6 +120,8 @@ public:
 	NavMeshConfig& GetNavMeshConfig() { return m_config; }
 	const NavMeshConfig& GetNavMeshConfig() const { return m_config; }
 
+	std::vector<dtTileRef> GetTileRefsForPoint(const glm::vec3& pos);
+
 	//------------------------------------------------------------------------
 	// area types
 

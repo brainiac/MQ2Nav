@@ -776,7 +776,7 @@ struct TileData
 	int y = 0;
 };
 
-typedef std::shared_ptr<TileData> TileDataPtr;
+using TileDataPtr = std::shared_ptr<TileData>;
 
 class NavmeshUpdaterAgent : public concurrency::agent
 {
@@ -1276,22 +1276,6 @@ void NavMeshTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift
 	if (m_tool)
 	{
 		m_tool->handleClick(s, p, shift);
-	}
-}
-
-void NavMeshTool::handleToggle()
-{
-	if (m_tool)
-	{
-		m_tool->handleToggle();
-	}
-}
-
-void NavMeshTool::handleStep()
-{
-	if (m_tool)
-	{
-		m_tool->handleStep();
 	}
 }
 

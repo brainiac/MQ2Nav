@@ -2,6 +2,7 @@
 // ConvexVolumeTool.cpp
 //
 #include "meshgen/ConvexVolumeTool.h"
+#include "meshgen/ImGuiWidgets.h"
 #include "meshgen/InputGeom.h"
 #include "meshgen/NavMeshTool.h"
 #include "common/Utilities.h"
@@ -13,9 +14,7 @@
 #include <imgui/imgui.h>
 #include <imgui/misc/fonts/IconsMaterialDesign.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
-#define IMGUI_DEFINE_PLACEMENT_NEW
 #include <imgui/imgui_internal.h>
-#include <imgui/custom/imgui_user.h>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <functional>
@@ -91,79 +90,6 @@ void ConvexVolumeTool::init(NavMeshTool* meshTool)
 void ConvexVolumeTool::reset()
 {
 	m_editing = false;
-}
-
-static bool AreaTypeCombo(NavMesh* navMesh, uint8_t* areaType)
-{
-	const auto& polyAreas = navMesh->GetPolyAreas();
-	int size = (int)polyAreas.size();
-	bool changed = false;
-	int selectedIndex = -1;
-
-	ImVec2 combo_pos = ImGui::GetCursorScreenPos();
-
-	// find the selected index
-	for (int i = 0; i < size; ++i)
-	{
-		if (polyAreas[i]->id == *areaType)
-		{
-			selectedIndex = i;
-		}
-	}
-
-	ImGuiStyle& style = ImGui::GetStyle();
-
-	if (ImGui::BeginCombo("Area Type", ""))
-	{
-		float h = ImGui::GetTextLineHeight();
-
-		for (int i = 0; i < size; ++i)
-		{
-			ImGui::PushID(i);
-
-			bool selected = selectedIndex == i;
-			if (selected)
-			{
-				ImGui::SetItemDefaultFocus();
-			}
-
-			float default_size = ImGui::GetFrameHeight();
-			ImVec2 size{ default_size - 6, default_size - 6 };
-
-			ImColor color{ polyAreas[i]->color };
-			color.Value.w = 1.0f; // no transparency
-
-			changed = ImGui::Selectable("", selected);
-			ImGui::SameLine();
-
-			ImGui::ColorButton("##color", color, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoTooltip, size);
-
-			ImGui::SameLine();
-			ImGui::Text(polyAreas[i]->name.c_str());
-
-			if (changed)
-			{
-				*areaType = polyAreas[i]->id;
-			}
-
-			ImGui::PopID();
-		}
-		ImGui::EndCombo();
-	}
-
-	if (selectedIndex != -1)
-	{
-		ImVec2 backup_pos = ImGui::GetCursorScreenPos();
-		ImGui::SetCursorScreenPos(ImVec2(combo_pos.x + style.FramePadding.x, combo_pos.y));
-		ImColor color{ polyAreas[selectedIndex]->color };
-		color.Value.w = 1.0f; // no transparency
-		ImGui::ColorButton("##selectedColor", color, 0);
-		ImGui::SameLine();
-		ImGui::Text(polyAreas[selectedIndex]->name.c_str());
-		ImGui::SetCursorScreenPos(backup_pos);
-	}
-
-	return changed;
 }
 
 void ConvexVolumeTool::handleMenu()
@@ -619,7 +545,7 @@ std::vector<dtTileRef> ConvexVolumeToolState::handleVolumeClick(const glm::vec3&
 		bool alt = (SDL_GetModState() & KMOD_ALT) != 0;
 
 		// If clicked on that last pt, create the shape.
-		if (m_pts.size() > 0 && (alt || distSqr(p, m_pts[m_pts.size() - 1]) < rcSqr(0.2f)))
+		if (!m_pts.empty() && (alt || distSqr(p, m_pts[m_pts.size() - 1]) < rcSqr(0.2f)))
 		{
 			modifiedTiles = CreateShape();
 		}

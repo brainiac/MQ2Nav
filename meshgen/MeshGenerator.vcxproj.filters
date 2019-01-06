@@ -68,6 +68,9 @@
     <ClCompile Include="OffMeshConnectionTool.cpp">
       <Filter>Source Files\tools</Filter>
     </ClCompile>
+    <ClCompile Include="ImGuiWidgets.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapGeometryLoader.h">
@@ -117,6 +120,9 @@
     </ClInclude>
     <ClInclude Include="ConvexVolumeTool.h">
       <Filter>Header Files\tools</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGuiWidgets.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
