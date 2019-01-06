@@ -136,3 +136,32 @@ struct ConvexVolume
 // of 0 are ignored.
 
 extern std::map<std::string, std::pair<glm::vec3, glm::vec3>> MaxZoneExtents;
+
+//----------------------------------------------------------------------------
+
+// Connections
+// these describe connections a.k.a. off-mesh connections between two points on
+// the mesh. At first connections are only supported between two adjacent tiles,
+// but hopefully we can extend that in the future.
+
+enum struct ConnectionType : uint8_t
+{
+	// Basic connections are the initial type of connection. They don't support
+	// much, but they work for short distances.
+	Basic = 0,
+};
+
+struct OffMeshConnection
+{
+	uint32_t id = 0;
+	glm::vec3 start, end;
+	ConnectionType type = ConnectionType::Basic;
+	uint8_t areaType = 0;
+	bool bidirectional = true;
+
+	// optional name provided by the user
+	std::string name;
+
+	// false if start/end positions aren't valid. Invalid connections don't get saved.
+	bool valid = true;
+};

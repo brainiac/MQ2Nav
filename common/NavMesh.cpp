@@ -20,6 +20,7 @@
 #include <DetourCommon.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
+#include <DetourNavMeshBuilder.h>
 #include <Recast.h>
 
 #include <fstream>
@@ -132,6 +133,13 @@ void NavMesh::ResetSavedData(PersistedDataFields fields)
 		m_volumes.clear();
 		m_volumesById.clear();
 		m_nextVolumeId = 1;
+	}
+
+	if (+(fields & PersistedDataFields::Connections))
+	{
+		m_connections.clear();
+		m_connectionsById.clear();
+		m_nextConnectionId = 1;
 	}
 }
 
@@ -321,6 +329,32 @@ static std::unique_ptr<ConvexVolume> FromProto(const nav::ConvexVolume& proto)
 	return volume;
 }
 
+static void ToProto(nav::Connection& out_proto, const OffMeshConnection& connection)
+{
+	out_proto.set_id(connection.id);
+	ToProto(*out_proto.mutable_pos_from(), connection.start);
+	ToProto(*out_proto.mutable_pos_to(), connection.end);
+	out_proto.set_type(static_cast<uint32_t>(connection.type));
+	out_proto.set_area_type(connection.areaType);
+	out_proto.set_one_way(!connection.bidirectional);
+	out_proto.set_name(connection.name);
+}
+
+static std::unique_ptr<OffMeshConnection> FromProto(const nav::Connection& proto)
+{
+	auto connection = std::make_unique<OffMeshConnection>();
+
+	connection->id = proto.id();
+	connection->start = FromProto(proto.pos_from());
+	connection->end = FromProto(proto.pos_to());
+	connection->type = static_cast<ConnectionType>(proto.type());
+	connection->areaType = proto.area_type();
+	connection->name = proto.name();
+	connection->bidirectional = !proto.one_way();
+
+	return connection;
+}
+
 static void ToProto(nav::PolyAreaType& out_proto, const PolyAreaType& area)
 {
 	out_proto.set_id(area.id);
@@ -426,10 +460,29 @@ void NavMesh::LoadFromProto(const nav::NavMeshFile& proto, PersistedDataFields f
 		}
 
 		// find the next volume id
-		for (const auto& volume : m_volumes)
+		auto result =
+			std::max_element(std::begin(m_volumes), std::end(m_volumes),
+				[](const auto& l, const auto& r) { return l->id < r->id; });
+
+		m_nextVolumeId = (result != std::end(m_volumes) ? (*result)->id : 0) + 1;
+	}
+
+	if (+(fields & PersistedDataFields::Connections))
+	{
+		// load connections
+		for (const auto& proto_conn : proto.connections())
 		{
-			m_nextVolumeId = std::max(m_nextVolumeId, volume->id + 1);
+			std::unique_ptr<OffMeshConnection> conn = FromProto(proto_conn);
+			m_connectionsById.emplace(conn->id, conn.get());
+			m_connections.push_back(std::move(conn));
 		}
+
+		// find the next connection id
+		auto result =
+			std::max_element(std::begin(m_connections), std::end(m_connections),
+				[](const auto& l, const auto& r) { return l->id < r->id; });
+
+		m_nextConnectionId = (result != std::end(m_connections) ? (*result)->id : 0) + 1;
 	}
 }
 
@@ -482,6 +535,20 @@ void NavMesh::SaveToProto(nav::NavMeshFile& proto, PersistedDataFields fields)
 
 			nav::PolyAreaType* proto_area = proto.add_areas();
 			ToProto(*proto_area, *area);
+		}
+	}
+
+	if (+(fields & PersistedDataFields::Connections))
+	{
+		// save connections
+		for (const auto& conn : m_connections)
+		{
+			// don't save invalid connections
+			if (!conn->valid)
+				continue;
+
+			nav::Connection* proto_conn = proto.add_connections();
+			ToProto(*proto_conn, *conn);
 		}
 	}
 }
@@ -659,23 +726,28 @@ bool NavMesh::SaveMesh(const char* filename)
 
 //----------------------------------------------------------------------------
 
-ConvexVolume* NavMesh::AddConvexVolume(const std::vector<glm::vec3>& verts,
-	const std::string& name,
-	float minh, float maxh, uint8_t areaType)
+ConvexVolume* NavMesh::AddConvexVolume(std::unique_ptr<ConvexVolume> volume)
 {
-	auto volume = std::make_unique<ConvexVolume>();
-	volume->areaType = areaType;
-	volume->hmax = maxh;
-	volume->hmin = minh;
-	volume->verts = verts;
 	volume->id = m_nextVolumeId++;
-	volume->name = name;
 
 	ConvexVolume* vol = volume.get();
 	m_volumes.push_back(std::move(volume));
 	m_volumesById.emplace(vol->id, vol);
 
 	return vol;
+}
+
+ConvexVolume* NavMesh::AddConvexVolume(const std::vector<glm::vec3>& verts,
+	const std::string& name, float minh, float maxh, uint8_t areaType)
+{
+	auto volume = std::make_unique<ConvexVolume>();
+	volume->areaType = areaType;
+	volume->hmax = maxh;
+	volume->hmin = minh;
+	volume->verts = verts;
+	volume->name = name;
+
+	return AddConvexVolume(std::move(volume));
 }
 
 void NavMesh::DeleteConvexVolumeById(uint32_t id)
@@ -760,6 +832,63 @@ void NavMesh::MoveConvexVolumeToIndex(uint32_t id, size_t toIndex)
 	{
 		std::rotate(toIter, fromIter, std::next(fromIter));
 	}
+}
+
+//----------------------------------------------------------------------------
+
+OffMeshConnection* NavMesh::AddConnection(std::unique_ptr<OffMeshConnection> connection)
+{
+	connection->id = m_nextConnectionId++;
+
+	OffMeshConnection* conn = connection.get();
+	m_connections.push_back(std::move(connection));
+	m_connectionsById.emplace(conn->id, conn);
+
+	// todo: update buffer if one exists?
+
+	return conn;
+}
+
+OffMeshConnection* NavMesh::GetConnectionById(uint32_t id)
+{
+	auto iter = m_connectionsById.find(id);
+	if (iter != m_connectionsById.end())
+		return iter->second;
+
+	return nullptr;
+}
+
+void NavMesh::DeleteConnectionById(uint32_t id)
+{
+	auto iter = std::find_if(m_connections.begin(), m_connections.end(),
+		[id](const auto& ptr) { return ptr->id == id; });
+	if (iter != m_connections.end())
+	{
+		m_connectionsById.erase((*iter)->id);
+		m_connections.erase(iter);
+	}
+
+	// todo: update buffer if one exists?
+}
+
+std::vector<dtTileRef> NavMesh::GetTilesIntersectingConnection(uint32_t connectionId)
+{
+	std::vector<dtTileRef> refs;
+
+	OffMeshConnection* connection = GetConnectionById(connectionId);
+	if (connection)
+	{
+		return GetTileRefsForPoint(connection->start);
+	}
+
+	return refs;
+}
+
+std::shared_ptr<OffMeshConnectionBuffer> NavMesh::CreateOffMeshConnectionBuffer() const
+{
+	// crude and simple. Could be optimized in the future to not regenerate
+	// every time we need it. At least this is thread-safe...
+	return std::make_shared<OffMeshConnectionBuffer>(this, m_connections);
 }
 
 //----------------------------------------------------------------------------
@@ -1000,6 +1129,62 @@ float NavMesh::GetClosestHeight(const glm::vec3& pos)
 	}
 
 	return height_it == heights.end() ? pos.y : *height_it;
+}
+
+//============================================================================
+
+OffMeshConnectionBuffer::OffMeshConnectionBuffer(
+	const NavMesh* navMesh,
+	const std::vector<std::unique_ptr<OffMeshConnection>>& connections)
+{
+	// when we have multiple types of connections in the future, this will
+	// need to change to only count the number of basic connections.
+
+	if (!connections.empty())
+	{
+		offMeshConVerts.reserve(connections.size());
+		offMeshConRads.reserve(connections.size());
+		offMeshConDirs.reserve(connections.size());
+		offMeshConAreas.reserve(connections.size());
+		offMeshConFlags.reserve(connections.size());
+		offMeshConId.reserve(connections.size());
+
+		for (const auto& conn : connections)
+		{
+			offMeshConVerts.emplace_back(conn->start, conn->end);
+			offMeshConRads.emplace_back(navMesh->GetNavMeshConfig().agentRadius);
+			offMeshConDirs.emplace_back(conn->bidirectional ? (uint8_t)DT_OFFMESH_CON_BIDIR : 0);
+			offMeshConAreas.emplace_back(conn->areaType);
+			offMeshConFlags.emplace_back(navMesh->GetPolyArea(conn->areaType).flags);
+			offMeshConId.emplace_back(conn->id);
+		}
+	}
+
+	offMeshConCount = connections.size();
+}
+
+void OffMeshConnectionBuffer::UpdateNavMeshCreateParams(dtNavMeshCreateParams& params)
+{
+	if (offMeshConCount > 0)
+	{
+		params.offMeshConVerts = glm::value_ptr(offMeshConVerts[0].first);
+		params.offMeshConRad = offMeshConRads.data();
+		params.offMeshConFlags = offMeshConFlags.data();
+		params.offMeshConAreas = offMeshConAreas.data();
+		params.offMeshConDir = offMeshConDirs.data();
+		params.offMeshConUserID = offMeshConId.data();
+	}
+	else
+	{
+		params.offMeshConVerts = nullptr;
+		params.offMeshConRad = nullptr;
+		params.offMeshConFlags = nullptr;
+		params.offMeshConAreas = nullptr;
+		params.offMeshConDir = nullptr;
+		params.offMeshConUserID = nullptr;
+	}
+
+	params.offMeshConCount = static_cast<int>(offMeshConCount);
 }
 
 //============================================================================
