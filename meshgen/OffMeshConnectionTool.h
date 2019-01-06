@@ -4,11 +4,15 @@
 
 #pragma once
 
+#include "common/NavMeshData.h"
 #include "meshgen/NavMeshTool.h"
 
 #include <cstdint>
 
-// Tool to create off-mesh connection for InputGeom
+// Tool to create and edit connections
+
+class OffMeshConnectionToolState;
+struct OffMeshConnection;
 
 class OffMeshConnectionTool : public Tool
 {
@@ -28,8 +32,40 @@ public:
 
 private:
 	NavMeshTool* m_meshTool = nullptr;
+	OffMeshConnectionToolState* m_state = nullptr;
+
+	bool m_editing = false;
+};
+
+class OffMeshConnectionToolState : public ToolState
+{
+	friend class OffMeshConnectionTool;
+
+public:
+	virtual void init(NavMeshTool* meshTool) override;
+	virtual void reset() override;
+	virtual void handleRender() override;
+	virtual void handleRenderOverlay(const glm::mat4& proj,
+		const glm::mat4& model, const glm::ivec4& view) override;
+	virtual void handleUpdate(const float dt) override {}
+
+	std::vector<dtTileRef> handleConnectionClick(const glm::vec3& p, bool shift);
+	std::vector<dtTileRef> createConnection();
+
+private:
+	NavMeshTool* m_meshTool = nullptr;
 	glm::vec3 m_hitPos;
+
+	// properties for constructing new connection
+	char m_name[256];
+	uint8_t m_areaType = (uint8_t)PolyArea::Ground;
 	bool m_hitPosSet = false;
 	bool m_bidir = true;
-	int8_t m_oldFlags = 0;
+	glm::vec3 m_posBegin;
+	glm::vec3 m_posEnd;
+
+	// editing existing connection. We copy so we can make edits without committing.
+	OffMeshConnection m_editConnection;
+	uint32_t m_currentConnectionId = 0;
+	bool m_modified = false;
 };
