@@ -45,6 +45,7 @@ enum struct ToolType : uint32_t
 	NAVMESH_PRUNE,
 	OFFMESH_CONNECTION,
 	CONVEX_VOLUME,
+	WAYPOINTS,
 	MAX_TOOLS
 };
 

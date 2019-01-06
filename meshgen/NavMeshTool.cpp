@@ -7,6 +7,7 @@
 #include "meshgen/NavMeshTesterTool.h"
 #include "meshgen/NavMeshTileTool.h"
 #include "meshgen/OffMeshConnectionTool.h"
+#include "meshgen/WaypointsTool.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
 #include "common/proto/NavMeshFile.pb.h"
@@ -203,13 +204,17 @@ void NavMeshTool::handleTools()
 {
 	ToolType type = !m_tool ? ToolType::NONE : m_tool->type();
 
-	if (ToolButton(ICON_MD_QUEUE, "Tile Edit Tool", type == ToolType::TILE_EDIT)) // create tiles
+	if (ToolButton(ICON_MD_LANDSCAPE, "Tile Edit Tool", type == ToolType::TILE_EDIT)) // create tiles
 	{
 		setTool(new NavMeshTileTool);
 	}
 	ImGui::SameLine();
 
-	// use ICON_MD_PLACE for waypoints
+	if (ToolButton(ICON_MD_PLACE, "Waypoints Tool", type == ToolType::WAYPOINTS))
+	{
+		setTool(new WaypointsTool);
+	}
+	ImGui::SameLine();
 
 	if (ToolButton(ICON_MD_DIRECTIONS_RUN, "NavMesh Tester Tool", type == ToolType::NAVMESH_TESTER)) // test mesh
 	{

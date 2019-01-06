@@ -40,6 +40,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="WaypointsTool.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -59,6 +60,7 @@
     <ClInclude Include="OffMeshConnectionTool.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="WaypointsTool.h" />
     <ClInclude Include="ZonePicker.h" />
   </ItemGroup>
   <ItemGroup>
