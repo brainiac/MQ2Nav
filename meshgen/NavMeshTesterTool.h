@@ -23,7 +23,7 @@ public:
 	virtual void reset() override;
 	virtual void handleMenu() override;
 	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) override;
-	virtual void handleUpdate(float dt) override;
+	virtual void handleUpdate(float dt) override {}
 	virtual void handleRender() override;
 	virtual void handleRenderOverlay(const glm::mat4& proj,
 		const glm::mat4& model, const glm::ivec4& view) override;
@@ -38,7 +38,6 @@ private:
 	dtNavMeshQuery* m_navQuery = nullptr;
 
 	dtQueryFilter m_filter;
-	dtStatus m_pathFindStatus = DT_FAILURE;
 
 	enum struct ToolMode
 	{
@@ -54,6 +53,8 @@ private:
 	ToolMode m_toolMode = ToolMode::PATHFIND_FOLLOW;
 
 	int m_straightPathOptions = 0;
+	int m_slicedPathOptions = 0;
+	int m_maxIterations = 65535;
 
 	static const int MAX_POLYS = 4196 * 10;
 	static const int MAX_SMOOTH = 2048 * 10;

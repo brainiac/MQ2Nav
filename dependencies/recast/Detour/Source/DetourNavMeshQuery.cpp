@@ -1528,7 +1528,7 @@ dtStatus dtNavMeshQuery::updateSlicedFindPath(const int maxIter, int* doneIters)
 	return m_query.status;
 }
 
-dtStatus dtNavMeshQuery::finalizeSlicedFindPath(dtPolyRef* path, int* pathCount, const int maxPath)
+dtStatus dtNavMeshQuery::finalizeSlicedFindPath(int* pathCount)
 {
 	*pathCount = 0;
 	
@@ -1544,7 +1544,7 @@ dtStatus dtNavMeshQuery::finalizeSlicedFindPath(dtPolyRef* path, int* pathCount,
 	if (m_query.startRef == m_query.endRef)
 	{
 		// Special case: the search starts and ends at same poly.
-		path[n++] = m_query.startRef;
+		n = 1;
 	}
 	else
 	{
@@ -1554,62 +1554,46 @@ dtStatus dtNavMeshQuery::finalizeSlicedFindPath(dtPolyRef* path, int* pathCount,
 		if (m_query.lastBestNode->id != m_query.endRef)
 			m_query.status |= DT_PARTIAL_RESULT;
 		
-		dtNode* prev = 0;
-		dtNode* node = m_query.lastBestNode;
-		int prevRay = 0;
-		do
 		{
-			dtNode* next = m_nodePool->getNodeAtIdx(node->pidx);
-			node->pidx = m_nodePool->getNodeIdx(prev);
-			prev = node;
-			int nextRay = node->flags & DT_NODE_PARENT_DETACHED; // keep track of whether parent is not adjacent (i.e. due to raycast shortcut)
-			node->flags = (node->flags & ~DT_NODE_PARENT_DETACHED) | prevRay; // and store it in the reversed path's node
-			prevRay = nextRay;
-			node = next;
-		}
-		while (node);
-		
-		// Store path
-		node = prev;
-		do
-		{
-			dtNode* next = m_nodePool->getNodeAtIdx(node->pidx);
-			dtStatus status = 0;
-			if (node->flags & DT_NODE_PARENT_DETACHED)
-			{
-				float t, normal[3];
-				int m;
-				status = raycast(node->id, node->pos, next->pos, m_query.filter, &t, normal, path+n, &m, maxPath-n);
-				n += m;
-				// raycast ends on poly boundary and the path might include the next poly boundary.
-				if (path[n-1] == next->id)
-					n--; // remove to avoid duplicates
-			}
-			else
-			{
-				path[n++] = node->id;
-				if (n >= maxPath)
-					status = DT_BUFFER_TOO_SMALL;
-			}
+			dtNode* prev = 0;
+			dtNode* node = m_query.lastBestNode;
 
-			if (status & DT_STATUS_DETAIL_MASK)
+			int prevRay = 0;
+			do
 			{
-				m_query.status |= status & DT_STATUS_DETAIL_MASK;
-				break;
-			}
-			node = next;
+				dtNode* next = m_nodePool->getNodeAtIdx(node->pidx);
+				node->pidx = m_nodePool->getNodeIdx(prev);
+				prev = node;
+				int nextRay = node->flags & DT_NODE_PARENT_DETACHED; // keep track of whether parent is not adjacent (i.e. due to raycast shortcut)
+				node->flags = (node->flags & ~DT_NODE_PARENT_DETACHED) | prevRay; // and store it in the reversed path's node
+				prevRay = nextRay;
+				node = next;
+				n++;
+			} while (node);
+
+			m_query.startNode = prev;
 		}
-		while (node);
 	}
 	
 	const dtStatus details = m_query.status & DT_STATUS_DETAIL_MASK;
-
-	// Reset query.
-	memset(&m_query, 0, sizeof(dtQueryData));
 	
 	*pathCount = n;
 	
 	return DT_SUCCESS | details;
+}
+
+dtStatus dtNavMeshQuery::finalizeSlicedFindPath(dtPolyRef* path, int* pathCount, const int maxPath)
+{
+	dtStatus status = finalizeSlicedFindPath(pathCount);
+
+	if (dtStatusFailed(m_query.status))
+	{
+		return m_query.status;
+	}
+
+	const dtStatus details = m_query.status & DT_STATUS_DETAIL_MASK;
+
+	return getFinalizedPath(path, pathCount, maxPath) | details;
 }
 
 dtStatus dtNavMeshQuery::finalizeSlicedFindPathPartial(const dtPolyRef* existing, const int existingSize,
@@ -1712,6 +1696,71 @@ dtStatus dtNavMeshQuery::finalizeSlicedFindPathPartial(const dtPolyRef* existing
 	return DT_SUCCESS | details;
 }
 
+dtStatus dtNavMeshQuery::getFinalizedPath(dtPolyRef* path, int* pathCount, const int maxPath)
+{
+	if (dtStatusFailed(m_query.status))
+	{
+		// Reset query.
+		memset(&m_query, 0, sizeof(dtQueryData));
+		return DT_FAILURE;
+	}
+
+	int n = 0;
+	if (m_query.startRef == m_query.endRef)
+	{
+		// Special case: the search starts and ends at same poly.
+		path[n++] = m_query.startRef;
+	}
+	else
+	{
+		// We set the starting node when we reverse the path in finalize...
+		if (!m_query.startNode)
+		{
+			m_query.status = DT_FAILURE;
+			return m_query.status;
+		}
+
+		// Store the path
+		dtNode* node = m_query.startNode;
+		do
+		{
+			dtNode* next = m_nodePool->getNodeAtIdx(node->pidx);
+			dtStatus status = 0;
+			if (node->flags & DT_NODE_PARENT_DETACHED)
+			{
+				float t, normal[3];
+				int m;
+				status = raycast(node->id, node->pos, next->pos, m_query.filter, &t, normal, path + n, &m, maxPath - n);
+				n += m;
+				// raycast ends on poly boundary and the path might include the next poly boundary.
+				if (path[n - 1] == next->id)
+					n--; // remove to avoid duplicates
+			}
+			else
+			{
+				path[n++] = node->id;
+				if (n >= maxPath)
+					status = DT_BUFFER_TOO_SMALL;
+			}
+
+			if (status & DT_STATUS_DETAIL_MASK)
+			{
+				m_query.status |= status & DT_STATUS_DETAIL_MASK;
+				break;
+			}
+			node = next;
+		} while (node);
+	}
+
+	const dtStatus details = m_query.status & DT_STATUS_DETAIL_MASK;
+
+	// Reset query.
+	memset(&m_query, 0, sizeof(dtQueryData));
+
+	*pathCount = n;
+
+	return DT_SUCCESS | details;
+}
 
 dtStatus dtNavMeshQuery::appendVertex(const float* pos, const unsigned char flags, const dtPolyRef ref,
 									  float* straightPath, unsigned char* straightPathFlags, dtPolyRef* straightPathRefs,

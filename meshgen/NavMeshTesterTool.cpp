@@ -271,6 +271,23 @@ void NavMeshTesterTool::handleMenu()
 		m_toolMode = ToolMode::PATHFIND_SLICED;
 		recalc();
 	}
+	if (m_toolMode == ToolMode::PATHFIND_SLICED)
+	{
+		ImGui::Indent();
+
+		if (ImGui::SliderInt("Iterations", &m_maxIterations, 1, 65535))
+		{
+			recalc();
+		}
+
+		bool checked = (m_slicedPathOptions == DT_FINDPATH_ANY_ANGLE);
+		if (ImGui::Checkbox("Use raycast shortcut", &checked))
+		{
+			m_slicedPathOptions = (checked ? DT_FINDPATH_ANY_ANGLE : 0);
+			recalc();
+		}
+		ImGui::Unindent();
+	}
 
 	ImGui::Separator();
 
@@ -426,41 +443,6 @@ void NavMeshTesterTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool
 	recalc();
 }
 
-void NavMeshTesterTool::handleUpdate(float /*dt*/)
-{
-	if (m_toolMode == ToolMode::PATHFIND_SLICED)
-	{
-		if (dtStatusInProgress(m_pathFindStatus))
-		{
-			m_pathFindStatus = m_navQuery->updateSlicedFindPath(1, 0);
-		}
-		if (dtStatusSucceed(m_pathFindStatus))
-		{
-			m_navQuery->finalizeSlicedFindPath(m_polys, &m_npolys, MAX_POLYS);
-			m_nstraightPath = 0;
-
-			if (m_npolys)
-			{
-				// In case of partial path, make sure the end point is clamped to the last polygon.
-				glm::vec3 epos = m_epos;
-
-				if (m_polys[m_npolys - 1] != m_endRef)
-				{
-					m_navQuery->closestPointOnPoly(m_polys[m_npolys - 1],
-						glm::value_ptr(m_epos), glm::value_ptr(epos), 0);
-				}
-
-				m_navQuery->findStraightPath(glm::value_ptr(m_spos), glm::value_ptr(epos),
-					m_polys, m_npolys, glm::value_ptr(m_straightPath[0]),
-					m_straightPathFlags, m_straightPathPolys,
-					&m_nstraightPath, MAX_POLYS, DT_STRAIGHTPATH_ALL_CROSSINGS);
-			}
-
-			m_pathFindStatus = DT_FAILURE;
-		}
-	}
-}
-
 void NavMeshTesterTool::reset()
 {
 	m_startRef = 0;
@@ -484,7 +466,9 @@ void NavMeshTesterTool::recalc()
 			&m_filter, &m_startRef, 0);
 	}
 	else
+	{
 		m_startRef = 0;
+	}
 
 	if (m_eposSet)
 	{
@@ -492,9 +476,9 @@ void NavMeshTesterTool::recalc()
 			&m_filter, &m_endRef, 0);
 	}
 	else
+	{
 		m_endRef = 0;
-
-	m_pathFindStatus = DT_FAILURE;
+	}
 
 	if (m_toolMode == ToolMode::PATHFIND_FOLLOW)
 	{
@@ -671,8 +655,34 @@ void NavMeshTesterTool::recalc()
 			m_npolys = 0;
 			m_nstraightPath = 0;
 
-			m_pathFindStatus = m_navQuery->initSlicedFindPath(m_startRef, m_endRef, glm::value_ptr(m_spos),
-				glm::value_ptr(m_epos), &m_filter, DT_FINDPATH_ANY_ANGLE);
+			dtStatus pathFindStatus = m_navQuery->initSlicedFindPath(m_startRef, m_endRef, glm::value_ptr(m_spos),
+				glm::value_ptr(m_epos), &m_filter, m_slicedPathOptions);
+			if (dtStatusInProgress(pathFindStatus))
+			{
+				pathFindStatus = m_navQuery->updateSlicedFindPath(m_maxIterations, nullptr);
+			}
+			if (dtStatusSucceed(pathFindStatus))
+			{
+				m_navQuery->finalizeSlicedFindPath(m_polys, &m_npolys, MAX_POLYS);
+				m_nstraightPath = 0;
+
+				if (m_npolys)
+				{
+					// In case of partial path, make sure the end point is clamped to the last polygon.
+					glm::vec3 epos = m_epos;
+
+					if (m_polys[m_npolys - 1] != m_endRef)
+					{
+						m_navQuery->closestPointOnPoly(m_polys[m_npolys - 1],
+							glm::value_ptr(m_epos), glm::value_ptr(epos), 0);
+					}
+
+					m_navQuery->findStraightPath(glm::value_ptr(m_spos), glm::value_ptr(epos),
+						m_polys, m_npolys, glm::value_ptr(m_straightPath[0]),
+						m_straightPathFlags, m_straightPathPolys,
+						&m_nstraightPath, MAX_POLYS, DT_STRAIGHTPATH_ALL_CROSSINGS);
+				}
+			}
 		}
 		else
 		{

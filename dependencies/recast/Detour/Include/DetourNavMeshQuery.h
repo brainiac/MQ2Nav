@@ -238,6 +238,11 @@ public:
 	dtStatus updateSlicedFindPath(const int maxIter, int* doneIters);
 
 	/// Finalizes and returns the results of a sliced path query.
+	///  @param[out]	pathCount	The number of polygons returned in the @p path array.
+	/// @returns The status flags for the query.
+	dtStatus finalizeSlicedFindPath(int* pathCount);
+
+	/// Finalizes and returns the results of a sliced path query.
 	///  @param[out]	path		An ordered list of polygon references representing the path. (Start to end.) 
 	///  							[(polyRef) * @p pathCount]
 	///  @param[out]	pathCount	The number of polygons returned in the @p path array.
@@ -256,6 +261,13 @@ public:
 	/// @returns The status flags for the query.
 	dtStatus finalizeSlicedFindPathPartial(const dtPolyRef* existing, const int existingSize,
 										   dtPolyRef* path, int* pathCount, const int maxPath);
+
+	/// Return the path found after calling finalizeSlicedFindPath.
+	///  @param[out]	path		An ordered list of polygon references representing the path. (Start to end.) 
+	///  							[(polyRef) * @p pathCount]
+	///  @param[out]	pathCount	The number of polygons returned in the @p path array.
+	///  @param[in]		maxPath		The max number of polygons the path array can hold. [Limit: >= 1]
+	dtStatus getFinalizedPath(dtPolyRef* path, int* pathCount, const int maxPath);
 
 	///@}
 	/// @name Dijkstra Search Functions
@@ -554,6 +566,8 @@ private:
 		const dtQueryFilter* filter;
 		unsigned int options;
 		float raycastLimitSqr;
+
+		dtNode* startNode = 0;			// stores pointer to the next result batch
 	};
 	dtQueryData m_query;				///< Sliced query state.
 
