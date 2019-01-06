@@ -21,6 +21,7 @@ class dtNavMesh;
 class dtNavMeshQuery;
 class dtQueryFilter;
 class Context;
+struct OffMeshConnectionBuffer;
 
 namespace nav {
 	class NavMeshFile;
@@ -32,6 +33,7 @@ enum struct PersistedDataFields : uint32_t
 	MeshTiles              = 0x0002,
 	ConvexVolumes          = 0x0004,
 	AreaTypes              = 0x0008,
+	Connections            = 0x0010,
 
 	None                   = 0x0000,
 	All                    = 0xffff,
@@ -146,10 +148,11 @@ public:
 	size_t GetConvexVolumeCount() const { return m_volumes.size(); }
 
 	const ConvexVolume* GetConvexVolume(size_t index) const { return m_volumes[index].get(); }
-
 	ConvexVolume* GetConvexVolume(size_t index) { return m_volumes[index].get(); }
 
 	const std::vector<std::unique_ptr<ConvexVolume>>& GetConvexVolumes() const { return m_volumes; }
+
+	ConvexVolume* AddConvexVolume(std::unique_ptr<ConvexVolume> volume);
 
 	ConvexVolume* AddConvexVolume(const std::vector<glm::vec3>& verts, const std::string& name,
 		float minh, float maxh, uint8_t areaType);
@@ -160,6 +163,27 @@ public:
 	std::vector<dtTileRef> GetTilesIntersectingConvexVolume(uint32_t volumeId);
 
 	void MoveConvexVolumeToIndex(uint32_t id, size_t index);
+
+	//------------------------------------------------------------------------
+	// off-mesh connections
+
+	size_t GetConnectionCount() const { return m_connections.size(); }
+
+	const OffMeshConnection* GetConnection(size_t index) const { return m_connections[index].get(); }
+	OffMeshConnection* GetConnection(size_t index) { return m_connections[index].get(); }
+
+	const std::vector<std::unique_ptr<OffMeshConnection>>& GetConnections() const { return m_connections; }
+
+	// Create a connection. Takes ownership of the provided connection.
+	OffMeshConnection* AddConnection(
+		std::unique_ptr<OffMeshConnection> connection);
+
+	OffMeshConnection* GetConnectionById(uint32_t id);
+	void DeleteConnectionById(uint32_t id);
+
+	std::vector<dtTileRef> GetTilesIntersectingConnection(uint32_t connectionId);
+
+	std::shared_ptr<OffMeshConnectionBuffer> CreateOffMeshConnectionBuffer() const;
 
 	//------------------------------------------------------------------------
 	// events
@@ -190,12 +214,41 @@ private:
 	glm::vec3 m_boundsMin, m_boundsMax;
 	NavMeshConfig m_config;
 
+	// volumes
 	std::vector<std::unique_ptr<ConvexVolume>> m_volumes;
 	std::unordered_map<uint32_t, ConvexVolume*> m_volumesById;
 	uint32_t m_nextVolumeId = 1;
 
+	// connections
+	std::vector<std::unique_ptr<OffMeshConnection>> m_connections;
+	std::unordered_map<uint32_t, OffMeshConnection*> m_connectionsById;
+	uint32_t m_nextConnectionId = 1;
+
+	// area types
 	std::vector<const PolyAreaType*> m_polyAreaList;
 	std::array<PolyAreaType, (int)PolyArea::Last + 1> m_polyAreas;
+};
+
+//----------------------------------------------------------------------------
+
+struct dtNavMeshCreateParams;
+
+// buffer used to store raw data used for tile creation
+struct OffMeshConnectionBuffer
+{
+	OffMeshConnectionBuffer(
+		const NavMesh* navMesh,
+		const std::vector<std::unique_ptr<OffMeshConnection>>& connections);
+
+	std::vector<std::pair<glm::vec3, glm::vec3>> offMeshConVerts;
+	std::vector<float> offMeshConRads;
+	std::vector<uint8_t> offMeshConDirs;
+	std::vector<uint8_t> offMeshConAreas;
+	std::vector<uint16_t> offMeshConFlags;
+	std::vector<uint32_t> offMeshConId;
+	size_t offMeshConCount = 0;
+
+	void UpdateNavMeshCreateParams(dtNavMeshCreateParams& params);
 };
 
 //============================================================================
