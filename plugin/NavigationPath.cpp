@@ -21,11 +21,7 @@
 //----------------------------------------------------------------------------
 // constants
 
-const int MAX_POLYS = 4028 * 4;
-
-const int MAX_NODES = 2048 * 4;
-
-const int MAX_PATH_SIZE = 2048 * 4;
+const int MAX_POLYS = 16384;
 
 //----------------------------------------------------------------------------
 
@@ -160,7 +156,7 @@ void NavigationPath::UpdatePath(bool force)
 		m_query = deleting_unique_ptr<dtNavMeshQuery>(dtAllocNavMeshQuery(),
 			[](dtNavMeshQuery* ptr) { dtFreeNavMeshQuery(ptr); });
 
-		m_query->init(m_navMesh.get(), MAX_NODES);
+		m_query->init(m_navMesh.get(), NAVMESH_QUERY_MAX_NODES);
 	}
 
 	PSPAWNINFO me = GetCharInfo()->pSpawn;
@@ -196,7 +192,7 @@ void NavigationPath::UpdatePath(bool force)
 
 	if (!startRef)
 	{
-		WriteChatf(PLUGIN_MSG "Could not locate starting point on navmesh: %.2f %.2f %.2f",
+		WriteChatf(PLUGIN_MSG "\arCould not locate starting point on navmesh: %.2f %.2f %.2f",
 			startOffset[2], startOffset[0], startOffset[1]);
 		return;
 	}
@@ -214,20 +210,42 @@ void NavigationPath::UpdatePath(bool force)
 	}
 
 	dtStatus status = m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
-	if (status & DT_OUT_OF_NODES)
+
+	if (dtStatusFailed(status))
 	{
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: out of nodes",
+		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed",
 			startOffset[0], startOffset[1], startOffset[2],
 			endOffset[0], endOffset[1], endOffset[2]);
+
+		return;
 	}
 
-	if (status & DT_PARTIAL_RESULT)
+	if (dtStatusDetail(status, DT_OUT_OF_NODES)
+		|| dtStatusDetail(status, DT_BUFFER_TOO_SMALL))
 	{
+		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: incomplete result (%x)",
+			startOffset[0], startOffset[1], startOffset[2],
+			endOffset[0], endOffset[1], endOffset[2],
+			(status & DT_STATUS_DETAIL_MASK));
+
+		WriteChatf(PLUGIN_MSG "\arCould not reach destination (too far away): %.2f %.2f %.2f",
+			endOffset[2], endOffset[0], endOffset[1]);
+		return;
+	}
+
+	if ((numPolys > 0 && (polys[numPolys - 1] != endRef))
+		|| dtStatusDetail(status, DT_PARTIAL_RESULT))
+	{
+		// Partial path, did not find path to target
+
 		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
 			startOffset[0], startOffset[1], startOffset[2],
 			endOffset[0], endOffset[1], endOffset[2]);
-	}
 
+		WriteChatf(PLUGIN_MSG "\arCould not find path to destination: %.2f %.2f %.2f",
+			endOffset[2], endOffset[0], endOffset[1]);
+		return;
+	}
 
 	if (m_debugDrawGrp)
 		m_debugDrawGrp->Reset();
