@@ -535,9 +535,7 @@ void ProcessMouseEvent_Detour()
 	GetMouseLocation(MouseLocation);
 
 	// only process the mouse events if we are the foreground window.
-	HWND foregroundWindow = GetForegroundWindow();
-	HWND eqHWnd = *(HWND*)EQADDR_HWND;
-	if (foregroundWindow != eqHWnd)
+	if (!gbInForeground)
 	{
 		ProcessMouseEvent_Trampoline();
 		return;
