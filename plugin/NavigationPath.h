@@ -15,6 +15,7 @@
 
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <d3d9.h>
 #include <d3dx9.h>
@@ -30,6 +31,34 @@ class NavMesh;
 class NavigationLine;
 struct DestinationInfo;
 
+struct StraightPath
+{
+	StraightPath() = default;
+	StraightPath(int size) { Reset(size); }
+
+	std::unique_ptr<glm::vec3[]> verts;
+	std::unique_ptr<uint8_t[]> flags;
+	std::unique_ptr<dtPolyRef[]> polys;
+	int length = 0;
+	int cursor = 0;
+
+	void Reset(int size);
+	int GetAllocatedSize() { return alloc; }
+
+	using Node = std::tuple<glm::vec3, uint8_t, dtPolyRef>;
+
+	inline Node GetNode(int pos) const
+	{
+		if (pos >= length)
+			return { {}, 0, 0 };
+
+		return { verts[pos], flags[pos], polys[pos] };
+	}
+
+private:
+	int alloc = 0;
+};
+
 class NavigationPath
 {
 	friend class NavigationLine;
@@ -44,8 +73,9 @@ public:
 	// try to find a path to the current destination. Returns true if a path has been found.
 	bool FindPath();
 
-	// trigger a recalculation of the path towards the destination.
-	void UpdatePath(bool force = false);
+	// trigger a recalculation of the path towards the destination. Returns true if the path
+	// has been changed.
+	void UpdatePath(bool force = false, bool incremental = false);
 
 	// trigger render of the debug ui
 	void RenderUI();
@@ -62,38 +92,42 @@ public:
 
 	// Get the number of nodes in the path and the index of the current node
 	// along that path.
-	int GetPathSize() const { return m_currentPathSize; }
-	int GetPathIndex() const { return m_currentPathCursor; }
+	int GetPathSize() const { return m_currentPath->length; }
+	int GetPathIndex() const { return m_currentPath->cursor; }
 
 	// Check if we are at the end if our path
 	inline bool IsAtEnd() const
 	{
-		return m_currentPathCursor >= m_currentPathSize
-			|| m_currentPathSize <= 0;
+		return m_currentPath->cursor >= m_currentPath->length
+			|| m_currentPath->length <= 0;
 	}
 
 	inline glm::vec3 GetNextPosition() const
 	{
-		return GetPosition(m_currentPathCursor);
+		return GetPosition(m_currentPath->cursor);
 	}
 
 	// get the coordinates of a point in a raw float3 form
 	inline const float* GetRawPosition(int index) const
 	{
-		assert(index < m_currentPathSize);
-		return &m_currentPath[index * 3];
+		assert(index < m_currentPath->length);
+		return glm::value_ptr(m_currentPath->verts[index]);
 	}
 
 	// get the coordinates in silly eq coordinates
 	inline glm::vec3 GetPosition(int index) const
 	{
-		const float* rawcoord = GetRawPosition(index);
-		return glm::vec3(rawcoord[0], rawcoord[1], rawcoord[2]);
+		assert(index < m_currentPath->length);
+		return m_currentPath->verts[index];
 	}
 
-	inline void Increment() { ++m_currentPathCursor; }
+	inline void Increment() { ++m_currentPath->cursor; }
 
-	const float* GetCurrentPath() const { return &m_currentPath[0]; }
+	inline const float* GetCurrentPath() const {
+		return GetRawPosition(0);
+	}
+
+	bool CanSeeDestination() const;
 
 	dtNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
@@ -104,6 +138,12 @@ private:
 	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
 		bool updatePath = true);
 
+	std::unique_ptr<StraightPath> RecomputePath(
+		const glm::vec3& startPos,
+		const glm::vec3& endPos,
+		bool force,
+		bool incremental);
+
 	std::shared_ptr<DestinationInfo> m_destinationInfo;
 
 	std::unique_ptr<RenderGroup> m_debugDrawGrp;
@@ -111,16 +151,13 @@ private:
 	glm::vec3 m_destination;
 	glm::vec3 m_lastPos;
 
-	int m_currentPathCursor = 0;
-	int m_currentPathSize = 0;
-
-
 	// the plugin owns the mesh
 	std::shared_ptr<dtNavMesh> m_navMesh;
 
 	// we own the query
 	deleting_unique_ptr<dtNavMeshQuery> m_query;
-	std::unique_ptr<float[]> m_currentPath;
+
+	std::unique_ptr<StraightPath> m_currentPath;
 
 	bool m_renderPaths;
 	std::shared_ptr<NavigationLine> m_line;
@@ -142,8 +179,9 @@ public:
 	void SetThickness(float thickness);
 	float GetThickness() const { return m_thickness; }
 	void SetVisible(bool visible);
+	void SetCurrentPos(const glm::vec3& currentPos);
 
-	void Update() { m_needsUpdate = true; }
+	void Update();
 
 	virtual void Render(RenderPhase phase) override;
 	virtual bool CreateDeviceObjects() override;
@@ -194,6 +232,7 @@ private:
 	bool m_needsUpdate = false;
 	float m_thickness = 0.25f;
 	bool m_visible = true;
+	glm::vec3 m_startPos;
 
 	struct RenderStyle {
 		ImColor render_color = { 255, 0, 0 };

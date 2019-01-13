@@ -345,7 +345,7 @@ void RenderWaypointsUI()
 			{
 				std::string command = "waypoint \"" + editWaypoint.name + "\"";
 
-				auto info = ParseDestination(command.c_str(), NotifyType::None);
+				auto info = g_mq2Nav->ParseDestination(command.c_str(), NotifyType::None);
 				g_mq2Nav->BeginNavigation(info);
 			}
 		}

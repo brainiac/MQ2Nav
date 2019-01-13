@@ -75,6 +75,12 @@ enum class NotifyType
 	All
 };
 
+struct NavigationOptions
+{
+	float distance = 0.f;         // distance to target
+	bool lineOfSight = true;       // does target need to be in los
+};
+
 struct DestinationInfo
 {
 	std::string command;
@@ -87,12 +93,10 @@ struct DestinationInfo
 	PGROUNDITEM pGroundItem = nullptr;
 	ClickType clickType = ClickType::None;
 	HeightType heightType = HeightType::Explicit;
+	NavigationOptions options;
 
 	bool valid = false;
 };
-
-std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine,
-	NotifyType notify = NotifyType::Errors);
 
 glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn);
 
@@ -179,11 +183,15 @@ public:
 	// Check how far away a point is (given a coordinate string)
 	float GetNavigationPathLength(const char* szLine);
 
+	// Parse a destination command from string
+	std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine,
+		NotifyType notify = NotifyType::Errors);
+
+	void ParseOptions(const char* szLine, int index,
+		NavigationOptions& target);
+
 	// Begin navigating to a point
 	void BeginNavigation(const std::shared_ptr<DestinationInfo>& dest);
-
-	// Get the currently active path
-	std::shared_ptr<NavigationPath> GetCurrentPath();
 
 	// Get the map line object
 	std::shared_ptr<NavigationMapLine> GetMapLine() const { return m_mapLine; }
@@ -196,6 +204,10 @@ private:
 	void SetCurrentZone(int zoneId);
 
 	void OnUpdateTab(TabPage tabId);
+
+	std::shared_ptr<DestinationInfo> ParseDestinationInternal(const char* szLine,
+		int& argIndex,
+		NotifyType notify);
 
 	//----------------------------------------------------------------------------
 
@@ -252,6 +264,7 @@ private:
 	Signal<TabPage>::ScopedConnection m_updateTabConn;
 
 	std::unordered_map<size_t, std::unique_ptr<NavModule>> m_modules;
+	NavigationOptions m_defaultOptions;
 };
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
@@ -261,7 +274,7 @@ extern std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
 
 //----------------------------------------------------------------------------
 
-class NavigationMapLine : public nav::MapLine
+class NavigationMapLine
 {
 public:
 	NavigationMapLine();
@@ -271,6 +284,14 @@ public:
 
 	void SetNavigationPath(NavigationPath* path);
 
+	void Clear();
+
+	uint32_t GetColor() const;
+	void SetColor(uint32_t color);
+
+	void SetLayer(int layer);
+	int GetLayer() const;
+
 private:
 	void RebuildLine();
 
@@ -278,6 +299,9 @@ private:
 	NavigationPath* m_path = nullptr;
 	bool m_enabled = true;
 	Signal<>::ScopedConnection m_updateConn;
+
+	nav::MapLine m_mapLine;
+	nav::MapCircle m_mapCircle;
 };
 
 //----------------------------------------------------------------------------

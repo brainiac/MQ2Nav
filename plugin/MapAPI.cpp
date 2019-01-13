@@ -6,6 +6,7 @@
 
 #include <MQ2Plugin.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
 namespace nav {
 
@@ -40,7 +41,9 @@ static void DeleteLineSegment(PMAPLINE pLine)
 	}
 }
 
-std::shared_ptr<MAPLINE> nav::MapLine::CreateSegment()
+//============================================================================
+
+std::shared_ptr<MAPLINE> nav::MapItem::CreateSegment()
 {
 	using AddMapLineFunc = PMAPLINE(__cdecl*)();
 
@@ -60,15 +63,7 @@ std::shared_ptr<MAPLINE> nav::MapLine::CreateSegment()
 	return nullptr;
 }
 
-MapLine::MapLine()
-{
-}
-
-MapLine::~MapLine()
-{
-}
-
-void MapLine::SetColor(uint32_t argbcolor)
+void MapItem::SetColor(uint32_t argbcolor)
 {
 	if (m_color != argbcolor)
 	{
@@ -79,7 +74,7 @@ void MapLine::SetColor(uint32_t argbcolor)
 	}
 }
 
-void MapLine::SetLayer(int layer)
+void MapItem::SetLayer(int layer)
 {
 	if (layer >= 0 && layer <= 3 && layer != m_layer)
 	{
@@ -89,6 +84,13 @@ void MapLine::SetLayer(int layer)
 			line->Layer = layer;
 	}
 }
+
+void MapItem::Clear()
+{
+	m_lineSegments.clear();
+}
+
+//----------------------------------------------------------------------------
 
 bool MapLine::AddPoint(const glm::vec3& point)
 {
@@ -119,8 +121,74 @@ bool MapLine::AddPoint(const glm::vec3& point)
 
 void MapLine::Clear()
 {
-	m_lineSegments.clear();
+	MapItem::Clear();
 	m_hasLastPos = false;
+}
+
+//----------------------------------------------------------------------------
+
+const int MAPCIRCLE_ANGLE_SIZE = 10;
+
+MapCircle::MapCircle(const glm::vec3& position, float radius)
+	: m_position(position)
+	, m_radius(radius)
+{
+	UpdateCircle();
+}
+
+void MapCircle::SetCircle(const glm::vec3& position, float radius)
+{
+	if (m_position != position
+		|| m_radius != radius
+		|| !m_created)
+	{
+		m_position = position;
+		m_radius = radius;
+
+		UpdateCircle();
+	}
+}
+
+void MapCircle::Clear()
+{
+	MapItem::Clear();
+	m_created = false;
+}
+
+void MapCircle::UpdateCircle()
+{
+	int count = 360 / MAPCIRCLE_ANGLE_SIZE;
+	float angle = 0;
+	m_created = true;
+
+	if (m_lineSegments.size() != count)
+	{
+		m_lineSegments.clear();
+
+		for (int i = 0; i < count; ++i)
+			m_lineSegments.push_back(CreateSegment());
+	}
+
+	for (int i = 0; i < count; ++i, angle += MAPCIRCLE_ANGLE_SIZE)
+	{
+		std::shared_ptr<MAPLINE> segment = m_lineSegments[i];
+
+		segment->Color.ARGB = m_color;
+		segment->Layer = m_layer;
+
+		segment->Start = {
+			-m_position.x + (glm::cos(glm::radians(angle)) * m_radius),
+			-m_position.y + (glm::sin(glm::radians(angle)) * m_radius),
+			m_position.z
+		};
+		segment->End = {
+			-m_position.x + (glm::cos(glm::radians(angle + MAPCIRCLE_ANGLE_SIZE)) * m_radius),
+			-m_position.y + (glm::sin(glm::radians(angle + MAPCIRCLE_ANGLE_SIZE)) * m_radius),
+			m_position.z
+		};
+
+		m_lineSegments.push_back(segment);
+	}
 }
 
 //============================================================================

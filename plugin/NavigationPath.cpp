@@ -21,11 +21,38 @@
 //----------------------------------------------------------------------------
 // constants
 
-const int MAX_POLYS = 16384;
+const int MAX_STRAIGHT_PATH_LENGTH = 16384;
+
+//----------------------------------------------------------------------------
+
+void StraightPath::Reset(int size_)
+{
+	cursor = 0;
+	length = 0;
+
+	if (alloc == size_)
+		return;
+
+	alloc = size_;
+
+	if (alloc == 0)
+	{
+		verts.reset();
+		flags.reset();
+		polys.reset();
+	}
+	else
+	{
+		verts = std::make_unique<glm::vec3[]>(alloc);
+		flags = std::make_unique<uint8_t[]>(alloc);
+		polys = std::make_unique<dtPolyRef[]>(alloc);
+	}
+}
 
 //----------------------------------------------------------------------------
 
 NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
+	: m_currentPath(std::make_unique<StraightPath>())
 {
 	auto* mesh = g_mq2Nav->Get<NavMesh>();
 	m_navMeshConn = mesh->OnNavMeshChanged.Connect(
@@ -45,6 +72,9 @@ NavigationPath::~NavigationPath()
 
 void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 {
+	if (m_line)
+		m_line->SetVisible(renderPaths);
+
 	if (m_renderPaths == renderPaths)
 		return;
 
@@ -117,12 +147,44 @@ bool NavigationPath::FindPath()
 		return false;
 
 	// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
-	m_currentPathCursor = 0;
-	m_currentPathSize = 0;
+
+	// Reset the path in case of failure
+	m_currentPath->Reset(0);
 
 	UpdatePath(true);
 
-	return m_currentPathSize > 0;
+	return m_currentPath->length > 0;
+}
+
+bool NavigationPath::CanSeeDestination() const
+{
+	if (!m_query)
+	{
+		return false;
+	}
+
+	// if less than two nodes, we're basically already on the destination.
+	if (m_currentPath->length < 2)
+	{
+		return true;
+	}
+
+	// Get current and last poly/verts
+	auto curr = m_currentPath->GetNode(0);
+	auto last = m_currentPath->GetNode(m_currentPath->length - 1);
+
+	dtRaycastHit hit;
+
+	dtStatus result = m_query->raycast(
+		std::get<dtPolyRef>(curr),
+		glm::value_ptr(std::get<glm::vec3>(curr)),
+		glm::value_ptr(std::get<glm::vec3>(last)),
+		&m_filter,
+		0,
+		&hit);
+
+	// line of sight if no hit
+	return dtStatusSucceed(result) && hit.t == FLT_MAX;
 }
 
 void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
@@ -146,7 +208,7 @@ void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
 	}
 }
 
-void NavigationPath::UpdatePath(bool force)
+void NavigationPath::UpdatePath(bool force, bool incremental)
 {
 	if (m_navMesh == nullptr || m_destinationInfo == nullptr)
 		return;
@@ -165,105 +227,43 @@ void NavigationPath::UpdatePath(bool force)
 
 	m_destination = m_destinationInfo->eqDestinationPos;
 
-	float startOffset[3] = { me->X, me->FloorHeight, me->Y };
-	float endOffset[3] = { m_destination.x, m_destination.z, m_destination.y };
-	float spos[3];
-	float epos[3];
-
-	glm::vec3 thisPos(startOffset[0], startOffset[1], startOffset[2]);
+	// current position in mesh coordinates
+	glm::vec3 thisPos{ me->X, me->FloorHeight, me->Y };
 
 	if (thisPos == m_lastPos && !force)
 		return;
 	m_lastPos = thisPos;
 
-	m_currentPathCursor = 0;
-	m_currentPathSize = 0;
+	// convert destination to mesh coordinates
+	glm::vec3 dest = m_destination;
+	std::swap(dest.y, dest.z);
 
-	auto& settings = nav::GetSettings();
+	std::unique_ptr<StraightPath> newPath = RecomputePath(thisPos, dest, force, incremental);
+	bool changed = false;
 
-	glm::vec3 extents = m_extents;
-	if (settings.use_find_polygon_extents)
+	if (newPath)
 	{
-		extents = settings.find_polygon_extents;
+		m_currentPath = std::move(newPath);
+		changed = true;
+	}
+	else if (!incremental)
+	{
+		// not an incremental update, and no new path, so make sure there is no current path.
+		m_currentPath->Reset(0);
+		changed = true;
 	}
 
-	dtPolyRef startRef, endRef;
-	m_query->findNearestPoly(startOffset, glm::value_ptr(extents), &m_filter, &startRef, spos);
-
-	if (!startRef)
+	if (changed)
 	{
-		WriteChatf(PLUGIN_MSG "\arCould not locate starting point on navmesh: %.2f %.2f %.2f",
-			startOffset[2], startOffset[0], startOffset[1]);
-		return;
+		PathUpdated();
 	}
 
-	dtPolyRef polys[MAX_POLYS];
-	int numPolys = 0;
-
-	m_query->findNearestPoly(endOffset, glm::value_ptr(extents), &m_filter, &endRef, epos);
-
-	if (!endRef)
-	{
-		WriteChatf(PLUGIN_MSG "Could not locate destination on navmesh: %.2f %.2f %.2f",
-			endOffset[2], endOffset[0], endOffset[1]);
-		return;
-	}
-
-	dtStatus status = m_query->findPath(startRef, endRef, spos, epos, &m_filter, polys, &numPolys, MAX_POLYS);
-
-	if (dtStatusFailed(status))
-	{
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed",
-			startOffset[0], startOffset[1], startOffset[2],
-			endOffset[0], endOffset[1], endOffset[2]);
-
-		return;
-	}
-
-	if (dtStatusDetail(status, DT_OUT_OF_NODES)
-		|| dtStatusDetail(status, DT_BUFFER_TOO_SMALL))
-	{
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: incomplete result (%x)",
-			startOffset[0], startOffset[1], startOffset[2],
-			endOffset[0], endOffset[1], endOffset[2],
-			(status & DT_STATUS_DETAIL_MASK));
-
-		WriteChatf(PLUGIN_MSG "\arCould not reach destination (too far away): %.2f %.2f %.2f",
-			endOffset[2], endOffset[0], endOffset[1]);
-		return;
-	}
-
-	if ((numPolys > 0 && (polys[numPolys - 1] != endRef))
-		|| dtStatusDetail(status, DT_PARTIAL_RESULT))
-	{
-		// Partial path, did not find path to target
-
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
-			startOffset[0], startOffset[1], startOffset[2],
-			endOffset[0], endOffset[1], endOffset[2]);
-
-		WriteChatf(PLUGIN_MSG "\arCould not find path to destination: %.2f %.2f %.2f",
-			endOffset[2], endOffset[0], endOffset[1]);
-		return;
-	}
-
+	// Give the path debug an update
 	if (m_debugDrawGrp)
+	{
 		m_debugDrawGrp->Reset();
 
-	if (numPolys > 0)
-	{
-		if (!m_currentPath)
-		{
-			m_currentPath = std::unique_ptr<float[]>(new float[MAX_POLYS * 3]);
-		}
-
-		m_query->findStraightPath(spos, epos, polys, numPolys, m_currentPath.get(),
-			0, 0, &m_currentPathSize, MAX_POLYS, DT_STRAIGHTPATH_AREA_CROSSINGS);
-
-		// The 0th index is the starting point. Begin by trying to reach the
-		// 2nd point...
-		if (m_currentPathSize > 1)
-			m_currentPathCursor = 1;
+		auto& settings = nav::GetSettings();
 
 		if (m_debugDrawGrp && settings.debug_render_pathing)
 		{
@@ -273,25 +273,153 @@ void NavigationPath::UpdatePath(bool force)
 			duDebugDrawCross(&dd, me->X, me->FloorHeight, me->Y, 0.5, DXColor(51, 255, 255), 1);
 
 			// Draw the waypoints. Green is next point
-			for (int i = 0; i < m_currentPathSize; ++i)
+			for (int i = 0; i < m_currentPath->length; ++i)
 			{
 				int color = DXColor(255, 255, 255);
-				if (i < m_currentPathCursor)
+				if (i < m_currentPath->cursor)
 					color = DXColor(0, 102, 204);
-				if (i == m_currentPathCursor)
+				if (i == m_currentPath->cursor)
 					color = DXColor(0, 255, 0);
-				if (i == m_currentPathSize - 1)
+				if (i == m_currentPath->length - 1)
 					color = DXColor(255, 0, 0);
 
-				duDebugDrawCross(&dd, m_currentPath[i * 3],
-					m_currentPath[i * 3 + 1],
-					m_currentPath[i * 3 + 2],
-					0.5, color, 1);
+				const glm::vec3& pos = m_currentPath->verts[i];
+
+				duDebugDrawCross(&dd, pos.x, pos.y, pos.z, 0.5, color, 1);
 			}
 		}
 	}
 
-	PathUpdated();
+	// update the pathing line
+	if (m_line)
+	{
+		// Update render line initial position
+		m_line->SetCurrentPos(m_lastPos);
+		m_line->Update();
+	}
+}
+
+std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
+	const glm::vec3& startPos, const glm::vec3& endPos, bool force, bool incremental)
+{
+	auto& settings = nav::GetSettings();
+
+	glm::vec3 extents = m_extents;
+	if (settings.use_find_polygon_extents)
+	{
+		extents = settings.find_polygon_extents;
+	}
+
+	dtPolyRef startRef;
+	glm::vec3 spos;
+
+	// TODO: Cache the last known valid starting position to detect when moving off the mesh
+
+	m_query->findNearestPoly(
+		glm::value_ptr(startPos),
+		glm::value_ptr(extents),
+		&m_filter, &startRef, glm::value_ptr(spos));
+
+	if (!startRef)
+	{
+		if (!incremental)
+		{
+			WriteChatf(PLUGIN_MSG "\arCould not locate starting point on navmesh: %.2f %.2f %.2f",
+				startPos.z, startPos.x, startPos.y);
+		}
+		return {};
+	}
+
+	glm::vec3 epos;
+	dtPolyRef endRef;
+
+	m_query->findNearestPoly(
+		glm::value_ptr(endPos),
+		glm::value_ptr(extents),
+		&m_filter, &endRef, glm::value_ptr(epos));
+
+	if (!endRef)
+	{
+		if (!incremental)
+		{
+			WriteChatf(PLUGIN_MSG "Could not locate destination on navmesh: %.2f %.2f %.2f",
+				endPos.z, endPos.x, endPos.y);
+		}
+
+		return {};
+	}
+
+	dtPolyRef polys[MAX_STRAIGHT_PATH_LENGTH];
+	int numPolys = 0;
+
+	dtStatus status = m_query->findPath(
+		startRef, endRef,
+		glm::value_ptr(spos),
+		glm::value_ptr(epos), &m_filter, polys, &numPolys, MAX_STRAIGHT_PATH_LENGTH);
+
+	if (dtStatusFailed(status))
+	{
+		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed",
+			startPos.x, startPos.y, startPos.z,
+			endPos.x, endPos.y, endPos.z);
+
+		return {};
+	}
+
+	if (dtStatusDetail(status, DT_OUT_OF_NODES)
+		|| dtStatusDetail(status, DT_BUFFER_TOO_SMALL))
+	{
+		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: incomplete result (%x)",
+			startPos.x, startPos.y, startPos.z,
+			endPos.x, endPos.y, endPos.z,
+			(status & DT_STATUS_DETAIL_MASK));
+
+		if (!incremental)
+		{
+			WriteChatf(PLUGIN_MSG "\arCould not reach destination (too far away): %.2f %.2f %.2f",
+				endPos.z, endPos.x, endPos.y);
+		}
+		return {};
+	}
+
+	if ((numPolys > 0 && (polys[numPolys - 1] != endRef))
+		|| dtStatusDetail(status, DT_PARTIAL_RESULT))
+	{
+		// Partial path, did not find path to target
+		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
+			startPos.x, startPos.y, startPos.z,
+			endPos.x, endPos.y, endPos.z);
+
+		if (!incremental)
+		{
+			WriteChatf(PLUGIN_MSG "\arCould not find path to destination: %.2f %.2f %.2f",
+				endPos.z, endPos.x, endPos.y);
+		}
+
+		return {};
+	}
+
+	auto path = std::make_unique<StraightPath>(MAX_STRAIGHT_PATH_LENGTH);
+
+	if (numPolys > 0)
+	{
+		m_query->findStraightPath(
+			glm::value_ptr(spos),
+			glm::value_ptr(epos), polys, numPolys,
+			glm::value_ptr(path->verts[0]),
+			path->flags.get(),
+			path->polys.get(),
+			&path->length,
+			MAX_STRAIGHT_PATH_LENGTH,
+			DT_STRAIGHTPATH_AREA_CROSSINGS);
+
+		// The 0th index is the starting point. Begin by trying to reach the
+		// 2nd point...
+		if (path->length > 1)
+			path->cursor = 1;
+	}
+
+	return std::move(path);
 }
 
 float NavigationPath::GetPathTraversalDistance() const
@@ -301,7 +429,7 @@ float NavigationPath::GetPathTraversalDistance() const
 	if (!m_destinationInfo || !m_destinationInfo->valid)
 		return -1.f;
 
-	for (int i = 0; i < m_currentPathSize - 1; ++i)
+	for (int i = 0; i < m_currentPath->length - 1; ++i)
 	{
 		const float* first = GetRawPosition(i);
 		const float* second = GetRawPosition(i + 1);
@@ -315,21 +443,11 @@ float NavigationPath::GetPathTraversalDistance() const
 
 void NavigationPath::RenderUI()
 {
-	bool showPath = nav::GetSettings().show_nav_path;
-	if (ImGui::Checkbox("Show navigation path", &showPath))
-	{
-		SetShowNavigationPaths(showPath);
-
-		nav::GetSettings().show_nav_path = showPath;
-		nav::SaveSettings(false);
-
-		if (m_line)
-			m_line->SetVisible(showPath);
-	}
-
 #if DEBUG_NAVIGATION_LINES
 	if (m_line)
+	{
 		m_line->RenderUI();
+	}
 #endif
 }
 
@@ -346,9 +464,6 @@ NavigationLine::NavigationLine(NavigationPath* path)
 	m_renderPasses.emplace_back(ImColor(0, 0, 0, 200), 0.9f);
 	m_renderPasses.emplace_back(ImColor(52, 152, 219, 200), 0.5f);
 	m_renderPasses.emplace_back(ImColor(241, 196, 15, 200), 0.5f);
-
-	m_pathUpdated = path->PathUpdated.Connect(
-		[this]() { if (nav::GetSettings().show_nav_path) Update(); });
 }
 
 NavigationLine::~NavigationLine()
@@ -474,7 +589,6 @@ void NavigationLine::Render(RenderPhase phase)
 
 	for (int iPass = 0; iPass < passes; iPass++)
 	{
-
 		RenderStyle style;
 		if (iPass < m_renderPasses.size())
 			style = m_renderPasses[iPass];
@@ -506,7 +620,7 @@ void NavigationLine::Render(RenderPhase phase)
 
 void NavigationLine::GenerateBuffers()
 {
-	int size = m_path->m_currentPathSize;
+	int size = m_path->m_currentPath->length;
 
 	if (size == m_lastSize)
 	{
@@ -541,7 +655,7 @@ void NavigationLine::GenerateBuffers()
 		return;
 
 	// get the path as if it were a series of 3d points
-	D3DXVECTOR3* pt = (D3DXVECTOR3*)&m_path->m_currentPath[0];
+	D3DXVECTOR3* pt = (D3DXVECTOR3*)&m_path->m_currentPath->verts[0];
 
 	int index = 0;
 	m_commands.resize(size - 1);
@@ -550,16 +664,24 @@ void NavigationLine::GenerateBuffers()
 	{
 		// this point
 		D3DXVECTOR3 v0;
-		v0.x = pt[0].z;
-		v0.y = pt[0].x;
-		v0.z = pt[0].y + 1;
+		if (i == 0) // use starting pos for first point
+		{
+			v0.x = m_startPos.z;
+			v0.y = m_startPos.x;
+			v0.z = m_startPos.y + 1;
+		}
+		else
+		{
+			v0.x = pt[0].z;
+			v0.y = pt[0].x;
+			v0.z = pt[0].y + 1;
+		}
 
 		// next point
 		D3DXVECTOR3 v1;
 		v1.x = pt[1].z;
 		v1.y = pt[1].x;
 		v1.z = pt[1].y + 1;
-
 
 		// following point
 		D3DXVECTOR3 nextPos;
@@ -629,6 +751,19 @@ void NavigationLine::SetVisible(bool visible)
 		}
 		else
 			InvalidateDeviceObjects();
+	}
+}
+
+void NavigationLine::SetCurrentPos(const glm::vec3& currentPos)
+{
+	m_startPos = currentPos;
+}
+
+void NavigationLine::Update()
+{
+	if (nav::GetSettings().show_nav_path)
+	{
+		m_needsUpdate = true;
 	}
 }
 

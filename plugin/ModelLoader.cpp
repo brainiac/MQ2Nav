@@ -624,7 +624,7 @@ if (!m_showDoorsUI)
 		{
 			std::string command = "door id " + std::to_string(door->ID) + " click";
 
-			auto info = ParseDestination(command.c_str(), NotifyType::None);
+			auto info = g_mq2Nav->ParseDestination(command.c_str(), NotifyType::None);
 			g_mq2Nav->BeginNavigation(info);
 		}
 
