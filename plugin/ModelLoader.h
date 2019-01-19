@@ -35,7 +35,7 @@ public:
 	void SetZoneId(int zoneId);
 	void Reset();
 
-	void OnUpdateUI();
+	void OnUpdateUI(bool visible);
 
 private:
 	void RenderDoorObjectUI(PDOOR door, bool target = false);

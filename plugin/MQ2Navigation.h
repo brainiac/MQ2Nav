@@ -99,6 +99,7 @@ struct DestinationInfo
 };
 
 glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn);
+glm::vec3 GetMyPosition();
 
 //----------------------------------------------------------------------------
 
@@ -110,10 +111,33 @@ public:
 
 };
 
+inline glm::vec3 toMesh(const glm::vec3& pos)
+{
+	return pos.yzx();
+}
+
+inline glm::vec3 toEQ(const glm::vec3& pos)
+{
+	return pos.xzy();
+}
+
+inline glm::vec3 EQtoLOC(const glm::vec3& pos)
+{
+	// swap x/y
+	return pos.yxz();
+}
+
+inline glm::vec3 MeshtoLoc(const glm::vec3& pos)
+{
+	return EQtoLOC(toEQ(pos));
+}
+
 //----------------------------------------------------------------------------
 
 class MQ2NavigationPlugin
 {
+	friend class UiController;
+
 public:
 	MQ2NavigationPlugin();
 	~MQ2NavigationPlugin();
@@ -196,6 +220,8 @@ public:
 	// Get the map line object
 	std::shared_ptr<NavigationMapLine> GetMapLine() const { return m_mapLine; }
 
+	std::shared_ptr<NavigationPath> GetActivePath() const { return m_activePath; }
+
 private:
 	void InitializeRenderer();
 	void ShutdownRenderer();
@@ -204,6 +230,8 @@ private:
 	void SetCurrentZone(int zoneId);
 
 	void OnUpdateTab(TabPage tabId);
+
+	void RenderPathList();
 
 	std::shared_ptr<DestinationInfo> ParseDestinationInternal(const char* szLine,
 		int& argIndex,

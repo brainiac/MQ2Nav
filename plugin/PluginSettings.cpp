@@ -5,6 +5,7 @@
 #include "PluginSettings.h"
 
 #include "plugin/MQ2Navigation.h"
+#include "plugin/NavigationPath.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -123,6 +124,17 @@ void LoadSettings(bool showMessage/* = true*/)
 
 	// debug settings
 	settings.debug_render_pathing = LoadBoolSetting("DebugRenderPathing", defaults.debug_render_pathing);
+
+	// navigation line settings
+	NavigationLine::LineStyle defaultLineStyle;
+	gNavigationLineStyle.borderColor = LoadNumberSetting<uint32_t>("VisualNavPathBorderColor", defaultLineStyle.borderColor);
+	gNavigationLineStyle.hiddenColor = LoadNumberSetting<uint32_t>("VisualNavPathHiddenColor", defaultLineStyle.hiddenColor);
+	gNavigationLineStyle.visibleColor = LoadNumberSetting<uint32_t>("VisualNavPathVisibleColor", defaultLineStyle.visibleColor);
+	gNavigationLineStyle.linkColor = LoadNumberSetting<uint32_t>("VisualNavPathLinkColor", defaultLineStyle.linkColor);
+	gNavigationLineStyle.opacity = LoadNumberSetting<float>("VisualNavPathVisibleOpacity", defaultLineStyle.opacity);
+	gNavigationLineStyle.hiddenOpacity = LoadNumberSetting<float>("VisualNavPathHiddenOpacity", defaultLineStyle.hiddenOpacity);
+	gNavigationLineStyle.borderWidth = LoadNumberSetting<float>("VisualNavPathBorderWidth", defaultLineStyle.borderWidth);
+	gNavigationLineStyle.lineWidth = LoadNumberSetting<float>("VisualNavPathLineWidth", defaultLineStyle.lineWidth);
 }
 
 void SaveSettings(bool showMessage/* = true*/)
@@ -148,6 +160,16 @@ void SaveSettings(bool showMessage/* = true*/)
 	SaveBoolSetting("MapLineEnabled", g_settings.map_line_enabled);
 	SaveNumberSetting("MapLineColor", g_settings.map_line_color);
 	SaveNumberSetting("MapLineLayer", g_settings.map_line_layer);
+
+	// in game nave path
+	SaveNumberSetting<uint32_t>("VisualNavPathBorderColor", gNavigationLineStyle.borderColor);
+	SaveNumberSetting<uint32_t>("VisualNavPathHiddenColor", gNavigationLineStyle.hiddenColor);
+	SaveNumberSetting<uint32_t>("VisualNavPathVisibleColor", gNavigationLineStyle.visibleColor);
+	SaveNumberSetting<uint32_t>("VisualNavPathLinkColor", gNavigationLineStyle.linkColor);
+	SaveNumberSetting<float>("VisualNavPathVisibleOpacity", gNavigationLineStyle.opacity);
+	SaveNumberSetting<float>("VisualNavPathHiddenOpacity", gNavigationLineStyle.hiddenOpacity);
+	SaveNumberSetting<float>("VisualNavPathBorderWidth", gNavigationLineStyle.borderWidth);
+	SaveNumberSetting<float>("VisualNavPathLineWidth", gNavigationLineStyle.lineWidth);
 
 	// debug settings
 	SaveBoolSetting("DebugRenderPathing", g_settings.debug_render_pathing);

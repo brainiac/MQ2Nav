@@ -4,11 +4,14 @@
 
 #include "UiController.h"
 
-#include "plugin/PluginSettings.h"
-#include "plugin/MQ2Navigation.h"
-#include "plugin/ModelLoader.h"
 #include "plugin/ImGuiRenderer.h"
+#include "plugin/ModelLoader.h"
+#include "plugin/MQ2Navigation.h"
+#include "plugin/NavigationPath.h"
+#include "plugin/PluginSettings.h"
+#include "plugin/SwitchHandler.h"
 #include "plugin/Waypoints.h"
+#include "common/Utilities.h"
 
 #define IMGUI_INCLUDE_IMGUI_USER_H
 #include <imgui.h>
@@ -112,113 +115,266 @@ void UiController::PerformUpdateTab(TabPage page)
 {
 	if (page == TabPage::Settings)
 	{
-		// "Settings" section (maybe make a separate window?)
+		ImGui::Columns(2);
+		ImGui::SetColumnWidth(0, 100);
+
+		if (ImGui::Selectable("Navigation", m_settingsSection == Navigation))
+			m_settingsSection = Navigation;
+		if (ImGui::Selectable("Mesh", m_settingsSection == Mesh))
+			m_settingsSection = Mesh;
+		if (ImGui::Selectable("Display", m_settingsSection == Display))
+			m_settingsSection = Display;
+
+
+		ImGui::NextColumn();
+
 		bool changed = false;
 		auto& settings = nav::GetSettings();
 
-		enum BreakBehavior {
-			DoNothing = 0,
-			Stop = 1,
-			Pause = 2
-		};
-
-		int current = DoNothing;
-		if (settings.autobreak)
-			current = Stop;
-		else  if (settings.autopause)
-			current = Pause;
-
-		if (ImGui::Combo("Break Behavior", &current, "Disabled\0Stop Navigation\0Pause Navigation"))
+		if (m_settingsSection == Navigation)
 		{
-			settings.autobreak = current == Stop;
-			settings.autopause = current == Pause;
-			changed = true;
-		}
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip(
-				"Auto Break Behavior\n"
-				"-------------------------------------------------\n"
-				"What happens when a movement key is pressed.\n"
-				"  Disable - Auto break is turned off\n"
-				"  Stop - Stop the navigation\n"
-				"  Pause - Pause navigation. /nav pause to unpause");
+			//============================================================================
+			// General - Navigation Options
+			//============================================================================
 
-		if (ImGui::Checkbox("Attempt to get unstuck", &settings.attempt_unstuck))
-			changed = true;
-		if (ImGui::IsItemHovered())
-		{
-			ImGui::SetTooltip("Automatically try to get unstuck of movement is impeeded.\nThis will do things like jump and click randomly. Use with caution!");
-		}
+			enum BreakBehavior {
+				DoNothing = 0,
+				Stop = 1,
+				Pause = 2
+			};
 
-		if (ImGui::Checkbox("Auto update nav mesh", &settings.autoreload))
-		{
-			changed = true;
-		}
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Automatically reload the navmesh when it is modified");
+			int current = DoNothing;
+			if (settings.autobreak)
+				current = Stop;
+			else  if (settings.autopause)
+				current = Pause;
 
-		if (ImGui::Checkbox("Use FloorHeight for path planning", &settings.use_spawn_floor_height))
-			changed = true;
-		if (ImGui::IsItemHovered())
-		{
-			ImGui::SetTooltip("Use FloorHeight instead of Z for vertical spawn position when\ncalculating positions for pathing");
-		}
+			if (ImGui::Combo("Break Behavior", &current, "Disabled\0Stop Navigation\0Pause Navigation"))
+			{
+				settings.autobreak = current == Stop;
+				settings.autopause = current == Pause;
+				changed = true;
+			}
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip(
+					"Auto Break Behavior\n"
+					"-------------------------------------------------\n"
+					"What happens when a movement key is pressed.\n"
+					"  Disable - Auto break is turned off\n"
+					"  Stop - Stop the navigation\n"
+					"  Pause - Pause navigation. /nav pause to unpause");
 
-		if (ImGui::Checkbox("Custom Polygon search extents", &settings.use_find_polygon_extents))
-			changed = true;
-		if (ImGui::IsItemHovered())
-		{
-			ImGui::SetTooltip("Customize the distance to search when locating positions outside the mesh.\nWARNING: setting these values can produce erratic results");
-		}
-		if (settings.use_find_polygon_extents)
-		{
-			if (ImGui::InputFloat3("Polygon search extents", glm::value_ptr(settings.find_polygon_extents), 1))
+			if (ImGui::Checkbox("Attempt to get unstuck", &settings.attempt_unstuck))
 				changed = true;
 			if (ImGui::IsItemHovered())
 			{
-				ImGui::SetTooltip("When finding a location on the navmesh, the search distance along\neach axis to find a polygon ([X, Y, Z] - 3d coordinates. Y is up/down)");
+				ImGui::SetTooltip("Automatically try to get unstuck of movement is impeeded.\nThis will do things like jump and click randomly. Use with caution!");
+			}
+
+			ImGui::NewLine();
+			ImGui::TextColored(ImColor(255, 255, 0), "Advanced Options");
+			ImGuiEx::CenteredSeparator();
+
+			ImGui::Checkbox("Periodic path updates enabled", &settings.poll_navigation_path);
+		}
+
+		if (m_settingsSection == Display)
+		{
+			//============================================================================
+			// Display - In-Game Path Display
+			//============================================================================
+			ImGui::TextColored(ImColor(255, 255, 0), "In-Game Path Display");
+			ImGuiEx::CenteredSeparator();
+
+			if (ImGui::Checkbox("Show In-Game Navigation Path", &settings.show_nav_path))
+			{
+				auto path = g_mq2Nav->GetActivePath();
+				if (path)
+				{
+					path->SetShowNavigationPaths(settings.show_nav_path);
+				}
+				changed = true;
+			}
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Render the active navigation path on the 3d world.");
+
+			if (ImGui::ColorEdit3("Border Color", (float*)&gNavigationLineStyle.borderColor))
+				changed = true;
+			if (ImGui::ColorEdit3("Visible Color", (float*)&gNavigationLineStyle.visibleColor))
+				changed = true;
+			if (ImGui::ColorEdit3("Hidden Color", (float*)&gNavigationLineStyle.hiddenColor))
+				changed = true;
+			if (ImGui::ColorEdit3("Link Color", (float*)&gNavigationLineStyle.linkColor))
+				changed = true;
+			if (ImGui::SliderFloat("Opacity", &gNavigationLineStyle.opacity, 0.0f, 1.0f))
+				changed = true;
+			if (ImGui::SliderFloat("Hidden Opacity", &gNavigationLineStyle.hiddenOpacity, 0.0f, 1.0f))
+				changed = true;
+			if (ImGui::SliderFloat("Outer Width", &gNavigationLineStyle.lineWidth, 0.1f, 20.0f))
+				changed = true;
+
+			float innerWidth = gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth);
+			if (ImGui::SliderFloat("Inner Width", &innerWidth, 0.1f, 20.00f))
+			{
+				gNavigationLineStyle.borderWidth = (gNavigationLineStyle.lineWidth - innerWidth) / 2;
+				changed = true;
+			}
+
+			if (ImGui::Button("Reset to Defaults"))
+			{
+				gNavigationLineStyle = NavigationLine::LineStyle{};
+				changed = true;
+			}
+
+			//============================================================================
+			// Display - MQ2Map Line
+			//============================================================================
+			ImGui::NewLine();
+			ImGui::TextColored(ImColor(255, 255, 0), "MQ2Map Line");
+			ImGuiEx::CenteredSeparator();
+
+
+			// map line
+			//
+			if (ImGui::Checkbox("Enable navigation path map line", &settings.map_line_enabled))
+			{
+				g_mq2Nav->GetMapLine()->SetEnabled(settings.map_line_enabled);
+				changed = true;
+			}
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("When a navigation path is active, highlight the path on the map. Requires MQ2Map to be loaded.");
+
+			ARGBCOLOR mapLineColor;
+			mapLineColor.ARGB = g_mq2Nav->GetMapLine()->GetColor();
+			float mapLineRGB[3] = { mapLineColor.R / 255.f, mapLineColor.G / 255.f, mapLineColor.B / 255.f };
+			if (ImGui::ColorEdit3("Map line color", mapLineRGB, ImGuiColorEditFlags_RGB))
+			{
+				mapLineColor.R = mapLineRGB[0] * 255;
+				mapLineColor.G = mapLineRGB[1] * 255;
+				mapLineColor.B = mapLineRGB[2] * 255;
+				g_mq2Nav->GetMapLine()->SetColor(mapLineColor.ARGB);
+				settings.map_line_color = mapLineColor.ARGB;
+				changed = true;
+			}
+
+			if (ImGui::SliderInt("Map line layer", &settings.map_line_layer, 0, 3))
+			{
+				g_mq2Nav->GetMapLine()->SetLayer(settings.map_line_layer);
+				changed = true;
 			}
 		}
 
-		// map line
-		//
-		if (ImGui::Checkbox("Enable navigation path map line", &settings.map_line_enabled))
+		if (m_settingsSection == Mesh)
 		{
-			g_mq2Nav->GetMapLine()->SetEnabled(settings.map_line_enabled);
-			changed = true;
-		}
-		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("When a navigation path is active, highlight the path on the map. Requires MQ2Map to be loaded.");
+			//============================================================================
+			// Advanced - Mesh Options
+			//============================================================================
+			if (ImGui::Checkbox("Auto update nav mesh", &settings.autoreload))
+			{
+				changed = true;
+			}
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Automatically reload the navmesh when it is modified");
 
-		ARGBCOLOR mapLineColor;
-		mapLineColor.ARGB = g_mq2Nav->GetMapLine()->GetColor();
-		float mapLineRGB[3] = { mapLineColor.R / 255.f, mapLineColor.G / 255.f, mapLineColor.B / 255.f };
-		if (ImGui::ColorEdit3("Map line color", mapLineRGB, ImGuiColorEditFlags_RGB))
-		{
-			mapLineColor.R = mapLineRGB[0] * 255;
-			mapLineColor.G = mapLineRGB[1] * 255;
-			mapLineColor.B = mapLineRGB[2] * 255;
-			g_mq2Nav->GetMapLine()->SetColor(mapLineColor.ARGB);
-			settings.map_line_color = mapLineColor.ARGB;
-			changed = true;
-		}
+			//============================================================================
+			// Advanced - Mesh Options
+			//============================================================================
+			ImGui::NewLine();
+			ImGui::TextColored(ImColor(255, 255, 0), "Advanced Options");
+			ImGuiEx::CenteredSeparator();
 
-		if (ImGui::SliderInt("Map line layer", &settings.map_line_layer, 0, 3))
-		{
-			g_mq2Nav->GetMapLine()->SetLayer(settings.map_line_layer);
-			changed = true;
+			if (ImGui::Checkbox("Use FloorHeight for path planning", &settings.use_spawn_floor_height))
+				changed = true;
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Use FloorHeight instead of Z for vertical spawn position when\ncalculating positions for pathing");
+			}
+
+			if (ImGui::Checkbox("Custom Polygon search extents", &settings.use_find_polygon_extents))
+				changed = true;
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Customize the distance to search when locating positions outside the mesh.\nWARNING: setting these values can produce erratic results");
+			}
+			if (settings.use_find_polygon_extents)
+			{
+				if (ImGui::InputFloat3("Polygon search extents", glm::value_ptr(settings.find_polygon_extents), 1))
+					changed = true;
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("When finding a location on the navmesh, the search distance along\neach axis to find a polygon ([X, Y, Z] - 3d coordinates. Y is up/down)");
+				}
+			}
 		}
 
 		// save the settings
 		//
 		if (changed)
 			nav::SaveSettings();
+
+		ImGui::Columns(1);
 	}
 
-	else if (page == TabPage::Tools)
+	bool isTools = (page == TabPage::Tools);
+
+	auto modelLoader = g_mq2Nav->Get<ModelLoader>();
+	modelLoader->OnUpdateUI(isTools);
+	
+	if (isTools)
 	{
-		auto modelLoader = g_mq2Nav->Get<ModelLoader>();
-		modelLoader->OnUpdateUI();
+		if (ImGui::CollapsingHeader("Door Handler Debug"))
+		{
+			g_mq2Nav->Get<SwitchHandler>()->DebugUI();
+		}
+
+		if (ImGui::CollapsingHeader("Pathing Debug"))
+		{
+			bool settingsChanged = false;
+			auto& settings = nav::GetSettings();
+
+			if (ImGui::Checkbox("Render pathing debug draw", &settings.debug_render_pathing))
+				settingsChanged = true;
+
+			if (settingsChanged)
+				nav::SaveSettings();
+
+			auto activePath = g_mq2Nav->GetActivePath();
+			if (activePath)
+			{
+				// destination is already in eq coordinates
+				auto destPos = activePath->GetDestination();
+				glm::vec3 myPos = GetMyPosition();
+
+				glm::vec3 locWp = toEQ(g_mq2Nav->m_currentWaypoint);
+				ImGui::LabelText("My Position", "(%.2f, %.2f, %.2f)", myPos.x, myPos.y, myPos.z);
+				ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f)", locWp.x, locWp.y, locWp.z);
+
+				ImGui::LabelText("Distance to Waypoint", "%.2f", glm::distance(locWp, myPos));
+
+				ImGui::LabelText("Destination", "(%.2f, %.2f, %.2f)", destPos.x, destPos.y, destPos.z);
+				ImGui::LabelText("Distance", "%.2f", glm::distance(destPos, myPos));
+				ImGui::LabelText("Distance (2d)", "%.2f", glm::distance(destPos.xy(), myPos.xy()));
+
+				ImGui::LabelText("Line of Sight", "%s",
+					CastRay(GetCharInfo()->pSpawn, destPos.x, destPos.y, destPos.z + 10) ? "true" : "false");
+				ImGui::LabelText("Line of Sight (mesh)", "%s",
+					activePath->CanSeeDestination() ? "true" : "false");
+			}
+			else {
+				ImGui::LabelText("Destination", "<none>");
+				ImGui::LabelText("Distance", "");
+			}
+
+			ImGui::Separator();
+			ImGui::LabelText("Ending Door", "%s", g_mq2Nav->m_pEndingDoor ? g_mq2Nav->m_pEndingDoor->Name : "<none>");
+			ImGui::LabelText("Ending Item", "%s", g_mq2Nav->m_pEndingItem ? g_mq2Nav->m_pEndingItem->Name : "<none>");
+			ImGui::LabelText("Is Active", "%s", g_mq2Nav->m_isActive ? "true" : "false");
+			ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f)",
+				g_mq2Nav->m_currentWaypoint.x, g_mq2Nav->m_currentWaypoint.y, g_mq2Nav->m_currentWaypoint.z);
+			ImGui::LabelText("Stuck Data", "(%.2f, %.2f) %d", g_mq2Nav->m_stuckX, g_mq2Nav->m_stuckY, g_mq2Nav->m_stuckTimer.time_since_epoch());
+			ImGui::LabelText("Last Click", "%d", g_mq2Nav->m_lastClick.time_since_epoch() / 1000000);
+			ImGui::LabelText("Pathfind Timer", "%d", g_mq2Nav->m_pathfindTimer.time_since_epoch() / 1000000);
+		}
 	}
 
 	else if (page == TabPage::Waypoints)

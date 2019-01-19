@@ -27,6 +27,11 @@ namespace ImGuiEx
 	extern ImFont* DefaultFont;
 	extern ImFont* LargeIconFont;
 	extern ImFont* ConsoleFont;
+
+	void CenteredSeparator(float width = 0);
+	void SameLineSeparator(float width = 0);
+	void PreSeparator(float width);
+	void TextSeparator(char* text, float pre_width = 10.0f);
 }
 
 //----------------------------------------------------------------------------

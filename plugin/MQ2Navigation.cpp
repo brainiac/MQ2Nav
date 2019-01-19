@@ -27,6 +27,7 @@
 #include <glm/trigonometric.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
+#include <imgui/misc/fonts/IconsFontAwesome.h>
 #include <chrono>
 #include <set>
 
@@ -97,27 +98,6 @@ glm::vec3 GetMyPosition()
 		return {};
 
 	return GetSpawnPosition(charInfo->pSpawn);
-}
-
-inline glm::vec3 toMesh(const glm::vec3& pos)
-{
-	return pos.yzx();
-}
-
-inline glm::vec3 toEQ(const glm::vec3& pos)
-{
-	return pos.xzy();
-}
-
-inline glm::vec3 EQtoLOC(const glm::vec3& pos)
-{
-	// swap x/y
-	return pos.yxz();
-}
-
-inline glm::vec3 MeshtoLoc(const glm::vec3& pos)
-{
-	return EQtoLOC(toEQ(pos));
 }
 
 //----------------------------------------------------------------------------
@@ -576,7 +556,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	m_activePath = std::make_shared<NavigationPath>(destInfo);
 	if (m_activePath->FindPath())
 	{
-		m_activePath->SetShowNavigationPaths(true);
+		m_activePath->SetShowNavigationPaths(nav::GetSettings().show_nav_path);
 		m_isActive = m_activePath->GetPathSize() > 0;
 	}
 
@@ -1295,99 +1275,75 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 		auto navmeshRenderer = Get<NavMeshRenderer>();
 		navmeshRenderer->OnUpdateUI();
+		
+		ImGui::NewLine();
 
-		bool showPath = nav::GetSettings().show_nav_path;
-		if (ImGui::Checkbox("Show navigation path", &showPath))
-		{
-			nav::GetSettings().show_nav_path = showPath;
-			nav::SaveSettings(false);
-
-			if (m_activePath)
-			{
-				m_activePath->SetShowNavigationPaths(showPath);
-
-				m_activePath->RenderUI();
-			}
-			else
-			{
-				ImGui::Text("No path is active");
-			}
-		}
-
-		if (m_activePath) m_activePath->RenderUI();
-
-		if (ImGui::CollapsingHeader("Pathing Debug"))
-		{
-			bool settingsChanged = false;
-			auto& settings = nav::GetSettings();
-
-			if (ImGui::Checkbox("Render pathing debug draw", &settings.debug_render_pathing))
-				settingsChanged = true;
-
-			if (settingsChanged)
-				nav::SaveSettings();
-
-			if (m_activePath)
-			{
-				// destination is already in eq coordinates
-				auto destPos = m_activePath->GetDestination();
-
-				glm::vec3 locWp = toEQ(m_currentWaypoint);
-				ImGui::LabelText("My Position", "(%.2f, %.2f, %.2f)", myPos.x, myPos.y, myPos.z);
-				ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f)", locWp.x, locWp.y, locWp.z);
-
-				ImGui::LabelText("Distance to Waypoint", "%.2f", glm::distance(locWp, myPos));
-
-				ImGui::LabelText("Destination", "(%.2f, %.2f, %.2f)", destPos.x, destPos.y, destPos.z);
-				ImGui::LabelText("Distance", "%.2f", glm::distance(destPos, myPos));
-				ImGui::LabelText("Distance (2d)", "%.2f", glm::distance(destPos.xy(), myPos.xy()));
-
-				ImGui::LabelText("Line of Sight", "%s",
-					CastRay(GetCharInfo()->pSpawn, destPos.x, destPos.y, destPos.z + 10) ? "true" : "false");
-				ImGui::LabelText("Line of Sight (mesh)", "%s",
-					m_activePath->CanSeeDestination() ? "true" : "false");
-
-
-				ImGui::Text("Path Nodes");
-				ImGui::Separator();
-
-				ImGui::BeginChild("PathNodes");
-				for (int i = 0; i < m_activePath->GetPathSize(); ++i)
-				{
-					ImColor color(255, 255, 255);
-
-					if (i == 0)
-						color = ImColor(255, 255, 0);
-					if (i == m_activePath->GetPathIndex())
-						color = ImColor(0, 255, 0);
-					if (i == m_activePath->GetPathSize() - 1)
-						color = ImColor(255, 0, 0);
-
-					auto pos = toEQ(m_activePath->GetPosition(i));
-					ImGui::TextColored(color, "%04d: (%.2f, %.2f, %.2f)", i,
-						pos[0], pos[1], pos[2]);
-				}
-				ImGui::EndChild();
-			}
-			else {
-				ImGui::LabelText("Destination", "<none>");
-				ImGui::LabelText("Distance", "");
-			}
-
-			ImGui::Separator();
-			ImGui::LabelText("Ending Door", "%s", m_pEndingDoor ? m_pEndingDoor->Name : "<none>");
-			ImGui::LabelText("Ending Item", "%s", m_pEndingItem ? m_pEndingItem->Name : "<none>");
-			ImGui::LabelText("Is Active", "%s", m_isActive ? "true" : "false");
-			ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f)", m_currentWaypoint.x, m_currentWaypoint.y, m_currentWaypoint.z);
-			ImGui::LabelText("Stuck Data", "(%.2f, %.2f) %d", m_stuckX, m_stuckY, m_stuckTimer.time_since_epoch());
-			ImGui::LabelText("Last Click", "%d", m_lastClick.time_since_epoch() / 1000000);
-			ImGui::LabelText("Pathfind Timer", "%d", m_pathfindTimer.time_since_epoch() / 1000000);
-		}
-		if (ImGui::CollapsingHeader("Door Handler Debug"))
-		{
-			Get<SwitchHandler>()->DebugUI();
-		}
+		RenderPathList();
 	}
+}
+
+void MQ2NavigationPlugin::RenderPathList()
+{
+	int count = (m_activePath ? m_activePath->GetPathSize() : 0);
+	ImGui::Text("Path Nodes (%d)", count);
+
+	// Show minimum of 3, max of ~100px worth of lines.
+	float spacing = ImGui::GetTextLineHeightWithSpacing() + 2;
+
+	ImGui::BeginChild("PathNodes", ImVec2(0,
+		spacing * std::clamp<float>(count, 3, 8)), true);
+	ImGui::Columns(3);
+	ImGui::SetColumnWidth(0, 30);
+	ImGui::SetColumnWidth(1, 30);
+
+	for (int i = 0; i < count; ++i)
+	{
+		auto node = m_activePath->GetNode(i);
+		auto pos = toEQ(std::get<glm::vec3>(node));
+		auto flags = std::get<uint8_t>(node);
+
+		bool isCurrent = i == m_activePath->GetPathIndex();
+		bool isStart = flags & DT_STRAIGHTPATH_START;
+		bool isLink = flags & DT_STRAIGHTPATH_OFFMESH_CONNECTION;
+		bool isEnd = flags & DT_STRAIGHTPATH_END;
+
+		if (isCurrent)
+		{
+			// Green right arrow for current node
+			ImGui::TextColored(ImColor(0, 255, 0), ICON_FA_ARROW_CIRCLE_RIGHT);
+		}
+
+		ImGui::NextColumn();
+
+		ImColor color(255, 255, 255);
+
+		if (isLink)
+		{
+			color = ImColor(66, 150, 250);
+			ImGui::TextColored(color, ICON_FA_LINK);
+		}
+		else if (isStart)
+		{
+			ImGui::TextColored(ImColor(255, 255, 0), ICON_FA_CIRCLE_O);
+		}
+		else if (isEnd)
+		{
+			ImGui::TextColored(ImColor(255, 0, 0), ICON_FA_MAP_MARKER);
+		}
+		else
+		{
+			ImGui::TextColored(ImColor(127, 127, 127), ICON_FA_ELLIPSIS_V);
+		}
+
+		ImGui::NextColumn();
+
+		ImGui::TextColored(color, "%04d: (%.2f, %.2f, %.2f)", i,
+			pos[0], pos[1], pos[2]);
+		ImGui::NextColumn();
+
+	}
+	ImGui::Columns(2);
+	ImGui::EndChild();
 }
 
 //----------------------------------------------------------------------------

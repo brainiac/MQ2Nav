@@ -47,5 +47,8 @@ private:
 
 	int m_selectedTab = static_cast<int>(TabPage::Navigation);
 
+	enum Section { Navigation, Mesh, Display };
+	int m_settingsSection = Navigation;
+
 	Signal<>::ScopedConnection m_uiConn;
 };

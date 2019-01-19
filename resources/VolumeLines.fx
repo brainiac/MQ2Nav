@@ -5,23 +5,26 @@
 float4x4 mWVP : WorldViewProjection;
 float4x4 mWV : WorldView;
 
+// inputs
 float4 lineColor;
+float4 linkColor;
+float opacity;
 float lineWidth;
 
 struct TInputVertex
 {
-	float4 pos			: POSITION;		// Position of this vertex
-	float4 otherPos		: NORMAL;		// Position of the other vertex at the other end of the line.
-
-	float  thickness	: TEXCOORD1;	// Thickness info.
-
+	float4 pos          : POSITION;     // Position of this vertex
+	float4 otherPos     : NORMAL;       // Position of the other vertex at the other end of the line.
+	float  thickness    : TEXCOORD1;    // Thickness info.
 	float4 adjPos       : TEXCOORD0;
 	float  adjHint      : TEXCOORD2;
+	float  type         : TEXCOORD3;
 };
 
 struct TOutputVertex
 {
 	float4 Pos : POSITION;
+	float Type : TEXCOORD0;
 };
 
 float2 perp(float2 p0)
@@ -75,37 +78,35 @@ TOutputVertex VolumeLineVS(TInputVertex IN)
 	posStart.xy += adjustment;
 
 	OUT.Pos = posStart;
+	OUT.Type = IN.type;
 	return OUT;
 }
 
-float4 VolumeLinePS(TOutputVertex IN) : COLOR
+float4 VolumeLinePS(float type : TEXCOORD0) : COLOR
 {
-	return lineColor;
+	if (type > 0.0f) {
+		return float4(linkColor.rgb, opacity);
+	}
+
+	return float4(lineColor.rgb, opacity);
 }
 
 technique VolumeLine
 {
+	// HIDDEN render pass
 	pass p0
-	{
-		AlphaBlendEnable = true;
-		SrcBlend = SRCALPHA;
-		DestBlend = INVSRCALPHA;
-		CullMode = None;
-
-		ZWriteEnable = false;
-		ZEnable = true;
-		ZFunc = Always;
-
-		VertexShader = compile vs_2_0 VolumeLineVS();
-		PixelShader = compile ps_2_0 VolumeLinePS();
-	}
-
-	pass p1
 	{
 		AlphaBlendEnable = true;
 		SrcBlend = SrcAlpha;
 		DestBlend = InvSrcAlpha;
 		CullMode = None;
+
+		// write stencil
+		StencilEnable = true;
+		StencilFunc = Always;
+		StencilPass = Replace;
+		StencilWriteMask = 255;
+		StencilRef = 1;
 
 		ZWriteEnable = false;
 		ZEnable = true;
@@ -115,13 +116,64 @@ technique VolumeLine
 		PixelShader = compile ps_2_0 VolumeLinePS();
 	}
 
-
-	pass p2
+	// VISIBLE render pass
+	pass p1
 	{
 		AlphaBlendEnable = true;
 		SrcBlend = SrcAlpha;
 		DestBlend = InvSrcAlpha;
 		CullMode = None;
+
+		// write stencil
+		StencilEnable = true;
+		StencilFunc = Always;
+		StencilPass = Replace;
+		StencilWriteMask = 255;
+		StencilRef = 1;
+
+		ZWriteEnable = false;
+		ZEnable = true;
+		ZFunc = LessEqual;
+
+		VertexShader = compile vs_2_0 VolumeLineVS();
+		PixelShader = compile ps_2_0 VolumeLinePS();
+	}
+
+	// BORDER HIDDEN render pass
+	// uses stencil buffer to mask out parts written by previous
+	pass p2
+	{
+		AlphaBlendEnable = true;
+		SrcBlend = SRCALPHA;
+		DestBlend = INVSRCALPHA;
+		CullMode = None;
+
+		StencilEnable = true;
+		StencilFunc = Equal;
+		StencilRef = 0;
+		StencilPass = Zero;
+
+		ZWriteEnable = false;
+		ZEnable = true;
+		ZFunc = Greater;
+
+		VertexShader = compile vs_2_0 VolumeLineVS();
+		PixelShader = compile ps_2_0 VolumeLinePS();
+	}
+
+	// BORDER VISIBLE render pass
+	// uses stencil buffer to mask out parts written by previous
+	pass p3
+	{
+		AlphaBlendEnable = true;
+		SrcBlend = SRCALPHA;
+		DestBlend = INVSRCALPHA;
+		CullMode = None;
+
+		StencilEnable = true;
+		StencilFunc = Equal;
+		StencilRef = 0;
+		StencilPass = Zero;
 
 		ZWriteEnable = false;
 		ZEnable = true;

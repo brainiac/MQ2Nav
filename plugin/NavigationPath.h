@@ -77,9 +77,6 @@ public:
 	// has been changed.
 	void UpdatePath(bool force = false, bool incremental = false);
 
-	// trigger render of the debug ui
-	void RenderUI();
-
 	void SetShowNavigationPaths(bool renderPaths);
 
 	//----------------------------------------------------------------------------
@@ -121,11 +118,21 @@ public:
 		return m_currentPath->verts[index];
 	}
 
-	inline void Increment() { ++m_currentPath->cursor; }
+	inline auto GetNode(int index) const
+	{
+		return m_currentPath->GetNode(index);
+	}
+
+	void Increment();
 
 	inline const float* GetCurrentPath() const {
 		return GetRawPosition(0);
 	}
+
+	// render path is a list of node indexes into the current
+	// path that should be used to render current path. index of
+	// -1 represents the current location and not a node.
+	const std::vector<int>& GetRenderPath() const { return m_renderPath; }
 
 	bool CanSeeDestination() const;
 
@@ -133,6 +140,7 @@ public:
 	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
 
 	Signal<> PathUpdated;
+	Signal<> RenderPathUpdated;
 
 private:
 	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
@@ -143,11 +151,11 @@ private:
 		const glm::vec3& endPos,
 		bool force,
 		bool incremental);
+	void UpdatePathProperties();
 
 	std::shared_ptr<DestinationInfo> m_destinationInfo;
 
 	std::unique_ptr<RenderGroup> m_debugDrawGrp;
-
 	glm::vec3 m_destination;
 	glm::vec3 m_lastPos;
 
@@ -161,6 +169,10 @@ private:
 
 	bool m_renderPaths;
 	std::shared_ptr<NavigationLine> m_line;
+
+	// path for debug rendering
+	std::vector<int> m_renderPath;
+	bool m_followingLink = false;
 
 	dtQueryFilter m_filter;
 	glm::vec3 m_extents = { 2, 10, 2 }; // note: X, Z, Y
@@ -189,9 +201,17 @@ public:
 
 	void GenerateBuffers();
 
-#if DEBUG_NAVIGATION_LINES
-	void RenderUI();
-#endif
+	struct LineStyle
+	{
+		ImColor borderColor{ 0, 0, 0, 0 };
+		ImColor hiddenColor{ 52, 152, 219, 0 };
+		ImColor visibleColor{ 241, 196, 15, 0 };
+		ImColor linkColor{ 152, 52, 219, 0 };
+		float opacity = .80f;
+		float hiddenOpacity = 0.60f;
+		float borderWidth = 0.2f;
+		float lineWidth = 0.9f;
+	};
 
 private:
 	NavigationPath* m_path;
@@ -209,12 +229,7 @@ private:
 		D3DXVECTOR3 adjPos; // position of previous or next line segment, depending on the vertex
 		FLOAT thickness;
 		FLOAT adjHint;
-
-		static const DWORD FVF = D3DFVF_XYZ | D3DFVF_NORMAL |
-			D3DFVF_TEX2 | // D3DFVF_TEX2 specifies we have two sets of texture coordinates.
-			D3DFVF_TEXCOORDSIZE3(0) | // This specifies that the first (0th) tex coord set has size 3 floats.
-			D3DFVF_TEXCOORDSIZE1(1) | // Specifies that second tex coord set has size 2 floats.
-			D3DFVF_TEXCOORDSIZE1(2); // hint towards where the adjacent coord is
+		FLOAT type;
 	};
 
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;
@@ -231,21 +246,10 @@ private:
 	bool m_loaded = false;
 	bool m_needsUpdate = false;
 	float m_thickness = 0.25f;
-	bool m_visible = true;
+	bool m_visible = false;
 	glm::vec3 m_startPos;
-
-	struct RenderStyle {
-		ImColor render_color = { 255, 0, 0 };
-		float width = 1.0;
-		bool enabled = true;
-
-		RenderStyle(ImColor rc, float w)
-			: render_color(rc)
-			, width(w) {}
-		RenderStyle() {}
-	};
-
-	std::vector<RenderStyle> m_renderPasses;
 
 	Signal<>::ScopedConnection m_pathUpdated;
 };
+
+extern NavigationLine::LineStyle gNavigationLineStyle;

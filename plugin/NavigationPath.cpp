@@ -23,6 +23,8 @@
 
 const int MAX_STRAIGHT_PATH_LENGTH = 16384;
 
+NavigationLine::LineStyle gNavigationLineStyle;
+
 //----------------------------------------------------------------------------
 
 void StraightPath::Reset(int size_)
@@ -57,9 +59,10 @@ NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
 	auto* mesh = g_mq2Nav->Get<NavMesh>();
 	m_navMeshConn = mesh->OnNavMeshChanged.Connect(
 		[this, mesh]() { SetNavMesh(mesh->GetNavMesh()); });
+
+	m_renderPaths = nav::GetSettings().show_nav_path;
 	
 	SetNavMesh(mesh->GetNavMesh(), false);
-
 	SetDestination(dest);
 }
 
@@ -73,9 +76,11 @@ NavigationPath::~NavigationPath()
 void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 {
 	if (m_line)
+	{
 		m_line->SetVisible(renderPaths);
+	}
 
-	if (m_renderPaths == renderPaths)
+	if (m_renderPaths == renderPaths && (m_renderPaths == (m_line != nullptr)))
 		return;
 
 	m_renderPaths = renderPaths;
@@ -83,7 +88,8 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 	if (m_renderPaths)
 	{
 		m_line = std::make_shared<NavigationLine>(this);
-		m_line->SetVisible(nav::GetSettings().show_nav_path);
+		m_line->SetVisible(m_renderPaths);
+		m_line->SetCurrentPos(m_lastPos);
 		g_renderHandler->AddRenderable(m_line.get());
 
 		m_debugDrawGrp = std::make_unique<RenderGroup>(g_pDevice);
@@ -156,6 +162,13 @@ bool NavigationPath::FindPath()
 	return m_currentPath->length > 0;
 }
 
+void NavigationPath::Increment()
+{
+	++m_currentPath->cursor;
+
+	UpdatePathProperties();
+}
+
 bool NavigationPath::CanSeeDestination() const
 {
 	if (!m_query)
@@ -213,6 +226,14 @@ void NavigationPath::UpdatePath(bool force, bool incremental)
 	if (m_navMesh == nullptr || m_destinationInfo == nullptr)
 		return;
 
+	// don't perform incremental update if updates are disabled
+	if (incremental && !nav::GetSettings().poll_navigation_path)
+		return;
+
+	// don't perform incremental update if we're following an off-mesh link
+	if (incremental && m_followingLink)
+		return;
+
 	if (m_query == nullptr)
 	{
 		m_query = deleting_unique_ptr<dtNavMeshQuery>(dtAllocNavMeshQuery(),
@@ -229,6 +250,8 @@ void NavigationPath::UpdatePath(bool force, bool incremental)
 
 	// current position in mesh coordinates
 	glm::vec3 thisPos{ me->X, me->FloorHeight, me->Y };
+
+	// TODO: Also check destination
 
 	if (thisPos == m_lastPos && !force)
 		return;
@@ -253,10 +276,25 @@ void NavigationPath::UpdatePath(bool force, bool incremental)
 		changed = true;
 	}
 
+	UpdatePathProperties();
+
 	if (changed)
 	{
 		PathUpdated();
 	}
+
+	// Update render path
+	int renderSize = 1 + m_currentPath->length - m_currentPath->cursor;
+	std::vector<int> renderPath;
+	renderPath.resize(renderSize);
+
+	renderPath[0] = -1;
+	if (renderSize > 1)
+	{
+		for (int i = 0, node = m_currentPath->cursor; node != m_currentPath->length; ++node, ++i)
+			renderPath[i + 1] = node;
+	}
+	m_renderPath = renderPath;
 
 	// Give the path debug an update
 	if (m_debugDrawGrp)
@@ -422,6 +460,22 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	return std::move(path);
 }
 
+void NavigationPath::UpdatePathProperties()
+{
+	if (!m_currentPath)
+	{
+		m_followingLink = false;
+		return;
+	}
+
+	// Check the current path node. Cursor points at the current dest,
+	// so the previous point will be our current node.
+	auto node = m_currentPath->GetNode(std::max(0, m_currentPath->cursor - 1));
+
+	// we following a link if the current node is an off-mesh connection
+	m_followingLink = (std::get<uint8_t>(node) == DT_STRAIGHTPATH_OFFMESH_CONNECTION);
+}
+
 float NavigationPath::GetPathTraversalDistance() const
 {
 	float result = 0.f;
@@ -441,16 +495,6 @@ float NavigationPath::GetPathTraversalDistance() const
 	return result;
 }
 
-void NavigationPath::RenderUI()
-{
-#if DEBUG_NAVIGATION_LINES
-	if (m_line)
-	{
-		m_line->RenderUI();
-	}
-#endif
-}
-
 glm::vec3 NavigationPath::GetDestination() const
 {
 	return m_destinationInfo ? m_destinationInfo->eqDestinationPos : glm::vec3{};
@@ -461,9 +505,6 @@ glm::vec3 NavigationPath::GetDestination() const
 NavigationLine::NavigationLine(NavigationPath* path)
 	: m_path(path)
 {
-	m_renderPasses.emplace_back(ImColor(0, 0, 0, 200), 0.9f);
-	m_renderPasses.emplace_back(ImColor(52, 152, 219, 200), 0.5f);
-	m_renderPasses.emplace_back(ImColor(241, 196, 15, 200), 0.5f);
 }
 
 NavigationLine::~NavigationLine()
@@ -514,6 +555,7 @@ bool NavigationLine::CreateDeviceObjects()
 		{ 0, 24,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  0 },
 		{ 0, 36,  D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  1 },
 		{ 0, 40,  D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  2 },
+		{ 0, 44,  D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  3 },
 		D3DDECL_END()
 	};
 
@@ -584,22 +626,60 @@ void NavigationLine::Render(RenderPhase phase)
 	g_pDevice->SetVertexDeclaration(m_vDeclaration);
 	g_pDevice->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
 
+	g_pDevice->Clear(0, 0, D3DCLEAR_STENCIL, 0, 0, 0);
+
 	UINT passes = 0;
 	m_effect->Begin(&passes, 0);
 
 	for (int iPass = 0; iPass < passes; iPass++)
 	{
-		RenderStyle style;
-		if (iPass < m_renderPasses.size())
-			style = m_renderPasses[iPass];
-
-		if (!style.enabled)
-			continue;
-
 		m_effect->BeginPass(iPass);
 
-		m_effect->SetVector("lineColor", (D3DXVECTOR4*)&style.render_color);
-		m_effect->SetFloat("lineWidth", style.width);
+		switch (iPass)
+		{
+		case 0: // hidden
+			if (gNavigationLineStyle.hiddenOpacity == 0)
+			{
+				m_effect->EndPass();
+				continue;
+			}
+			g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_GREATER);
+			m_effect->SetFloat("opacity", gNavigationLineStyle.hiddenOpacity);
+			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth));
+			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.hiddenColor);
+			m_effect->SetVector("linkColor", (D3DXVECTOR4*)&gNavigationLineStyle.hiddenColor);
+			break;
+
+		case 1: // visible
+			g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+			m_effect->SetFloat("opacity", gNavigationLineStyle.opacity);
+			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth));
+			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.visibleColor);
+			m_effect->SetVector("linkColor", (D3DXVECTOR4*)&gNavigationLineStyle.linkColor);
+			break;
+
+		case 2: // border - hidden
+			if (gNavigationLineStyle.hiddenOpacity == 0)
+			{
+				m_effect->EndPass();
+				continue;
+			}
+			g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_GREATER);
+			m_effect->SetFloat("opacity", gNavigationLineStyle.hiddenOpacity);
+			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth);
+			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
+			m_effect->SetVector("linkColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
+			break;
+
+		case 3: // border - visible
+			g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+			m_effect->SetFloat("opacity", gNavigationLineStyle.opacity);
+			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth);
+			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
+			m_effect->SetVector("linkColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
+			break;
+		}
+
 		m_effect->CommitChanges();
 
 		// render
@@ -620,12 +700,8 @@ void NavigationLine::Render(RenderPhase phase)
 
 void NavigationLine::GenerateBuffers()
 {
-	int size = m_path->m_currentPath->length;
-
-	if (size == m_lastSize)
-	{
-		// check if the path actually changed.
-	}
+	const std::vector<int>& renderPath = m_path->GetRenderPath();
+	int size = renderPath.size();
 
 	if (size <= 0)
 		return;
@@ -634,11 +710,12 @@ void NavigationLine::GenerateBuffers()
 
 	if (!m_vertexBuffer || size > m_lastSize)
 	{
-		if (m_vertexBuffer)
+		if (m_vertexBuffer) {
 			m_vertexBuffer->Release();
+		}
 
 		HRESULT hr = g_pDevice->CreateVertexBuffer(bufferLength * sizeof(TVertex),
-			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, TVertex::FVF, D3DPOOL_DEFAULT,
+			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT,
 			&m_vertexBuffer, nullptr);
 
 		if (FAILED(hr))
@@ -654,27 +731,36 @@ void NavigationLine::GenerateBuffers()
 	if (m_vertexBuffer->Lock(0, bufferLength * sizeof(TVertex), (void**)&vertexDest, D3DLOCK_DISCARD) < 0)
 		return;
 
-	// get the path as if it were a series of 3d points
 	D3DXVECTOR3* pt = (D3DXVECTOR3*)&m_path->m_currentPath->verts[0];
+	uint8_t* flags = &m_path->m_currentPath->flags[0];
 
 	int index = 0;
 	m_commands.resize(size - 1);
 
-	for (int i = 0; i < size - 1; ++i, ++pt)
+	for (int node = 0; node < size - 1; ++node, ++pt)
 	{
+		int i = renderPath[node];
+		float type = 0.f;
+
 		// this point
 		D3DXVECTOR3 v0;
-		if (i == 0) // use starting pos for first point
+		if (i == -1) // use starting pos for first point
 		{
 			v0.x = m_startPos.z;
 			v0.y = m_startPos.x;
 			v0.z = m_startPos.y + 1;
+
+			if (m_path->m_followingLink)
+				type = 1.0f;
 		}
 		else
 		{
 			v0.x = pt[0].z;
 			v0.y = pt[0].x;
 			v0.z = pt[0].y + 1;
+
+			if (flags[i] & DT_STRAIGHTPATH_OFFMESH_CONNECTION)
+				type = 1.0f;
 		}
 
 		// next point
@@ -685,14 +771,14 @@ void NavigationLine::GenerateBuffers()
 
 		// following point
 		D3DXVECTOR3 nextPos;
-		int nextIdx = i < size - 2 ? 2 : 1;
+		int nextIdx = node < size - 2 ? 2 : 1;
 		nextPos.x = pt[nextIdx].z;
 		nextPos.y = pt[nextIdx].x;
 		nextPos.z = pt[nextIdx].y + 1;
 
 		// previous point
 		D3DXVECTOR3 prevPos;
-		int prevIdx = i > 0 ? -1 : 0;
+		int prevIdx = node > 0 ? -1 : 0;
 		prevPos.x = pt[prevIdx].z;
 		prevPos.y = pt[prevIdx].x;
 		prevPos.z = pt[prevIdx].y + 1;
@@ -702,27 +788,31 @@ void NavigationLine::GenerateBuffers()
 		vertexDest[index + 0].thickness = -m_thickness;
 		vertexDest[index + 0].adjPos = prevPos;
 		vertexDest[index + 0].adjHint = prevIdx;
+		vertexDest[index + 0].type = type;
 
 		vertexDest[index + 1].pos = v1;
 		vertexDest[index + 1].otherPos = v0;
 		vertexDest[index + 1].thickness = m_thickness;
 		vertexDest[index + 1].adjPos = nextPos;
 		vertexDest[index + 1].adjHint = nextIdx - 1;
+		vertexDest[index + 1].type = type;
 
 		vertexDest[index + 2].pos = v0;
 		vertexDest[index + 2].otherPos = v1;
 		vertexDest[index + 2].thickness = m_thickness;
 		vertexDest[index + 2].adjPos = prevPos;
 		vertexDest[index + 2].adjHint = prevIdx;
+		vertexDest[index + 2].type = type;
 
 		vertexDest[index + 3].pos = v1;
 		vertexDest[index + 3].otherPos = v0;
 		vertexDest[index + 3].thickness = -m_thickness;
 		vertexDest[index + 3].adjPos = nextPos;
 		vertexDest[index + 3].adjHint = nextIdx - 1;
+		vertexDest[index + 3].type = type;
 
-		m_commands[i].StartVertex = index;
-		m_commands[i].PrimitiveCount = 2; // 2 triangles in a strip
+		m_commands[node].StartVertex = index;
+		m_commands[node].PrimitiveCount = 2; // 2 triangles in a strip
 		index += 4;
 	}
 
@@ -756,7 +846,11 @@ void NavigationLine::SetVisible(bool visible)
 
 void NavigationLine::SetCurrentPos(const glm::vec3& currentPos)
 {
-	m_startPos = currentPos;
+	if (m_startPos != currentPos)
+	{
+		m_startPos = currentPos;
+		m_needsUpdate = true;
+	}
 }
 
 void NavigationLine::Update()
@@ -766,32 +860,5 @@ void NavigationLine::Update()
 		m_needsUpdate = true;
 	}
 }
-
-#if DEBUG_NAVIGATION_LINES
-void NavigationLine::RenderUI()
-{
-	ImGui::PushID(this);
-	if (ImGui::CollapsingHeader("Navigation Line Debug"))
-	{
-		int size = m_renderPasses.size();
-		if (ImGui::InputInt("Render Passes", &size))
-			m_renderPasses.resize(size);
-
-		for (int i = 0; i < m_renderPasses.size(); ++i)
-		{
-			ImGui::PushID(i);
-			auto& config = m_renderPasses[i];
-			ImGui::Checkbox("Enabled", &config.enabled);
-			ImGui::ColorEdit4("Color", (float*)&config.render_color,
-				ImGuiColorEditFlags_RGB);
-			ImGui::InputFloat("Width", &config.width);
-
-			ImGui::PopID();
-		}
-	}
-
-	ImGui::PopID();
-}
-#endif
 
 //----------------------------------------------------------------------------

@@ -43,6 +43,9 @@ struct SettingsData
 	uint32_t map_line_color = 0xff00ff00;
 	int map_line_layer = 3;
 
+	// nav path settings
+	bool poll_navigation_path = true;
+
 	// open doors while navigation
 	bool open_doors = true;
 };
@@ -54,4 +57,4 @@ void LoadSettings(bool showMessage = false);
 // Save settings to the .ini file
 void SaveSettings(bool showMessage = false);
 
-} // namespace mq2nav
+} // namespace nav

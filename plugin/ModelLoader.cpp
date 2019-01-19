@@ -675,9 +675,12 @@ float DoorsDebugUI::GetDistance(PDOOR door)
 }
 
 
-void ModelLoader::OnUpdateUI()
+void ModelLoader::OnUpdateUI(bool visible)
 {
 	m_doorsUI->Render();
+
+	if (!visible)
+		return;
 
 	if (ImGui::CollapsingHeader("Objects"))
 	{

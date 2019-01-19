@@ -100,7 +100,7 @@ bool Application::InitializeWindow()
 	m_height = vr.h - 200;
 
 	m_window = SDL_CreateWindow("MQ2Nav Mesh Generator", 100, 100, m_width, m_height,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	m_glContext = SDL_GL_CreateContext(m_window);
 
 	// set window icon

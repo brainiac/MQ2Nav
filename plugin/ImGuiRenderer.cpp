@@ -7,6 +7,7 @@
 #include "plugin/MQ2Navigation.h"
 #include "plugin/PluginHooks.h"
 #include "plugin/RenderHandler.h"
+#include "common/Utilities.h"
 
 #include <imgui.h>
 #include <imgui/custom/imgui_user.h>
@@ -26,6 +27,7 @@ ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	io.IniFilename = m_iniFileName.c_str();
 
 	ImGui::SetupImGuiStyle(true, 0.7f);
+	ImGuiEx::ConfigureFonts();
 
 	m_pDevice->AddRef();
 

@@ -204,6 +204,9 @@
     <PostBuildEvent>
       <Command>XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)"</Command>
     </PostBuildEvent>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -233,6 +236,9 @@
     <PostBuildEvent>
       <Command>XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)"</Command>
     </PostBuildEvent>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -263,6 +269,9 @@
     <PostBuildEvent>
       <Command>XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)"</Command>
     </PostBuildEvent>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -291,6 +300,9 @@
     <PostBuildEvent>
       <Command>XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)"</Command>
     </PostBuildEvent>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
