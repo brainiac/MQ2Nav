@@ -75,17 +75,13 @@ enum class HeightType
 	Nearest
 };
 
-enum class NotifyType
-{
-	None,
-	Errors,
-	All
-};
-
 struct NavigationOptions
 {
-	float distance = 0.f;         // distance to target
+	float distance = 0.f;          // distance to target
 	bool lineOfSight = true;       // does target need to be in los
+
+	// set a new default log level while the path is running. info is the default.
+	spdlog::level::level_enum logLevel = spdlog::level::info;
 };
 
 struct DestinationInfo
@@ -211,7 +207,7 @@ public:
 
 	// Parse a destination command from string
 	std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine,
-		NotifyType notify = NotifyType::Errors);
+		spdlog::level::level_enum logLevel = spdlog::level::err);
 
 	void ParseOptions(const char* szLine, int index,
 		NavigationOptions& target);
@@ -235,9 +231,7 @@ private:
 
 	void RenderPathList();
 
-	std::shared_ptr<DestinationInfo> ParseDestinationInternal(const char* szLine,
-		int& argIndex,
-		NotifyType notify);
+	std::shared_ptr<DestinationInfo> ParseDestinationInternal(const char* szLine, int& argIndex);
 
 	//----------------------------------------------------------------------------
 
@@ -251,6 +245,8 @@ private:
 
 	void AttemptMovement();
 	void Stop();
+
+	void ResetPath();
 
 	void OnMovementKeyPressed();
 
@@ -339,12 +335,15 @@ private:
 void ClickDoor(PDOOR pDoor);
 
 struct ScopedLogLevel {
-	ScopedLogLevel(spdlog::sinks::sink& s, spdlog::level::level_enum l, bool enabled = true);
+	ScopedLogLevel(spdlog::sinks::sink& s, spdlog::level::level_enum l);
 	~ScopedLogLevel();
+
+	void Release();
 
 private:
 	spdlog::sinks::sink& sink;
 	spdlog::level::level_enum prev_level;
+	bool held = true;
 };
 
 //============================================================================

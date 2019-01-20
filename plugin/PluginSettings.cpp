@@ -102,7 +102,7 @@ void LoadSettings(bool showMessage/* = true*/)
 {
 	if (showMessage)
 	{
-		SPDLOG_DEBUG("Loading settings...");
+		SPDLOG_INFO("Loading settings...");
 	}
 
 	SettingsData defaults, &settings = g_settings;
@@ -143,7 +143,7 @@ void SaveSettings(bool showMessage/* = true*/)
 {
 	if (showMessage)
 	{
-		SPDLOG_DEBUG("Saving settings...");
+		SPDLOG_INFO("Saving settings...");
 	}
 
 	// default settings

@@ -32,6 +32,7 @@
 #include <string>
 #include <memory>
 #include <thread>
+#include <tuple>
 #include <typeinfo>
 #include <unordered_map>
 #include <vector>

@@ -22,12 +22,11 @@
 #include "plugin/Utilities.h"
 #include "plugin/Waypoints.h"
 
-#include <imgui.h>
-
 #include <fmt/format.h>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/trigonometric.hpp>
+#include <imgui.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 #include <imgui/misc/fonts/IconsFontAwesome.h>
@@ -116,6 +115,9 @@ public:
 protected:
 	void sink_it_(const spdlog::details::log_msg& msg) override
 	{
+		if (!enabled_)
+			return;
+
 		using namespace spdlog;
 
 		fmt::memory_buffer formatted;
@@ -147,6 +149,30 @@ protected:
 
 	bool enabled_ = true;
 };
+
+spdlog::level::level_enum ExtractLogLevel(std::string_view input,
+	spdlog::level::level_enum defaultLevel)
+{
+	auto pos = input.find("log=");
+	if (pos == std::string_view::npos)
+		return defaultLevel;
+
+	pos += 4;
+
+	auto end = input.find_first_of(" \t\r\n", pos);
+	std::string_view fragment = input.substr(pos, (end == std::string_view::npos) ? end : end - pos);
+
+	int level = 0;
+	for (const auto& level_str : spdlog::level::level_string_views)
+	{
+		if (level_str == fragment)
+			return static_cast<spdlog::level::level_enum>(level);
+
+		level++;
+	}
+
+	return defaultLevel;
+}
 
 //============================================================================
 
@@ -211,11 +237,7 @@ void MQ2NavigationPlugin::Plugin_OnBeginZone()
 	UpdateCurrentZone();
 
 	// stop active path if one exists
-	m_isActive = false;
-	m_isPaused = false;
-	m_activePath.reset();
-	m_mapLine->SetNavigationPath(m_activePath.get());
-	Get<SwitchHandler>()->SetActive(m_isActive);
+	ResetPath();
 
 	for (const auto& m : m_modules)
 	{
@@ -411,10 +433,13 @@ static void DoHelp()
 	WriteChatf(PLUGIN_MSG "\ag/nav pause\ax - pause navigation");
 	WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
 	WriteChatf(PLUGIN_MSG "Options can be provided to navigation commands to alter their behavior.");
-	WriteChatf(PLUGIN_MSG "  distance=\ay<num>\ax - set the distance to target");
-	WriteChatf(PLUGIN_MSG "  los=<on/off>\ay<num>\ax - when using distance, require visibility of target");
-	WriteChatf(PLUGIN_MSG "\ag/nav options set \ay[options]\ax - save options as defaults");
-	WriteChatf(PLUGIN_MSG "\ag/nav options reset\ax - reset options to default");
+	WriteChatf(PLUGIN_MSG "  distance=\ay<num>\ax - set the distance to navigate from the destination.");
+	WriteChatf(PLUGIN_MSG "  los=\ay<on/off>\ax - when using distance, require visibility of target. Default is \ayon\ax");
+	WriteChatf(PLUGIN_MSG "  log=\ay<level>\ax - adjust log level for command. can be \aytrace\ax, \aydebug\ax, \ayinfo\ax, \aywarning\ax, \ayerror\ax, \aycritical\ax or \ayoff\ax. The default is \ayinfo.");
+
+	// NYI:
+	//WriteChatf(PLUGIN_MSG "\ag/nav options set \ay[options]\ax - save options as defaults");
+	//WriteChatf(PLUGIN_MSG "\ag/nav options reset\ax - reset options to default");
 }
 
 void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
@@ -423,6 +448,12 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	int i = 0;
 
 	SPDLOG_DEBUG("Handling Command: {}", szLine);
+
+	spdlog::level::level_enum requestedLevel = ExtractLogLevel(szLine, spdlog::level::info);
+	if (requestedLevel != spdlog::level::info)
+		SPDLOG_DEBUG("Log level temporarily set to: {}", spdlog::level::to_string_view(requestedLevel));
+
+	ScopedLogLevel scopedLevel{ *m_chatSink, requestedLevel };
 
 	GetArg(buffer, szLine, 1);
 
@@ -535,9 +566,11 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 
 		return;
 	}
+
+	scopedLevel.Release();
 	
 	// all thats left is a navigation command. leave if it isn't a valid one.
-	auto destination = ParseDestination(szLine, NotifyType::All);
+	auto destination = ParseDestination(szLine, requestedLevel);
 	if (!destination->valid)
 		return;
 
@@ -587,13 +620,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	assert(destInfo);
 
 	// first clear existing state
-	m_isActive = false;
-	m_isPaused = false;
-	m_pEndingDoor = nullptr;
-	m_pEndingItem = nullptr;
-	m_activePath.reset();
-	m_mapLine->SetNavigationPath(m_activePath.get());
-	Get<SwitchHandler>()->SetActive(m_isActive);
+	ResetPath();
 
 	if (!destInfo->valid)
 		return;
@@ -603,6 +630,8 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 		SPDLOG_ERROR("Cannot navigate - no mesh file loaded.");
 		return;
 	}
+
+	m_chatSink->set_level(destInfo->options.logLevel);
 
 	if (destInfo->clickType != ClickType::None)
 	{
@@ -922,10 +951,13 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 	return pDoor;
 }
 
-std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(const char* szLine, NotifyType notify)
+std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(const char* szLine,
+	spdlog::level::level_enum logLevel)
 {
+	ScopedLogLevel logScope{ *m_chatSink, logLevel };
+
 	int idx = 1;
-	auto result = ParseDestinationInternal(szLine, idx, notify);
+	auto result = ParseDestinationInternal(szLine, idx);
 
 	if (result->valid)
 	{
@@ -938,26 +970,12 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(const cha
 	return result;
 }
 
-static spdlog::level::level_enum NotifyTypeToLevel(NotifyType type)
-{
-	if (type == NotifyType::All)
-		return spdlog::level::info;
-	if (type == NotifyType::Errors)
-		return spdlog::level::err;
-	if (type == NotifyType::None)
-		return spdlog::level::off;
-
-	return spdlog::level::info;
-}
-
 std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
-	const char* szLine, int& idx, NotifyType notify)
+	const char* szLine, int& idx)
 {
 	CHAR buffer[MAX_STRING] = { 0 };
 	idx = 1;
 	GetArg(buffer, szLine, idx++);
-
-	ScopedLogLevel logScope{ *m_chatSink, NotifyTypeToLevel(notify) };
 
 	std::shared_ptr<DestinationInfo> result = std::make_shared<DestinationInfo>();
 	result->command = szLine;
@@ -1154,16 +1172,13 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 
 		if (i == 3 || (i == 2 && result->heightType == HeightType::Nearest))
 		{
-			if (notify == NotifyType::All)
+			if (result->heightType == HeightType::Nearest)
 			{
-				if (result->heightType == HeightType::Nearest)
-				{
-					SPDLOG_INFO("Navigating to loc: {}, Nearest to {}", tmpDestination.xy(), tmpDestination.z);
-				}
-				else
-				{
-					SPDLOG_INFO("Navigating to loc: {}", tmpDestination);
-				}
+				SPDLOG_INFO("Navigating to loc: {}, Nearest to {}", tmpDestination.xy(), tmpDestination.z);
+			}
+			else
+			{
+				SPDLOG_INFO("Navigating to loc: {}", tmpDestination);
 			}
 
 			// swap the x/y coordinates for silly eq coordinate system
@@ -1226,6 +1241,11 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 				{
 					options.lineOfSight = to_bool(std::string{ value });
 				}
+				else if (key == "log")
+				{
+					// this was already parsed previously, but whatever we'll do it again!
+					options.logLevel = spdlog::level::from_str(std::string{ value });
+				}
 			}
 		}
 		catch (const std::exception& ex)
@@ -1251,7 +1271,8 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const char* szLine)
 {
 	float result = -1.f;
 
-	auto dest = ParseDestination(szLine);
+	// Find distance to path. Logging is disabled
+	auto dest = ParseDestination(szLine, spdlog::level::off);
 	if (dest->valid)
 	{
 		result = GetNavigationPathLength(dest);
@@ -1263,7 +1284,7 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const char* szLine)
 bool MQ2NavigationPlugin::CanNavigateToPoint(const char* szLine)
 {
 	bool result = false;
-	auto dest = ParseDestination(szLine);
+	auto dest = ParseDestination(szLine, spdlog::level::off);
 	if (dest->valid)
 	{
 		NavigationPath path(dest);
@@ -1286,16 +1307,23 @@ void MQ2NavigationPlugin::Stop()
 		MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
 	}
 
+	ResetPath();
+}
+
+void MQ2NavigationPlugin::ResetPath()
+{
 	m_activePath.reset();
-	m_mapLine->SetNavigationPath(m_activePath.get());
+	m_mapLine->SetNavigationPath(nullptr);
 	m_isActive = false;
 	m_isPaused = false;
+	m_chatSink->set_level(spdlog::level::info);
 
-	Get<SwitchHandler>()->SetActive(m_isActive);
+	Get<SwitchHandler>()->SetActive(false);
 
 	m_pEndingDoor = nullptr;
 	m_pEndingItem = nullptr;
 }
+
 #pragma endregion
 
 //----------------------------------------------------------------------------
@@ -1499,18 +1527,25 @@ void NavigationMapLine::RebuildLine()
 	}
 }
 
-ScopedLogLevel::ScopedLogLevel(spdlog::sinks::sink& s, spdlog::level::level_enum l, bool enabled)
+ScopedLogLevel::ScopedLogLevel(spdlog::sinks::sink& s, spdlog::level::level_enum l)
 	: sink(s)
 	, prev_level(sink.level())
 {
-	if (enabled) {
-		sink.set_level(l);
-	}
+	sink.set_level(l);
+	held = true;
 }
 
 ScopedLogLevel::~ScopedLogLevel()
 {
-	sink.set_level(prev_level);
+	Release();
+}
+
+void ScopedLogLevel::Release()
+{
+	if (held) {
+		sink.set_level(prev_level);
+		held = false;
+	}
 }
 
 //============================================================================
