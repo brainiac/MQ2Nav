@@ -2,7 +2,9 @@
 // RenderHandler.cpp
 //
 
-#include "plugin/RenderHandler.h"
+#include "pch.h"
+#include "RenderHandler.h"
+
 #include "plugin/PluginHooks.h"
 #include "plugin/MQ2Navigation.h"
 #include "plugin/ImGuiDX9.h"

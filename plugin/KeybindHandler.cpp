@@ -2,6 +2,7 @@
 // KeybindHandler.cpp
 //
 
+#include "pch.h"
 #include "KeybindHandler.h"
 
 #include "plugin/MQ2Navigation.h"

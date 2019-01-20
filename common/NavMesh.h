@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "common/Context.h"
 #include "common/Enum.h"
 #include "common/NavMeshData.h"
 #include "common/NavModule.h"
@@ -46,7 +45,7 @@ constexpr bool has_bitwise_operations(PersistedDataFields) { return true; }
 class NavMesh : public NavModule
 {
 public:
-	NavMesh(Context* context, const std::string& folderName = std::string(),
+	NavMesh(const std::string& folderName = std::string(),
 		const std::string& zoneName = std::string());
 	~NavMesh();
 

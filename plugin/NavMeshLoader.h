@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "common/Context.h"
 #include "common/NavMesh.h"
 #include "common/NavModule.h"
 #include "common/Signal.h"
@@ -21,7 +20,7 @@ class MQ2NavigationPlugin;
 class NavMeshLoader : public NavModule
 {
 public:
-	NavMeshLoader(Context* context, NavMesh* mesh);
+	NavMeshLoader(NavMesh* mesh);
 
 	virtual void Initialize() override {}
 	virtual void Shutdown() override {}
@@ -50,7 +49,6 @@ public:
 	bool LoadNavMesh();
 
 private:
-	Context* m_context = nullptr;
 	NavMesh* m_navMesh = nullptr;
 
 	std::string m_zoneShortName;
@@ -62,6 +60,6 @@ private:
 	bool m_autoReload = true;
 	FILETIME m_fileTime = { 0, 0 };
 
-	typedef std::chrono::high_resolution_clock clock;
+	using clock = std::chrono::high_resolution_clock;
 	clock::time_point m_lastUpdate = clock::now();
 };

@@ -2,9 +2,11 @@
 // Waypoints.cpp
 //
 
+#include "pch.h"
 #include "Waypoints.h"
 
 #include <imgui.h>
+#include <spdlog/spdlog.h>
 
 namespace nav {
 
@@ -66,7 +68,7 @@ void LoadWaypoints(int zoneId)
 		return;
 	}
 
-	WriteChatf(PLUGIN_MSG "Loading waypoints for zone: %s", g_shortZone.c_str());
+	SPDLOG_INFO("Loading waypoints for zone: {}", g_shortZone);
 
 	CHAR pchKeys[MAX_STRING * 10] = { 0 };
 	CHAR pchValue[MAX_STRING];
@@ -98,7 +100,7 @@ void LoadWaypoints(int zoneId)
 				}
 				else
 				{
-					WriteChatf(PLUGIN_MSG "Invalid waypoint entry: %s", pKeys);
+					SPDLOG_ERROR("Invalid waypoint entry: {}", pKeys);
 					valid = false;
 				}
 			}

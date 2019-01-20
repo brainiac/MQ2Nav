@@ -2,8 +2,10 @@
 // NavigationPath.cpp
 //
 
+#include "pch.h"
 #include "NavigationPath.h"
 
+#include "common/Logging.h"
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
@@ -17,6 +19,7 @@
 #include <DetourNavMesh.h>
 #include <DetourCommon.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <spdlog/spdlog.h>
 
 //----------------------------------------------------------------------------
 // constants
@@ -151,8 +154,6 @@ bool NavigationPath::FindPath()
 
 	if (!m_destinationInfo || !m_destinationInfo->valid)
 		return false;
-
-	// WriteChatf("MQ2Navigation::FindPath - %.1f %.1f %.1f", X, Y, Z);
 
 	// Reset the path in case of failure
 	m_currentPath->Reset(0);
@@ -362,9 +363,9 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	{
 		if (!incremental)
 		{
-			WriteChatf(PLUGIN_MSG "\arCould not locate starting point on navmesh: %.2f %.2f %.2f",
-				startPos.z, startPos.x, startPos.y);
+			SPDLOG_ERROR("Could not locate starting point on navmesh: {}", startPos.zxy());
 		}
+
 		return {};
 	}
 
@@ -380,8 +381,7 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	{
 		if (!incremental)
 		{
-			WriteChatf(PLUGIN_MSG "Could not locate destination on navmesh: %.2f %.2f %.2f",
-				endPos.z, endPos.x, endPos.y);
+			SPDLOG_ERROR("Could not locate destination on navmesh: {}", endPos.zxy());
 		}
 
 		return {};
@@ -397,25 +397,19 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 
 	if (dtStatusFailed(status))
 	{
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed",
-			startPos.x, startPos.y, startPos.z,
-			endPos.x, endPos.y, endPos.z);
-
+		SPDLOG_DEBUG("findPath from {} to {} failed.", startPos, endPos);
 		return {};
 	}
 
 	if (dtStatusDetail(status, DT_OUT_OF_NODES)
 		|| dtStatusDetail(status, DT_BUFFER_TOO_SMALL))
 	{
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f failed: incomplete result (%x)",
-			startPos.x, startPos.y, startPos.z,
-			endPos.x, endPos.y, endPos.z,
-			(status & DT_STATUS_DETAIL_MASK));
+		SPDLOG_DEBUG("findPath from {} to {} failed: incomplete result ({0:#x})",
+			startPos, endPos, (status & DT_STATUS_DETAIL_MASK));
 
 		if (!incremental)
 		{
-			WriteChatf(PLUGIN_MSG "\arCould not reach destination (too far away): %.2f %.2f %.2f",
-				endPos.z, endPos.x, endPos.y);
+			SPDLOG_ERROR("Could not reach destination (too far away): {}", endPos.zxy());
 		}
 		return {};
 	}
@@ -424,14 +418,11 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 		|| dtStatusDetail(status, DT_PARTIAL_RESULT))
 	{
 		// Partial path, did not find path to target
-		DebugSpewAlways("findPath from %.2f,%.2f,%.2f to %.2f,%.2f,%.2f returned a partial result.",
-			startPos.x, startPos.y, startPos.z,
-			endPos.x, endPos.y, endPos.z);
+		SPDLOG_DEBUG("findPath from {} to {} returned a partial result.", startPos, endPos);
 
 		if (!incremental)
 		{
-			WriteChatf(PLUGIN_MSG "\arCould not find path to destination: %.2f %.2f %.2f",
-				endPos.z, endPos.x, endPos.y);
+			SPDLOG_ERROR("Could not find path to destination: {}", endPos.zxy());
 		}
 
 		return {};
@@ -538,7 +529,8 @@ bool NavigationLine::CreateDeviceObjects()
 	{
 		if (errors)
 		{
-			DebugSpewAlways("Effect error: %s", errors->GetBufferPointer());
+			SPDLOG_ERROR("Error loading navigation line shader: {}",
+				std::string_view{ (const char*)errors->GetBufferPointer(), errors->GetBufferSize() });
 
 			errors->Release();
 			errors = nullptr;

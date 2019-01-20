@@ -2,6 +2,7 @@
 // NavigationType.cpp
 //
 
+#include "pch.h"
 #include "NavigationType.h"
 
 #include "plugin/MQ2Navigation.h"

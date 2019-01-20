@@ -1,8 +1,10 @@
 // ImGui Win32 + DirectX9 binding
 // https://github.com/ocornut/imgui
 
-#include <imgui.h>
+#include "pch.h"
 #include "plugin/ImGuiDX9.h"
+
+#include <imgui.h>
 
 // DirectX
 #include <d3dx9.h>

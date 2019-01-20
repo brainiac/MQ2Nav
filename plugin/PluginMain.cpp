@@ -2,6 +2,8 @@
 // PluginMain.cpp
 //
 
+#include "pch.h"
+
 #include "plugin/MQ2Navigation.h"
 #include "../PluginAPI.h"
 

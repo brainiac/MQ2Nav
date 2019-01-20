@@ -2,12 +2,14 @@
 // PluginSettings.cpp
 //
 
+#include "pch.h"
 #include "PluginSettings.h"
 
 #include "plugin/MQ2Navigation.h"
 #include "plugin/NavigationPath.h"
 
 #include <boost/lexical_cast.hpp>
+#include <spdlog/spdlog.h>
 
 namespace nav {
 
@@ -100,7 +102,7 @@ void LoadSettings(bool showMessage/* = true*/)
 {
 	if (showMessage)
 	{
-		WriteChatf(PLUGIN_MSG "Loading settings...");
+		SPDLOG_DEBUG("Loading settings...");
 	}
 
 	SettingsData defaults, &settings = g_settings;
@@ -141,7 +143,7 @@ void SaveSettings(bool showMessage/* = true*/)
 {
 	if (showMessage)
 	{
-		WriteChatf(PLUGIN_MSG "Saving settings...");
+		SPDLOG_DEBUG("Saving settings...");
 	}
 
 	// default settings

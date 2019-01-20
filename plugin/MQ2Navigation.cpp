@@ -2,8 +2,10 @@
 // MQ2Navigation.cpp
 //
 
+#include "pch.h"
 #include "MQ2Navigation.h"
 
+#include "common/Logging.h"
 #include "common/NavMesh.h"
 #include "plugin/ImGuiRenderer.h"
 #include "plugin/KeybindHandler.h"
@@ -22,12 +24,17 @@
 
 #include <imgui.h>
 
+#include <fmt/format.h>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/trigonometric.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 #include <imgui/misc/fonts/IconsFontAwesome.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/base_sink.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/msvc_sink.h>
 #include <chrono>
 #include <set>
 
@@ -100,38 +107,71 @@ glm::vec3 GetMyPosition()
 	return GetSpawnPosition(charInfo->pSpawn);
 }
 
-//----------------------------------------------------------------------------
-
-#define MsgHeader "[MQ2Nav]"
-
-void PluginContext::Log(LogLevel level, const char* szFormat, ...)
+class WriteChatSink : public spdlog::sinks::base_sink<spdlog::details::null_mutex>
 {
-	va_list vaList;
-	va_start(vaList, szFormat);
-	int len = _vscprintf(szFormat, vaList) + 1;// _vscprintf doesn't count // terminating '\0'  
+public:
+	void set_enabled(bool enabled) { enabled_ = enabled; }
+	bool enabled() const { return enabled_; }
 
-	size_t headerlen = strlen(MsgHeader) + 1;
-	size_t thelen = len + headerlen + 32;
-	char *szOutput = (char *)LocalAlloc(LPTR, thelen);
-	strcpy_s(szOutput, thelen, MsgHeader " ");
-	vsprintf_s(szOutput + headerlen, thelen - headerlen, szFormat, vaList);
-	strcat_s(szOutput, thelen, "\n");
-	OutputDebugString(szOutput);
-	LocalFree(szOutput);
-}
+protected:
+	void sink_it_(const spdlog::details::log_msg& msg) override
+	{
+		using namespace spdlog;
 
-#undef MsgHeader
+		fmt::memory_buffer formatted;
+		switch (msg.level)
+		{
+		case level::critical:
+		case level::err:
+			fmt::format_to(formatted, PLUGIN_MSG "\ar{}", msg.payload);
+			break;
+
+		case level::trace:
+		case level::debug:
+			fmt::format_to(formatted, PLUGIN_MSG "\a#7f7f7f{}", msg.payload);
+
+		case level::warn:
+			fmt::format_to(formatted, PLUGIN_MSG, "\ay{}", msg.payload);
+			break;
+
+		case level::info:
+		default:
+			fmt::format_to(formatted, PLUGIN_MSG "{}", msg.payload);
+			break;
+		}
+
+		WriteChatf("%s", fmt::to_string(formatted).c_str());
+	}
+
+	void flush_() override {}
+
+	bool enabled_ = true;
+};
 
 //============================================================================
 
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
-	: m_context(new PluginContext)
 {
+	std::string logFile = std::string(gszINIPath) + "\\MQ2Nav.log";
+
+	// set up default logger
+	auto logger = spdlog::create<spdlog::sinks::basic_file_sink_mt>("MQ2Nav", logFile, true);
+	m_chatSink = std::make_shared<WriteChatSink>();
+	m_chatSink->set_level(spdlog::level::info);
+
+	logger->sinks().push_back(m_chatSink);
+#if defined(_DEBUG)
+	logger->sinks().push_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
+#endif
+	spdlog::set_default_logger(logger);
+	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v (%@)");
+	spdlog::flush_every(std::chrono::seconds{ 5 });
 }
 
 MQ2NavigationPlugin::~MQ2NavigationPlugin()
 {
+	spdlog::shutdown();
 }
 
 void MQ2NavigationPlugin::Plugin_OnPulse()
@@ -253,9 +293,8 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 
 	AddModule<KeybindHandler>();
 
-	NavMesh* mesh = AddModule<NavMesh>(m_context.get(),
-		GetDataDirectory());
-	AddModule<NavMeshLoader>(m_context.get(), mesh);
+	NavMesh* mesh = AddModule<NavMesh>(GetDataDirectory());
+	AddModule<NavMeshLoader>(mesh);
 
 	AddModule<ModelLoader>();
 	AddModule<NavMeshRenderer>();
@@ -321,6 +360,16 @@ std::string MQ2NavigationPlugin::GetDataDirectory() const
 	return std::string(gszINIPath) + "\\MQ2Nav";
 }
 
+void MQ2NavigationPlugin::SetLogLevel(spdlog::level::level_enum level)
+{
+	m_chatSink->set_level(level);
+}
+
+spdlog::level::level_enum MQ2NavigationPlugin::GetLogLevel() const
+{
+	return m_chatSink->level();
+}
+
 //----------------------------------------------------------------------------
 
 void MQ2NavigationPlugin::InitializeRenderer()
@@ -373,6 +422,8 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	CHAR buffer[MAX_STRING] = { 0 };
 	int i = 0;
 
+	SPDLOG_DEBUG("Handling Command: {}", szLine);
+
 	GetArg(buffer, szLine, 1);
 
 	// parse /nav ui
@@ -385,19 +436,21 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	// parse /nav pause
 	if (!_stricmp(buffer, "pause"))
 	{
-		if (!m_isActive) 
+		if (!m_isActive)
 		{
-			WriteChatf(PLUGIN_MSG "Navigation must be active to pause");
+			SPDLOG_WARN("Navigation must be active to pause");
 			return;
 		}
 		m_isPaused = !m_isPaused;
 		if (m_isPaused)
 		{
-			WriteChatf(PLUGIN_MSG "Pausing Navigation");
+			SPDLOG_INFO("Pausing Navigation");
 			MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
 		}
 		else
-			WriteChatf(PLUGIN_MSG "Resuming Navigation");
+		{
+			SPDLOG_INFO("Resuming Navigation");
+		}
 		
 		return;
 	}
@@ -406,9 +459,13 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	if (!_stricmp(buffer, "stop"))
 	{
 		if (m_isActive)
+		{
 			Stop();
+		}
 		else
-			WriteChatf(PLUGIN_MSG "\arNo navigation path currently active");
+		{
+			SPDLOG_ERROR("No navigation path currently active");
+		}
 
 		return;
 	}
@@ -430,16 +487,16 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 
 		if (waypointName.empty())
 		{
-			WriteChatf(PLUGIN_MSG "Usage: /nav rwp <waypoint name> <waypoint description>");
+			SPDLOG_INFO("Usage: /nav rwp <waypoint name> <waypoint description>");
 			return;
 		}
 
 		if (PSPAWNINFO pChar = (GetCharInfo() ? GetCharInfo()->pSpawn : nullptr))
 		{
 			glm::vec3 loc = GetSpawnPosition(pChar);
-
 			nav::AddWaypoint(nav::Waypoint{ waypointName, loc, desc });
-			WriteChatf(PLUGIN_MSG "Recorded waypoint: %s at %.2f %.2f %.2f", waypointName.c_str(), loc.y, loc.x, loc.z);
+
+			SPDLOG_INFO("Recorded waypoint: {} at {}", waypointName, loc.yxz());
 		}
 
 		return;
@@ -512,9 +569,9 @@ void MQ2NavigationPlugin::SetCurrentZone(int zoneId)
 		m_zoneId = zoneId;
 
 		if (m_zoneId == -1)
-			DebugSpewAlways("Resetting Zone");
+			SPDLOG_DEBUG("Resetting zone");
 		else
-			DebugSpewAlways("Switching to zone: %d", m_zoneId);
+			SPDLOG_DEBUG("Switching to zone: {}", m_zoneId);
 
 		nav::LoadWaypoints(m_zoneId);
 
@@ -543,7 +600,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 
 	if (!Get<NavMesh>()->IsNavMeshLoaded())
 	{
-		WriteChatf(PLUGIN_MSG "\arCannot navigate - No mesh file loaded.");
+		SPDLOG_ERROR("Cannot navigate - no mesh file loaded.");
 		return;
 	}
 
@@ -708,8 +765,6 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 		if (now - m_pathfindTimer > std::chrono::milliseconds(PATHFINDING_DELAY_MS))
 		{
-			//WriteChatf(PLUGIN_MSG "Recomputing Path...");
-
 			// update path
 			m_activePath->UpdatePath(false, true);
 			m_isActive = m_activePath->GetPathSize() > 0;
@@ -728,8 +783,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 	if (m_activePath->IsAtEnd())
 	{
-		WriteChatf(PLUGIN_MSG "\agReached destination at: %.2f %.2f %.2f",
-			dest.y, dest.x, dest.z);
+		SPDLOG_INFO("Reached destination at: {}", dest.yxz());
 
 		LookAt(dest);
 
@@ -766,7 +820,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 		if (m_currentWaypoint != nextPosition)
 		{
 			m_currentWaypoint = nextPosition;
-			DebugSpewAlways("[MQ2Nav] Moving Towards: %.2f %.2f %.2f", nextPosition.x, nextPosition.z, nextPosition.y);
+			SPDLOG_DEBUG("Moving towards: {}", nextPosition.xzy());
 		}
 
 		glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
@@ -786,8 +840,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 				&& (!options.lineOfSight || m_activePath->CanSeeDestination()))
 			{
 				// TODO: Copied from above; de-duplicate
-				WriteChatf(PLUGIN_MSG "\agReached destination at: %.2f %.2f %.2f",
-					dest.y, dest.x, dest.z);
+				SPDLOG_INFO("Reached destination at: {}", dest.yxz());
 
 				LookAt(dest);
 
@@ -885,6 +938,18 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(const cha
 	return result;
 }
 
+static spdlog::level::level_enum NotifyTypeToLevel(NotifyType type)
+{
+	if (type == NotifyType::All)
+		return spdlog::level::info;
+	if (type == NotifyType::Errors)
+		return spdlog::level::err;
+	if (type == NotifyType::None)
+		return spdlog::level::off;
+
+	return spdlog::level::info;
+}
+
 std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	const char* szLine, int& idx, NotifyType notify)
 {
@@ -892,14 +957,15 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	idx = 1;
 	GetArg(buffer, szLine, idx++);
 
+	ScopedLogLevel logScope{ *m_chatSink, NotifyTypeToLevel(notify) };
+
 	std::shared_ptr<DestinationInfo> result = std::make_shared<DestinationInfo>();
 	result->command = szLine;
 	result->options = m_defaultOptions;
 
 	if (!GetCharInfo() || !GetCharInfo()->pSpawn)
 	{
-		if (notify == NotifyType::Errors || notify == NotifyType::All)
-			WriteChatf(PLUGIN_MSG "\arCan only navigate when in game!");
+		SPDLOG_ERROR("Can only navigate when in game!");
 		return result;
 	}
 
@@ -914,11 +980,12 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			result->eqDestinationPos = GetSpawnPosition(target);
 			result->valid = true;
 
-			if (notify == NotifyType::All)
-				WriteChatf(PLUGIN_MSG "Navigating to target: %s", target->Name);
+			SPDLOG_INFO("Navigating to target: {}", target->Name);
 		}
-		else if (notify == NotifyType::Errors || notify == NotifyType::All)
-			WriteChatf(PLUGIN_MSG "\arYou need a target");
+		else
+		{
+			SPDLOG_ERROR("You need a target");
+		}
 
 		return result;
 	}
@@ -932,21 +999,18 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		try { reqId = boost::lexical_cast<DWORD>(buffer); }
 		catch (const boost::bad_lexical_cast&)
 		{
-			if (notify == NotifyType::Errors || notify == NotifyType::All)
-				WriteChatf(PLUGIN_MSG "\arBad spawn id!");
+			SPDLOG_ERROR("Bad spawn id!");
 			return result;
 		}
 
 		PSPAWNINFO target = (PSPAWNINFO)GetSpawnByID(reqId);
 		if (!target)
 		{
-			if (notify == NotifyType::Errors || notify == NotifyType::All)
-				WriteChatf(PLUGIN_MSG "\arCould not find spawn matching id %d", reqId);
+			SPDLOG_ERROR("Could not find spawn matching id {}", reqId);
 			return result;
 		}
 
-		if (notify == NotifyType::All)
-			WriteChatf(PLUGIN_MSG "Navigating to spawn: %s (%d)", target->Name, target->SpawnID);
+		SPDLOG_INFO("Navigating to spawn: {} ({})", target->Name, target->SpawnID);
 
 		result->eqDestinationPos = GetSpawnPosition(target);
 		result->pSpawn = target;
@@ -972,13 +1036,11 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			result->type = DestinationType::Spawn;
 			result->valid = true;
 
-			if (notify == NotifyType::All)
-				WriteChatf(PLUGIN_MSG "Navigating to spawn: %s (%d)", pSpawn->Name, pSpawn->SpawnID);
+			SPDLOG_INFO("Navigating to spawn: {} ({})", pSpawn->Name, pSpawn->SpawnID);
 		}
 		else
 		{
-			if (notify == NotifyType::Errors || notify == NotifyType::All)
-				WriteChatf(PLUGIN_MSG "\arCould not find spawn matching search '%s'", szLine);
+			SPDLOG_ERROR("Could not find spawn matching search '{}'", szLine);
 		}
 
 		return result;
@@ -995,8 +1057,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 
 			if (!theDoor)
 			{
-				if (notify == NotifyType::Errors || notify == NotifyType::All)
-					WriteChatf(PLUGIN_MSG "\arNo door found or bad door target!");
+				SPDLOG_ERROR("No door found or bad door target!");
 				return result;
 			}
 
@@ -1005,15 +1066,13 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			result->eqDestinationPos = { theDoor->X, theDoor->Y, theDoor->Z };
 			result->valid = true;
 
-			if (notify == NotifyType::All)
-				WriteChatf(PLUGIN_MSG "Navigating to door: %s", theDoor->Name);
+			SPDLOG_INFO("Navigating to door: {}", theDoor->Name);
 		}
 		else
 		{
 			if (!pGroundTarget)
 			{
-				if (notify == NotifyType::Errors || notify == NotifyType::All)
-					WriteChatf(PLUGIN_MSG "\arNo ground item target!");
+				SPDLOG_ERROR("No ground item target!");
 				return result;
 			}
 
@@ -1022,8 +1081,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			result->eqDestinationPos = { pGroundTarget->X, pGroundTarget->Y, pGroundTarget->Z };
 			result->valid = true;
 
-			if (notify == NotifyType::All)
-				WriteChatf(PLUGIN_MSG "Navigating to ground item: %s", pGroundTarget->Name);
+			SPDLOG_INFO("Navigating to ground item: {}", pGroundTarget->Name);
 		}
 
 		// check for click and once
@@ -1049,11 +1107,12 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			result->eqDestinationPos = { wp.location.x, wp.location.y, wp.location.z };
 			result->valid = true;
 
-			if (notify == NotifyType::All)
-				WriteChatf(PLUGIN_MSG "Navigating to waypoint: %s", buffer);
+			SPDLOG_INFO("Navigating to waypoit: {}", buffer);
 		}
-		else if (notify == NotifyType::Errors || notify == NotifyType::All)
-			WriteChatf(PLUGIN_MSG "\arWaypoint '%s' not found!", buffer);
+		else
+		{
+			SPDLOG_ERROR("Waypoint '{}' not found!", buffer);
+		}
 
 		return result;
 	}
@@ -1099,13 +1158,11 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			{
 				if (result->heightType == HeightType::Nearest)
 				{
-					WriteChatf(PLUGIN_MSG "Navigating to loc: %.2f, %.2f, Nearest To (%.2f)",
-						tmpDestination.x, tmpDestination.y, tmpDestination.z);
+					SPDLOG_INFO("Navigating to loc: {}, Nearest to {}", tmpDestination.xy(), tmpDestination.z);
 				}
 				else
 				{
-					WriteChatf(PLUGIN_MSG "Navigating to loc: %.2f, %.2f, %.2f",
-						tmpDestination.x, tmpDestination.y, tmpDestination.z);
+					SPDLOG_INFO("Navigating to loc: {}", tmpDestination);
 				}
 			}
 
@@ -1119,17 +1176,15 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			result->eqDestinationPos = tmpDestination;
 			result->valid = true;
 		}
-		else if (notify == NotifyType::Errors || notify == NotifyType::All)
+		else
 		{
-			WriteChatf(PLUGIN_MSG "\arInvalid location: %s", szLine);
+			SPDLOG_ERROR("Invalid location: {}", szLine);
 		}
 
 		return result;
 	}
 
-	if (notify == NotifyType::Errors || notify == NotifyType::All)
-		WriteChatf(PLUGIN_MSG "\arInvalid nav destination: %s", szLine);
-
+	SPDLOG_ERROR("Invalid nav destination: {}", szLine);
 	return result;
 }
 
@@ -1155,7 +1210,6 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 
 		try
 		{
-
 			auto eqPos = arg.find_first_of("=", 0);
 			if (eqPos != std::string_view::npos)
 			{
@@ -1163,9 +1217,6 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 				std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 
 				std::string_view value = arg.substr(eqPos + 1);
-
-				WriteChatf(PLUGIN_MSG "'%s' => '%s'", key.c_str(),
-					std::string{ value }.c_str());
 
 				if (key == "distance")
 				{
@@ -1177,9 +1228,9 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 				}
 			}
 		}
-		catch (const std::exception& e) {
-			DebugSpewAlways("Failed in ParseOptions: '%s': %s",
-				std::string{ arg }.c_str(), e.what());
+		catch (const std::exception& ex)
+		{
+			SPDLOG_DEBUG("Failed in ParseOptions: '{}': {}", arg, ex.what());
 		}
 
 		GetArg(buffer, szLine, idx++);
@@ -1230,7 +1281,8 @@ void MQ2NavigationPlugin::Stop()
 {
 	if (m_isActive)
 	{
-		WriteChatf(PLUGIN_MSG "Stopping navigation");
+		SPDLOG_INFO("Stopping navigation");
+
 		MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
 	}
 
@@ -1445,6 +1497,20 @@ void NavigationMapLine::RebuildLine()
 	{
 		m_mapCircle.SetCircle(m_path->GetDestination(), options.distance);
 	}
+}
+
+ScopedLogLevel::ScopedLogLevel(spdlog::sinks::sink& s, spdlog::level::level_enum l, bool enabled)
+	: sink(s)
+	, prev_level(sink.level())
+{
+	if (enabled) {
+		sink.set_level(l);
+	}
+}
+
+ScopedLogLevel::~ScopedLogLevel()
+{
+	sink.set_level(prev_level);
 }
 
 //============================================================================

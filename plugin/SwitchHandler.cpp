@@ -4,6 +4,7 @@
 // Handles proximity door/switch management during navigation.
 //
 
+#include "pch.h"
 #include "SwitchHandler.h"
 
 #include "plugin/MQ2Navigation.h"

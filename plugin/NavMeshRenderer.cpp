@@ -2,6 +2,7 @@
 // NavMeshRenderer.cpp
 //
 
+#include "pch.h"
 #include "NavMeshRenderer.h"
 
 #include "common/NavMesh.h"

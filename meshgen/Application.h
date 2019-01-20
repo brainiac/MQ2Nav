@@ -9,10 +9,14 @@
 #include "meshgen/EQConfig.h"
 #include "common/Context.h"
 #include "common/NavMesh.h"
+#include "common/Utilities.h"
 
 #include <Recast.h>
 #include <SDL.h>
 #include <glm/glm.hpp>
+#include <imgui/imgui.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/base_sink.h>
 
 #include <cstdio>
 #include <map>
@@ -24,13 +28,80 @@
 #include <thread>
 #include <chrono>
 
-class BuildContext;
+class RecastContext;
 class InputGeom;
-class NavMeshTool;
-struct SDL_Surface;
-class ApplicationContext;
+class NavMeshTool; 
 class ZonePicker;
 class ImportExportSettingsDialog;
+
+struct ImGuiConsoleLog
+{
+	ImGuiTextBuffer Buf;
+	ImGuiTextFilter Filter;
+	ImVector<int>   Offsets;
+	bool            ScrollToBottom;
+
+	void Clear()
+	{
+		Buf.clear();
+		Offsets.clear();
+	}
+
+	void AddLog(const char* string)
+	{
+		int old_size = Buf.size();
+		Buf.appendf("%s", string);
+		for (int new_size = Buf.size(); old_size < new_size; old_size++)
+		{
+			if (Buf[old_size] == '\n')
+				Offsets.push_back(old_size);
+		}
+		ScrollToBottom = true;
+	}
+
+	void Draw(const char* title, bool* p_opened = nullptr)
+	{
+		ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiSetCond_FirstUseEver);
+		ImGui::Begin(title, p_opened);
+		if (ImGui::Button("Clear")) Clear();
+		ImGui::SameLine();
+		bool copy = ImGui::Button("Copy");
+		ImGui::SameLine();
+		Filter.Draw("Filter", -100.0f);
+		ImGui::Separator();
+		ImGui::BeginChild("scrolling");
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 1));
+		if (copy) ImGui::LogToClipboard();
+		ImGui::PushFont(ImGuiEx::ConsoleFont);
+
+		if (Filter.IsActive())
+		{
+			const char* buf_begin = Buf.begin();
+			const char* line = buf_begin;
+			for (int line_no = 0; line != nullptr; line_no++)
+			{
+				const char* line_end = (line_no < Offsets.Size) ? buf_begin + Offsets[line_no] : nullptr;
+				if (Filter.PassFilter(line, line_end))
+					ImGui::TextUnformatted(line, line_end);
+				line = line_end && line_end[1] ? line_end + 1 : nullptr;
+			}
+		}
+		else
+		{
+			ImGui::TextUnformatted(Buf.begin());
+		}
+
+		ImGui::PopFont();
+
+		if (ScrollToBottom)
+			ImGui::SetScrollHere(1.0f);
+		ScrollToBottom = false;
+
+		ImGui::PopStyleVar();
+		ImGui::EndChild();
+		ImGui::End();
+	}
+};
 
 class Application
 {
@@ -38,7 +109,7 @@ public:
 	Application(const std::string& defaultZone = std::string());
 	~Application();
 
-	BuildContext& GetContext() { return *m_rcContext; }
+	RecastContext& GetContext() { return *m_rcContext; }
 
 	// run the main event loop. This doesn't return until the program is ready to exit.
 	// Return code is the result to exit with
@@ -50,6 +121,11 @@ public:
 	void ShowSettingsDialog();
 
 	void PushEvent(const std::function<void()>& cb);
+
+	void AddLog(const std::string& message)
+	{
+		m_console.AddLog(message.c_str());
+	}
 
 private:
 	bool InitializeWindow();
@@ -86,11 +162,8 @@ private:
 private:
 	EQConfig m_eqConfig;
 
-	// The application context.
-	std::unique_ptr<ApplicationContext> m_context;
-
 	// The build context. Everything passes this around. We own it.
-	std::unique_ptr<BuildContext> m_rcContext;
+	std::unique_ptr<RecastContext> m_rcContext;
 
 	// short name of the currently loaded zone
 	std::string m_zoneShortname;
@@ -170,9 +243,9 @@ private:
 
 	// The main window surface
 	SDL_Window* m_window = nullptr;
-	SDL_GLContext m_glContext = 0;
-
+	SDL_GLContext m_glContext = nullptr;
 	std::string m_iniFile;
+	std::string m_logFile;
 
 	bool m_showFailedToLoadZone = false;
 	std::string m_failedZoneMsg;
@@ -185,37 +258,43 @@ private:
 
 	std::vector<std::function<void()>> m_callbackQueue;
 	std::mutex m_callbackMutex;
+
+	ImGuiConsoleLog m_console;
+};
+
+template <typename Mutex>
+class ConsoleLogSink : public spdlog::sinks::base_sink<Mutex>
+{
+public:
+	ConsoleLogSink(Application* application)
+		: m_application(application)
+	{}
+
+protected:
+	void sink_it_(const spdlog::details::log_msg& msg) override
+	{
+		fmt::memory_buffer formatted;
+		sink::formatter_->format(msg, formatted);
+
+		m_application->AddLog(fmt::to_string(formatted).c_str());
+	}
+
+	void flush_() override {}
+
+private:
+	Application* m_application;
 };
 
 //----------------------------------------------------------------------------
 
-// TODO: Sort out differences and combine these two...
-
-class ApplicationContext : public Context
+class RecastContext : public rcContext
 {
 public:
-	ApplicationContext() {}
-
-	virtual void Log(LogLevel logLevel, const char* format, ...) override;
-};
-
-class BuildContext : public rcContext
-{
-public:
-	BuildContext(Context* appContext);
-	virtual ~BuildContext();
-
-	// Dumps the log to stdout
-	void dumpLog(const char* format, ...);
-
-	// Returns the number of log messages
-	int getLogCount() const;
-
-	// Returns the log message text
-	const char* getLogText(int32_t index) const;
+	RecastContext();
+	virtual ~RecastContext() = default;
 
 protected:
-	virtual void doResetLog() override;
+	virtual void doResetLog() override {}
 	virtual void doLog(const rcLogCategory category, const char* msg, const int len) override;
 	virtual void doResetTimers() override;
 	virtual void doStartTimer(const rcTimerLabel label) override;
@@ -223,12 +302,9 @@ protected:
 	virtual int doGetAccumulatedTime(const rcTimerLabel label) const override;
 
 private:
-	Context* m_context;
-	std::chrono::steady_clock::time_point m_startTime[RC_MAX_TIMERS];
-	std::chrono::nanoseconds m_accTime[RC_MAX_TIMERS];
-
-	std::deque<std::string> m_logs;
-	mutable std::mutex m_mtx;
+	std::shared_ptr<spdlog::logger> m_logger;
+	std::array<std::chrono::steady_clock::time_point, RC_MAX_TIMERS> m_startTime;
+	std::array<std::chrono::nanoseconds, RC_MAX_TIMERS> m_accTime;
 };
 
 //----------------------------------------------------------------------------

@@ -15,6 +15,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
+#include <spdlog/spdlog.h>
 
 #include <DebugDraw.h>
 #include <DetourCommon.h>
@@ -30,9 +31,8 @@ namespace fs = std::experimental::filesystem::v1;
 
 //============================================================================
 
-NavMesh::NavMesh(Context* context, const std::string& dataFolder, const std::string& zoneName)
-	: m_ctx(context)
-	, m_navMeshDirectory(dataFolder)
+NavMesh::NavMesh(const std::string& dataFolder, const std::string& zoneName)
+	: m_navMeshDirectory(dataFolder)
 	, m_zoneName(zoneName)
 {
 	UpdateDataFile();
@@ -56,16 +56,15 @@ void NavMesh::SetZoneName(const std::string& zoneShortName)
 	{
 		m_zoneName.clear();
 		m_dataFile.clear();
-		m_ctx->Log(LogLevel::INFO, "Clearing current zone", m_zoneName.c_str());
 
+		SPDLOG_DEBUG("Clearing current zone: {}", m_zoneName);
 		return;
 	}
 
 	m_zoneName = zoneShortName;
 
 	UpdateDataFile();
-
-	m_ctx->Log(LogLevel::INFO, "Setting navmesh zone to '%s'", m_zoneName.c_str());
+	SPDLOG_DEBUG("Setting navmesh zone to: {}", m_zoneName);
 }
 
 void NavMesh::SetNavMeshDirectory(const std::string& dirname)
@@ -73,7 +72,7 @@ void NavMesh::SetNavMeshDirectory(const std::string& dirname)
 	if (m_navMeshDirectory != dirname)
 	{
 		m_navMeshDirectory = dirname;
-		m_ctx->Log(LogLevel::DEBUG, "Navmesh data folder: ", m_navMeshDirectory.c_str());
+		SPDLOG_DEBUG("Navmesh data folder: {}", m_navMeshDirectory);
 
 		UpdateDataFile();
 	}
@@ -162,7 +161,7 @@ std::shared_ptr<dtNavMeshQuery> NavMesh::GetNavMeshQuery()
 			dtStatus status = query->init(m_navMesh.get(), NAVMESH_QUERY_MAX_NODES);
 			if (dtStatusFailed(status))
 			{
-				m_ctx->Log(LogLevel::ERROR, "GetNavMeshQuery: Could not init detour navmesh query");
+				SPDLOG_ERROR("GetNavMeshQuery: Could not init detour nav mesh query");
 			}
 			else
 			{
@@ -410,7 +409,7 @@ void NavMesh::LoadFromProto(const nav::NavMeshFile& proto, PersistedDataFields f
 					dtStatus status = navMesh->addTile(data, (int)tiledata.length(), DT_TILE_FREE_DATA, ref, nullptr);
 					if (status != DT_SUCCESS)
 					{
-						m_ctx->Log(LogLevel::WARNING, "Failed to read tile: %d, %d (%d) = %d",
+						SPDLOG_WARN("Failed to read tile: {}, {} ({}) = {}",
 							tileheader->x, tileheader->y, tileheader->layer, status);
 					}
 				}
@@ -419,12 +418,12 @@ void NavMesh::LoadFromProto(const nav::NavMeshFile& proto, PersistedDataFields f
 			}
 			else
 			{
-				m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to initialize navmesh, will continue loading without tiles.");
+				SPDLOG_ERROR("loadMesh: failed to initialize navmesh, will continue loading without tiles.");
 			}
 		}
 		else
 		{
-			m_ctx->Log(LogLevel::ERROR, "loadMesh: navmesh has incompatible structure, will continue loading without tiles.");
+			SPDLOG_ERROR("loadMesh: navmesh has incompatible structure, will continue loading without tiles.");
 		}
 	}
 
@@ -588,7 +587,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 
 	if (filesize <= sizeof(MeshFileHeader))
 	{
-		m_ctx->Log(LogLevel::ERROR, "loadMesh: mesh file is not a valid mesh file");
+		SPDLOG_ERROR("loadMesh: mesh file is not a valid mesh file");
 		return LoadResult::Corrupt;
 	}
 
@@ -596,7 +595,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	size_t result = fread(buffer.get(), filesize, 1, file);
 	if (result != 1)
 	{
-		m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to read contents of mesh file");
+		SPDLOG_ERROR("loadMesh: failed to read contents of mesh file");
 		return LoadResult::Corrupt;
 	}
 
@@ -609,13 +608,13 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 
 	if (fileHeader->magic != NAVMESH_FILE_MAGIC)
 	{
-		m_ctx->Log(LogLevel::ERROR, "loadMesh: mesh file is not a valid mesh file");
+		SPDLOG_ERROR("loadMesh: mesh file is not a valid mesh file");
 		return LoadResult::Corrupt;
 	}
 
 	if (fileHeader->version != NAVMESH_FILE_VERSION)
 	{
-		m_ctx->Log(LogLevel::ERROR, "loadMesh: mesh file has an incompatible version number");
+		SPDLOG_ERROR("loadMesh: mesh file has an incompatible version number");
 		return LoadResult::VersionMismatch;
 	}
 
@@ -627,7 +626,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 		std::vector<uint8_t> data;
 		if (!DecompressMemory(data_ptr, data_size, data))
 		{
-			m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to decompress mesh file");
+			SPDLOG_ERROR("loadMesh: failed to decompress mesh file");
 			return LoadResult::Corrupt;
 		}
 
@@ -635,7 +634,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 
 		if (!file_proto.ParseFromArray(&data[0], (int)data.size()))
 		{
-			m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to parse mesh file");
+			SPDLOG_ERROR("loadMesh: failed to parse mesh file");
 			return LoadResult::Corrupt;
 		}
 	}
@@ -643,15 +642,14 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	{
 		if (!file_proto.ParseFromArray(data_ptr, (int)data_size))
 		{
-			m_ctx->Log(LogLevel::ERROR, "loadMesh: failed to parse mesh file");
+			SPDLOG_ERROR("loadMesh: failed to parse mesh file");
 			return LoadResult::Corrupt;
 		}
 	}
 
 	if (file_proto.zone_short_name() != m_zoneName)
 	{
-		m_ctx->Log(LogLevel::ERROR, "loadMesh: zone name mismatch! mesh is for '%s'",
-			file_proto.zone_short_name().c_str());
+		SPDLOG_ERROR("loadMesh: zone name mismatch! mesh is for '{}'", file_proto.zone_short_name());
 		return LoadResult::ZoneMismatch;
 	}
 

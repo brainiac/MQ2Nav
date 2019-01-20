@@ -51,7 +51,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;..\dependencies;..\dependencies\imgui;..\dependencies\recast\DebugUtils\Include;..\dependencies\recast\DetourCrowd\Include;..\dependencies\recast\DetourTileCache\Include;..\dependencies\recast\Detour\Include;..\dependencies\recast\Recast\Include;..\dependencies\glm;..\dependencies\glm\glm;..\dependencies\zone-utilities\common;..\dependencies\zone-utilities\log;..\dependencies\zlib\include;..\dependencies\dx9\Include;..\dependencies\rapidjson\include;$(ProjectDir)..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;..\dependencies;..\dependencies\imgui;..\dependencies\recast\DebugUtils\Include;..\dependencies\recast\DetourCrowd\Include;..\dependencies\recast\DetourTileCache\Include;..\dependencies\recast\Detour\Include;..\dependencies\recast\Recast\Include;..\dependencies\glm;..\dependencies\glm\glm;..\dependencies\zone-utilities\common;..\dependencies\zone-utilities\log;..\dependencies\zlib\include;..\dependencies\dx9\Include;..\dependencies\rapidjson\include;..\dependencies\spdlog\include;..\dependencies\fmt\include;$(ProjectDir)..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ProgramDatabase</DebugInformationFormat>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">MultiThreadedDebug</RuntimeLibrary>
@@ -70,6 +70,10 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">stdcpplatest</LanguageStandard>
       <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">stdcpplatest</LanguageStandard>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(ProjectDir)..\..\Detours\lib;$(ProjectDir)..\dependencies\zlib\lib;$(ProjectDir)..\dependencies\dx9\lib;$(ProjectDir)..\..\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -91,6 +95,10 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="SwitchHandler.cpp" />
     <ClCompile Include="ImGuiDX9.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
@@ -120,6 +128,7 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <ClInclude Include="MapAPI.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="MQ2Navigation.h" />
+    <ClInclude Include="pch.h" />
     <ClInclude Include="PluginHooks.h" />
     <ClInclude Include="PluginSettings.h" />
     <ClInclude Include="Utilities.h" />

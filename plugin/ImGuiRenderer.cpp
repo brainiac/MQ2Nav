@@ -2,7 +2,9 @@
 // ImGuiRenderer.cpp
 //
 
-#include "plugin/ImGuiRenderer.h"
+#include "pch.h"
+#include "ImGuiRenderer.h"
+
 #include "plugin/ImGuiDX9.h"
 #include "plugin/MQ2Navigation.h"
 #include "plugin/PluginHooks.h"

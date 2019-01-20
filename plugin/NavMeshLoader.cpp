@@ -2,6 +2,7 @@
 // NavMeshLoader.cpp
 //
 
+#include "pch.h"
 #include "NavMeshLoader.h"
 
 #include "plugin/MQ2Navigation.h"
@@ -9,13 +10,13 @@
 
 #include <DetourNavMesh.h>
 #include <DetourCommon.h>
+#include <spdlog/spdlog.h>
 #include <ctime>
 
 //============================================================================
 
-NavMeshLoader::NavMeshLoader(Context* context, NavMesh* mesh)
-	: m_context(context)
-	, m_navMesh(mesh)
+NavMeshLoader::NavMeshLoader(NavMesh* mesh)
+	: m_navMesh(mesh)
 {
 }
 
@@ -37,12 +38,12 @@ void NavMeshLoader::SetZoneId(int zoneId)
 		if (m_zoneShortName == "UNKNOWN_ZONE")
 		{
 			// invalid / unsupported zone id
-			m_context->Log(LogLevel::WARNING, "Unrecognized zone id: %d", zoneId);
+			SPDLOG_WARN("Unrecognized zone id: {}", zoneId);
 			m_navMesh->ResetNavMesh();
 		}
 		else
 		{
-			m_context->Log(LogLevel::INFO, "Zone changed to: %s", m_zoneShortName.c_str());
+			SPDLOG_INFO("Zone changed to: {}", m_zoneShortName);
 			m_navMesh->SetZoneName(m_zoneShortName);
 
 			if (m_autoLoad)
@@ -72,11 +73,11 @@ bool NavMeshLoader::LoadNavMesh()
 	{
 	default:
 	case NavMesh::LoadResult::None:
-		WriteChatf(PLUGIN_MSG "\arAn error occurred trying to load the mesh");
+		SPDLOG_ERROR("An error occurred trying to load the mesh");
 		break;
 
 	case NavMesh::LoadResult::Success:
-		WriteChatf(PLUGIN_MSG "\agSuccessfully loaded mesh for \am%s\ax", m_zoneShortName.c_str());
+		SPDLOG_INFO("\agSuccessfully loaded mesh for \am{}\ax", m_zoneShortName);
 		{
 			// Get filetime
 			HANDLE hFile = CreateFile(meshFile.c_str(), GENERIC_READ, FILE_SHARE_READ,
@@ -92,21 +93,19 @@ bool NavMeshLoader::LoadNavMesh()
 		break;
 
 	case NavMesh::LoadResult::MissingFile:
-		WriteChatf(PLUGIN_MSG "\ayNo nav mesh available for \am%s\ax", m_zoneShortName.c_str());
+		SPDLOG_WARN("No nav mesh available for \am{}\ax", m_zoneShortName);
 		break;
 
 	case NavMesh::LoadResult::Corrupt:
-		WriteChatf(PLUGIN_MSG "\arFailed to load mesh file, the file is corrupt (%s)", 
-			meshFile.c_str());
+		SPDLOG_ERROR("Failed to load mesh file, the file is corrupt ({})", meshFile);
 		break;
 
 	case NavMesh::LoadResult::VersionMismatch:
-		WriteChatf(PLUGIN_MSG "\arCouldn't load mesh file due to version mismatch (%s)",
-			meshFile.c_str());
+		SPDLOG_ERROR("Couldn't load mesh file due to version mismatch ({})", meshFile);
 		break;
 
 	case NavMesh::LoadResult::ZoneMismatch:
-		WriteChatf(PLUGIN_MSG "\arCouldn't load mesh file. It isn't for this zone.");
+		SPDLOG_ERROR("Couldn't load mesh file. It isn't for this zone.");
 		break;
 	}
 
@@ -138,8 +137,7 @@ void NavMeshLoader::OnPulse()
 					// Reload file *if* it is 5 seconds old AND newer than existing
 					if (CompareFileTime(&currentFileTime, &m_fileTime))
 					{
-						m_context->Log(LogLevel::DEBUG,
-							"Current file time is newer than old file time, refreshing");
+						SPDLOG_DEBUG("Current file time is newer than old file time, refreshing");
 						LoadNavMesh();
 					}
 				}

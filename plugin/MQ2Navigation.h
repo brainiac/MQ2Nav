@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include "common/Context.h"
 #include "common/NavModule.h"
 #include "common/Signal.h"
 #include "plugin/MapAPI.h"
 
 #include <MQ2Plugin.h>
+#include <spdlog/common.h>
+
 #include <memory>
 #include <chrono>
 #include <typeinfo>
@@ -27,6 +28,12 @@
 
 enum class TabPage;
 enum class HookStatus;
+
+namespace spdlog {
+	namespace sinks {
+		class sink;
+	}
+}
 
 //----------------------------------------------------------------------------
 
@@ -103,14 +110,6 @@ glm::vec3 GetMyPosition();
 
 //----------------------------------------------------------------------------
 
-class PluginContext : public Context
-{
-public:
-	// Log something...
-	virtual void Log(LogLevel logLevel, const char* format, ...);
-
-};
-
 inline glm::vec3 toMesh(const glm::vec3& pos)
 {
 	return pos.yzx();
@@ -162,6 +161,9 @@ public:
 	void Command_Navigate(const char* szLine);
 
 	std::string GetDataDirectory() const;
+
+	void SetLogLevel(spdlog::level::level_enum level);
+	spdlog::level::level_enum GetLogLevel() const;
 
 	//------------------------------------------------------------------------
 	// modules
@@ -253,8 +255,6 @@ private:
 	void OnMovementKeyPressed();
 
 private:
-	std::unique_ptr<PluginContext> m_context;
-
 	std::shared_ptr<NavigationPath> m_activePath;
 
 	// todo: factor out the navpath rendering and map line into
@@ -293,6 +293,8 @@ private:
 
 	std::unordered_map<size_t, std::unique_ptr<NavModule>> m_modules;
 	NavigationOptions m_defaultOptions;
+
+	std::shared_ptr<spdlog::sinks::sink> m_chatSink;
 };
 
 extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
@@ -335,5 +337,14 @@ private:
 //----------------------------------------------------------------------------
 
 void ClickDoor(PDOOR pDoor);
+
+struct ScopedLogLevel {
+	ScopedLogLevel(spdlog::sinks::sink& s, spdlog::level::level_enum l, bool enabled = true);
+	~ScopedLogLevel();
+
+private:
+	spdlog::sinks::sink& sink;
+	spdlog::level::level_enum prev_level;
+};
 
 //============================================================================

@@ -2,6 +2,7 @@
 // PluginHooks.cpp
 //
 
+#include "pch.h"
 #include "PluginHooks.h"
 
 #include "plugin/MQ2Navigation.h"
@@ -23,6 +24,7 @@
 #include <atomic>
 #include <thread>
 #include <boost/algorithm/string.hpp>
+#include <spdlog/spdlog.h>
 #include <winternl.h>
 #include <tchar.h>
 
@@ -288,7 +290,7 @@ public:
 		{
 			if (g_resetDeviceAddress != 0)
 			{
-				WriteChatf(PLUGIN_MSG "\arDetected a change in the rendering device. Attempting to recover. Please check for compat flags...");
+				SPDLOG_WARN("Detected a change in the rendering device. Attempting to recover.");
 			}
 			g_resetDeviceAddress = resetDevice;
 
@@ -464,19 +466,19 @@ bool InstallD3D9Hooks()
 				}
 				else
 				{
-					DebugSpewAlways("InstallD3D9Hooks: failed to CreateDeviceEx. Result=%x", hRes);
+					SPDLOG_DEBUG("InstallD3D9Hooks: failed to CreateDeviceEx. Result={:#x}", hRes);
 				}
 
 				d3d9ex->Release();
 			}
 			else
 			{
-				DebugSpewAlways("InstallD3D9Hooks: failed Direct3DCreate9Ex failed. Result=%x", hRes);
+				SPDLOG_DEBUG("InstallD3D9Hooks: failed Direct3DCreate9Ex failed. Result={:#x}", hRes);
 			}
 		}
 		else
 		{
-			DebugSpewAlways("InitD3D9CApture: failed to get address of Direct3DCreate9Ex");
+			SPDLOG_DEBUG("InitD3D9CApture: failed to get address of Direct3DCreate9Ex");
 		}
 	}
 
@@ -661,10 +663,10 @@ public:
 	void UseSwitch_Detour(UINT SpawnID, int KeyID, int PickSkill, const CVector3* hitloc = 0)
 	{
 		if (!hitloc)
-			DebugSpewAlways("UseSwitch: SpawnID=%d KeyID=%d PickSkill=%d hitloc=null",
+			SPDLOG_DEBUG("UseSwitch: SpawnID={} KeyID={} PickSkill=[} hitloc=null",
 				SpawnID, KeyID, PickSkill);
 		else
-			DebugSpewAlways("UseSwitch: SpawnID=%d KeyID=%d PickSkill=%d hitloc=(%.2f, %.2f, %.2f)",
+			SPDLOG_DEBUG("UseSwitch: SpawnID={} KeyID={} PickSkill={} hitloc=({:.2f}, {:.2f}, {:.2f})",
 				SpawnID, KeyID, PickSkill, hitloc->X, hitloc->Y, hitloc->Z);
 
 		UseSwitch_Trampoline(SpawnID, KeyID, PickSkill, hitloc);
@@ -691,7 +693,7 @@ HookStatus InitializeHooks()
 	if (!GetOffsets()
 		|| !InstallD3D9Hooks())
 	{
-		WriteChatf(PLUGIN_MSG "\arRendering support failed! We won't be able to draw to the 3D world.");
+		SPDLOG_ERROR("Rendering support failed! We won't be able to draw to the 3d world.");
 		return HookStatus::MissingOffset;
 	}
 

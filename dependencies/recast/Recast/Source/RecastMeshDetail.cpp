@@ -521,7 +521,7 @@ static void delaunayHull(rcContext* ctx, const int npts, const float* pts,
 		int* t = &tris[i*4];
 		if (t[0] == -1 || t[1] == -1 || t[2] == -1)
 		{
-			ctx->log(RC_LOG_WARNING, "delaunayHull: Removing dangling face %d [%d,%d,%d].", i, t[0],t[1],t[2]);
+			//ctx->log(RC_LOG_WARNING, "delaunayHull: Removing dangling face %d [%d,%d,%d].", i, t[0],t[1],t[2]);
 			t[0] = tris[tris.size()-4];
 			t[1] = tris[tris.size()-3];
 			t[2] = tris[tris.size()-2];

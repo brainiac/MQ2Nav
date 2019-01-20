@@ -24,13 +24,17 @@
 #include <memory>
 #include <thread>
 
-class BuildContext;
+class RecastContext;
 class InputGeom;
 class dtNavMesh;
 class dtNavMeshQuery;
 
 class NavMeshTool;
 class NavMeshLoader;
+
+namespace spdlog {
+	class logger;
+}
 
 //----------------------------------------------------------------------------
 
@@ -93,7 +97,7 @@ public:
 	NavMeshTool(const std::shared_ptr<NavMesh>& navMesh);
 	virtual ~NavMeshTool();
 
-	void setContext(BuildContext* ctx) { m_ctx = ctx; }
+	void setContext(RecastContext* ctx) { m_ctx = ctx; }
 
 	void handleDebug();
 	void handleTools();
@@ -177,7 +181,9 @@ private:
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
 
 	// we don't own this
-	BuildContext* m_ctx = nullptr;
+	RecastContext* m_ctx = nullptr;
+
+	std::shared_ptr<spdlog::logger> m_logger;
 
 	int m_maxTiles = 0;
 	int m_maxPolysPerTile = 0;

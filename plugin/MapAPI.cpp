@@ -2,6 +2,7 @@
 // MapAPI.cpp
 //
 
+#include "pch.h"
 #include "MapAPI.h"
 
 #include <MQ2Plugin.h>

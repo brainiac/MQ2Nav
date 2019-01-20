@@ -19,10 +19,15 @@
 #include <imgui/misc/fonts/IconsFontAwesome.h>
 #include <imgui/misc/fonts/IconsMaterialDesign.h>
 #include <imgui/custom/imgui_utils.h>
+#include <fmt/format.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <gl/GLU.h>
-
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/msvc_sink.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <zone-utilities/log/log_base.h>
+#include <zone-utilities/log/log_macros.h>
 #include <boost/algorithm/string.hpp>
 
 #include <filesystem>
@@ -41,12 +46,50 @@ static bool IsKeyboardBlocked() {
 	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
 }
 
+class EQEmuLogSink : public EQEmu::Log::LogBase
+{
+public:
+	EQEmuLogSink()
+	{
+		m_logger = spdlog::get("EQEmu");
+	}
+
+	virtual void OnRegister(int enabled_logs) override {}
+	virtual void OnUnregister() override {}
+
+	virtual void OnMessage(EQEmu::Log::LogType log_type, const std::string& message) override
+	{
+		switch (log_type)
+		{
+		case EQEmu::Log::LogTrace:
+			m_logger->trace(message);
+			break;
+		case EQEmu::Log::LogDebug:
+			m_logger->debug(message);
+			break;
+		case EQEmu::Log::LogInfo:
+			m_logger->info(message);
+			break;
+		case EQEmu::Log::LogWarn:
+			m_logger->warn(message);
+			break;
+		case EQEmu::Log::LogError:
+			m_logger->error(message);
+			break;
+		case EQEmu::Log::LogFatal:
+			m_logger->critical(message);
+			break;
+		}
+	}
+
+private:
+	std::shared_ptr<spdlog::logger> m_logger;
+};
+
 //============================================================================
 
 Application::Application(const std::string& defaultZone)
-	: m_context(new ApplicationContext())
-	, m_rcContext(new BuildContext(m_context.get()))
-	, m_navMesh(new NavMesh(m_context.get(), m_eqConfig.GetOutputPath() + "\\MQ2Nav", defaultZone))
+	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath() + "\\MQ2Nav", defaultZone))
 	, m_meshTool(new NavMeshTool(m_navMesh))
 	, m_resetCamera(true)
 	, m_width(1600), m_height(900)
@@ -54,18 +97,34 @@ Application::Application(const std::string& defaultZone)
 	, m_showLog(false)
 	, m_nextZoneToLoad(defaultZone)
 {
+	// Construct the path to the ini file
+	CHAR fullPath[MAX_PATH] = { 0 };
+	GetModuleFileNameA(nullptr, fullPath, MAX_PATH);
+	PathRemoveFileSpecA(fullPath);
+
+	m_iniFile = fmt::format("{}/MeshGenerator_UI.ini", fullPath);
+	m_logFile = fmt::format("{}/MeshGenerator.log", fullPath);
+
+	// set up default logger
+	auto logger = spdlog::create<spdlog::sinks::basic_file_sink_mt>("MeshGen", m_logFile, true);
+	logger->sinks().push_back(std::make_shared<ConsoleLogSink<std::mutex>>(this));
+#if defined(_DEBUG)
+	logger->sinks().push_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
+#endif
+	spdlog::set_default_logger(logger);
+	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v");
+	spdlog::flush_every(std::chrono::seconds{ 5 });
+	spdlog::register_logger(logger->clone("Recast"));
+	spdlog::register_logger(logger->clone("EQEmu"));
+
+	eqLogInit(-1);
+	eqLogRegister(std::make_shared<EQEmuLogSink>());
+	m_rcContext = std::make_unique<RecastContext>();
+
 	m_meshTool->setContext(m_rcContext.get());
 	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 
-	// Construct the path to the ini file
-	CHAR fullPath[MAX_PATH] = { 0 };
-	GetModuleFileNameA(NULL, fullPath, MAX_PATH);
-	PathRemoveFileSpecA(fullPath);
-	PathAppendA(fullPath, "MeshGenerator_UI.ini");
-	m_iniFile = fullPath;
-
 	InitializeWindow();
-
 	ImGui::SetupImGuiStyle(true, 0.8f);
 }
 
@@ -741,45 +800,7 @@ void Application::RenderInterface()
 	}
 
 	if (m_showLog)
-	{
-		int logXPos = 10 + 10 + 300;
-
-		ImGui::SetNextWindowPos(ImVec2(logXPos, m_height - 200 - 10), ImGuiSetCond_FirstUseEver);
-		ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiSetCond_Once);
-
-		ImGui::Begin("Log", &m_showLog);
-		ImGui::BeginChild("##log contents");
-
-		ImGui::PushFont(ImGuiEx::ConsoleFont);
-
-		ImGuiListClipper clipper(m_rcContext->getLogCount(), ImGui::GetTextLineHeightWithSpacing());
-		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) // display only visible items
-			ImGui::Text(m_rcContext->getLogText(i));
-		clipper.End();
-
-		ImGui::PopFont();
-
-		// auto scroll if at bottom of window
-		float scrollY = ImGui::GetScrollY();
-		float scrollYMax = ImGui::GetScrollMaxY();
-
-		if (m_lastScrollPosition == m_lastScrollPositionMax
-			&& m_lastScrollPosition != scrollYMax
-			/*|| m_lastScrollPosition == 0*/) // find a way to clamp when starting empty
-		{
-			m_lastScrollPositionMax = scrollYMax;
-			ImGui::SetScrollY(scrollYMax);
-		}
-		else if (m_lastScrollPositionMax != scrollYMax)
-		{
-			m_lastScrollPositionMax = scrollYMax;
-		}
-
-		m_lastScrollPosition = scrollY;
-
-		ImGui::End();
-		ImGui::End();
-	}
+		m_console.Draw("Log", &m_showLog);
 
 	if (m_showMapAreas)
 	{
@@ -791,7 +812,6 @@ void Application::RenderInterface()
 		}
 
 		ImGui::End();
-
 	}
 }
 
@@ -1196,196 +1216,52 @@ void Application::DispatchCallbacks()
 
 //============================================================================
 
-BuildContext::BuildContext(Context* context)
-	: m_context(context)
+RecastContext::RecastContext()
 {
-	resetTimers();
+	m_logger = spdlog::get("Recast");
 }
 
-BuildContext::~BuildContext()
-{
-}
-
-//----------------------------------------------------------------------------
-
-void BuildContext::doResetLog()
-{
-	std::unique_lock<std::mutex> lock(m_mtx);
-
-	m_logs.clear();
-}
-
-void BuildContext::doLog(const rcLogCategory category,
+void RecastContext::doLog(const rcLogCategory category,
 	const char* message, const int length)
 {
-	if (!length)
-		return;
-
-	std::unique_lock<std::mutex> lock(m_mtx);
-
-	// if the message buffer is full, drop an old message
-	if (m_logs.size() > MAX_LOG_MESSAGES)
-		m_logs.pop_front();
-
-	m_logs.emplace_back(std::string(message, static_cast<std::size_t>(length)));
-
-	LogLevel level = LogLevel::DEBUG;
 	switch (category)
 	{
 	case RC_LOG_PROGRESS:
-		level = LogLevel::VERBOSE;
+		m_logger->trace(std::string_view(message, length));
 		break;
+
 	case RC_LOG_WARNING:
-		level = LogLevel::WARNING;
+		m_logger->warn(std::string_view(message, length));
 		break;
+
 	case RC_LOG_ERROR:
-		level = LogLevel::ERROR;
-		break;
-
-	default:
+		m_logger->error(std::string_view(message, length));
 		break;
 	}
-
-	m_context->Log(level, "%s", message);
 }
 
-void BuildContext::dumpLog(const char* format, ...)
-{
-	return;
-
-	// Print header.
-	va_list ap;
-	va_start(ap, format);
-	vprintf(format, ap);
-	va_end(ap);
-	printf("\n");
-
-	std::unique_lock<std::mutex> lock(m_mtx);
-
-	// Print messages
-	const int TAB_STOPS[4] = { 28, 36, 44, 52 };
-	for (auto& message : m_logs)
-	{
-		const char* msg = message.c_str();
-		int n = 0;
-		while (*msg)
-		{
-			if (*msg == '\t')
-			{
-				int count = 1;
-				for (int j = 0; j < 4; ++j)
-				{
-					if (n < TAB_STOPS[j])
-					{
-						count = TAB_STOPS[j] - n;
-						break;
-					}
-				}
-				while (--count)
-				{
-					putchar(' ');
-					n++;
-				}
-			}
-			else
-			{
-				putchar(*msg);
-				n++;
-			}
-			msg++;
-		}
-		putchar('\n');
-	}
-}
-
-const char* BuildContext::getLogText(int32_t index) const
-{
-	std::unique_lock<std::mutex> lock(m_mtx);
-
-	if (index >= 0 && index < (int32_t)m_logs.size())
-		return m_logs[index].c_str();
-
-	return nullptr;
-}
-
-int BuildContext::getLogCount() const
-{
-	std::unique_lock<std::mutex> lock(m_mtx);
-
-	return (int)m_logs.size();
-}
-
-//----------------------------------------------------------------------------
-
-void BuildContext::doResetTimers()
+void RecastContext::doResetTimers()
 {
 	for (int i = 0; i < RC_MAX_TIMERS; ++i)
 		m_accTime[i] = std::chrono::nanoseconds();
 }
 
-void BuildContext::doStartTimer(const rcTimerLabel label)
+void RecastContext::doStartTimer(const rcTimerLabel label)
 {
 	m_startTime[label] = std::chrono::steady_clock::now();
 }
 
-void BuildContext::doStopTimer(const rcTimerLabel label)
+void RecastContext::doStopTimer(const rcTimerLabel label)
 {
-	auto endTime = std::chrono::steady_clock::now();
-	auto deltaTime = endTime - m_startTime[label];
+	auto deltaTime = std::chrono::steady_clock::now() - m_startTime[label];
 
 	m_accTime[label] += deltaTime;
 }
 
-int BuildContext::doGetAccumulatedTime(const rcTimerLabel label) const
+int RecastContext::doGetAccumulatedTime(const rcTimerLabel label) const
 {
 	return std::chrono::duration_cast<std::chrono::microseconds>(
 		m_accTime[label]).count();
-}
-
-void ApplicationContext::Log(LogLevel level, const char* szFormat, ...)
-{
-	char time_buffer[512];
-	time_t current_time;
-	struct tm *time_info;
-
-	time(&current_time);
-	time_info = localtime(&current_time);
-
-	strftime(time_buffer, 512, "%m/%d/%y %H:%M:%S", time_info);
-	const char* logLevel = "Unknown";
-
-	std::stringstream ss;
-
-	switch (level)
-	{
-	case LogLevel::VERBOSE:
-		logLevel = "Verbose";
-		break;
-	case LogLevel::DEBUG:
-		logLevel = "Debug";
-		break;
-	case LogLevel::INFO:
-		logLevel = "Info";
-		break;
-	case LogLevel::WARNING:
-		logLevel = "Warn";
-		break;
-	case LogLevel::ERROR:
-		logLevel = "Error";
-		break;
-	}
-
-	va_list vaList;
-	va_start(vaList, szFormat);
-	int len = _vscprintf(szFormat, vaList) + 1;// _vscprintf doesn't count // terminating '\0'  
-
-	char *szOutput = (char *)LocalAlloc(LPTR, len);
-	vsprintf_s(szOutput, len, szFormat, vaList);
-
-	ss << time_buffer << " [" << logLevel << "] " << szOutput << "\n";
-	OutputDebugStringA(ss.str().c_str());
-
-	LocalFree(szOutput);
 }
 
 #pragma warning(pop)

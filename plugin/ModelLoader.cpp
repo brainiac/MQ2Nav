@@ -2,6 +2,7 @@
 // ModelLoader.cpp
 //
 
+#include "pch.h"
 #include "ModelLoader.h"
 
 #include "plugin/ImGuiRenderer.h"
@@ -10,12 +11,9 @@
 #include "plugin/RenderHandler.h"
 #include "plugin/Utilities.h"
 
+#include <boost/algorithm/string.hpp>
 #include <imgui.h>
 #include <imgui/custom/imgui_column_headers.h>
-
-#include <boost/format.hpp>
-#include <boost/algorithm/string.hpp>
-
 #include <rapidjson/prettywriter.h>
 
 #define GLM_FORCE_RADIANS
@@ -406,7 +404,7 @@ void ModelLoader::SetZoneId(int zoneId)
 
 	if (zoneId != -1)
 	{
-		DebugSpewAlways("Model Loader, zone set to: %d", zoneId);
+		SPDLOG_DEBUG("Model Loader, zone set to: {}", zoneId);
 		m_zoneId = zoneId;
 	}
 }
