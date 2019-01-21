@@ -47,6 +47,144 @@ using namespace std::chrono_literals;
 std::unique_ptr<RenderHandler> g_renderHandler;
 std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
 
+// ----------------------------------------
+// key IDs & pointers
+// Borrowed from MQ2MoveUtils, pending rewrite using new movement handler
+
+int iAutoRun = 0;
+int iForward = 0;
+int iBackward = 0;
+int iTurnLeft = 0;
+int iTurnRight = 0;
+int iStrafeLeft = 0;
+int iStrafeRight = 0;
+int iJumpKey = 0;
+int iDuckKey = 0;
+int iRunWalk = 0;
+
+unsigned long* pulAutoRun = NULL;
+unsigned long* pulForward = NULL;
+unsigned long* pulBackward = NULL;
+unsigned long* pulTurnLeft = NULL;
+unsigned long* pulTurnRight = NULL;
+unsigned long* pulStrafeLeft = NULL;
+unsigned long* pulStrafeRight = NULL;
+
+enum MOVEMENT_DIR
+{
+	GO_FORWARD = 1,
+	GO_BACKWARD,
+	GO_LEFT,
+	GO_RIGHT,
+	APPLY_TO_ALL,
+};
+
+void InitKeys()
+{
+	iForward = FindMappableCommand("forward");
+	iBackward = FindMappableCommand("back");
+	iAutoRun = FindMappableCommand("autorun");
+	iStrafeLeft = FindMappableCommand("strafe_left");
+	iStrafeRight = FindMappableCommand("strafe_right");
+	iTurnLeft = FindMappableCommand("left");
+	iTurnRight = FindMappableCommand("right");
+	iJumpKey = FindMappableCommand("jump");
+	iDuckKey = FindMappableCommand("duck");
+	iRunWalk = FindMappableCommand("run_walk");
+
+	pulAutoRun = (unsigned long *)FixOffset(__pulAutoRun_x);
+	pulForward = (unsigned long *)FixOffset(__pulForward_x);
+	pulBackward = (unsigned long *)FixOffset(__pulBackward_x);
+	pulTurnRight = (unsigned long *)FixOffset(__pulTurnRight_x);
+	pulTurnLeft = (unsigned long *)FixOffset(__pulTurnLeft_x);
+	pulStrafeLeft = (unsigned long *)FixOffset(__pulStrafeLeft_x);
+	pulStrafeRight = (unsigned long *)FixOffset(__pulStrafeRight_x);
+}
+
+void TrueMoveOn(MOVEMENT_DIR ucDirection)
+{
+	switch (ucDirection)
+	{
+	case GO_FORWARD:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iBackward] = 0;
+		*pulBackward = 0;
+		pKeypressHandler->CommandState[iForward] = 1;
+		*pulForward = 1;
+		break;
+	case GO_BACKWARD:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iForward] = 0;
+		*pulForward = 0;
+		pKeypressHandler->CommandState[iBackward] = 1;
+		*pulBackward = 1;
+		break;
+	case GO_LEFT:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iStrafeRight] = 0;
+		*pulStrafeRight = 0;
+		pKeypressHandler->CommandState[iStrafeLeft] = 1;
+		*pulStrafeLeft = 1;
+		break;
+	case GO_RIGHT:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iStrafeLeft] = 0;
+		*pulStrafeLeft = 0;
+		pKeypressHandler->CommandState[iStrafeRight] = 1;
+		*pulStrafeRight = 1;
+		break;
+	}
+};
+
+void TrueMoveOff(MOVEMENT_DIR ucDirection)
+{
+	switch (ucDirection)
+	{
+	case APPLY_TO_ALL:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iStrafeLeft] = 0;
+		*pulStrafeLeft = 0;
+		pKeypressHandler->CommandState[iStrafeRight] = 0;
+		*pulStrafeRight = 0;
+		pKeypressHandler->CommandState[iForward] = 0;
+		*pulForward = 0;
+		pKeypressHandler->CommandState[iBackward] = 0;
+		*pulBackward = 0;
+		break;
+	case GO_FORWARD:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iForward] = 0;
+		*pulForward = 0;
+		break;
+	case GO_BACKWARD:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iBackward] = 0;
+		*pulBackward = 0;
+		break;
+	case GO_LEFT:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iStrafeLeft] = 0;
+		*pulStrafeLeft = 0;
+		break;
+	case GO_RIGHT:
+		pKeypressHandler->CommandState[iAutoRun] = 0;
+		*pulAutoRun = 0;
+		pKeypressHandler->CommandState[iStrafeRight] = 0;
+		*pulStrafeRight = 0;
+		break;
+	}
+};
+
+
+
 //============================================================================
 
 static void NavigateCommand(PSPAWNINFO pChar, PCHAR szLine)
@@ -179,6 +317,8 @@ spdlog::level::level_enum ExtractLogLevel(std::string_view input,
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
 {
+	InitKeys();
+
 	std::string logFile = std::string(gszINIPath) + "\\MQ2Nav.log";
 
 	// set up default logger
@@ -476,7 +616,8 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 		if (m_isPaused)
 		{
 			SPDLOG_INFO("Pausing Navigation");
-			MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+
+			TrueMoveOff(APPLY_TO_ALL);
 		}
 		else
 		{
@@ -732,9 +873,8 @@ void MQ2NavigationPlugin::StuckCheck()
 				&& !GetCharInfo()->Stunned
 				&& m_isActive)
 			{
-				int jumpCmd = FindMappableCommand("JUMP");
-				MQ2Globals::ExecuteCmd(jumpCmd, 1, 0);
-				MQ2Globals::ExecuteCmd(jumpCmd, 0, 0);
+				MQ2Globals::ExecuteCmd(iJumpKey, 1, 0);
+				MQ2Globals::ExecuteCmd(iJumpKey, 0, 0);
 			}
 
 			m_stuckX = GetCharInfo()->pSpawn->X;
@@ -827,8 +967,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 	{
 		if (!m_isPaused)
 		{
-			if (!GetCharInfo()->pSpawn->SpeedRun)
-				MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 1, 0);
+			TrueMoveOn(GO_FORWARD);
 		}
 
 		glm::vec3 nextPosition = m_activePath->GetNextPosition();
@@ -1304,7 +1443,7 @@ void MQ2NavigationPlugin::Stop()
 	{
 		SPDLOG_INFO("Stopping navigation");
 
-		MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, 0);
+		TrueMoveOff(APPLY_TO_ALL);
 	}
 
 	ResetPath();
@@ -1347,7 +1486,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 		{
 			if (m_isPaused)
 			{
-				MQ2Globals::ExecuteCmd(FindMappableCommand("FORWARD"), 0, nullptr);
+				TrueMoveOff(APPLY_TO_ALL);
 			}
 		}
 
