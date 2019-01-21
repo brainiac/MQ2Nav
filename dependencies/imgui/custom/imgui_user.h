@@ -42,14 +42,3 @@ namespace ImGui
 	bool CollapsingSubHeader(const char* label, ImGuiTreeNodeFlags flags = 0);
 
 }
-
-namespace ImGuiEx
-{
-	void SetupImGuiStyle2();
-
-	bool ColoredButton(const char* text, const ImVec2& size, float hue);
-
-	bool ColorCombo(const char* label, int* current_item, bool(*items_getter)(void*, int, ImColor* color, const char**),
-		void* data, int items_count, int height_in_items);
-}
-
