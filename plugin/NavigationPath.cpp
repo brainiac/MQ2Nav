@@ -114,37 +114,6 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 void NavigationPath::SetDestination(const std::shared_ptr<DestinationInfo>& info)
 {
 	m_destinationInfo = info;
-
-	// do this here because we don't want to keep calculating this every time an update is called
-	auto* mesh = g_mq2Nav->Get<NavMesh>();
-	if (mesh && m_destinationInfo && m_destinationInfo->heightType == HeightType::Nearest)
-	{
-		glm::vec3 transformed = {
-			m_destinationInfo->eqDestinationPos.x,
-			m_destinationInfo->eqDestinationPos.z,
-			m_destinationInfo->eqDestinationPos.y
-		};
-
-		auto heights = mesh->GetHeights(transformed);
-
-		// we don't actually want to calculate the path at the current height since there
-		// is no guarantee it is on the mesh
-		float current_distance = std::numeric_limits<float>().max();
-
-		// create a destination location out of the given x/y coordinate and each z coordinate
-		// that was hit at that location. Calculate the length of each and take the z coordinate that
-		// creates the shortest path.
-		for (auto height : heights)
-		{
-			float current_height = m_destinationInfo->eqDestinationPos.z;
-			m_destinationInfo->eqDestinationPos.z = height;
-
-			if (!FindPath() || GetPathTraversalDistance() > current_distance)
-			{
-				m_destinationInfo->eqDestinationPos.z = current_height;
-			} // else leave it, it's a better height
-		}
-	}
 }
 
 bool NavigationPath::FindPath()
@@ -247,15 +216,13 @@ void NavigationPath::UpdatePath(bool force, bool incremental)
 	if (me == nullptr)
 		return;
 
-	m_destination = m_destinationInfo->eqDestinationPos;
-
 	// current position in mesh coordinates
 	glm::vec3 thisPos{ me->X, me->FloorHeight, me->Y };
 
-	// TODO: Also check destination
-
-	if (thisPos == m_lastPos && !force)
+	if (thisPos == m_lastPos && m_destination == m_destinationInfo->eqDestinationPos  && !force)
 		return;
+
+	m_destination = m_destinationInfo->eqDestinationPos;
 	m_lastPos = thisPos;
 
 	// convert destination to mesh coordinates

@@ -43,7 +43,7 @@ void NavMeshLoader::SetZoneId(int zoneId)
 		}
 		else
 		{
-			SPDLOG_INFO("Zone changed to: {}", m_zoneShortName);
+			SPDLOG_DEBUG("Zone changed to: {}", m_zoneShortName);
 			m_navMesh->SetZoneName(m_zoneShortName);
 
 			if (m_autoLoad)

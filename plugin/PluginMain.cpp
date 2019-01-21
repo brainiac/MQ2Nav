@@ -89,6 +89,18 @@ PLUGIN_API void OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 		g_mq2Nav->Plugin_OnRemoveGroundItem(pGroundItem);
 }
 
+PLUGIN_API void OnAddSpawn(PSPAWNINFO pNewSpawn)
+{
+	if (g_mq2Nav)
+		g_mq2Nav->Plugin_OnAddSpawn(pNewSpawn);
+}
+
+PLUGIN_API void OnRemoveSpawn(PSPAWNINFO pSpawn)
+{
+	if (g_mq2Nav)
+		g_mq2Nav->Plugin_OnRemoveSpawn(pSpawn);
+}
+
 //============================================================================
 // Wrappers for other plugins to access MQ2Nav
 

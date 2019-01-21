@@ -78,8 +78,8 @@ void ImGuiRenderer::ImGuiRender()
 
 	if (!m_imguiReady)
 		return;
-	//if (gGameState != GAMESTATE_INGAME)
-	//	return;
+	if (gGameState != GAMESTATE_INGAME)
+		return;
 
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();

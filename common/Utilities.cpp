@@ -21,6 +21,7 @@
 ImFont* ImGuiEx::DefaultFont = nullptr;
 ImFont* ImGuiEx::ConsoleFont = nullptr;
 ImFont* ImGuiEx::LargeIconFont = nullptr;
+ImFont* ImGuiEx::LargeTextFont = nullptr;
 
 //============================================================================
 
@@ -163,7 +164,7 @@ void ImGuiEx::ConfigureFonts()
 	faConfig.GlyphMinAdvanceX = 14.0f;
 	static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 	io.Fonts->AddFontFromMemoryCompressedTTF(GetFontAwesomeCompressedData(),
-		GetFontAwesomeCompressedSize(), 14.0f, &faConfig, icon_ranges);
+		GetFontAwesomeCompressedSize(), 13.0f, &faConfig, icon_ranges);
 
 	// font: Material Design Icons
 	ImFontConfig mdConfig;
@@ -187,6 +188,10 @@ void ImGuiEx::ConfigureFonts()
 
 	// add default proggy clean font as a secondary font
 	ConsoleFont = io.Fonts->AddFontDefault();
+
+	// a large text font for headings.
+	LargeTextFont = io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
+		GetRobotoRegularCompressedSize(), 22);
 }
 
 //----------------------------------------------------------------------------
@@ -312,4 +317,14 @@ std::string_view LoadResource(int resourceId)
 	}
 
 	return ret;
+}
+
+bool ImGuiEx::ColoredButton(const char* text, const ImVec2& size, float hue)
+{
+	ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(hue, 0.6f, 0.6f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(hue, 0.7f, 0.7f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(hue, 0.8f, 0.8f));
+	bool clicked = ImGui::Button(text, size);
+	ImGui::PopStyleColor(3);
+	return clicked;
 }

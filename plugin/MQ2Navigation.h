@@ -80,6 +80,7 @@ struct NavigationOptions
 	float distance = 0.f;          // distance to target
 	bool lineOfSight = true;       // does target need to be in los
 	bool paused = false;           // pathing is paused
+	bool track = true;            // if spawn is to be tracked
 
 	// set a new default log level while the path is running. info is the default.
 	spdlog::level::level_enum logLevel = spdlog::level::info;
@@ -98,6 +99,8 @@ struct DestinationInfo
 	ClickType clickType = ClickType::None;
 	HeightType heightType = HeightType::Explicit;
 	NavigationOptions options;
+	std::string waypoint;
+	bool isTarget = false;
 
 	bool valid = false;
 };
@@ -150,6 +153,8 @@ public:
 	void Plugin_SetGameState(DWORD GameState);
 	void Plugin_OnAddGroundItem(PGROUNDITEM pGroundItem);
 	void Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem);
+	void Plugin_OnAddSpawn(PSPAWNINFO pSpawn);
+	void Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn);
 
 	bool IsInitialized() const { return m_initialized; }
 	bool InitializationFailed() const { return m_initializationFailed; }
@@ -273,6 +278,7 @@ private:
 	// whether the current path is active or not
 	bool m_isActive = false;
 	glm::vec3 m_currentWaypoint;
+	bool m_requestStop = false;
 
 	// if paused, path will not be followed
 	bool m_isPaused = false;

@@ -265,7 +265,7 @@ void NavMeshRenderer::OnUpdateUI()
 		g_mq2Nav->Get<NavMeshLoader>()->LoadNavMesh();
 	}
 
-	ImGui::Checkbox("Show navmesh", &m_enabled);
+	ImGui::Checkbox("Render Navigation Mesh", &m_enabled);
 
 	if (m_enabled && m_loading)
 	{

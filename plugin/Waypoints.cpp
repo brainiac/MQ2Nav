@@ -5,6 +5,8 @@
 #include "pch.h"
 #include "Waypoints.h"
 
+#include "common/Utilities.h"
+
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
@@ -68,7 +70,7 @@ void LoadWaypoints(int zoneId)
 		return;
 	}
 
-	SPDLOG_INFO("Loading waypoints for zone: {}", g_shortZone);
+	SPDLOG_DEBUG("Loading waypoints for zone: {}", g_shortZone);
 
 	CHAR pchKeys[MAX_STRING * 10] = { 0 };
 	CHAR pchValue[MAX_STRING];
@@ -217,16 +219,6 @@ void DrawSplitter(bool split_vertically, float thickness, float* size0, float* s
 	ImGui::SetCursorPos(backup_pos);
 }
 
-bool ColoredButton(const char* text, const ImVec2& size, float hue)
-{
-	ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(hue, 0.6f, 0.6f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(hue, 0.7f, 0.7f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(hue, 0.8f, 0.8f));
-	bool clicked = ImGui::Button(text, size);
-	ImGui::PopStyleColor(3);
-	return clicked;
-}
-
 void RenderWaypointsUI()
 {
 	PSPAWNINFO pCharacterSpawn = GetCharInfo() ? GetCharInfo()->pSpawn : nullptr;
@@ -357,7 +349,7 @@ void RenderWaypointsUI()
 		// Bottom of Right Pane
 		//
 
-		if (ColoredButton("Save", ImVec2(60, 0), 0.28f))
+		if (ImGuiEx::ColoredButton("Save", ImVec2(60, 0), 0.28f))
 		{
 			std::string newName = editWaypointName;
 			if (!newName.empty())
@@ -387,7 +379,7 @@ void RenderWaypointsUI()
 		}
 		ImGui::SameLine();
 
-		if (ColoredButton("Delete", ImVec2(60, 0), 0.0))
+		if (ImGuiEx::ColoredButton("Delete", ImVec2(60, 0), 0.0))
 		{
 			if (DeleteWaypoint(editWaypoint.name))
 			{

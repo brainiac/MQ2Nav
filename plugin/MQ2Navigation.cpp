@@ -433,6 +433,34 @@ void MQ2NavigationPlugin::Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 	if (m_pEndingItem == pGroundItem)
 	{
 		m_pEndingItem = nullptr;
+
+		if (m_isActive)
+		{
+			auto info = m_activePath->GetDestinationInfo();
+
+			if (info->pGroundItem == pGroundItem)
+			{
+				info->pGroundItem = nullptr;
+			}
+		}
+	}
+}
+
+void MQ2NavigationPlugin::Plugin_OnAddSpawn(PSPAWNINFO pSpawn)
+{
+}
+
+void MQ2NavigationPlugin::Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn)
+{
+	// if the spawn is the current destination target we should clear i.t
+	if (m_isActive)
+	{
+		auto info = m_activePath->GetDestinationInfo();
+
+		if (info->pSpawn == pSpawn)
+		{
+			info->pSpawn = nullptr;
+		}
 	}
 }
 
@@ -573,9 +601,11 @@ static void DoHelp()
 	WriteChatf(PLUGIN_MSG "\ag/nav pause\ax - pause navigation");
 	WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
 	WriteChatf(PLUGIN_MSG "Options can be provided to navigation commands to alter their behavior.");
-	WriteChatf(PLUGIN_MSG "  distance=\ay<num>\ax - set the distance to navigate from the destination.");
-	WriteChatf(PLUGIN_MSG "  los=\ay<on/off>\ax - when using distance, require visibility of target. Default is \ayon\ax");
-	WriteChatf(PLUGIN_MSG "  log=\ay<level>\ax - adjust log level for command. can be \aytrace\ax, \aydebug\ax, \ayinfo\ax, \aywarning\ax, \ayerror\ax, \aycritical\ax or \ayoff\ax. The default is \ayinfo.");
+	WriteChatf(PLUGIN_MSG "  \aydistance=<num>\ax - set the distance to navigate from the destination. shortcut: \agdist\ax");
+	WriteChatf(PLUGIN_MSG "  \aylineofsight=<on/off>\ax - when using distance, require visibility of target. Default is \ayon\ax. shortcut: \aglos\ax");
+	WriteChatf(PLUGIN_MSG "  \aylog=<level>\ax - adjust log level for command. can be \aytrace\ax, \aydebug\ax, \ayinfo\ax, \aywarning\ax, \ayerror\ax, \aycritical\ax or \ayoff\ax. The default is \ayinfo.");
+	WriteChatf(PLUGIN_MSG "  \aypaused\ax - start navigation in a paused state.");
+	WriteChatf(PLUGIN_MSG "  \aynotrack\ax - disable tracking of spawn movement. By default, when navigating to a spawn, the destination location will track the spawn's position. This disables that behavior.");
 
 	// NYI:
 	//WriteChatf(PLUGIN_MSG "\ag/nav options set \ay[options]\ax - save options as defaults");
@@ -766,7 +796,8 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	if (!destInfo->valid)
 		return;
 
-	if (!Get<NavMesh>()->IsNavMeshLoaded())
+	auto mesh = Get<NavMesh>();
+	if (!mesh->IsNavMeshLoaded())
 	{
 		SPDLOG_ERROR("Cannot navigate - no mesh file loaded.");
 		return;
@@ -781,6 +812,35 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	}
 
 	m_activePath = std::make_shared<NavigationPath>(destInfo);
+
+	// resolve the height parameter of a 2d coordinate
+	if (destInfo && destInfo->heightType == HeightType::Nearest)
+	{
+		glm::vec3 transformed = destInfo->eqDestinationPos.xzy();
+		auto heights = mesh->GetHeights(transformed);
+
+		// disable logging for these calculations
+		ScopedLogLevel logScope{ *m_chatSink, spdlog::level::off };
+
+		// we don't actually want to calculate the path at the current height since there
+		// is no guarantee it is on the mesh
+		float current_distance = std::numeric_limits<float>().max();
+
+		// create a destination location out of the given x/y coordinate and each z coordinate
+		// that was hit at that location. Calculate the length of each and take the z coordinate that
+		// creates the shortest path.
+		for (auto height : heights)
+		{
+			float current_height = destInfo->eqDestinationPos.z;
+			destInfo->eqDestinationPos.z = height;
+
+			if (!m_activePath->FindPath() || m_activePath->GetPathTraversalDistance() > current_distance)
+			{
+				destInfo->eqDestinationPos.z = current_height;
+			} // else leave it, it's a better height
+		}
+	}
+
 	if (m_activePath->FindPath())
 	{
 		m_activePath->SetShowNavigationPaths(nav::GetSettings().show_nav_path);
@@ -934,12 +994,25 @@ void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 
 void MQ2NavigationPlugin::AttemptMovement()
 {
+	if (m_requestStop)
+	{
+		Stop();
+	}
+
 	if (m_isActive)
 	{
 		clock::time_point now = clock::now();
 
 		if (now - m_pathfindTimer > std::chrono::milliseconds(PATHFINDING_DELAY_MS))
 		{
+			auto info = m_activePath->GetDestinationInfo();
+			if (info->type == DestinationType::Spawn
+				&& info->pSpawn != nullptr
+				&& info->options.track)
+			{
+				info->eqDestinationPos = GetSpawnPosition(info->pSpawn);
+			}
+			
 			// update path
 			m_activePath->UpdatePath(false, true);
 			m_isActive = m_activePath->GetPathSize() > 0;
@@ -1142,6 +1215,8 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			result->pSpawn = target;
 			result->eqDestinationPos = GetSpawnPosition(target);
 			result->valid = true;
+			result->isTarget = true;
+			result->type = DestinationType::Spawn;
 
 			SPDLOG_INFO("Navigating to target: {}", target->Name);
 		}
@@ -1269,8 +1344,9 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 			result->type = DestinationType::Waypoint;
 			result->eqDestinationPos = { wp.location.x, wp.location.y, wp.location.z };
 			result->valid = true;
+			result->waypoint = wp.name;
 
-			SPDLOG_INFO("Navigating to waypoit: {}", buffer);
+			SPDLOG_INFO("Navigating to waypoint: {}", buffer);
 		}
 		else
 		{
@@ -1402,6 +1478,10 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 			{
 				options.paused = true;
 			}
+			else if (key == "notrack")
+			{
+				options.track = false;
+			}
 		}
 		catch (const std::exception& ex)
 		{
@@ -1471,6 +1551,7 @@ void MQ2NavigationPlugin::ResetPath()
 	m_mapLine->SetNavigationPath(nullptr);
 	m_isActive = false;
 	m_isPaused = false;
+	m_requestStop = false;
 	m_chatSink->set_level(spdlog::level::info);
 
 	Get<SwitchHandler>()->SetActive(false);
@@ -1489,44 +1570,165 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 	{
 		ImGui::TextColored(ImColor(255, 255, 0), "Type /nav ui to toggle this window");
 
+		auto navmeshRenderer = Get<NavMeshRenderer>();
+		navmeshRenderer->OnUpdateUI();
+
 		// myPos = EQ coordinate
 		glm::vec3 myPos = GetMyPosition();
 
 		{
 			// print /LOC coordinate (flipped yx)
 			glm::vec3 locMyPos = EQtoLOC(myPos);
-			ImGui::Text("Loc: %.2f %.2f %.2f", locMyPos.x, locMyPos.y, locMyPos.z);
-		}
-
-		if (ImGui::Checkbox("Pause navigation", &m_isPaused))
-		{
-			if (m_isPaused)
+			ImGui::Text("Current Position:"); ImGui::SameLine();
 			{
-				TrueMoveOff(APPLY_TO_ALL);
+				//ImGui::PushFont(ImGuiEx::ConsoleFont);
+				ImGui::Text("%.2f %.2f %.2f", locMyPos.x, locMyPos.y, locMyPos.z);
+				//ImGui::PopFont();
 			}
 		}
 
-		ImGui::Separator();
-
-		auto navmeshRenderer = Get<NavMeshRenderer>();
-		navmeshRenderer->OnUpdateUI();
-		
 		ImGui::NewLine();
 
-		RenderPathList();
+		ImGui::PushFont(ImGuiEx::LargeTextFont);
+		ImGui::TextColored(ImColor(29, 171, 255), "Navigation State");
+		ImGui::PopFont();
+		ImGui::Separator();
+
+
+		if (m_isActive)
+		{
+			auto info = m_activePath->GetDestinationInfo();
+
+			ImGui::TextColored(ImColor(255, 255, 0), "Active:");
+			ImGui::SameLine();
+			//ImGui::PushFont(ImGuiEx::ConsoleFont);
+			ImGui::TextColored(ImColor(255, 255, 0), ("/nav " + info->command).c_str());
+			//ImGui::PopFont();
+
+			switch (info->type)
+			{
+			case DestinationType::Waypoint:
+				ImGui::Text("Navigating to waypoint:"); ImGui::SameLine();
+				ImGui::TextColored(ImColor(0, 255, 0), info->waypoint.c_str());
+				break;
+
+			case DestinationType::Spawn:
+				if (info->isTarget)
+					ImGui::Text("Navigating to target:");
+				else
+					ImGui::Text("Navigating to spawn:");
+				ImGui::SameLine();
+
+				if (info->pSpawn)
+					ImGui::TextColored(ImColor(0, 255, 0), info->pSpawn->Name);
+				else
+					ImGui::TextColored(ImColor(255, 0, 0), "*despawned*");
+
+				break;
+
+			case DestinationType::Door:
+				ImGui::Text("Navigating to object:"); ImGui::SameLine();
+				ImGui::TextColored(ImColor(0, 255, 0), info->pDoor->Name);
+				break;
+
+			case DestinationType::GroundItem:
+				ImGui::Text("Navigating to object:"); ImGui::SameLine();
+				ImGui::TextColored(ImColor(0, 255, 0), info->pGroundItem->Name);
+				break;
+
+			case DestinationType::Location:
+			default:
+				ImGui::Text("Navigating to location:"); ImGui::SameLine();
+				{
+					//ImGui::PushFont(ImGuiEx::ConsoleFont);
+					auto& pos = info->eqDestinationPos;
+					ImGui::TextColored(ImColor(0, 255, 0), "%.2f %.2f %.2f", pos.x, pos.y, pos.z);
+					//ImGui::PopFont();
+				}
+				break;
+			}
+
+			float traversalDist = m_activePath->GetPathTraversalDistance();
+			ImGui::Text("Distance to target: %.2f", traversalDist);
+
+			if (ImGuiEx::ColoredButton("Stop Navigation", ImVec2(0, 0), 0.0))
+			{
+				m_requestStop = true;
+			}
+			ImGui::SameLine();
+
+			if (ImGui::Checkbox("Paused", &m_isPaused))
+			{
+				if (m_isPaused)
+				{
+					TrueMoveOff(APPLY_TO_ALL);
+				}
+			}
+
+			ImGui::NewLine();
+
+			// target = EQ coordinate
+			const glm::vec3& eqDestinationPos = info->eqDestinationPos;
+
+			{
+				// print /LOC coordinate (flipped yx)
+				glm::vec3 locMyPos = EQtoLOC(eqDestinationPos);
+				ImGui::Text("Target position:"); ImGui::SameLine();
+				{
+					//ImGui::PushFont(ImGuiEx::ConsoleFont);
+					ImGui::Text("%.2f %.2f %.2f", locMyPos.x, locMyPos.y, locMyPos.z);
+					//ImGui::PopFont();
+				}
+			}
+
+			float distance = glm::distance(myPos, eqDestinationPos);
+			ImGui::Text("Straight distance: %.2f", distance);
+
+			ImGui::NewLine();
+
+			//static bool showNavOptions = true;
+			//ImGui::SetNextTreeNodeOpen(showNavOptions);
+			//if (showNavOptions = ImGui::CollapsingHeader("Navigation Options"))
+			{
+				ImGui::TextColored(ImColor(29, 171, 255), "Navigation Options");
+				ImGui::Separator();
+
+				ImGui::InputFloat("Desired distance", &info->options.distance);
+				//ImGui::Checkbox("Target LoS", &info.options.lineOfSight);
+
+				// log level
+				ImGui::Combo("Log level", (int*)&info->options.logLevel,
+					[](void* data, int idx, const char** out_text) -> bool
+				{
+					*out_text = spdlog::level::level_string_views[idx].data();
+					return true;
+				}, nullptr, 7);
+
+				if (info->type == DestinationType::Spawn)
+				{
+					ImGui::Checkbox("Track target movement", &info->options.track);
+				}
+			}
+			ImGui::NewLine();
+			RenderPathList();
+		}
+		else
+		{
+			ImGui::TextColored(ImColor(127, 127, 127), "No active navigation");
+		}
 	}
 }
 
 void MQ2NavigationPlugin::RenderPathList()
 {
 	int count = (m_activePath ? m_activePath->GetPathSize() : 0);
-	ImGui::Text("Path Nodes (%d)", count);
+	ImGui::TextColored(ImColor(29, 171, 255), "Path Nodes (%d)", count);
 
 	// Show minimum of 3, max of ~100px worth of lines.
 	float spacing = ImGui::GetTextLineHeightWithSpacing() + 2;
 
 	ImGui::BeginChild("PathNodes", ImVec2(0,
-		spacing * std::clamp<float>(count, 3, 8)), true);
+		spacing * std::clamp<float>(count, 3, 6)), true);
 	ImGui::Columns(3);
 	ImGui::SetColumnWidth(0, 30);
 	ImGui::SetColumnWidth(1, 30);
@@ -1571,12 +1773,16 @@ void MQ2NavigationPlugin::RenderPathList()
 		}
 
 		ImGui::NextColumn();
+		ImGui::PushFont(ImGuiEx::ConsoleFont);
 
-		ImGui::TextColored(color, "%04d: (%.2f, %.2f, %.2f)", i,
+		ImGui::TextColored(color, "%04d: %.2f, %.2f, %.2f", i,
 			pos[0], pos[1], pos[2]);
+
+		ImGui::PopFont();
 		ImGui::NextColumn();
 
 	}
+
 	ImGui::Columns(2);
 	ImGui::EndChild();
 }

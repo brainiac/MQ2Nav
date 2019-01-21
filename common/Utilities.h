@@ -5,8 +5,8 @@
 #pragma once
 
 // misc. utilities to help out here and there
-
 #include <glm/glm.hpp>
+#include <imgui.h>
 
 #include <cstdint>
 #include <functional>
@@ -27,11 +27,14 @@ namespace ImGuiEx
 	extern ImFont* DefaultFont;
 	extern ImFont* LargeIconFont;
 	extern ImFont* ConsoleFont;
+	extern ImFont* LargeTextFont;
 
 	void CenteredSeparator(float width = 0);
 	void SameLineSeparator(float width = 0);
 	void PreSeparator(float width);
 	void TextSeparator(char* text, float pre_width = 10.0f);
+
+	bool ColoredButton(const char* text, const ImVec2& size, float hue);
 }
 
 //----------------------------------------------------------------------------
