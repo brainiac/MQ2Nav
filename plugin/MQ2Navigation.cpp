@@ -192,7 +192,7 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
 #endif
 	spdlog::set_default_logger(logger);
 	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v (%@)");
-	spdlog::flush_every(std::chrono::seconds{ 5 });
+	spdlog::flush_on(spdlog::level::debug);
 }
 
 MQ2NavigationPlugin::~MQ2NavigationPlugin()
