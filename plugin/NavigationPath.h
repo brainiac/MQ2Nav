@@ -101,7 +101,10 @@ public:
 
 	inline glm::vec3 GetNextPosition() const
 	{
-		return GetPosition(m_currentPath->cursor);
+		if (m_currentPath->cursor < m_currentPath->length)
+			return GetPosition(m_currentPath->cursor);
+
+		return glm::vec3{};
 	}
 
 	// get the coordinates of a point in a raw float3 form
@@ -124,10 +127,6 @@ public:
 	}
 
 	void Increment();
-
-	inline const float* GetCurrentPath() const {
-		return GetRawPosition(0);
-	}
 
 	// render path is a list of node indexes into the current
 	// path that should be used to render current path. index of
