@@ -790,6 +790,12 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	m_mapLine->SetNavigationPath(m_activePath.get());
 	Get<SwitchHandler>()->SetActive(m_isActive);
 
+	// check if we start paused.
+	if (destInfo->options.paused)
+	{
+		m_isPaused = true;
+	}
+
 	if (m_isActive)
 	{
 		EzCommand("/squelch /stick off");
@@ -1364,27 +1370,37 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 
 		try
 		{
+			std::string key, value;
+
 			auto eqPos = arg.find_first_of("=", 0);
 			if (eqPos != std::string_view::npos)
 			{
-				std::string key{ arg.substr(0, eqPos) };
-				std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+				key = arg.substr(0, eqPos);
+				value = arg.substr(eqPos + 1);
+			}
+			else
+			{
+				key = std::string{ arg };
+			}
 
-				std::string_view value = arg.substr(eqPos + 1);
+			std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 
-				if (key == "distance")
-				{
-					options.distance = boost::lexical_cast<int>(value);
-				}
-				else if (key == "los")
-				{
-					options.lineOfSight = to_bool(std::string{ value });
-				}
-				else if (key == "log")
-				{
-					// this was already parsed previously, but whatever we'll do it again!
-					options.logLevel = spdlog::level::from_str(std::string{ value });
-				}
+			if (key == "distance" || key == "dist")
+			{
+				options.distance = boost::lexical_cast<int>(value);
+			}
+			else if (key == "los" || key == "lineofsight")
+			{
+				options.lineOfSight = to_bool(std::string{ value });
+			}
+			else if (key == "log")
+			{
+				// this was already parsed previously, but whatever we'll do it again!
+				options.logLevel = spdlog::level::from_str(std::string{ value });
+			}
+			else if (key == "paused")
+			{
+				options.paused = true;
 			}
 		}
 		catch (const std::exception& ex)
