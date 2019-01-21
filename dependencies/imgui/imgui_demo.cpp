@@ -1,4 +1,4 @@
-// dear imgui, v1.67 WIP
+// dear imgui, v1.67
 // (demo code)
 
 // Message to the person tempted to delete this file when integrating Dear ImGui into their code base:
@@ -70,6 +70,10 @@ Index of this file:
 #pragma clang diagnostic ignored "-Wint-to-void-pointer-cast"   // warning : cast to 'void *' from smaller integer type 'int'
 #pragma clang diagnostic ignored "-Wformat-security"            // warning : warning: format string is not a string literal
 #pragma clang diagnostic ignored "-Wexit-time-destructors"      // warning : declaration requires an exit-time destructor       // exit-time destruction order is undefined. if MemFree() leads to users code that has been disabled before exit it might cause problems. ImGui coding style welcomes static/globals.
+#pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"  // warning : zero as null pointer constant                  // some standard header variations use #define NULL 0
+#if __has_warning("-Wdouble-promotion")
+#pragma clang diagnostic ignored "-Wdouble-promotion"           // warning: implicit conversion from 'float' to 'double' when passing argument to function  // using printf() is a misery with this as C++ va_arg ellipsis changes float to double.
+#endif
 #if __has_warning("-Wreserved-id-macro")
 #pragma clang diagnostic ignored "-Wreserved-id-macro"          // warning : macro name is a reserved identifier                //
 #endif
@@ -480,7 +484,7 @@ static void ShowDemoWindowWidgets()
             ImGui::SameLine(); ShowHelpMarker("You can apply arithmetic operators +,*,/ on numerical values.\n  e.g. [ 100 ], input \'*2\', result becomes [ 200 ]\nUse +- to subtract.\n");
 
             static float f0 = 0.001f;
-            ImGui::InputFloat("input float", &f0, 0.01f, 1.0f);
+            ImGui::InputFloat("input float", &f0, 0.01f, 1.0f, "%.3f");
 
             static double d0 = 999999.00000001;
             ImGui::InputDouble("input double", &d0, 0.01f, 1.0f, "%.8f");
@@ -1979,7 +1983,7 @@ static void ShowDemoWindowLayout()
         {
             ImGui::BeginChild("scrolling"); // Demonstrate a trick: you can use Begin to set yourself in the context of another window (here we are already out of your child window)
             ImGui::SetScrollX(ImGui::GetScrollX() + scroll_x_delta);
-            ImGui::End();
+            ImGui::EndChild();
         }
         ImGui::TreePop();
     }
@@ -1988,7 +1992,7 @@ static void ShowDemoWindowLayout()
     {
         static ImVec2 size(100, 100), offset(50, 20);
         ImGui::TextWrapped("On a per-widget basis we are occasionally clipping text CPU-side if it won't fit in its frame. Otherwise we are doing coarser clipping + passing a scissor rectangle to the renderer. The system is designed to try minimizing both execution and CPU/GPU rendering cost.");
-        ImGui::DragFloat2("size", (float*)&size, 0.5f, 0.0f, 200.0f, "%.0f");
+        ImGui::DragFloat2("size", (float*)&size, 0.5f, 1.0f, 200.0f, "%.0f");
         ImGui::TextWrapped("(Click and drag)");
         ImVec2 pos = ImGui::GetCursorScreenPos();
         ImVec4 clip_rect(pos.x, pos.y, pos.x + size.x, pos.y + size.y);
@@ -3375,10 +3379,15 @@ struct ExampleAppLog
 {
     ImGuiTextBuffer     Buf;
     ImGuiTextFilter     Filter;
-    ImVector<int>       LineOffsets;        // Index to lines offset
+    ImVector<int>       LineOffsets;        // Index to lines offset. We maintain this with AddLog() calls, allowing us to have a random access on lines
     bool                ScrollToBottom;
 
-    void    Clear()     { Buf.clear(); LineOffsets.clear(); }
+    void    Clear() 
+    { 
+        Buf.clear(); 
+        LineOffsets.clear(); 
+        LineOffsets.push_back(0);
+    }
 
     void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
     {
@@ -3389,13 +3398,12 @@ struct ExampleAppLog
         va_end(args);
         for (int new_size = Buf.size(); old_size < new_size; old_size++)
             if (Buf[old_size] == '\n')
-                LineOffsets.push_back(old_size);
+                LineOffsets.push_back(old_size + 1);
         ScrollToBottom = true;
     }
 
     void    Draw(const char* title, bool* p_open = NULL)
     {
-        ImGui::SetNextWindowSize(ImVec2(500,400), ImGuiCond_FirstUseEver);
         if (!ImGui::Begin(title, p_open))
         {
             ImGui::End();
@@ -3408,24 +3416,47 @@ struct ExampleAppLog
         Filter.Draw("Filter", -100.0f);
         ImGui::Separator();
         ImGui::BeginChild("scrolling", ImVec2(0,0), false, ImGuiWindowFlags_HorizontalScrollbar);
-        if (copy) ImGui::LogToClipboard();
+        if (copy)
+            ImGui::LogToClipboard();
 
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+        const char* buf = Buf.begin();
+        const char* buf_end = Buf.end();
         if (Filter.IsActive())
         {
-            const char* buf_begin = Buf.begin();
-            const char* line = buf_begin;
-            for (int line_no = 0; line != NULL; line_no++)
+            for (int line_no = 0; line_no < LineOffsets.Size; line_no++)
             {
-                const char* line_end = (line_no < LineOffsets.Size) ? buf_begin + LineOffsets[line_no] : NULL;
-                if (Filter.PassFilter(line, line_end))
-                    ImGui::TextUnformatted(line, line_end);
-                line = line_end && line_end[1] ? line_end + 1 : NULL;
+                const char* line_start = buf + LineOffsets[line_no];
+                const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+                if (Filter.PassFilter(line_start, line_end))
+                    ImGui::TextUnformatted(line_start, line_end);
             }
         }
         else
         {
-            ImGui::TextUnformatted(Buf.begin());
+            // The simplest and easy way to display the entire buffer:
+            //   ImGui::TextUnformatted(buf_begin, buf_end); 
+            // And it'll just work. TextUnformatted() has specialization for large blob of text and will fast-forward to skip non-visible lines.
+            // Here we instead demonstrate using the clipper to only process lines that are within the visible area.
+            // If you have tens of thousands of items and their processing cost is non-negligible, coarse clipping them on your side is recommended.
+            // Using ImGuiListClipper requires A) random access into your data, and B) items all being the  same height, 
+            // both of which we can handle since we an array pointing to the beginning of each line of text.
+            // When using the filter (in the block of code above) we don't have random access into the data to display anymore, which is why we don't use the clipper.
+            // Storing or skimming through the search result would make it possible (and would be recommended if you want to search through tens of thousands of entries)
+            ImGuiListClipper clipper;
+            clipper.Begin(LineOffsets.Size);
+            while (clipper.Step())
+            {
+                for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+                {
+                    const char* line_start = buf + LineOffsets[line_no];
+                    const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+                    ImGui::TextUnformatted(line_start, line_end);
+                }
+            }
+            clipper.End();
         }
+        ImGui::PopStyleVar();
 
         if (ScrollToBottom)
             ImGui::SetScrollHereY(1.0f);
@@ -3440,15 +3471,23 @@ static void ShowExampleAppLog(bool* p_open)
 {
     static ExampleAppLog log;
 
-    // Demo: add random items (unless Ctrl is held)
-    static double last_time = -1.0;
-    double time = ImGui::GetTime();
-    if (time - last_time >= 0.20f && !ImGui::GetIO().KeyCtrl)
+    // For the demo: add a debug button before the normal log window contents
+    // We take advantage of the fact that multiple calls to Begin()/End() are appending to the same window.
+    ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Example: Log", p_open);
+    if (ImGui::SmallButton("Add 5 entries"))
     {
-        const char* random_words[] = { "system", "info", "warning", "error", "fatal", "notice", "log" };
-        log.AddLog("[%s] Hello, time is %.1f, frame count is %d\n", random_words[rand() % IM_ARRAYSIZE(random_words)], time, ImGui::GetFrameCount());
-        last_time = time;
+        static int counter = 0;
+        for (int n = 0; n < 5; n++)
+        {
+            const char* categories[3] = { "info", "warn", "error" };
+            const char* words[] = { "Bumfuzzled", "Cattywampus", "Snickersnee", "Abibliophobia", "Absquatulate", "Nincompoop", "Pauciloquent" };
+            log.AddLog("[%05d] [%s] Hello, current time is %.1f, here's a word: '%s'\n", 
+                ImGui::GetFrameCount(), categories[counter % IM_ARRAYSIZE(categories)], ImGui::GetTime(), words[counter % IM_ARRAYSIZE(words)]);
+            counter++;
+        }
     }
+    ImGui::End();
 
     log.Draw("Example: Log", p_open);
 }
@@ -3992,7 +4031,7 @@ void ShowExampleAppDocuments(bool* p_open)
 {
     static ExampleAppDocuments app;
 
-    if (!ImGui::Begin("Examples: Documents", p_open, ImGuiWindowFlags_MenuBar))
+    if (!ImGui::Begin("Example: Documents", p_open, ImGuiWindowFlags_MenuBar))
     {
         ImGui::End();
         return;

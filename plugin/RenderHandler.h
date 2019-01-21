@@ -34,7 +34,8 @@ private:
 	void CreateDeviceObjects();
 	void InvalidateDeviceObjects();
 
-	void PerformRender(Renderable::RenderPhase phase);
+	void PerformRender();
+	void PerformImGuiRender();
 
 private:
 	bool m_deviceAcquired = false; // implies that g_pDevice is valid to use

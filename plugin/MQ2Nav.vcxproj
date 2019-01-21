@@ -95,12 +95,13 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="imgui\imgui_impl_dx9.cpp" />
+    <ClCompile Include="imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SwitchHandler.cpp" />
-    <ClCompile Include="ImGuiDX9.cpp" />
     <ClCompile Include="ImGuiRenderer.cpp" />
     <ClCompile Include="KeybindHandler.cpp" />
     <ClCompile Include="MapAPI.cpp" />
@@ -122,8 +123,9 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <ClInclude Include="..\PluginAPI.h" />
     <ClInclude Include="DebugDrawDX.h" />
     <ClInclude Include="EmbedResources.h" />
-    <ClInclude Include="ImGuiDX9.h" />
     <ClInclude Include="ImGuiRenderer.h" />
+    <ClInclude Include="imgui\imgui_impl_dx9.h" />
+    <ClInclude Include="imgui\imgui_impl_win32.h" />
     <ClInclude Include="KeybindHandler.h" />
     <ClInclude Include="MapAPI.h" />
     <ClInclude Include="ModelLoader.h" />

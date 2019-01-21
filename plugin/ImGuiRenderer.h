@@ -26,30 +26,23 @@ public:
 	ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device);
 	~ImGuiRenderer();
 
-	// Does some drawing commands
-	void DrawUI();
-
-	virtual void InvalidateDeviceObjects() override;
-	virtual bool CreateDeviceObjects() override;
-	virtual void Render(RenderPhase phase) override;
+	void ImGuiRender();
 
 	void SetVisible(bool visible);
+	bool IsReady() const { return m_imguiReady; }
 
 	// add a signal to do ui stuff
 	Signal<> OnUpdateUI;
 
 private:
+	virtual void InvalidateDeviceObjects() override;
+	virtual bool CreateDeviceObjects() override;
+
+private:
 	// indicates whether imgui is ready to be used
 	bool m_imguiReady = false;
-
 	bool m_visible = true;
 
 	// we're holding onto the device, we need to maintain a refcount
 	IDirect3DDevice9* m_pDevice = nullptr;
-
-	// fps counter
-	std::vector<float> m_renderFrameRateHistory;
-	std::chrono::system_clock::time_point m_prevHistoryPoint;
-
-	std::string m_iniFileName;
 };

@@ -164,11 +164,8 @@ void RenderList::End()
 {
 }
 
-void RenderList::Render(Renderable::RenderPhase phase)
+void RenderList::Render()
 {
-	if (phase != Renderable::Render_Geometry)
-		return;
-
 	GenerateBuffers();
 
 	if (!m_pVB || !m_pIB)

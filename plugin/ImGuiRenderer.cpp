@@ -5,36 +5,43 @@
 #include "pch.h"
 #include "ImGuiRenderer.h"
 
-#include "plugin/ImGuiDX9.h"
 #include "plugin/MQ2Navigation.h"
 #include "plugin/PluginHooks.h"
 #include "plugin/RenderHandler.h"
+#include "plugin/imgui/imgui_impl_dx9.h"
+#include "plugin/imgui/imgui_impl_win32.h"
 #include "common/Utilities.h"
 
+#include <fmt/format.h>
 #include <imgui.h>
 #include <imgui/custom/imgui_user.h>
 #include <imgui/custom/imgui_utils.h>
 
 //----------------------------------------------------------------------------
 
+// needs to be global, its referenced by imgui
+char ImGuiSettingsFile[MAX_PATH] = { 0 };
+
 ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
 	: m_pDevice(device)
 {
-	// Iniialize the ImGui overlay
-	ImGui_ImplDX9_Init(eqhwnd, device);
+	m_pDevice->AddRef();
 
+	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 
-	m_iniFileName = std::string(gszINIPath) + "\\MQ2NavUI.ini";
-	io.IniFilename = m_iniFileName.c_str();
+	// TODO: Set optional io.ConfigFlags values, e.g. 'io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard' to enable keyboard controls.
+	// TODO: Fill optional fields of the io structure later.
+	// TODO: Load TTF/OTF fonts if you don't want to use the default font.
+	fmt::format_to(ImGuiSettingsFile, "{}\\MQ2NavUI.ini", gszINIPath);
+	io.IniFilename = &ImGuiSettingsFile[0];
+
+	// Initialize helper Platform and Renderer bindings
+	ImGui_ImplWin32_Init(eqhwnd);
+	ImGui_ImplDX9_Init(device);
 
 	ImGui::SetupImGuiStyle(true, 0.7f);
 	ImGuiEx::ConfigureFonts();
-
-	m_pDevice->AddRef();
-
-	m_prevHistoryPoint = std::chrono::system_clock::now();
-	m_renderFrameRateHistory.clear();
 
 	g_renderHandler->AddRenderable(this);
 }
@@ -43,10 +50,11 @@ ImGuiRenderer::~ImGuiRenderer()
 {
 	g_renderHandler->RemoveRenderable(this);
 
-	InvalidateDeviceObjects();
-
 	// Cleanup the ImGui overlay
 	ImGui_ImplDX9_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+
+	ImGui::DestroyContext();
 
 	m_pDevice->Release();
 	m_pDevice = nullptr;
@@ -55,7 +63,6 @@ ImGuiRenderer::~ImGuiRenderer()
 void ImGuiRenderer::InvalidateDeviceObjects()
 {
 	m_imguiReady = false;
-
 	ImGui_ImplDX9_InvalidateDeviceObjects();
 }
 
@@ -64,26 +71,26 @@ bool ImGuiRenderer::CreateDeviceObjects()
 	return m_imguiReady = ImGui_ImplDX9_CreateDeviceObjects();
 }
 
-void ImGuiRenderer::Render(RenderPhase phase)
+void ImGuiRenderer::ImGuiRender()
 {
-	if (phase != Render_UI)
-		return;
 	if (!m_visible)
 		return;
 
-	if (m_imguiReady)
-	{
-		// don't draw ui if we're not in game, but also
-		// do call render so we keep the imgui input state clear.
-		if (gGameState == GAMESTATE_INGAME)
-		{
-			if (ImGui_ImplDX9_NewFrame())
-			{
-				DrawUI();
-				ImGui::Render();
-			}
-		}
-	}
+	if (!m_imguiReady)
+		return;
+	//if (gGameState != GAMESTATE_INGAME)
+	//	return;
+
+	ImGui_ImplDX9_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	// call the OnUpdateUI signal.
+	OnUpdateUI();
+
+	// Render the ui
+	ImGui::Render();
+	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 }
 
 void ImGuiRenderer::SetVisible(bool visible)
@@ -92,164 +99,3 @@ void ImGuiRenderer::SetVisible(bool visible)
 }
 
 //----------------------------------------------------------------------------
-
-void RenderInputUI();
-
-static void DrawMatrix(D3DXMATRIX& matrix, const char* name)
-{
-	if (ImGui::CollapsingHeader(name, 0, ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		ImGui::Columns(4, name);
-		ImGui::Separator();
-		for (int row = 0; row < 4; row++)
-		{
-			for (int col = 0; col < 4; col++)
-			{
-				FLOAT f = matrix(row, col);
-
-				char label[32] = { 0 };
-				sprintf_s(label, "%.2f", f);
-				ImGui::Text(label); ImGui::NextColumn();
-			}
-		}
-		ImGui::Columns(1);
-	}
-}
-
-void ImGuiRenderer::DrawUI()
-{
-#if 0
-
-	auto now = std::chrono::system_clock::now();
-	if (std::chrono::duration_cast<std::chrono::milliseconds>(now - m_prevHistoryPoint).count() >= 100)
-	{
-		if (m_renderFrameRateHistory.size() > 200) {
-			m_renderFrameRateHistory.erase(m_renderFrameRateHistory.begin(), m_renderFrameRateHistory.begin() + 20);
-		}
-		m_renderFrameRateHistory.push_back(ImGui::GetIO().Framerate);
-		m_prevHistoryPoint = now;
-	}
-
-	// 1. Show a simple window
-	// Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
-	ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiSetCond_Once);
-	ImGui::SetNextWindowSize(ImVec2(325, 700), ImGuiSetCond_Once);
-	ImGui::Begin("Debug");
-	{
-		if (m_renderFrameRateHistory.size() > 0)
-		{
-			ImGui::PlotLines("", &m_renderFrameRateHistory[0], (int)m_renderFrameRateHistory.size(), 0, nullptr, 0.0);
-		}
-
-		ImGui::LabelText("FPS", "%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-		PSPAWNINFO me = GetCharInfo()->pSpawn;
-		if (me)
-		{
-			float rotation = (float)me->Heading / 256.0 * PI;
-			ImGui::LabelText("Position", "%.2f %.2f %.2f", me->X, me->Y, me->Z);
-			ImGui::LabelText("Heading", "%.2f", rotation);
-		}
-
-		RenderInputUI();
-
-		//DrawMatrix(m_worldMatrix, "World Matrix");
-		//DrawMatrix(m_viewMatrix, "View Matrix");
-		//DrawMatrix(m_projMatrix, "Projection Matrix");
-	}
-	ImGui::End();
-#endif
-	OnUpdateUI();
-}
-
-
-void RenderInputUI()
-{
-	return;
-
-	if (ImGui::CollapsingHeader("Keyboard", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		ImGui::Text("Keyboard");
-		ImGui::SameLine();
-
-		if (ImGui::GetIO().WantCaptureKeyboard)
-			ImGui::TextColored(ImColor(0, 255, 0), "Captured");
-		else
-			ImGui::TextColored(ImColor(255, 0, 0), "Not Captured");
-
-		ImGui::LabelText("InputCharacters", "%S", ImGui::GetIO().InputCharacters);
-
-		static char testEdit[256];
-		ImGui::InputText("Test Edit", testEdit, 256);
-	}
-
-	if (ImGui::CollapsingHeader("Mouse", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		ImGui::Text("Position: (%d, %d)", MouseLocation, MouseLocation.y);
-
-		ImGui::Text("Mouse");
-		ImGui::SameLine();
-
-		if (ImGui::GetIO().WantCaptureMouse)
-			ImGui::TextColored(ImColor(0, 255, 0), "Captured");
-		else
-			ImGui::TextColored(ImColor(255, 0, 0), "Not Captured");
-
-		ImGui::Text("Mouse");
-		ImGui::SameLine();
-
-		if (!MouseBlocked)
-			ImGui::TextColored(ImColor(0, 255, 0), "Not Blocked");
-		else
-			ImGui::TextColored(ImColor(255, 0, 0), "Blocked");
-
-		// Clicks? Clicks!
-		PMOUSECLICK clicks = EQADDR_MOUSECLICK;
-
-		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
-		if (ImGui::TreeNode("##clicks", "EQ Mouse Clicks"))
-		{
-			ImGui::Columns(3);
-
-			ImGui::Text("Button"); ImGui::NextColumn();
-			ImGui::Text("Click"); ImGui::NextColumn();
-			ImGui::Text("Confirm"); ImGui::NextColumn();
-
-			for (int i = 0; i < 5; i++)
-			{
-				ImGui::Text("%d", i); ImGui::NextColumn();
-				ImGui::Text("%d", clicks->Click[i]); ImGui::NextColumn();
-				ImGui::Text("%d", clicks->Confirm[i]); ImGui::NextColumn();
-			}
-
-			ImGui::Columns(1);
-			ImGui::TreePop();
-		}
-
-		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
-		if (ImGui::TreeNode("##position", "EQ Mouse State"))
-		{
-			ImGui::LabelText("Position", "(%d, %d)", MouseState->x, MouseState->y);
-			ImGui::LabelText("Scroll", "%d", MouseState->Scroll);
-			ImGui::LabelText("Relative", "%d, %d", MouseState->relX, MouseState->relY);
-			ImGui::LabelText("Extra", "%d", MouseState->InWindow);
-
-			ImGui::TreePop();
-		}
-
-		ImGui::SetNextTreeNodeOpen(true, ImGuiSetCond_Once);
-		if (ImGui::TreeNode("##mouseinfo", "EQ Mouse Info"))
-		{
-			int pos[2] = { (int)EQADDR_MOUSE->X, (int)EQADDR_MOUSE->Y };
-			ImGui::InputInt2("Pos", pos);
-
-			int speed[2] = { (int)EQADDR_MOUSE->SpeedX, (int)EQADDR_MOUSE->SpeedY };
-			ImGui::InputInt2("Speed", speed);
-
-			int scroll = MouseInfo->Scroll;
-			ImGui::InputInt("Scroll", &scroll);
-
-			ImGui::TreePop();
-		}
-	}
-}

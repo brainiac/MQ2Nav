@@ -34,7 +34,7 @@ public:
 
 	virtual void InvalidateDeviceObjects() override;
 	virtual bool CreateDeviceObjects() override;
-	virtual void Render(RenderPhase phase) override;
+	virtual void Render() override;
 
 	void UpdateNavMesh();
 

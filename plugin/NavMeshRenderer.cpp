@@ -113,69 +113,66 @@ bool NavMeshRenderer::CreateDeviceObjects()
 	return m_primGroup->CreateDeviceObjects();
 }
 
-void NavMeshRenderer::Render(Renderable::RenderPhase phase)
+void NavMeshRenderer::Render()
 {
-	if (phase == Renderable::Render_Geometry)
+	if (m_enabled != m_loaded)
 	{
-		if (m_enabled != m_loaded)
+		if (m_enabled)
 		{
-			if (m_enabled)
-			{
-				UpdateNavMesh();
-			}
-			else
-			{
-				CleanupObjects();
-				InvalidateDeviceObjects();
-			}
-
-			m_loaded = m_enabled;
-		}
-
-		if (!m_loaded || m_loading)
-			return;
-
-		m_pDevice->SetPixelShader(nullptr);
-		m_pDevice->SetVertexShader(nullptr);
-
-		m_pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_ANISOTROPIC);
-		m_pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_ANISOTROPIC);
-
-		if (m_useStateEditor)
-		{
-			m_state->ApplyState(m_pDevice);
+			UpdateNavMesh();
 		}
 		else
 		{
-			m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-			m_pDevice->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-			m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-			m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-
-			m_pDevice->SetRenderState(D3DRS_ALPHATESTENABLE, true);
-			m_pDevice->SetRenderState(D3DRS_ALPHAREF, 0);
-			m_pDevice->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
-
-			m_pDevice->SetRenderState(D3DRS_ZENABLE, true);
-			m_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-			m_pDevice->SetRenderState(D3DRS_ZWRITEENABLE, true);
-
-			m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-			m_pDevice->SetRenderState(D3DRS_LIGHTING, false);
-			m_pDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
-
-			m_pDevice->SetRenderState(D3DRS_STENCILENABLE, false);
-
-			// disable the rest of the texture stages
-			for (int i = 0; i < 8; i ++)
-			{
-				m_pDevice->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-				m_pDevice->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
-			}
+			CleanupObjects();
+			InvalidateDeviceObjects();
 		}
 
-		m_primGroup->Render(phase);
+		m_loaded = m_enabled;
 	}
+
+	if (!m_loaded || m_loading)
+		return;
+
+	m_pDevice->SetPixelShader(nullptr);
+	m_pDevice->SetVertexShader(nullptr);
+
+	m_pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_ANISOTROPIC);
+	m_pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_ANISOTROPIC);
+
+	if (m_useStateEditor)
+	{
+		m_state->ApplyState(m_pDevice);
+	}
+	else
+	{
+		m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+		m_pDevice->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+		m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+		m_pDevice->SetRenderState(D3DRS_ALPHATESTENABLE, true);
+		m_pDevice->SetRenderState(D3DRS_ALPHAREF, 0);
+		m_pDevice->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
+
+		m_pDevice->SetRenderState(D3DRS_ZENABLE, true);
+		m_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		m_pDevice->SetRenderState(D3DRS_ZWRITEENABLE, true);
+
+		m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+		m_pDevice->SetRenderState(D3DRS_LIGHTING, false);
+		m_pDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+
+		m_pDevice->SetRenderState(D3DRS_STENCILENABLE, false);
+
+		// disable the rest of the texture stages
+		for (int i = 0; i < 8; i++)
+		{
+			m_pDevice->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+			m_pDevice->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		}
+	}
+
+	m_primGroup->Render();
 }
 
 //----------------------------------------------------------------------------

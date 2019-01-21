@@ -9,6 +9,7 @@
 #include "plugin/PluginSettings.h"
 #include "plugin/ImGuiRenderer.h"
 #include "plugin/RenderHandler.h"
+#include "plugin/imgui/imgui_impl_win32.h"
 #include "common/FindPattern.h"
 
 #ifdef DIRECTINPUT_VERSION
@@ -372,9 +373,9 @@ public:
 			IDirect3DStateBlock9* stateBlock = nullptr;
 			g_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
 
-			if (g_renderHandler)
+			if (g_imguiRenderer)
 			{
-				g_renderHandler->PerformRender(Renderable::Render_UI);
+				g_imguiRenderer->ImGuiRender();
 			}
 
 			stateBlock->Apply();
@@ -398,7 +399,7 @@ public:
 
 			if (g_renderHandler)
 			{
-				g_renderHandler->PerformRender(Renderable::Render_Geometry);
+				g_renderHandler->PerformRender();
 			}
 
 			stateBlock->Apply();
@@ -494,90 +495,33 @@ bool MouseBlocked = false; // blocked if EQ is dragging mouse
 
 MouseStateData* MouseState = (MouseStateData*)EQADDR_DIMOUSECOPY;
 DIMOUSESTATE* DIMouseState = (DIMOUSESTATE*)EQADDR_DIMOUSECHECK;
-MOUSEINFO2* MouseInfo = (MOUSEINFO2*)EQADDR_MOUSE;
 
-#define g_pMouse ((IDirectInputDevice8A*)(*EQADDR_DIMOUSE))
-
-bool GetMouseLocation(POINT& point)
-{
-	// This might mess up if we're in fullscreen mode.
-	HWND eqHWnd = *(HWND*)EQADDR_HWND;
-
-	GetCursorPos(&point);
-	ScreenToClient(eqHWnd, &point);
-
-	RECT r = { 0, 0, 0, 0 };
-	GetClientRect(eqHWnd, &r);
-
-	return point.x >= r.left && point.x < r.right
-		&& point.y >= r.top && point.y < r.bottom;
-}
-
-inline bool IsMouseBlocked()
-{
-	PMOUSECLICK clicks = EQADDR_MOUSECLICK;
-
-	// If a mouse button is down, we will not send it to imgui
-	bool mouseDown = false;
-	for (int i = 0; i < 8; i++)
-	{
-		if (clicks->Click[i] || clicks->Confirm[i])
-			return true;
-	}
-	if (MouseState->Scroll != 0)
-		return true;
-
-	return false;
-}
-
+// Mouse hook prevents mouse events from reaching EQ when imgui captures
+// the mouse. Needed because ImGui uses win32 events but EQ uses directinput.
 DETOUR_TRAMPOLINE_EMPTY(void ProcessMouseEvent_Trampoline())
 void ProcessMouseEvent_Detour()
 {
-	// Get mouse position. Returns true if the mouse is within the window bounds
-	GetMouseLocation(MouseLocation);
-
 	// only process the mouse events if we are the foreground window.
 	if (!gbInForeground)
 	{
-		ProcessMouseEvent_Trampoline();
 		return;
 	}
 
-	// If a mouse button is down, we will not send it to imgui
-	if (IsMouseBlocked())
+	if (nav::GetSettings().show_ui)
 	{
-		MouseBlocked = true;
-		ProcessMouseEvent_Trampoline();
-		return;
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.WantCaptureMouse)
+		{
+			MouseState->InWindow = 0;
+			return;
+		}
 	}
-
-	if (!nav::GetSettings().show_ui)
-	{
-		ProcessMouseEvent_Trampoline();
-		return;
-	}
-
-	MouseBlocked = false;	
-		
-	ImGuiIO& io = ImGui::GetIO();
-	io.MousePos.x = static_cast<float>(MouseLocation.x);
-	io.MousePos.y = static_cast<float>(MouseLocation.y);
-
-	if (!io.WantCaptureMouse)
-	{
-		// If mouse capture leaves, release all buttons
-		memset(io.MouseDown, 0, sizeof(io.MouseDown));
-		io.MouseWheel = 0;
-
-		ProcessMouseEvent_Trampoline();
-	}
-	else
-	{
-		// need to reset relative movement variables
-		MouseState->InWindow = 0;
-	}
+	
+	ProcessMouseEvent_Trampoline();
 }
 
+// Keyboard hook prevents keyboard events from reaching EQ when imgui captures
+// the keyboard. Needed because ImGui uses win32 events but EQ uses directinput.
 DETOUR_TRAMPOLINE_EMPTY(unsigned int ProcessKeyboardEvent_Trampoline());
 unsigned int ProcessKeyboardEvent_Detour()
 {
@@ -589,6 +533,8 @@ unsigned int ProcessKeyboardEvent_Detour()
 		return 0;
 	}
 
+	// If you /unload or /plugin mq2nav unload via command, then the plugin will
+	// try to unload while inside this hook. We need to fix that by unloading later.
 	g_inKeyboardEventHandler = true;
 	unsigned int result = ProcessKeyboardEvent_Trampoline();
 	g_inKeyboardEventHandler = false;
@@ -596,85 +542,18 @@ unsigned int ProcessKeyboardEvent_Detour()
 	return result;
 }
 
+// Forwards events to ImGui. If ImGui consumes the event, we won't pass it to the game.
 DETOUR_TRAMPOLINE_EMPTY(LRESULT __stdcall WndProc_Trampoline(HWND, UINT, WPARAM, LPARAM));
-LRESULT __stdcall WndProc_Detour(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT WINAPI WndProc_Detour(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (ImGui::GetCurrentContext() == nullptr)
-		return WndProc_Trampoline(hWnd, msg, wParam, lParam);
-
-	ImGuiIO& io = ImGui::GetIO();
-
-	switch (msg)
+	if (g_imguiRenderer && g_imguiRenderer->IsReady())
 	{
-	case WM_LBUTTONDOWN:
-		io.MouseDown[0] = true;
-		break;
-	case WM_LBUTTONUP:
-		io.MouseDown[0] = false;
-		break;
-	case WM_RBUTTONDOWN:
-		io.MouseDown[1] = true;
-		break;
-	case WM_RBUTTONUP:
-		io.MouseDown[1] = false;
-		break;
-	case WM_MOUSEWHEEL:
-		io.MouseWheel += GET_WHEEL_DELTA_WPARAM(wParam) > 0 ? +1.0f : -1.0f;
-		break;
-	case WM_MOUSEMOVE:
-		io.MousePos.x = (signed short)(lParam);
-		io.MousePos.y = (signed short)(lParam >> 16);
-		break;
-	case WM_KEYDOWN:
-		if (wParam < 256)
-			io.KeysDown[wParam] = 1;
-		{
-			BYTE keyState[256];
-			if (GetKeyboardState(keyState) == TRUE)
-			{
-				WORD character = 0;
-				if (ToAscii(wParam, (lParam & 0x01FF0000) > 16, keyState, &character, 0) == 1)
-				{
-					io.AddInputCharacter(character);
-				}
-			}
-		}
-
-		break;
-	case WM_KEYUP:
-		if (wParam < 256)
-			io.KeysDown[wParam] = 0;
-		break;
-	case WM_CHAR:
-		// You can also use ToAscii()+GetKeyboardState() to retrieve characters.
-		if (wParam > 0 && wParam < 0x10000)
-			io.AddInputCharacter((unsigned short)wParam);
-		break;
+		if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+			return true;
 	}
 
 	return WndProc_Trampoline(hWnd, msg, wParam, lParam);
 }
-
-#define EQSWITCH_USESWTICH_LOGGING 0
-#if EQSWITCH_USESWTICH_LOGGING
-class EQSwitch_Detour
-{
-public:
-	void UseSwitch_Detour(UINT SpawnID, int KeyID, int PickSkill, const CVector3* hitloc = 0)
-	{
-		if (!hitloc)
-			SPDLOG_DEBUG("UseSwitch: SpawnID={} KeyID={} PickSkill=[} hitloc=null",
-				SpawnID, KeyID, PickSkill);
-		else
-			SPDLOG_DEBUG("UseSwitch: SpawnID={} KeyID={} PickSkill={} hitloc=({:.2f}, {:.2f}, {:.2f})",
-				SpawnID, KeyID, PickSkill, hitloc->X, hitloc->Y, hitloc->Z);
-
-		UseSwitch_Trampoline(SpawnID, KeyID, PickSkill, hitloc);
-	}
-	void UseSwitch_Trampoline(UINT SpawnID, int KeyId, int PickSkill, const CVector3* hitlock = 0);
-};
-DETOUR_TRAMPOLINE_EMPTY(void EQSwitch_Detour::UseSwitch_Trampoline(UINT, int, int, const CVector3*));
-#endif
 
 //----------------------------------------------------------------------------
 

@@ -7,7 +7,6 @@
 #pragma once
 
 #include "meshgen/EQConfig.h"
-#include "common/Context.h"
 #include "common/NavMesh.h"
 #include "common/Utilities.h"
 

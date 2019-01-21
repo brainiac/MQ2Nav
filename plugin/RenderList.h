@@ -48,7 +48,7 @@ public:
 	//----------------------------------------------------------------------------
 
 	// Render the geometry
-	virtual void Render(RenderPhase phase);
+	virtual void Render();
 
 	void SetTransform(D3DXMATRIX* mtx) { m_mtx = mtx; }
 	void SetEQCoords(bool eqCoords) { m_eqCoords = eqCoords; }
@@ -175,12 +175,12 @@ public:
 		}
 	}
 
-	virtual void Render(Renderable::RenderPhase phase) override
+	virtual void Render() override
 	{
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
 		{
 			if (m_primsEnabled[i])
-				m_primLists[i]->Render(phase);
+				m_primLists[i]->Render();
 		}
 	}
 

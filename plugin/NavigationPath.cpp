@@ -585,10 +585,8 @@ void NavigationLine::InvalidateDeviceObjects()
 	m_loaded = false;
 }
 
-void NavigationLine::Render(RenderPhase phase)
+void NavigationLine::Render()
 {
-	if (phase != Renderable::Render_Geometry)
-		return;
 	if (!m_loaded)
 		return;
 	if (m_needsUpdate)

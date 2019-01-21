@@ -195,7 +195,7 @@ public:
 
 	void Update();
 
-	virtual void Render(RenderPhase phase) override;
+	virtual void Render() override;
 	virtual bool CreateDeviceObjects() override;
 	virtual void InvalidateDeviceObjects() override;
 

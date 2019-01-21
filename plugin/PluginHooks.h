@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "common/Signal.h"
 #include "plugin/MQ2Navigation.h"
 
 #include <d3dx9.h>
@@ -36,16 +37,6 @@ struct MouseStateData {
 	DWORD InWindow;
 };
 extern MouseStateData* MouseState;
-
-// Better MOUSEINFO that has scroll too
-struct MOUSEINFO2 {
-	DWORD X;
-	DWORD Y;
-	DWORD SpeedX;
-	DWORD SpeedY;
-	DWORD Scroll;
-};
-extern MOUSEINFO2* MouseInfo;
 
 //----------------------------------------------------------------------------
 

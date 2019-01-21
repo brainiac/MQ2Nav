@@ -175,7 +175,7 @@ public:
 #endif
 	}
 
-	virtual void Render(RenderPhase phase) override
+	virtual void Render() override
 	{
 		// find the door
 		PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
@@ -220,7 +220,7 @@ public:
 					{
 						g_pDevice->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
 						m_grpBB->SetTransform(&scale);
-						m_grpBB->Render(phase);
+						m_grpBB->Render();
 					}
 				}
 			}

@@ -7,7 +7,6 @@
 
 #include "plugin/PluginHooks.h"
 #include "plugin/MQ2Navigation.h"
-#include "plugin/ImGuiDX9.h"
 
 #include <cassert>
 #include <DetourDebugDraw.h>
@@ -87,7 +86,7 @@ void RenderHandler::RemoveRenderable(Renderable* renderable)
 	m_renderables.erase(iter);
 }
 
-void RenderHandler::PerformRender(Renderable::RenderPhase phase)
+void RenderHandler::PerformRender()
 {
 	ResetDeviceState();
 
@@ -95,7 +94,7 @@ void RenderHandler::PerformRender(Renderable::RenderPhase phase)
 
 	for (auto& r : m_renderables)
 	{
-		r->Render(phase);
+		r->Render();
 	}
 
 	D3DPERF_EndEvent();
