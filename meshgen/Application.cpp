@@ -97,6 +97,7 @@ Application::Application(const std::string& defaultZone)
 	, m_progress(0.0)
 	, m_showLog(false)
 	, m_nextZoneToLoad(defaultZone)
+	, m_loadMeshOnZone(!defaultZone.empty())
 {
 	// Construct the path to the ini file
 	CHAR fullPath[MAX_PATH] = { 0 };
