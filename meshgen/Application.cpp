@@ -839,7 +839,7 @@ void Application::SaveMesh()
 	if (m_meshTool->isBuildingTiles() || !m_navMesh->IsNavMeshLoaded())
 		return;
 
-	m_navMesh->SaveNavMeshFile();
+	m_meshTool->SaveNavMesh();
 }
 
 void Application::ShowSettingsDialog()

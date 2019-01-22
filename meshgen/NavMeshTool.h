@@ -120,6 +120,8 @@ public:
 	void UpdateTileSizes();
 	void RebuildTiles(const std::vector<dtTileRef>& tiles);
 
+	void SaveNavMesh();
+
 	bool isBuildingTiles() const { return m_buildingTiles; }
 
 	void getTileStatistics(int& width, int& height, int& maxTiles) const;

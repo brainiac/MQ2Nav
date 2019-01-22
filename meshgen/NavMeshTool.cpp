@@ -787,6 +787,15 @@ void NavMeshTool::RebuildTiles(const std::vector<dtTileRef>& tiles)
 		RebuildTile(connBuffer, tileRef);
 }
 
+void NavMeshTool::SaveNavMesh()
+{
+	// update nav mesh config with current settings
+	m_navMesh->GetNavMeshConfig() = m_config;
+
+	// save everything out
+	m_navMesh->SaveNavMeshFile();
+}
+
 struct TileData
 {
 	unsigned char* data = 0;
