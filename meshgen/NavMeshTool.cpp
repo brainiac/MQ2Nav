@@ -91,10 +91,10 @@ void NavMeshTool::getTileStatistics(int& width, int& height, int& maxTiles) cons
 
 void NavMeshTool::UpdateTileSizes()
 {
-	if (m_geom)
+	if (m_navMesh)
 	{
-		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+		glm::vec3 bmin, bmax;
+		m_navMesh->GetNavMeshBounds(bmin, bmax);
 		int gw = 0, gh = 0;
 		rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
 		const int ts = (int)m_config.tileSize;
@@ -275,7 +275,7 @@ void NavMeshTool::handleTools()
 
 		if (ImGui::TreeNodeEx("Tiling", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
 
-			ImGui::SliderFloat("TileSize", &m_config.tileSize, 16.0f, 1024.0f, "%.0f");
+			ImGui::SliderFloat("Tile Size", &m_config.tileSize, 16.0f, 1024.0f, "%.0f");
 
 			UpdateTileSizes();
 
@@ -584,7 +584,8 @@ bool NavMeshTool::handleBuild()
 	m_navMesh->SetNavMesh(navMesh, false);
 
 	dtNavMeshParams params;
-	rcVcopy(params.orig, glm::value_ptr(m_geom->getMeshBoundsMin()));
+	glm::vec3 boundsMin = m_navMesh->GetNavMeshBoundsMin();
+	rcVcopy(params.orig, glm::value_ptr(boundsMin));
 	params.tileWidth = m_config.tileSize * m_config.cellSize;
 	params.tileHeight = m_config.tileSize * m_config.cellSize;
 	params.maxTiles = m_tilesWidth * m_tilesHeight;
@@ -615,7 +616,7 @@ void NavMeshTool::GetTilePos(const glm::vec3& pos, int& tx, int& ty)
 {
 	if (!m_geom) return;
 
-	const glm::vec3& bmin = m_geom->getMeshBoundsMin();
+	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
 
 	const float ts = m_config.tileSize * m_config.cellSize;
 	tx = (int)((pos[0] - bmin[0]) / ts);
