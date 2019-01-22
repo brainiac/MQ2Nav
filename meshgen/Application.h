@@ -29,7 +29,7 @@
 
 class RecastContext;
 class InputGeom;
-class NavMeshTool; 
+class NavMeshTool;
 class ZonePicker;
 class ImportExportSettingsDialog;
 

@@ -117,7 +117,7 @@ public:
 
 	void BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async = true);
 	void CancelBuildAllTiles(bool wait = true);
-
+	void UpdateTileSizes();
 	void RebuildTiles(const std::vector<dtTileRef>& tiles);
 
 	bool isBuildingTiles() const { return m_buildingTiles; }
@@ -127,8 +127,6 @@ public:
 	float getTotalBuildTimeMS() const { return m_totalBuildTimeMs; }
 
 	void setOutputPath(const char* output_path);
-
-	void UpdateTileSizes();
 
 	uint8_t getNavMeshDrawFlags() const { return m_navMeshDrawFlags; }
 	void setNavMeshDrawFlags(uint8_t flags) { m_navMeshDrawFlags = flags; }

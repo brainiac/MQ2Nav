@@ -98,8 +98,6 @@ Application::Application(const std::string& defaultZone)
 	, m_showLog(false)
 	, m_nextZoneToLoad(defaultZone)
 {
-	//SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
-
 	// Construct the path to the ini file
 	CHAR fullPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA(nullptr, fullPath, MAX_PATH);
@@ -152,16 +150,7 @@ bool Application::InitializeWindow()
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-	//SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-	//SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-
-	SDL_Rect vr;
-	SDL_GetDisplayBounds(0, &vr);
-
-	m_width = vr.w - 200;
-	m_height = vr.h - 200;
-
-	m_window = SDL_CreateWindow("MQ2Nav Mesh Generator", 100, 100, m_width, m_height,
+	m_window = SDL_CreateWindow("MQ2Nav Mesh Generator", 200, 200, m_width, m_height,
 		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	m_glContext = SDL_GL_CreateContext(m_window);
 
@@ -305,10 +294,6 @@ int Application::RunMainLoop()
 		}
 
 		ImGui::Render();
-
-		ImGuiIO& io = ImGui::GetIO();
-		glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-
 		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 		SDL_GL_SwapWindow(m_window);
 
