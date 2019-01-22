@@ -5,12 +5,13 @@
 // Implementation of main GUI interface for EQNavigation
 
 #include "meshgen/Application.h"
-#include "meshgen/ImGuiSDL.h"
 #include "meshgen/InputGeom.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/ZonePicker.h"
 #include "meshgen/resource.h"
+#include "meshgen/imgui/imgui_impl_opengl2.h"
+#include "meshgen/imgui/imgui_impl_sdl.h"
 #include "common/Utilities.h"
 
 #include <RecastDebugDraw.h>
@@ -97,6 +98,8 @@ Application::Application(const std::string& defaultZone)
 	, m_showLog(false)
 	, m_nextZoneToLoad(defaultZone)
 {
+	//SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+
 	// Construct the path to the ini file
 	CHAR fullPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA(nullptr, fullPath, MAX_PATH);
@@ -149,8 +152,8 @@ bool Application::InitializeWindow()
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+	//SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+	//SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 
 	SDL_Rect vr;
 	SDL_GetDisplayBounds(0, &vr);
@@ -175,12 +178,16 @@ bool Application::InitializeWindow()
 		}
 	}
 
+	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.IniFilename = m_iniFile.c_str();
 
-	ImGui_ImplSdl_Init(m_window);
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplSDL2_InitForOpenGL(m_window, m_glContext);
+	ImGui_ImplOpenGL2_Init();
 
 	ImGuiEx::ConfigureFonts();
 
@@ -203,11 +210,12 @@ bool Application::InitializeWindow()
 
 void Application::DestroyWindow()
 {
-	ImGui_ImplSdl_Shutdown();
+	ImGui_ImplOpenGL2_Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	ImGui::DestroyContext();
 
 	SDL_GL_DeleteContext(m_glContext);
 	SDL_DestroyWindow(m_window);
-
 	SDL_Quit();
 }
 
@@ -237,8 +245,10 @@ int Application::RunMainLoop()
 			simIter++;
 		}
 
+		ImVec4 clear_color = ImVec4(0.3f, 0.3f, 0.32f, 1.00f);
+
 		glViewport(0, 0, m_width, m_height);
-		glClearColor(0.3f, 0.3f, 0.32f, 1.0f);
+		glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -275,7 +285,11 @@ int Application::RunMainLoop()
 		// Handle input events.
 		HandleEvents();
 
-		ImGui_ImplSdl_NewFrame(m_window);
+		// Start the ImGui Frame
+		ImGui_ImplOpenGL2_NewFrame();
+		ImGui_ImplSDL2_NewFrame(m_window);
+		ImGui::NewFrame();
+
 		RenderInterface();
 
 		{
@@ -288,10 +302,15 @@ int Application::RunMainLoop()
 			glDisable(GL_FOG);
 
 			glEnable(GL_DEPTH_TEST);
-
-			ImGui::Render();
-			SDL_GL_SwapWindow(m_window);
 		}
+
+		ImGui::Render();
+
+		ImGuiIO& io = ImGui::GetIO();
+		glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+
+		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+		SDL_GL_SwapWindow(m_window);
 
 		// Do additional work here after rendering
 
@@ -319,7 +338,7 @@ void Application::HandleEvents()
 	SDL_Event event;
 	while (SDL_PollEvent(&event))
 	{
-		ImGui_ImplSdl_ProcessEvent(&event);
+		ImGui_ImplSDL2_ProcessEvent(&event);
 
 		switch (event.type)
 		{
