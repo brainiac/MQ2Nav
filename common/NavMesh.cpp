@@ -388,6 +388,11 @@ void NavMesh::LoadFromProto(const nav::NavMeshFile& proto, PersistedDataFields f
 			std::shared_ptr<dtNavMesh> navMesh(dtAllocNavMesh(),
 				[](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
 
+			// would prefer to have proper origin, but this can fix it up too.
+			params.orig[0] = proto.build_settings().bounds_min().x();
+			params.orig[1] = proto.build_settings().bounds_min().y();
+			params.orig[2] = proto.build_settings().bounds_min().z();
+
 			dtStatus status = navMesh->init(&params);
 			if (status == DT_SUCCESS)
 			{
