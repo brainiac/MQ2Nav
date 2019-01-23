@@ -156,7 +156,7 @@ struct OffMeshConnection
 	uint32_t id = 0;
 	glm::vec3 start, end;
 	ConnectionType type = ConnectionType::Basic;
-	uint8_t areaType = 0;
+	uint8_t areaType = (uint8_t)PolyArea::Ground;
 	bool bidirectional = true;
 
 	// optional name provided by the user

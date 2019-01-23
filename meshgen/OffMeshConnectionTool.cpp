@@ -2,16 +2,18 @@
 // OffMeshConnectionTool.cpp
 //
 
-#include "meshgen/OffMeshConnectionTool.h"
-#include "meshgen/InputGeom.h"
-#include "meshgen/NavMeshTool.h"
+#include "OffMeshConnectionTool.h"
 
 #include "common/NavMeshData.h"
+#include "meshgen/InputGeom.h"
+#include "meshgen/NavMeshTool.h"
+#include "meshgen/ImGuiWidgets.h"
 
 #include <Recast.h>
 #include <RecastDebugDraw.h>
 #include <DetourDebugDraw.h>
 
+#include <fmt/format.h>
 #include <imgui/imgui.h>
 #include <imgui/custom/imgui_user.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -49,11 +51,161 @@ void OffMeshConnectionTool::reset()
 void OffMeshConnectionTool::handleMenu()
 {
 	auto navMesh = m_meshTool->GetNavMesh();
+	if (!navMesh) return;
 
-	if (ImGui::RadioButton("One Way", !m_state->m_bidir))
-		m_state->m_bidir = false;
-	if (ImGui::RadioButton("Bidirectional", m_state->m_bidir))
-		m_state->m_bidir = true;
+	// show list of existing connections
+	ImGui::Text("%d Connections", navMesh->GetConnectionCount());
+	ImGui::BeginChild("ConnectionList", ImVec2(0, 200), true);
+
+	ImGuiStyle& style = ImGui::GetStyle();
+	float w = ImGui::GetContentRegionAvail().x;
+	float spacing = style.ItemInnerSpacing.x;
+	float button_sz = ImGui::GetFrameHeight();
+
+	for (size_t i = 0; i < navMesh->GetConnectionCount(); ++i)
+	{
+		OffMeshConnection* conn = navMesh->GetConnection(i);
+		const PolyAreaType& area = navMesh->GetPolyArea(conn->areaType);
+		ImGui::PushID((int)i);
+
+		std::string connName;
+		if (conn->name.empty())
+		{
+			if (conn->bidirectional)
+				connName = "Connection";
+			else
+				connName = "One-Way Connection";
+		}
+		else
+			connName = conn->name;
+
+		if (!conn->valid)
+			connName += " *INVALID*";
+
+		ImColor textColor(255, 255, 255);
+
+		std::string areaName;
+		if (!area.valid)
+			areaName = fmt::format("Invalid Area {}", conn->areaType);
+		else if (area.name.empty())
+			areaName = fmt::format("Area {}", conn->areaType);
+		else
+			areaName = fmt::format("{}", area.name);
+
+		if (!area.valid || !conn->valid)
+		{
+			textColor = ImColor(255, 0, 0);
+		}
+
+		std::string label = fmt::format("{:04}: {} ({})", conn->id, connName, areaName);
+		bool selected = (m_state->m_currentConnectionId == conn->id);
+
+		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)textColor);
+
+		if (ImGui::Selectable(label.c_str(), &selected))
+		{
+			if (selected)
+			{
+				m_state->reset();
+				strcpy_s(m_state->m_name, conn->name.c_str());
+				m_state->m_editConnection = *conn;
+				m_state->m_currentConnectionId = conn->id;
+				m_editing = false;
+			}
+		}
+		ImGui::PopStyleColor(1);
+
+		ImGui::PopID();
+	}
+	ImGui::EndChild();
+
+	{
+		ImGui::BeginChild("##buttons", ImVec2(0, 30), false);
+		ImGui::Columns(3, 0, false);
+
+		if (ImGui::Button("Create New", ImVec2(-1, 0)))
+		{
+			m_state->reset();
+			m_editing = true;
+		}
+
+		ImGui::NextColumn();
+		ImGui::NextColumn();
+
+		if (!m_editing
+			&& m_state->m_currentConnectionId != 0
+			&& ImGuiEx::ColoredButton("Delete", ImVec2(-1, 0), 0.0))
+		{
+			auto modifiedTiles = navMesh->GetTilesIntersectingConnection(m_state->m_currentConnectionId);
+			navMesh->DeleteConnectionById(m_state->m_currentConnectionId);
+
+			if (!modifiedTiles.empty())
+			{
+				m_meshTool->RebuildTiles(modifiedTiles);
+			}
+
+			m_state->m_currentConnectionId = 0;
+		}
+
+		ImGui::Columns(1);
+		ImGui::EndChild();
+	}
+
+	if (m_state->m_currentConnectionId != 0)
+	{
+		ImGui::Text("Edit Connection %d", m_state->m_currentConnectionId);
+		ImGui::Separator();
+
+		if (ImGui::InputText("Name", m_state->m_name, 256))
+		{
+			m_state->m_modified = true;
+			m_state->m_editConnection.name = m_state->m_name;
+		}
+	}
+
+	if (ImGui::RadioButton("One Way", !m_state->m_editConnection.bidirectional))
+	{
+		m_state->m_editConnection.bidirectional = false;
+		m_state->m_modified = true;
+	}
+	if (ImGui::RadioButton("Bidirectional", m_state->m_editConnection.bidirectional))
+	{
+		m_state->m_editConnection.bidirectional = true;
+		m_state->m_modified = true;
+	}
+
+	m_state->m_modified |= AreaTypeCombo(navMesh.get(), &m_state->m_editConnection.areaType);
+
+	if (m_state->m_modified && ImGui::Button("Save Changes"))
+	{
+		if (OffMeshConnection* conn = navMesh->GetConnectionById(m_state->m_currentConnectionId))
+		{
+			conn->name = m_state->m_editConnection.name;
+
+			bool update = false;
+			if (conn->areaType != m_state->m_editConnection.areaType)
+			{
+				conn->areaType = m_state->m_editConnection.areaType;
+				update = true;
+			}
+			if (conn->bidirectional != m_state->m_editConnection.bidirectional)
+			{
+				conn->bidirectional = m_state->m_editConnection.bidirectional;
+				update = true;
+			}
+
+			if (update)
+			{
+				auto modifiedTiles = m_state->UpdateConnection(conn);
+				if (!modifiedTiles.empty())
+				{
+					m_meshTool->RebuildTiles(modifiedTiles);
+				}
+			}
+		}
+
+		m_state->m_modified = false;
+	}
 }
 
 void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
@@ -129,7 +281,9 @@ void OffMeshConnectionToolState::handleRender()
 	if (m_hitPosSet)
 		duDebugDrawCross(&dd, m_hitPos[0], m_hitPos[1] + 0.1f, m_hitPos[2], s, duRGBA(0, 0, 0, 128), 2.0f);
 
-	unsigned int conColor = duRGBA(192, 0, 128, 192);
+	unsigned int conColor = duRGBA(0, 192, 128, 192);
+	unsigned int badColor = duRGBA(192, 0, 128, 192);
+	unsigned int activeColor = duRGBA(255, 255, 0, 192);
 	unsigned int baseColor = duRGBA(0, 0, 0, 64);
 	dd.depthMask(false);
 
@@ -150,7 +304,8 @@ void OffMeshConnectionToolState::handleRender()
 		duAppendCircle(&dd, to.x, to.y + 0.1f, to.z, s, baseColor);
 
 		duAppendArc(&dd, from.x, from.y, from.z, to.x, to.y, to.z, 0.25f,
-			connection->bidirectional ? 0.6f : 0.0f, 0.6f, conColor);
+			connection->bidirectional ? 4.f : 0.0f, 4.f,
+			connection->id == m_currentConnectionId ? activeColor : connection->valid ? conColor : badColor);
 	}
 	dd.end();
 	dd.depthMask(true);
@@ -212,19 +367,55 @@ std::vector<dtTileRef> OffMeshConnectionToolState::handleConnectionClick(const g
 		}
 		else
 		{
-			auto connection = std::make_unique<OffMeshConnection>();
+			m_hitPosSet = false;
+
+			auto connection = std::make_unique<OffMeshConnection>(m_editConnection);
 			connection->start = m_hitPos;
 			connection->end = p;
-			connection->type = ConnectionType::Basic;
-			connection->areaType = static_cast<uint8_t>(PolyArea::Ground);
-			connection->bidirectional = m_bidir;
+			connection->valid = false;
 
 			auto conn = navMesh->AddConnection(std::move(connection));
-
-			m_hitPosSet = false;
-			modifiedTiles = navMesh->GetTilesIntersectingConnection(conn->id);
+			modifiedTiles = UpdateConnection(conn);
 		}
 	}
 
 	return modifiedTiles;
+}
+
+std::vector<dtTileRef> OffMeshConnectionToolState::UpdateConnection(OffMeshConnection* conn)
+{
+	auto navMesh = m_meshTool->GetNavMesh();
+
+	auto modifiedTiles = navMesh->GetTileRefsForPoint(conn->start);
+	auto endTiles = navMesh->GetTileRefsForPoint(conn->end);
+	std::copy(modifiedTiles.begin(), modifiedTiles.end(), std::back_inserter(endTiles));
+
+	if (!modifiedTiles.empty())
+	{
+		int bminx = INT_MAX, bmaxx = 0;
+		int bminy = INT_MAX, bmaxy = 0;
+
+		for (dtTileRef ref : endTiles)
+		{
+			const dtMeshTile* tile = navMesh->GetNavMesh()->getTileByRef(ref);
+			if (!tile)
+			{
+				break;
+			}
+
+			bminx = std::min(bminx, tile->header->x);
+			bminy = std::min(bminy, tile->header->y);
+
+			bmaxx = std::max(bmaxx, tile->header->x);
+			bmaxy = std::max(bmaxy, tile->header->y);
+		}
+
+		if (std::abs(bmaxx - bminx) <= 1 && std::abs(bmaxy - bminy) <= 1)
+			conn->valid = true;
+	}
+
+	if (conn->valid)
+		return modifiedTiles;
+
+	return {};
 }

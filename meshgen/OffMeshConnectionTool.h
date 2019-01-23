@@ -50,22 +50,20 @@ public:
 	virtual void handleUpdate(const float dt) override {}
 
 	std::vector<dtTileRef> handleConnectionClick(const glm::vec3& p, bool shift);
-	std::vector<dtTileRef> createConnection();
+	std::vector<dtTileRef> UpdateConnection(OffMeshConnection* conn);
 
 private:
 	NavMeshTool* m_meshTool = nullptr;
 	glm::vec3 m_hitPos;
 
 	// properties for constructing new connection
-	char m_name[256];
-	uint8_t m_areaType = (uint8_t)PolyArea::Ground;
 	bool m_hitPosSet = false;
-	bool m_bidir = true;
 	glm::vec3 m_posBegin;
 	glm::vec3 m_posEnd;
 
-	// editing existing connection. We copy so we can make edits without committing.
+	// editing existing connection (or staging for new). We copy so we can make edits without committing.
 	OffMeshConnection m_editConnection;
+	char m_name[256];
 	uint32_t m_currentConnectionId = 0;
 	bool m_modified = false;
 };

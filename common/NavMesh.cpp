@@ -696,8 +696,6 @@ bool NavMesh::SaveMesh(const char* filename)
 
 	SaveToProto(file_proto, PersistedDataFields::All);
 
-	// todo: save offmesh connections
-
 	// Store header.
 	MeshFileHeader header;
 	header.magic = NAVMESH_FILE_MAGIC;
@@ -879,7 +877,7 @@ std::vector<dtTileRef> NavMesh::GetTilesIntersectingConnection(uint32_t connecti
 	std::vector<dtTileRef> refs;
 
 	OffMeshConnection* connection = GetConnectionById(connectionId);
-	if (connection)
+	if (connection && connection->valid)
 	{
 		return GetTileRefsForPoint(connection->start);
 	}
