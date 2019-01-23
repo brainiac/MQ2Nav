@@ -628,6 +628,8 @@ void Application::RenderInterface()
 				m_showTools = !m_showTools;
 			if (ImGui::MenuItem("Show Debug", nullptr, m_showDebug))
 				m_showDebug = !m_showDebug;
+			if (ImGui::MenuItem("Show Shortcuts Overlay", nullptr, m_showOverlay))
+				m_showOverlay = !m_showOverlay;
 
 			ImGui::Separator();
 
@@ -649,16 +651,24 @@ void Application::RenderInterface()
 		return;
 	}
 
-	m_meshTool->handleRenderOverlay(m_proj, m_model, m_view);
+	ImGui::SetNextWindowPos(
+		ImVec2(ImGui::GetIO().DisplaySize.x - 10.0 - 315, ImGui::GetIO().DisplaySize.y - 10.0),
+		ImGuiCond_Always,
+		ImVec2(1.0, 1.0));
+	ImGui::SetNextWindowBgAlpha(0.3f);
 
-	// Help text.
-	static const char msg[] = "Hotkey List -> W/S/A/D: Move  "
-		"RMB: Rotate   "
-		"LMB: Place Start   "
-		"LMB+SHIFT: Place End   ";
+	if (ImGui::Begin("##Overlay", &m_showOverlay, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+	{
+		m_meshTool->handleRenderOverlay(m_proj, m_model, m_view);
 
-	ImGui::RenderTextCentered(ImVec2(m_width / 2, 20),
-		ImColor(255, 255, 255, 128), "%s", msg);
+		// Help text.
+		static const char msg[] = "Hotkeys:\n* W/S/A/D: Move\n"
+			"* Shift+Move: Increase movement speed\n"
+			"* RMB: Rotate";
+
+		ImGui::TextColored(ImColor(255, 255, 255, 128), msg);
+	}
+	ImGui::End();
 
 	if (m_showFailedToOpenDialog)
 		ImGui::OpenPopup("Failed To Open");

@@ -403,16 +403,21 @@ void ConvexVolumeTool::handleRenderOverlay(const glm::mat4& /*proj*/,
 		// Tool help
 		if (m_state->m_pts.empty())
 		{
-			ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
-				"LMB: Create new shape.  SHIFT+LMB: Delete existing shape (click inside a shape).");
+			ImGui::TextColored(ImVec4(255, 255, 255, 192),
+				"LMB: Create new shape. SHIFT+LMB: Delete existing shape (click inside a shape).");
 		}
 		else
 		{
-			ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
+			ImGui::TextColored(ImVec4(255, 255, 255, 192),
 				"Click LMB to add new points. Alt+Click to finish the shape.");
-			ImGui::RenderTextRight(-330, -(view[3] - 60), ImVec4(255, 255, 255, 192),
+			ImGui::TextColored(ImVec4(255, 255, 255, 192),
 				"The shape will be convex hull of all added points.");
 		}
+	}
+	else
+	{
+		ImGui::TextColored(ImVec4(255, 255, 255, 192),
+			"LMB: Click to start new shape.");
 	}
 }
 

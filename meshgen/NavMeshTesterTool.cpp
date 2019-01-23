@@ -1148,8 +1148,8 @@ void NavMeshTesterTool::handleRenderOverlay(const glm::mat4& proj,
 	}
 
 	// Tool help
-	ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
-		"LMB+SHIFT: Set start location  LMB: Set end location");
+	ImGui::TextColored(ImVec4(255, 255, 255, 192),
+		"LMB+SHIFT: Set start location. LMB: Set end location");
 }
 
 void NavMeshTesterTool::drawAgent(const glm::vec3& pos, float r, float h, float c, uint32_t col)

@@ -96,12 +96,12 @@ void OffMeshConnectionTool::handleRenderOverlay(const glm::mat4& proj,
 	// Tool help
 	if (!m_state->m_hitPosSet)
 	{
-		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
-			"LMB: Create new connection.  SHIFT+LMB: Delete existing connection, click close to start or end point.");
+		ImGui::TextColored(ImVec4(255, 255, 255, 192),
+			"LMB: Create new connection.\nSHIFT+LMB: Click to delete existing connection.");
 	}
 	else
 	{
-		ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
+		ImGui::TextColored(ImVec4(255, 255, 255, 192),
 			"LMB: Set connection end point and finish.");
 	}
 }

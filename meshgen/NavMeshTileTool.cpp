@@ -88,6 +88,6 @@ void NavMeshTileTool::handleRenderOverlay(const glm::mat4& proj,
 	// Tool help
 	const int h = view[3];
 
-	ImGui::RenderTextRight(-330, -(h - 40), ImVec4(255, 255, 255, 192),
-		"LMB: Rebuild hit tile.  Shift+LMB: Clear hit tile.");
+	ImGui::TextColored(ImVec4(255, 255, 255, 192),
+		"LMB: Rebuild tile. Shift+LMB: Clear tile.");
 }

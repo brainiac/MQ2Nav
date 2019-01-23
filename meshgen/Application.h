@@ -235,6 +235,7 @@ private:
 	bool m_showDebug = false;
 	bool m_showProperties = true;
 	bool m_showMapAreas = false;
+	bool m_showOverlay = true;
 
 	// zone to load on next pass
 	std::string m_nextZoneToLoad;

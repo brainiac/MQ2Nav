@@ -212,22 +212,21 @@ void NavMeshTool::handleTools()
 	}
 	ImGui::SameLine();
 
-	if (ToolButton(ICON_MD_PLACE, "Waypoints Tool", type == ToolType::WAYPOINTS))
-	{
-		setTool(new WaypointsTool);
-	}
-	ImGui::SameLine();
-
 	if (ToolButton(ICON_MD_DIRECTIONS_RUN, "NavMesh Tester Tool", type == ToolType::NAVMESH_TESTER)) // test mesh
 	{
 		setTool(new NavMeshTesterTool);
 	}
 	ImGui::SameLine();
 
-
 	if (ToolButton(ICON_MD_FORMAT_SHAPES, "Mark Areas Tool", type == ToolType::CONVEX_VOLUME)) // mark areas
 	{
 		setTool(new ConvexVolumeTool);
+	}
+	ImGui::SameLine();
+
+	if (ToolButton(ICON_MD_LINK, "Connections Tool", type == ToolType::OFFMESH_CONNECTION)) // connections tool
+	{
+		setTool(new OffMeshConnectionTool);
 	}
 	ImGui::SameLine();
 
@@ -237,9 +236,9 @@ void NavMeshTool::handleTools()
 	}
 	ImGui::SameLine();
 
-	if (ToolButton(ICON_MD_LINK, "Connections Tool", type == ToolType::OFFMESH_CONNECTION)) // connections tool
+	if (ToolButton(ICON_MD_PLACE, "Waypoints Tool", type == ToolType::WAYPOINTS))
 	{
-		setTool(new OffMeshConnectionTool);
+		setTool(new WaypointsTool);
 	}
 
 	ImGui::Separator();

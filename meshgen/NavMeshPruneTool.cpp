@@ -279,6 +279,6 @@ void NavMeshPruneTool::handleRenderOverlay(const glm::mat4& /*proj*/,
 	const glm::mat4& /*model*/, const glm::ivec4& view)
 {
 	// Tool help
-	ImGui::RenderTextRight(-330, -(view[3] - 40), ImVec4(255, 255, 255, 192),
-		"LMB: Click fill area.");
+	ImGui::TextColored(ImVec4(255, 255, 255, 192),
+		"LMB: Click to fill area.");
 }
