@@ -326,6 +326,8 @@ void Application::HandleEvents()
 	{
 		ImGui_ImplSDL2_ProcessEvent(&event);
 
+		auto& io = ImGui::GetIO();
+
 		switch (event.type)
 		{
 		case SDL_WINDOWEVENT:
@@ -407,7 +409,7 @@ void Application::HandleEvents()
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
-			if (ImGui::GetIO().WantCaptureMouse)
+			if (io.WantCaptureMouse)
 				break;
 
 			// Handle mouse clicks here.
@@ -461,7 +463,7 @@ void Application::HandleEvents()
 			break;
 
 		case SDL_MOUSEBUTTONUP:
-			if (ImGui::GetIO().WantCaptureMouse)
+			if (io.WantCaptureMouse)
 				break;
 
 			// Handle mouse clicks here.
@@ -473,7 +475,7 @@ void Application::HandleEvents()
 			break;
 
 		case SDL_MOUSEMOTION:
-			if (ImGui::GetIO().WantCaptureMouse)
+			if (io.WantCaptureMouse)
 				break;
 
 			m_m.x = event.motion.x;
@@ -511,6 +513,9 @@ void Application::UpdateCamera()
 		ResetCamera();
 		m_resetCamera = false;
 	}
+
+	if (ImGui::GetIO().WantCaptureKeyboard)
+		return;
 
 	const Uint8* keystate = SDL_GetKeyboardState(NULL);
 	m_moveW = rcClamp(m_moveW + m_timeDelta * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
