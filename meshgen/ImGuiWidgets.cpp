@@ -26,7 +26,11 @@ bool AreaTypeCombo(NavMesh* navMesh, uint8_t* areaType)
 		}
 	}
 
+	if (selectedIndex == -1)
+		selectedIndex = 0;
+
 	ImGuiStyle& style = ImGui::GetStyle();
+	bool somethingChanged = false;
 
 	if (ImGui::BeginCombo("Area Type", ""))
 	{
@@ -48,7 +52,8 @@ bool AreaTypeCombo(NavMesh* navMesh, uint8_t* areaType)
 			ImColor color{ polyAreas[i]->color };
 			color.Value.w = 1.0f; // no transparency
 
-			changed |= ImGui::Selectable("", selected);
+			changed = ImGui::Selectable("", selected);
+			somethingChanged |= changed;
 			ImGui::SameLine();
 
 			ImGui::ColorButton("##color", color, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoTooltip, size);
@@ -78,5 +83,5 @@ bool AreaTypeCombo(NavMesh* navMesh, uint8_t* areaType)
 		ImGui::SetCursorScreenPos(backup_pos);
 	}
 
-	return changed;
+	return somethingChanged;
 }

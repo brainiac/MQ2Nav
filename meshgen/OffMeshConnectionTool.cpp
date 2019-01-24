@@ -138,7 +138,7 @@ void OffMeshConnectionTool::handleMenu()
 				m_meshTool->RebuildTiles(modifiedTiles);
 			}
 
-			m_state->m_currentConnectionId = 0;
+			reset();
 		}
 
 		ImGui::Columns(1);
@@ -217,10 +217,8 @@ void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, 
 {
 	if (!m_meshTool) return; // ??
 
-	// if we're not editing a volume right now, switch to edit mode.
-	if (m_state->m_currentConnectionId != 0)
-		m_state->m_currentConnectionId = 0;
-
+	if (!m_editing)
+		reset();
 	m_editing = true;
 
 	auto navMesh = m_meshTool->GetNavMesh();
@@ -228,6 +226,7 @@ void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, 
 
 	if (!modifiedTiles.empty())
 	{
+		m_editing = false;
 		m_meshTool->RebuildTiles(modifiedTiles);
 	}
 }
@@ -275,6 +274,7 @@ void OffMeshConnectionToolState::reset()
 {
 	m_hitPosSet = false;
 	m_currentConnectionId = 0;
+	m_editConnection = OffMeshConnection{};
 	m_modified = false;
 }
 

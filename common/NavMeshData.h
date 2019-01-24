@@ -33,6 +33,8 @@ enum struct PolyArea : uint8_t
 	Jump       = 2,
 	Water      = 3,
 	Door       = 4,
+	Prefer     = 5,
+	Avoid      = 6,
 
 	UserDefinedFirst = 10,
 	UserDefinedLast  = 60,

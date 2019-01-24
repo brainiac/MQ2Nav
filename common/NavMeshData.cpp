@@ -41,7 +41,7 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 		+PolyFlags::Jump,        // flags
 		1.5f,                    // cost
 		true,                    // valid
-		true,                    // selectable
+		false,                   // selectable   -- disabled for now
 	},
 
 	// water
@@ -63,6 +63,26 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 		1.1f,                    // cost
 		true,                    // valid
 		false,                   // selectable
+	},
+
+	PolyAreaType{
+		5,                       // id
+		"Prefer",                // name
+		RGBA(0, 192, 128, 255),  // color
+		+(PolyFlags::Walk),
+		0.5f,                    // cost
+		true,                    // valid
+		true,                    // selectable
+	},
+
+	PolyAreaType{
+		6,                       // id
+		"Avoid",                 // name
+		RGBA(192, 64, 64, 255),  // color
+		+(PolyFlags::Walk),
+		1.5f,                    // cost
+		true,                    // valid
+		true,                    // selectable
 	},
 };
 
