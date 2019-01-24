@@ -48,7 +48,7 @@ bool AreaTypeCombo(NavMesh* navMesh, uint8_t* areaType)
 			ImColor color{ polyAreas[i]->color };
 			color.Value.w = 1.0f; // no transparency
 
-			changed = ImGui::Selectable("", selected);
+			changed |= ImGui::Selectable("", selected);
 			ImGui::SameLine();
 
 			ImGui::ColorButton("##color", color, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoTooltip, size);

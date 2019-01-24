@@ -21,6 +21,12 @@
     <Filter Include="Header Files\fonts">
       <UniqueIdentifier>{d64c4651-07c1-4a3e-9bf7-e82695c85355}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\cpp">
+      <UniqueIdentifier>{c60189a8-9fc3-4c57-990f-4c3b315007fc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cpp">
+      <UniqueIdentifier>{9d2e1c17-73b9-42dc-bcdb-cb77badf93ae}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="imgui.cpp">
@@ -55,6 +61,9 @@
     </ClCompile>
     <ClCompile Include="misc\fonts\font_roboto_regular_ttf.cpp">
       <Filter>Source Files\fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="misc\cpp\imgui_stdlib.cpp">
+      <Filter>Source Files\cpp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -111,6 +120,9 @@
     </ClInclude>
     <ClInclude Include="misc\fonts\IconsMaterialDesign.h">
       <Filter>Header Files\fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="misc\cpp\imgui_stdlib.h">
+      <Filter>Header Files\cpp</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

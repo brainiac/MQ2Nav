@@ -151,7 +151,27 @@ bool Application::InitializeWindow()
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-	m_window = SDL_CreateWindow("MQ2Nav Mesh Generator", 200, 200, m_width, m_height,
+	// scale default window size by monitor dpi
+	float dpi = 0;
+	if (SDL_GetDisplayDPI(0, &dpi, 0, 0) == 0)
+	{
+		if (dpi > 0)
+		{
+			dpi = dpi / 96;
+			m_width *= dpi;
+			m_height *= dpi;
+		}
+	}
+
+	int wx = 200, wy = 200;
+	SDL_Rect displayBounds;
+	if (SDL_GetDisplayBounds(0, &displayBounds) == 0)
+	{
+		wx = (displayBounds.w - m_width) / 2;
+		wy = (displayBounds.h - m_height) / 2;
+	}
+
+	m_window = SDL_CreateWindow("MQ2Nav Mesh Generator", wx, wy, m_width, m_height,
 		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	m_glContext = SDL_GL_CreateContext(m_window);
 
@@ -668,8 +688,9 @@ void Application::RenderInterface()
 
 		// Help text.
 		static const char msg[] = "Hotkeys:\n* W/S/A/D: Move\n"
+			"* Space/C: Move up/down\n"
 			"* Shift+Move: Increase movement speed\n"
-			"* RMB: Rotate";
+			"* RMB: Look around";
 
 		ImGui::TextColored(ImColor(255, 255, 255, 128), msg);
 	}

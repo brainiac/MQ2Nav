@@ -16,6 +16,7 @@
 #include <fmt/format.h>
 #include <imgui/imgui.h>
 #include <imgui/custom/imgui_user.h>
+#include <imgui/misc/cpp/imgui_stdlib.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/norm.hpp>
@@ -45,7 +46,7 @@ void OffMeshConnectionTool::init(NavMeshTool* meshTool)
 void OffMeshConnectionTool::reset()
 {
 	m_editing = false;
-	m_state->m_hitPosSet = false;
+	m_state->reset();
 }
 
 void OffMeshConnectionTool::handleMenu()
@@ -107,7 +108,6 @@ void OffMeshConnectionTool::handleMenu()
 			if (selected)
 			{
 				m_state->reset();
-				strcpy_s(m_state->m_name, conn->name.c_str());
 				m_state->m_editConnection = *conn;
 				m_state->m_currentConnectionId = conn->id;
 				m_editing = false;
@@ -122,12 +122,6 @@ void OffMeshConnectionTool::handleMenu()
 	{
 		ImGui::BeginChild("##buttons", ImVec2(0, 30), false);
 		ImGui::Columns(3, 0, false);
-
-		if (ImGui::Button("Create New", ImVec2(-1, 0)))
-		{
-			m_state->reset();
-			m_editing = true;
-		}
 
 		ImGui::NextColumn();
 		ImGui::NextColumn();
@@ -151,71 +145,83 @@ void OffMeshConnectionTool::handleMenu()
 		ImGui::EndChild();
 	}
 
-	if (m_state->m_currentConnectionId != 0)
+	ImGui::NewLine();
+
+	// Edit / Properties frame
 	{
-		ImGui::Text("Edit Connection %d", m_state->m_currentConnectionId);
+		if (m_state->m_currentConnectionId != 0)
+		{
+			ImGui::TextColored(ImColor(255, 255, 0), "Connection %d:", m_state->m_currentConnectionId);
+		}
+		else
+		{
+			ImGui::TextColored(ImColor(255, 255, 0), "New Connection Properties:");
+		}
 		ImGui::Separator();
 
-		if (ImGui::InputText("Name", m_state->m_name, 256))
+		if (ImGui::Checkbox("Bi-directional", &m_state->m_editConnection.bidirectional))
 		{
 			m_state->m_modified = true;
-			m_state->m_editConnection.name = m_state->m_name;
 		}
-	}
 
-	if (ImGui::RadioButton("One Way", !m_state->m_editConnection.bidirectional))
-	{
-		m_state->m_editConnection.bidirectional = false;
-		m_state->m_modified = true;
-	}
-	if (ImGui::RadioButton("Bidirectional", m_state->m_editConnection.bidirectional))
-	{
-		m_state->m_editConnection.bidirectional = true;
-		m_state->m_modified = true;
-	}
+		m_state->m_modified |= AreaTypeCombo(navMesh.get(), &m_state->m_editConnection.areaType);
 
-	m_state->m_modified |= AreaTypeCombo(navMesh.get(), &m_state->m_editConnection.areaType);
-
-	if (m_state->m_modified && ImGui::Button("Save Changes"))
-	{
-		if (OffMeshConnection* conn = navMesh->GetConnectionById(m_state->m_currentConnectionId))
+		if (ImGui::InputText("Name (optional)", &m_state->m_editConnection.name))
 		{
-			conn->name = m_state->m_editConnection.name;
+			m_state->m_modified = true;
+		}
 
-			bool update = false;
-			if (conn->areaType != m_state->m_editConnection.areaType)
-			{
-				conn->areaType = m_state->m_editConnection.areaType;
-				update = true;
-			}
-			if (conn->bidirectional != m_state->m_editConnection.bidirectional)
-			{
-				conn->bidirectional = m_state->m_editConnection.bidirectional;
-				update = true;
-			}
+		if (m_state->m_currentConnectionId == 0)
+		{
+			ImGui::TextColored(ImColor(0, 255, 0), "Place two points to complete a connection");
+		}
+		else if (!m_state->m_editConnection.valid)
+		{
+			ImGui::TextColored(ImColor(255, 0, 0), "Connection is not valid. A connection can only extend between two adjacent tiles. Delete it and try again.");
+		}
 
-			if (update)
+		if (m_state->m_currentConnectionId != 0 && m_state->m_modified && ImGui::Button("Save Changes"))
+		{
+			if (OffMeshConnection* conn = navMesh->GetConnectionById(m_state->m_currentConnectionId))
 			{
-				auto modifiedTiles = m_state->UpdateConnection(conn);
-				if (!modifiedTiles.empty())
+				conn->name = m_state->m_editConnection.name;
+
+				bool update = false;
+				if (conn->areaType != m_state->m_editConnection.areaType)
 				{
-					m_meshTool->RebuildTiles(modifiedTiles);
+					conn->areaType = m_state->m_editConnection.areaType;
+					update = true;
+				}
+				if (conn->bidirectional != m_state->m_editConnection.bidirectional)
+				{
+					conn->bidirectional = m_state->m_editConnection.bidirectional;
+					update = true;
+				}
+
+				if (update)
+				{
+					auto modifiedTiles = m_state->UpdateConnection(conn);
+					if (!modifiedTiles.empty())
+					{
+						m_meshTool->RebuildTiles(modifiedTiles);
+					}
 				}
 			}
-		}
 
-		m_state->m_modified = false;
+			m_state->m_modified = false;
+		}
 	}
 }
 
 void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
 {
-	// if we're not editing a volume right now, switch to edit mode.
-	if (m_state->m_currentConnectionId == 0)
-		m_editing = true;
+	if (!m_meshTool) return; // ??
 
-	if (!m_editing) return;
-	if (!m_meshTool) return;
+	// if we're not editing a volume right now, switch to edit mode.
+	if (m_state->m_currentConnectionId != 0)
+		m_state->m_currentConnectionId = 0;
+
+	m_editing = true;
 
 	auto navMesh = m_meshTool->GetNavMesh();
 	std::vector<dtTileRef> modifiedTiles = m_state->handleConnectionClick(p, shift);
@@ -267,7 +273,9 @@ void OffMeshConnectionToolState::init(NavMeshTool* meshTool)
 
 void OffMeshConnectionToolState::reset()
 {
-
+	m_hitPosSet = false;
+	m_currentConnectionId = 0;
+	m_modified = false;
 }
 
 void OffMeshConnectionToolState::handleRender()
@@ -295,13 +303,13 @@ void OffMeshConnectionToolState::handleRender()
 		const glm::vec3& to = connection->end;
 
 		dd.vertex(glm::value_ptr(from), baseColor);
-		dd.vertex(glm::value_ptr(from + glm::vec3(0.0f, 0.2f, 0.0f)), baseColor);
+		dd.vertex(glm::value_ptr(from + glm::vec3(0.0f, 0.2f, 0.0f)), connection->id == m_currentConnectionId ? activeColor : baseColor);
 
 		dd.vertex(glm::value_ptr(to), baseColor);
-		dd.vertex(glm::value_ptr(to + glm::vec3(0.0f, 0.2f, 0.0f)), baseColor);
+		dd.vertex(glm::value_ptr(to + glm::vec3(0.0f, 0.2f, 0.0f)), connection->id == m_currentConnectionId ? activeColor : baseColor);
 
-		duAppendCircle(&dd, from.x, from.y + 0.1f, from.z, s, baseColor);
-		duAppendCircle(&dd, to.x, to.y + 0.1f, to.z, s, baseColor);
+		duAppendCircle(&dd, from.x, from.y + 0.1f, from.z, s, connection->id == m_currentConnectionId ? activeColor : baseColor);
+		duAppendCircle(&dd, to.x, to.y + 0.1f, to.z, s, connection->id == m_currentConnectionId ? activeColor : baseColor);
 
 		duAppendArc(&dd, from.x, from.y, from.z, to.x, to.y, to.z, 0.25f,
 			connection->bidirectional ? 4.f : 0.0f, 4.f,
@@ -376,6 +384,9 @@ std::vector<dtTileRef> OffMeshConnectionToolState::handleConnectionClick(const g
 
 			auto conn = navMesh->AddConnection(std::move(connection));
 			modifiedTiles = UpdateConnection(conn);
+
+			reset();
+			m_currentConnectionId = conn->id;
 		}
 	}
 

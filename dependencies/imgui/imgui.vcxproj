@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="misc\fonts\font_droidsans_ttf.cpp" />
     <ClCompile Include="misc\fonts\font_fontawesome_ttf.cpp" />
     <ClCompile Include="misc\fonts\font_materialicons_ttf.cpp" />
@@ -43,6 +44,7 @@
     <ClInclude Include="imstb_rect_pack.h" />
     <ClInclude Include="imstb_textedit.h" />
     <ClInclude Include="imstb_truetype.h" />
+    <ClInclude Include="misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="misc\fonts\font_droidsans_ttf.h" />
     <ClInclude Include="misc\fonts\font_fontawesome_ttf.h" />
     <ClInclude Include="misc\fonts\font_materialicons_ttf.h" />

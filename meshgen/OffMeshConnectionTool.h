@@ -54,16 +54,13 @@ public:
 
 private:
 	NavMeshTool* m_meshTool = nullptr;
-	glm::vec3 m_hitPos;
 
 	// properties for constructing new connection
 	bool m_hitPosSet = false;
-	glm::vec3 m_posBegin;
-	glm::vec3 m_posEnd;
+	glm::vec3 m_hitPos;
 
 	// editing existing connection (or staging for new). We copy so we can make edits without committing.
 	OffMeshConnection m_editConnection;
-	char m_name[256];
 	uint32_t m_currentConnectionId = 0;
 	bool m_modified = false;
 };
