@@ -1179,6 +1179,9 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(const cha
 
 	if (result->valid)
 	{
+		// specify default
+		result->options.logLevel = logLevel;
+
 		//--------------------------------------------------------------------
 		// parse options
 
@@ -1510,6 +1513,8 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const char* szLine)
 	auto dest = ParseDestination(szLine, spdlog::level::off);
 	if (dest->valid)
 	{
+		ScopedLogLevel level{ *m_chatSink, dest->options.logLevel };
+
 		result = GetNavigationPathLength(dest);
 	}
 
@@ -1522,6 +1527,8 @@ bool MQ2NavigationPlugin::CanNavigateToPoint(const char* szLine)
 	auto dest = ParseDestination(szLine, spdlog::level::off);
 	if (dest->valid)
 	{
+		ScopedLogLevel level{ *m_chatSink, dest->options.logLevel };
+
 		NavigationPath path(dest);
 
 		if (path.FindPath())
