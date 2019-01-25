@@ -553,6 +553,23 @@ LRESULT WINAPI WndProc_Detour(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
 			return true;
+
+		if (msg == WM_KEYDOWN && ImGui::GetCurrentContext() != nullptr)
+		{
+			// We need to send an AddInputCharacter because WM_CHAR does not get sent by EQ.
+			BYTE keyState[256];
+			if (GetKeyboardState(keyState) == TRUE)
+			{
+				WORD character = 0;
+
+				if (ToAscii(wParam, (lParam & 0x1ff0000) > 16, keyState, &character, 0) == 1)
+				{
+					ImGuiIO& io = ImGui::GetIO();
+
+					io.AddInputCharacter(character);
+				}
+			}
+		}
 	}
 
 	return WndProc_Trampoline(hWnd, msg, wParam, lParam);
