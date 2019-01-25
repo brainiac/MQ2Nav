@@ -8,6 +8,7 @@
 #include "common/Utilities.h"
 
 #include <imgui.h>
+#include <boost/algorithm/string.hpp>
 #include <spdlog/spdlog.h>
 
 namespace nav {
@@ -134,7 +135,7 @@ void SaveWaypoint(const Waypoint& wp)
 bool GetWaypoint(const std::string& name, Waypoint& wp)
 {
 	auto iter = std::find_if(g_waypoints.begin(), g_waypoints.end(),
-		[&name](const Waypoint& wp) { return wp.name == name; });
+		[&name](const Waypoint& wp) { return boost::iequals(wp.name, name); });
 
 	bool result = (iter != g_waypoints.end());
 
