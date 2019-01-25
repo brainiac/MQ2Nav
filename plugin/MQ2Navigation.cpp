@@ -337,7 +337,6 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
 
 MQ2NavigationPlugin::~MQ2NavigationPlugin()
 {
-	spdlog::shutdown();
 }
 
 void MQ2NavigationPlugin::Plugin_OnPulse()
@@ -365,7 +364,6 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 	{
 		AttemptMovement();
 		StuckCheck();
-		//AttemptClick();
 	}
 }
 
@@ -542,6 +540,7 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 	ShutdownHooks();
 	
 	m_initialized = false;
+	spdlog::shutdown();
 }
 
 std::string MQ2NavigationPlugin::GetDataDirectory() const
