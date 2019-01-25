@@ -1267,8 +1267,21 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		SEARCHSPAWN sSpawn;
 		ClearSearchSpawn(&sSpawn);
 
-		PCHAR text = GetNextArg(szLine, 2);
-		ParseSearchSpawn(text, &sSpawn);
+		// Find a | starting from the right side. Split the string in two if we find it.
+		// We'll send the first half to ParseSearchSpawn.
+		PCHAR text = GetNextArg(szLine, idx - 1);
+
+		std::string_view tempView{ text };
+		size_t pos = tempView.find_last_of("|");
+		if (pos != std::string_view::npos)
+		{
+			tempView = tempView.substr(0, pos);
+		}
+
+		CHAR szSpawnSearch[MAX_STRING];
+		strncpy_s(szSpawnSearch, tempView.data(), tempView.length());
+
+		ParseSearchSpawn(szSpawnSearch, &sSpawn);
 
 		if (PSPAWNINFO pSpawn = SearchThroughSpawns(&sSpawn, (PSPAWNINFO)pCharSpawn))
 		{
