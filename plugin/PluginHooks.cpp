@@ -507,7 +507,7 @@ void ProcessMouseEvent_Detour()
 		return;
 	}
 
-	if (nav::GetSettings().show_ui)
+	if (nav::GetSettings().show_ui && ImGui::GetCurrentContext() != nullptr)
 	{
 		ImGuiIO& io = ImGui::GetIO();
 		if (io.WantCaptureMouse)
@@ -525,12 +525,15 @@ void ProcessMouseEvent_Detour()
 DETOUR_TRAMPOLINE_EMPTY(unsigned int ProcessKeyboardEvent_Trampoline());
 unsigned int ProcessKeyboardEvent_Detour()
 {
-	ImGuiIO& io = ImGui::GetIO();
-
-	if (io.WantCaptureKeyboard)
+	if (ImGui::GetCurrentContext() != nullptr)
 	{
-		FlushDxKeyboard();
-		return 0;
+		ImGuiIO& io = ImGui::GetIO();
+
+		if (io.WantCaptureKeyboard)
+		{
+			FlushDxKeyboard();
+			return 0;
+		}
 	}
 
 	// If you /unload or /plugin mq2nav unload via command, then the plugin will
