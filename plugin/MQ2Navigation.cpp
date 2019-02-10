@@ -1608,9 +1608,11 @@ void MQ2NavigationPlugin::Stop()
 
 void MQ2NavigationPlugin::ResetPath()
 {
-	m_activePath.reset();
-	m_mapLine->SetNavigationPath(nullptr);
-	m_gameLine->SetNavigationPath(nullptr);
+	if (m_mapLine)
+		m_mapLine->SetNavigationPath(nullptr);
+	if (m_gameLine)
+		m_gameLine->SetNavigationPath(nullptr);
+
 	m_isActive = false;
 	m_isPaused = false;
 	m_requestStop = false;
@@ -1620,6 +1622,7 @@ void MQ2NavigationPlugin::ResetPath()
 
 	m_pEndingDoor = nullptr;
 	m_pEndingItem = nullptr;
+	m_activePath.reset();
 }
 
 #pragma endregion
