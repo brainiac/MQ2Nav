@@ -345,7 +345,8 @@ private:
 
 void ClickDoor(PDOOR pDoor);
 
-struct ScopedLogLevel {
+struct ScopedLogLevel
+{
 	ScopedLogLevel(spdlog::sinks::sink& s, spdlog::level::level_enum l);
 	~ScopedLogLevel();
 

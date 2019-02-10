@@ -600,6 +600,7 @@ static void DoHelp()
 	WriteChatf(PLUGIN_MSG "\ag/nav locxy X Y\ax - navigate to 2d coordinates");
 	WriteChatf(PLUGIN_MSG "\ag/nav item [click]\ax - navigate to item (and click it)");
 	WriteChatf(PLUGIN_MSG "\ag/nav door [item_name | id #] [click]\ax - navigate to door/object (and click it)");
+	WriteChatf(PLUGIN_MSG "\ag/nav setopt [options | reset]\ax - Set the default value for options used for navigation. See \agOptions\ax below. Pass \"reset\" instead to reset them to their default values.");
 	WriteChatf(PLUGIN_MSG "\ag/nav spawn <spawn search> | [options]\ax - navigate to spawn via spawn search query. If you want to provide options to navigate, like distance, you need to separate them by a | (pipe)");
 	WriteChatf(PLUGIN_MSG "\ag/nav waypoint|wp <waypoint>\ax - navigate to waypoint");
 	WriteChatf(PLUGIN_MSG "\ag/nav stop\ax - stop navigation");
@@ -624,8 +625,8 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 
 	SPDLOG_DEBUG("Handling Command: {}", szLine);
 
-	spdlog::level::level_enum requestedLevel = ExtractLogLevel(szLine, spdlog::level::info);
-	if (requestedLevel != spdlog::level::info)
+	spdlog::level::level_enum requestedLevel = ExtractLogLevel(szLine, m_defaultOptions.logLevel);
+	if (requestedLevel != m_defaultOptions.logLevel)
 		SPDLOG_DEBUG("Log level temporarily set to: {}", spdlog::level::to_string_view(requestedLevel));
 
 	ScopedLogLevel scopedLevel{ *m_chatSink, requestedLevel };
@@ -739,6 +740,31 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	if (!_stricmp(buffer, "help"))
 	{
 		DoHelp();
+
+		return;
+	}
+
+	// parse /nav setopt [options]
+	if (!_stricmp(buffer, "setopt"))
+	{
+		int idx = 2;
+
+		GetArg(buffer, szLine, idx);
+
+		if (!_stricmp(buffer, "reset"))
+		{
+			// reset
+			m_defaultOptions = NavigationOptions{};
+
+			SPDLOG_INFO("Navigation options reset");
+		}
+		else
+		{
+			ParseOptions(szLine, idx, m_defaultOptions);
+
+			SPDLOG_INFO("Navigation options updated");
+			SPDLOG_DEBUG("Navigation options updated: {}", szLine);
+		}
 
 		return;
 	}
@@ -1201,7 +1227,6 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	const char* szLine, int& idx)
 {
 	CHAR buffer[MAX_STRING] = { 0 };
-	idx = 1;
 	GetArg(buffer, szLine, idx++);
 
 	std::shared_ptr<DestinationInfo> result = std::make_shared<DestinationInfo>();
@@ -1309,8 +1334,6 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	// parse /nav door [click [once]]
 	if (!_stricmp(buffer, "door") || !_stricmp(buffer, "item"))
 	{
-		int idx = 2;
-
 		if (!_stricmp(buffer, "door"))
 		{
 			PDOOR theDoor = ParseDoorTarget(buffer, szLine, idx);
@@ -1461,7 +1484,19 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 {
 	CHAR buffer[MAX_STRING] = { 0 };
 
+	// If line has a | in it, start parsing options from there.
+	std::string tempString;
+	std::string_view tempView{ szLine };
+	size_t pos = tempView.find_last_of("|");
+	if (pos != std::string_view::npos)
+	{
+		tempString = std::string{ tempView.substr(pos + 1) };
+		szLine = tempString.c_str();
+		idx = 1;
+	}
+
 	GetArg(buffer, szLine, idx++);
+
 	while (strlen(buffer) > 0)
 	{
 		std::string_view arg{ buffer };
@@ -1591,6 +1626,27 @@ void MQ2NavigationPlugin::ResetPath()
 
 //----------------------------------------------------------------------------
 
+void RenderNavigationOptions(NavigationOptions& opts)
+{
+	ImGui::PushID(&opts);
+
+	// log level
+	ImGui::Combo("Log level", (int*)& opts.logLevel,
+		[](void* data, int idx, const char** out_text) -> bool
+	{
+		*out_text = spdlog::level::level_string_views[idx].data();
+		return true;
+	}, nullptr, 7);
+
+	ImGui::InputFloat("Destination distance", &opts.distance);
+	ImGui::Checkbox("Destination LoS", &opts.lineOfSight);
+	ImGui::Checkbox("Track spawn destination movement", &opts.track);
+
+	ImGui::Checkbox("Path following paused", &opts.paused);
+
+	ImGui::PopID();
+}
+
 void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 {
 	if (tabId == TabPage::Navigation)
@@ -1599,6 +1655,12 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 		auto navmeshRenderer = Get<NavMeshRenderer>();
 		navmeshRenderer->OnUpdateUI();
+
+		// Render default options
+		if (ImGui::CollapsingHeader("Navigation Options (Defaults)"))
+		{
+			RenderNavigationOptions(m_defaultOptions);
+		}
 
 		// myPos = EQ coordinate
 		glm::vec3 myPos = GetMyPosition();
@@ -1620,7 +1682,6 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 		ImGui::TextColored(ImColor(29, 171, 255), "Navigation State");
 		ImGui::PopFont();
 		ImGui::Separator();
-
 
 		if (m_isActive)
 		{
@@ -1713,29 +1774,14 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 			ImGui::NewLine();
 
-			//static bool showNavOptions = true;
-			//ImGui::SetNextTreeNodeOpen(showNavOptions);
-			//if (showNavOptions = ImGui::CollapsingHeader("Navigation Options"))
+			if (ImGui::CollapsingHeader("Navigation Options (Active Path)"))
 			{
 				ImGui::TextColored(ImColor(29, 171, 255), "Navigation Options");
 				ImGui::Separator();
 
-				ImGui::InputFloat("Desired distance", &info->options.distance);
-				//ImGui::Checkbox("Target LoS", &info.options.lineOfSight);
-
-				// log level
-				ImGui::Combo("Log level", (int*)&info->options.logLevel,
-					[](void* data, int idx, const char** out_text) -> bool
-				{
-					*out_text = spdlog::level::level_string_views[idx].data();
-					return true;
-				}, nullptr, 7);
-
-				if (info->type == DestinationType::Spawn)
-				{
-					ImGui::Checkbox("Track target movement", &info->options.track);
-				}
+				RenderNavigationOptions(info->options);
 			}
+
 			ImGui::NewLine();
 			RenderPathList();
 		}
