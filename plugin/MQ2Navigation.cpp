@@ -595,7 +595,7 @@ static void DoHelp()
 	WriteChatf(PLUGIN_MSG "\ag/nav locxy X Y\ax - navigate to 2d coordinates");
 	WriteChatf(PLUGIN_MSG "\ag/nav item [click]\ax - navigate to item (and click it)");
 	WriteChatf(PLUGIN_MSG "\ag/nav door [item_name | id #] [click]\ax - navigate to door/object (and click it)");
-	WriteChatf(PLUGIN_MSG "\ag/nav spawn <spawn search>\ax - navigate to spawn via spawn search query");
+	WriteChatf(PLUGIN_MSG "\ag/nav spawn <spawn search> | [options]\ax - navigate to spawn via spawn search query. If you want to provide options to navigate, like distance, you need to separate them by a | (pipe)");
 	WriteChatf(PLUGIN_MSG "\ag/nav waypoint|wp <waypoint>\ax - navigate to waypoint");
 	WriteChatf(PLUGIN_MSG "\ag/nav stop\ax - stop navigation");
 	WriteChatf(PLUGIN_MSG "\ag/nav pause\ax - pause navigation");
