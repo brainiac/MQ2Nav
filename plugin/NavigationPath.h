@@ -184,8 +184,10 @@ private:
 class NavigationLine : public Renderable
 {
 public:
-	NavigationLine(NavigationPath* path);
+	NavigationLine();
 	virtual ~NavigationLine();
+
+	void SetNavigationPath(NavigationPath* path);
 
 	void SetThickness(float thickness);
 	float GetThickness() const { return m_thickness; }
@@ -198,6 +200,7 @@ public:
 	virtual bool CreateDeviceObjects() override;
 	virtual void InvalidateDeviceObjects() override;
 
+	void ReleasePath();
 	void GenerateBuffers();
 
 	struct LineStyle
@@ -213,8 +216,7 @@ public:
 	};
 
 private:
-	NavigationPath* m_path;
-
+	NavigationPath* m_path = nullptr;
 	ID3DXEffect* m_effect = nullptr;
 
 	// The vertex structure we'll be using for line drawing. Each line is defined as two vertices,

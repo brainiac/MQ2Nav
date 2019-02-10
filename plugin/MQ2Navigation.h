@@ -41,6 +41,7 @@ class dtNavMesh;
 class MQ2NavigationPlugin;
 class MQ2NavigationType;
 class NavigationPath;
+class NavigationLine;
 class NavigationMapLine;
 class ModelLoader;
 class RenderHandler;
@@ -226,6 +227,8 @@ public:
 
 	std::shared_ptr<NavigationPath> GetActivePath() const { return m_activePath; }
 
+	std::shared_ptr<NavigationLine> GetGameLine() const { return m_gameLine; }
+
 private:
 	void InitializeRenderer();
 	void ShutdownRenderer();
@@ -262,6 +265,7 @@ private:
 	// todo: factor out the navpath rendering and map line into
 	//       modules based on active path.
 	std::shared_ptr<NavigationMapLine> m_mapLine;
+	std::shared_ptr<NavigationLine> m_gameLine;
 
 	Signal<>::ScopedConnection m_uiConn;
 

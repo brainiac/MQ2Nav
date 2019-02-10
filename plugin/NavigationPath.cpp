@@ -90,10 +90,9 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 
 	if (m_renderPaths)
 	{
-		m_line = std::make_shared<NavigationLine>(this);
+		m_line = g_mq2Nav->GetGameLine();
 		m_line->SetVisible(m_renderPaths);
 		m_line->SetCurrentPos(m_lastPos);
-		g_renderHandler->AddRenderable(m_line.get());
 
 		m_debugDrawGrp = std::make_unique<RenderGroup>(g_pDevice);
 		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
@@ -103,9 +102,7 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 		if (m_debugDrawGrp)
 			g_renderHandler->RemoveRenderable(m_debugDrawGrp.get());
 
-		if (m_line)
-			g_renderHandler->RemoveRenderable(m_line.get());
-
+		m_line->SetVisible(false);
 		m_line.reset();
 		m_debugDrawGrp.reset();
 	}
@@ -460,8 +457,7 @@ glm::vec3 NavigationPath::GetDestination() const
 
 //----------------------------------------------------------------------------
 
-NavigationLine::NavigationLine(NavigationPath* path)
-	: m_path(path)
+NavigationLine::NavigationLine()
 {
 }
 
@@ -470,9 +466,25 @@ NavigationLine::~NavigationLine()
 	InvalidateDeviceObjects();
 }
 
+void NavigationLine::SetNavigationPath(NavigationPath* path)
+{
+	m_path = path;
+
+	if (m_visible && m_path)
+	{
+		GenerateBuffers();
+	}
+	else
+	{
+		ReleasePath();
+	}
+}
+
 bool NavigationLine::CreateDeviceObjects()
 {
 	if (!m_visible)
+		return true;
+	if (m_loaded)
 		return true;
 
 	auto shaderFile = LoadResource(IDR_VOLUMELINES_FX);
@@ -537,11 +549,7 @@ void NavigationLine::InvalidateDeviceObjects()
 		m_effect = nullptr;
 	}
 
-	if (m_vertexBuffer)
-	{
-		m_vertexBuffer->Release();
-		m_vertexBuffer = nullptr;
-	}
+	ReleasePath();
 
 	if (m_vDeclaration)
 	{
@@ -552,11 +560,20 @@ void NavigationLine::InvalidateDeviceObjects()
 	m_loaded = false;
 }
 
+void NavigationLine::ReleasePath()
+{
+	if (m_vertexBuffer)
+	{
+		m_vertexBuffer->Release();
+		m_vertexBuffer = nullptr;
+	}
+}
+
 void NavigationLine::Render()
 {
 	if (!m_loaded)
 		return;
-	if (m_needsUpdate)
+	if (m_needsUpdate && m_path)
 		GenerateBuffers();
 	if (!m_vertexBuffer)
 		return;
@@ -792,12 +809,15 @@ void NavigationLine::SetVisible(bool visible)
 	{
 		m_visible = visible;
 
-		if (m_visible) {
+		if (m_visible)
+		{
 			m_needsUpdate = true;
 			CreateDeviceObjects();
 		}
 		else
-			InvalidateDeviceObjects();
+		{
+			ReleasePath();
+		}
 	}
 }
 

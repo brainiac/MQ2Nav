@@ -516,6 +516,9 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	m_updateTabConn = ui->OnTabUpdate.Connect([=](TabPage page) { OnUpdateTab(page); });
 
 	m_mapLine = std::make_shared<NavigationMapLine>();
+	m_gameLine = std::make_shared<NavigationLine>();
+
+	g_renderHandler->AddRenderable(m_gameLine.get());
 }
 
 void MQ2NavigationPlugin::Plugin_Shutdown()
@@ -525,6 +528,8 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 	
 	RemoveCommand("/navigate");
 	ShutdownMQ2NavMacroData();
+
+	g_renderHandler->RemoveRenderable(m_gameLine.get());
 
 	Stop();
 
@@ -848,6 +853,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	}
 
 	m_mapLine->SetNavigationPath(m_activePath.get());
+	m_gameLine->SetNavigationPath(m_activePath.get());
 	Get<SwitchHandler>()->SetActive(m_isActive);
 
 	// check if we start paused.
@@ -1569,6 +1575,7 @@ void MQ2NavigationPlugin::ResetPath()
 {
 	m_activePath.reset();
 	m_mapLine->SetNavigationPath(nullptr);
+	m_gameLine->SetNavigationPath(nullptr);
 	m_isActive = false;
 	m_isPaused = false;
 	m_requestStop = false;
