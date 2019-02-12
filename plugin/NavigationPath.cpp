@@ -102,8 +102,11 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 		if (m_debugDrawGrp)
 			g_renderHandler->RemoveRenderable(m_debugDrawGrp.get());
 
-		m_line->SetVisible(false);
-		m_line.reset();
+		if (m_line)
+		{
+			m_line->SetVisible(false);
+			m_line.reset();
+		}
 		m_debugDrawGrp.reset();
 	}
 }
