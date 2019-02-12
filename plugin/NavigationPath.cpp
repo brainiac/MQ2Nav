@@ -157,6 +157,7 @@ bool NavigationPath::CanSeeDestination() const
 	auto last = m_currentPath->GetNode(m_currentPath->length - 1);
 
 	dtRaycastHit hit;
+	std::memset(&hit, 0, sizeof(hit));
 
 	dtStatus result = m_query->raycast(
 		std::get<dtPolyRef>(curr),
