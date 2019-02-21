@@ -4,8 +4,6 @@ MQ2Nav Changelog
 1.3.0
 -----
 
-This is a major release of MQ2Nav
-
 ### Highlights & New Features
 
 **New Off-Mesh Connections tool** (#52, #65)
