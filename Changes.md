@@ -1,6 +1,87 @@
 MQ2Nav Changelog
 ================
 
+1.3.0
+-----
+
+This is a major release of MQ2Nav
+
+### Highlights & New Features
+
+**New Off-Mesh Connections tool** (#52, #65)
+Using the new MeshGenerator connections tool, create short connections between two points on the mesh. The distance is limited to adjacent tiles. Connections can be one-way or bi-directional, and pathing costs are calculated.
+
+Off-Mesh connections can be used to bridge gaps in the mesh when certain areas are obstructed, allowing MQ2Nav to follow a path that spans a segment that lacks navmesh. While following a path, connections are represented as a purple line segment.
+
+**Navigation Command Options** (#49, #53, #63, #64, 1323b0440700851974db53f2c573fa90b6721304)
+Navigation commands can now be modified with options that modify the navigation behavior. For example, you can use the following command to get within 30 distance of the target: `/nav target distance=30`. The following options have been added:
+
+* **distance=x** Move to within the specified distance to the destination. Using this command will enforce a line-of-sight check to ensure that the destination is visible before ending. shortcut: `dist`
+* **lineofsight=off** Disables the line-of-sight check when using distance. shortcut: `los`.
+* **log=level** Sets log level during navigation. Use `log=off` to completely disable navigation logging while the command is active. Valid options: `trace`, `debug`, `info`, `warning`, `error`, `fatal`, `off`. The default is `info`. Specifying a level limits logging to the given level or higher.
+* **paused** Starts navigation in a paused state.
+* **notrack** Disables tracking of spawn movement. When navigating to a spawn (via any of the various methods), the destination will be updated to track the spawn's movement. If you prefer not to update the destination when the target moves, specify this option.
+
+You can specify defaults for the session by using the nav ui, or by using **/nav setopt *[options]***
+
+**Navigate from MQ2Map** (#15)
+Use MQ2Map click feature to navigate to a specific location using the locxy navigation command.
+
+Activate this feature by setting a MQ2Map click command: `/mapclick left ctrl+shift /nav locxy %x %y` and then ctrl+shift+leftclick anywhere on the map to go there.
+
+**Path Planning Improvements**
+Moving off of the navigation mesh will no longer cause the path to fail. Additionally, trying to navigate to unreachable destinations will no longer try to navigate with an incomplete path.
+
+### Enhancements
+* Areas marked as unwalkable can now be overwritten by walkable areas. This is useful for blocking out a large area as unwalkable, and then carving an area within it as walkable. Areas are applied in the order specified in the MeshGenerator, so specify your unwalkable areas first and your walkable area after. (#16)
+* Areas tool now supports reordering areas. (fab89cae26c3c029189e43cc9309a261227a407c)
+* Navigation is no longer affects by keyboard state. It is now safe to type while navigation is active! (#56)
+* Added command to list saved waypoints: `/nav listwp` (#40)
+* Added `${Nav}` alias for `${Navigation}` (#57)
+* Added two new default area types to assist mesh creators: Prefer and Avoid. These areas can be used in association with the areas or connections tools to mark areas of the map as preferred or avoided when creating paths. (57f466397bbe2c1ad9106a022e32af916a3ec131)
+* Added `log=off` option to disable logging of navigation commands. (#49)
+* Added new, official plugin exports for other plugins to integrate against. Old, unofficial exports still exist, but will print a warning when using them for the first time. See this wiki page for more information: https://github.com/brainiac/MQ2Nav/wiki/MQ2Nav-Exported-Functions (#13)
+* Navigating to a spawn will now dynamically update the destination if the spawn moves. add the `notrack` option to disable these updates. (#64)
+* Improved the display of instructions in the mesh generator. These helpful little hints are now rendered as an overlay with a grey background to make them more visible in the bottom right corner. If this gets in the way it can be disabled from the menu. (28c899477213b91ba1f4006edb40595158c6ca96)
+* Settings used to generate a navmesh are now saved with the mesh. Opening the mesh again will bring back the original settings, allowing to make additional changes without causing problems. (#66)
+* Zone shortname can be passed to MeshGenerator.exe via command line. This will also load the navmesh if available. (64818bdd4f1fe1cae8e45bed05dee36323653eb3)
+* MQ2Nav and MeshGenerator now use a logging system to provide consistent and uniform logging. In addition to logging to the screen, logs can also be found in MQ2Nav.log or MeshGenerator.log, even if logging is silenced in the UI. (#55)
+* Revamped main content area of MQ2Nav UI, giving priority to current navigation state.
+* Various other UI improvements made to MeshGenerator and MQ2Nav. Feedback is welcome!
+* Added a way for `/nav spawn` to work with options. Separate the spawn search query from the nav options with a | pipe symbol. For example: `/nav spawn npc banker |dist=30` (#68)
+* Waypoints names are now case insensitive when used for searching. (#70)
+* Added command to change option defaults (#58)
+  * `/nav setopt [options]` will set option defaults that other navigation commands will use.
+  * `/nav setopt dist=30` will set the default distance to 30
+  * `/nav setopt log=off` will turn logging off
+  * Option defaults can be reset with `/nav setopt reset`
+* Added nav ui to show and modify default options.
+* Updated help text for other navigation options.
+
+### Bug Fixes
+* Logging out should no longer confuse the current zone id. (#37)
+* `${Navigation.PathExists}` should no longer return true if the destination is not reachable. (#48)
+* Fixed several crashes including ResetDevice, RenderHandler::InvalidateDeviceObjects, and a few others. (#36, #62 101789b597b1145544a65f8e067176de4b48c0b9, d849894f24476eff343f5d8a35c4ac24d9038398)
+* Moving off of the mesh will no longer cause navigation to stop. (1323b0440700851974db53f2c573fa90b6721304)
+* Trying to navigate to an unreachable destination (or one that exceeds the memory limit for length) will no longer product an incomplete path. Instead, it will fail. (#41)
+* Typing into text fields in the mesh generator will no longer also move the camera (6c6d04d7f9cb1fb47c0c6d1ba00d25b6f7d22734)
+* Modifying the x or z coordinates of the bouding box should no longer cause problems with using the mesh. (#32)
+* Fixed path length assert failure
+* Fixed `/nav spawn` handling, the first search argument should no longer be ignored (1c2de7e3ad07556fd7a5062ce74f9ebcd3d49b0e)
+* Fixed keyboard input in overlay ui in MQ2Nav (#71)
+* Fixed log level not properly being set during macro data queries (#67)
+* Fixed a shutdown crash (a022f861d6bc32d0f8fcdf68e60eeebd0fdfc44f)
+* Fixed a crash on plugin load (#69)
+* Fixed an issue that caused navigation path indicator to stop appearing after a number of paths. (#74)
+
+### Packaging Notes
+VolumeLines.fx is no longer needed to be bundled with the plugin. It can be excluded from redistributions moving forward. (#43)
+
+### Updated Dependencies
+* ImGui upgraded to 1.67, comes with various bug fixes and new color scheme. (#60)
+* SDL2 upgraded to 2.0.9
+
+
 1.2.2
 -----
 
