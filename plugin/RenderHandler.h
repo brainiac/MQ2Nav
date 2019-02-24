@@ -25,6 +25,8 @@ public:
 	RenderHandler();
 	~RenderHandler();
 
+	void Shutdown();
+
 	void AddRenderable(Renderable* renderable);
 	void RemoveRenderable(Renderable* renderable);
 
@@ -35,7 +37,6 @@ private:
 	void InvalidateDeviceObjects();
 
 	void PerformRender();
-	void PerformImGuiRender();
 
 private:
 	bool m_deviceAcquired = false; // implies that g_pDevice is valid to use

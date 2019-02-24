@@ -29,6 +29,10 @@ RenderHandler::RenderHandler()
 
 RenderHandler::~RenderHandler()
 {
+}
+
+void RenderHandler::Shutdown()
+{
 	InvalidateDeviceObjects();
 }
 

@@ -578,7 +578,12 @@ void MQ2NavigationPlugin::InitializeRenderer()
 void MQ2NavigationPlugin::ShutdownRenderer()
 {
 	g_imguiRenderer.reset();
-	g_renderHandler.reset();
+
+	if (g_renderHandler)
+	{
+		g_renderHandler->Shutdown();
+		g_renderHandler.reset();
+	}
 }
 
 //----------------------------------------------------------------------------
