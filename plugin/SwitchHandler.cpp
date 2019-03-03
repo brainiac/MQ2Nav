@@ -94,7 +94,7 @@ void SwitchHandler::OnPulse()
 	bool doSlow = m_slowUpdate + m_slowUpdateInterval <= now;
 
 	PCHARINFO charInfo = GetCharInfo();
-	if (!charInfo)
+	if (!charInfo || !charInfo->pSpawn)
 		return;
 
 	// update distances if we moved
