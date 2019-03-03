@@ -174,7 +174,7 @@ private:
 	bool m_followingLink = false;
 
 	dtQueryFilter m_filter;
-	glm::vec3 m_extents = { 2, 10, 2 }; // note: X, Z, Y
+	glm::vec3 m_extents = { 5, 10, 5 }; // note: X, Z, Y
 
 	Signal<>::ScopedConnection m_navMeshConn;
 };
