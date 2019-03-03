@@ -532,7 +532,10 @@ if (!m_showDoorsUI)
 
 	ImGui::SetNextWindowSize(ImVec2(500, 120), ImGuiSetCond_FirstUseEver);
 	if (!ImGui::Begin("EQ Doors", &m_showDoorsUI))
+	{
+		ImGui::End();
 		return;
+	}
 
 	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
 
@@ -622,7 +625,7 @@ if (!m_showDoorsUI)
 		{
 			std::string command = "door id " + std::to_string(door->ID) + " click";
 
-			auto info = g_mq2Nav->ParseDestination(command.c_str(), spdlog::level::off);
+			auto info = g_mq2Nav->ParseDestination(command.c_str(), spdlog::level::info);
 			g_mq2Nav->BeginNavigation(info);
 		}
 
