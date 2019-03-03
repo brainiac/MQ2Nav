@@ -504,6 +504,7 @@ void ProcessMouseEvent_Detour()
 	// only process the mouse events if we are the foreground window.
 	if (!gbInForeground)
 	{
+		ProcessMouseEvent_Trampoline();
 		return;
 	}
 
