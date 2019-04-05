@@ -257,17 +257,19 @@ private:
 
 	void StuckCheck();
 
-	void LookAt(const glm::vec3& pos);
+	void Look(const glm::vec3& pos, FacingType facing);
 
+	void PressMovementKey(FacingType facing);
+	void MovementFinished(const glm::vec3& dest, FacingType facing);
 	void AttemptMovement();
+
 	void Stop();
 
 	void ResetPath();
 
 	void OnMovementKeyPressed();
 
-	void Look(const glm::vec3& pos, FacingType facing);
-	void ORG_AttemptMovement();
+
 
 
 private:
