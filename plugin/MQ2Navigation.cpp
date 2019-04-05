@@ -206,7 +206,7 @@ void ClickDoor(PDOOR pDoor)
 	click.Y = pDoor->X;
 	click.X = pDoor->Y;
 	click.Z = pDoor->Z;
-	
+
 	ClickSwitch(click, (EQSwitch*)pDoor);
 }
 
@@ -525,7 +525,7 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 {
 	if (!m_initialized)
 		return;
-	
+
 	RemoveCommand("/navigate");
 	ShutdownMQ2NavMacroData();
 
@@ -544,7 +544,7 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 
 	ShutdownRenderer();
 	ShutdownHooks();
-	
+
 	m_initialized = false;
 	spdlog::shutdown();
 }
@@ -617,6 +617,7 @@ static void DoHelp()
 	WriteChatf(PLUGIN_MSG "  \aylog=<level>\ax - adjust log level for command. can be \aytrace\ax, \aydebug\ax, \ayinfo\ax, \aywarning\ax, \ayerror\ax, \aycritical\ax or \ayoff\ax. The default is \ayinfo.");
 	WriteChatf(PLUGIN_MSG "  \aypaused\ax - start navigation in a paused state.");
 	WriteChatf(PLUGIN_MSG "  \aynotrack\ax - disable tracking of spawn movement. By default, when navigating to a spawn, the destination location will track the spawn's position. This disables that behavior.");
+	WriteChatf(PLUGIN_MSG "  \ayfacing=[forward|backward]\ax - set the distance to face while moving.");
 
 	// NYI:
 	//WriteChatf(PLUGIN_MSG "\ag/nav options set \ay[options]\ax - save options as defaults");
@@ -644,7 +645,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 		nav::SaveSettings(false);
 		return;
 	}
-	
+
 	// parse /nav pause
 	if (!_stricmp(buffer, "pause"))
 	{
@@ -664,7 +665,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 		{
 			SPDLOG_INFO("Resuming Navigation");
 		}
-		
+
 		return;
 	}
 
@@ -733,7 +734,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 		nav::LoadSettings(true);
 		return;
 	}
-	
+
 	// parse /nav save
 	if (!_stricmp(buffer, "save"))
 	{
@@ -775,7 +776,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	}
 
 	scopedLevel.Release();
-	
+
 	// all thats left is a navigation command. leave if it isn't a valid one.
 	auto destination = ParseDestination(szLine, requestedLevel);
 	if (!destination->valid)
@@ -994,7 +995,7 @@ void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 		return;
 
 	PSPAWNINFO pSpawn = GetCharInfo()->pSpawn;
-	
+
 	gFaceAngle = glm::atan(pos.x - pSpawn->X, pos.y - pSpawn->Y) * 256.0f / glm::pi<float>();
 	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
 	if (gFaceAngle < 0.0f) gFaceAngle += 512.0f;
@@ -1029,6 +1030,55 @@ void MQ2NavigationPlugin::LookAt(const glm::vec3& pos)
 	gLookAngle = 10000.0f;
 }
 
+
+//---------------------------------- NEW CODE ----------------------------------
+
+void MQ2NavigationPlugin::Look(const glm::vec3& pos, FacingType facing)
+{
+	if (m_isPaused)
+		return;
+
+	PSPAWNINFO pSpawn = GetCharInfo()->pSpawn;
+
+	gFaceAngle = glm::atan(pos.x - pSpawn->X, pos.y - pSpawn->Y) * 256.0f / glm::pi<float>();
+	if (facing == FacingType::Backward) gFaceAngle += 256;
+	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
+	if (gFaceAngle < 0.0f) gFaceAngle += 512.0f;
+
+	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)gFaceAngle;
+
+	// This is a sentinel value telling MQ2 to not adjust the face angle
+	gFaceAngle = 10000.0f;
+
+	s_lastFace = pos;
+
+	if (pSpawn->UnderWater == 5 || pSpawn->FeetWet == 5)
+	{
+		glm::vec3 spawnPos{ pSpawn->X, pSpawn->Y, pSpawn->Z };
+		float distance = glm::distance(spawnPos, pos);
+
+		pSpawn->CameraAngle = glm::atan(pos.z - pSpawn->Z, distance) * 256.0f / glm::pi<float>();
+	}
+	else if (pSpawn->mPlayerPhysicsClient.Levitate == 2)
+	{
+		if (pos.z < pSpawn->FloorHeight)
+			pSpawn->CameraAngle = -45.0f;
+		else if (pos.z > pSpawn->Z + 5)
+			pSpawn->CameraAngle = 45.0f;
+		else
+			pSpawn->CameraAngle = 0.0f;
+	}
+	else
+		pSpawn->CameraAngle = 0.0f;
+
+	if (facing == FacingType::Backward) pSpawn->CameraAngle = pSpawn->CameraAngle * -1;
+
+	// this is a sentinel value telling MQ2 to not adjust the look angle
+	gLookAngle = 10000.0f;
+}
+
+//---------------------------------- NEW CODE ----------------------------------
+
 void MQ2NavigationPlugin::AttemptMovement()
 {
 	if (m_requestStop)
@@ -1049,7 +1099,130 @@ void MQ2NavigationPlugin::AttemptMovement()
 			{
 				info->eqDestinationPos = GetSpawnPosition(info->pSpawn);
 			}
-			
+
+			// update path
+			m_activePath->UpdatePath(false, true);
+			m_isActive = m_activePath->GetPathSize() > 0;
+
+			m_pathfindTimer = now;
+		}
+	}
+
+	Get<SwitchHandler>()->SetActive(m_isActive);
+
+	// if no active path, then leave
+	if (!m_isActive) return;
+
+	const glm::vec3& dest = m_activePath->GetDestination();
+	const auto& destInfo = m_activePath->GetDestinationInfo();
+	auto& options = m_activePath->GetDestinationInfo()->options;
+
+	if (m_activePath->IsAtEnd())
+	{
+		SPDLOG_INFO("Reached destination at: {}", dest.yxz());
+
+		if (m_pEndingItem || m_pEndingDoor)
+		{
+			Look(dest, FacingType::Forward);
+			AttemptClick();
+		}
+		else
+		{
+			Look(dest, options.facing);
+		}
+
+		Stop();
+	}
+	else if (m_activePath->GetPathSize() > 0)
+	{
+		if (!m_isPaused)
+		{
+			if (options.facing == FacingType::Forward)
+				TrueMoveOn(GO_FORWARD);
+			else
+				TrueMoveOn(GO_BACKWARD);
+		}
+
+		glm::vec3 nextPosition = m_activePath->GetNextPosition();
+
+		float distanceFromNextPosition = GetDistance(nextPosition.x, nextPosition.z);
+
+		if (distanceFromNextPosition < WAYPOINT_PROGRESSION_DISTANCE)
+		{
+			m_activePath->Increment();
+
+			if (!m_activePath->IsAtEnd())
+			{
+				m_activePath->UpdatePath(false, true);
+				nextPosition = m_activePath->GetNextPosition();
+			}
+		}
+
+		if (m_currentWaypoint != nextPosition)
+		{
+			m_currentWaypoint = nextPosition;
+			SPDLOG_DEBUG("Moving towards: {}", nextPosition.xzy());
+		}
+
+		glm::vec3 eqPoint(nextPosition.x, nextPosition.z, nextPosition.y);
+		Look(eqPoint, options.facing);
+
+
+		if (options.distance > 0)
+		{
+			glm::vec3 myPos = GetMyPosition();
+			glm::vec3 dest = m_activePath->GetDestination();
+
+			float distance2d = glm::distance2(m_activePath->GetDestination(), myPos);
+
+			// check distance component and make sure that the target is visible
+			if (distance2d < options.distance * options.distance
+				&& (!options.lineOfSight || m_activePath->CanSeeDestination()))
+			{
+				// TODO: Copied from above; de-duplicate
+				SPDLOG_INFO("Reached destination at: {}", dest.yxz());
+
+				LookAt(dest);
+				if (m_pEndingItem || m_pEndingDoor)
+				{
+					Look(dest, FacingType::Forward);
+					AttemptClick();
+				}
+				else
+				{
+					Look(dest, options.facing);
+				}
+
+				Stop();
+			}
+		}
+	}
+}
+
+
+// ---------------------------- OLD CODE ----------------------------
+
+void MQ2NavigationPlugin::ORG_AttemptMovement()
+{
+	if (m_requestStop)
+	{
+		Stop();
+	}
+
+	if (m_isActive)
+	{
+		clock::time_point now = clock::now();
+
+		if (now - m_pathfindTimer > std::chrono::milliseconds(PATHFINDING_DELAY_MS))
+		{
+			auto info = m_activePath->GetDestinationInfo();
+			if (info->type == DestinationType::Spawn
+				&& info->pSpawn != nullptr
+				&& info->options.track)
+			{
+				info->eqDestinationPos = GetSpawnPosition(info->pSpawn);
+			}
+
 			// update path
 			m_activePath->UpdatePath(false, true);
 			m_isActive = m_activePath->GetPathSize() > 0;
@@ -1138,6 +1311,10 @@ void MQ2NavigationPlugin::AttemptMovement()
 		}
 	}
 }
+
+
+
+
 
 PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 {
@@ -1266,7 +1443,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 
 		return result;
 	}
-	
+
 	// parse /nav id #
 	if (!_stricmp(buffer, "id"))
 	{
@@ -1544,6 +1721,18 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 			{
 				options.track = false;
 			}
+			else if (key == "facing")
+			{
+				if (value == "forward")
+					options.facing = FacingType::Forward;
+				else if (value == "backward")
+					options.facing = FacingType::Backward;
+				else
+				{
+					// value is not forward or backward - report error to user how?
+				}
+			}
+
 		}
 		catch (const std::exception& ex)
 		{
@@ -1903,7 +2092,7 @@ void NavigationMapLine::SetNavigationPath(NavigationPath* path)
 
 	m_path = path;
 	m_updateConn.Disconnect();
-	
+
 	if (m_path)
 	{
 		m_updateConn = m_path->PathUpdated.Connect([this]() { RebuildLine(); });
