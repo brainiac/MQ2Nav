@@ -269,9 +269,6 @@ private:
 
 	void OnMovementKeyPressed();
 
-
-
-
 private:
 	std::shared_ptr<NavigationPath> m_activePath;
 

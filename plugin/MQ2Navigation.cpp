@@ -1027,7 +1027,8 @@ void MQ2NavigationPlugin::Look(const glm::vec3& pos, FacingType facing)
 	else
 		pSpawn->CameraAngle = 0.0f;
 
-	if (facing == FacingType::Backward) pSpawn->CameraAngle = pSpawn->CameraAngle * -1;
+	if (facing == FacingType::Backward)
+		pSpawn->CameraAngle = -pSpawn->CameraAngle;
 
 	// this is a sentinel value telling MQ2 to not adjust the look angle
 	gLookAngle = 10000.0f;
@@ -1035,10 +1036,7 @@ void MQ2NavigationPlugin::Look(const glm::vec3& pos, FacingType facing)
 
 void MQ2NavigationPlugin::PressMovementKey(FacingType facing)
 {
-	if (facing == FacingType::Forward)
-		TrueMoveOn(GO_FORWARD);
-	else
-		TrueMoveOn(GO_BACKWARD);
+	TrueMoveOn(facing == FacingType::Forward ? GO_FORWARD : GO_BACKWARD);
 }
 
 void MQ2NavigationPlugin::MovementFinished(const glm::vec3& dest, FacingType facing)
@@ -1148,9 +1146,6 @@ void MQ2NavigationPlugin::AttemptMovement()
 		}
 	}
 }
-
-
-
 
 PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 {
