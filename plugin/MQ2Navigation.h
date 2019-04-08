@@ -76,13 +76,20 @@ enum class HeightType
 	Nearest
 };
 
+enum class FacingType
+{
+	Forward,
+	Backward,
+};
+
+
 struct NavigationOptions
 {
 	float distance = 0.f;          // distance to target
 	bool lineOfSight = true;       // does target need to be in los
 	bool paused = false;           // pathing is paused
 	bool track = true;            // if spawn is to be tracked
-
+	FacingType facing = FacingType::Forward; //  Forward = normal, Backward = move along path facing backward.
 	// set a new default log level while the path is running. info is the default.
 	spdlog::level::level_enum logLevel = spdlog::level::info;
 };
@@ -250,14 +257,20 @@ private:
 
 	void StuckCheck();
 
-	void LookAt(const glm::vec3& pos);
+	void Look(const glm::vec3& pos, FacingType facing);
 
+	void PressMovementKey(FacingType facing);
+	void MovementFinished(const glm::vec3& dest, FacingType facing);
 	void AttemptMovement();
+
 	void Stop();
 
 	void ResetPath();
 
 	void OnMovementKeyPressed();
+
+
+
 
 private:
 	std::shared_ptr<NavigationPath> m_activePath;
