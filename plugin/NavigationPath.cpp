@@ -18,6 +18,7 @@
 
 #include <DetourNavMesh.h>
 #include <DetourCommon.h>
+#include <DetourNode.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
 
@@ -25,6 +26,9 @@
 // constants
 
 const int MAX_STRAIGHT_PATH_LENGTH = 16384;
+
+const float NODE_POOL_GROWTH_FACTOR = 1.5f;
+const int NODE_POOL_MAX_SIZE = 1024 * 1024; // the zone is insanely large if this gets hit
 
 NavigationLine::LineStyle gNavigationLineStyle;
 
@@ -64,7 +68,7 @@ NavigationPath::NavigationPath(const std::shared_ptr<DestinationInfo>& dest)
 		[this, mesh]() { SetNavMesh(mesh->GetNavMesh()); });
 
 	m_renderPaths = nav::GetSettings().show_nav_path;
-	
+
 	SetNavMesh(mesh->GetNavMesh(), false);
 	SetDestination(dest);
 }
@@ -355,13 +359,64 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 		return {};
 	}
 
-	dtPolyRef polys[MAX_STRAIGHT_PATH_LENGTH];
+	int polysSize = MAX_STRAIGHT_PATH_LENGTH;
+	std::unique_ptr<dtPolyRef[]> polys = std::make_unique<dtPolyRef[]>(polysSize);
 	int numPolys = 0;
+	int iters = 0;
+	dtStatus status = 0;
 
-	dtStatus status = m_query->findPath(
-		startRef, endRef,
-		glm::value_ptr(spos),
-		glm::value_ptr(epos), &m_filter, polys, &numPolys, MAX_STRAIGHT_PATH_LENGTH);
+	while (iters < 100)
+	{
+		status = m_query->findPath(
+			startRef, endRef,
+			glm::value_ptr(spos),
+			glm::value_ptr(epos), &m_filter, polys.get(), &numPolys, polysSize);
+
+		bool retry = false;
+
+		if (dtStatusDetail(status, DT_OUT_OF_NODES))
+		{
+			// need to expand the node pool size
+			uint32_t maxNodes = (uint32_t)m_query->getNodePool()->getMaxNodes();
+			uint32_t newMaxNodes = std::min<uint32_t>(maxNodes * NODE_POOL_GROWTH_FACTOR, std::min<uint32_t>(DT_NULL_IDX, 1 << DT_NODE_PARENT_BITS) - 1);
+			if (maxNodes != newMaxNodes && newMaxNodes < NODE_POOL_MAX_SIZE)
+			{
+				SPDLOG_DEBUG("Growing node pool: {}", newMaxNodes);
+
+				m_query->init(m_query->getAttachedNavMesh(), newMaxNodes);
+				retry = true;
+			}
+			else
+			{
+				SPDLOG_WARN("Couldn't increase size of node pool. existing: {}, attempted: {}", maxNodes, newMaxNodes);
+			}
+		}
+
+		if (dtStatusDetail(status, DT_BUFFER_TOO_SMALL))
+		{
+			// need to expand polys buffer
+			int newPolysSize = polysSize *= NODE_POOL_GROWTH_FACTOR;
+			if (newPolysSize < NODE_POOL_MAX_SIZE)
+			{
+				SPDLOG_DEBUG("Growing polys buffer: {}", newPolysSize);
+
+				polysSize = newPolysSize;
+				polys = std::make_unique<dtPolyRef[]>(polysSize);
+				retry = true;
+			}
+			else
+			{
+				SPDLOG_WARN("Couldn't increase size of polys buffer. size: {}", newPolysSize);
+			}
+		}
+
+		if (!retry)
+		{
+			break;
+		}
+
+		iters++;
+	}
 
 	if (dtStatusFailed(status))
 	{
@@ -402,7 +457,7 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	{
 		m_query->findStraightPath(
 			glm::value_ptr(spos),
-			glm::value_ptr(epos), polys, numPolys,
+			glm::value_ptr(epos), polys.get(), numPolys,
 			glm::value_ptr(path->verts[0]),
 			path->flags.get(),
 			path->polys.get(),
@@ -450,7 +505,7 @@ float NavigationPath::GetPathTraversalDistance() const
 		// accumulate the distance
 		result += dtVdist(first, second);
 	}
-	
+
 	return result;
 }
 
