@@ -272,7 +272,7 @@ protected:
 			break;
 
 		case level::warn:
-			fmt::format_to(formatted, PLUGIN_MSG, "\ay{}", msg.payload);
+			fmt::format_to(formatted, PLUGIN_MSG "\ay{}", msg.payload);
 			break;
 
 		case level::info:
