@@ -96,7 +96,7 @@
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <StructMemberAlignment>4Bytes</StructMemberAlignment>
+      <StructMemberAlignment>Default</StructMemberAlignment>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -127,7 +127,7 @@
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <StructMemberAlignment>4Bytes</StructMemberAlignment>
+      <StructMemberAlignment>Default</StructMemberAlignment>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

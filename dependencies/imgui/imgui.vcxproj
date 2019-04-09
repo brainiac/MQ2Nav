@@ -136,7 +136,7 @@
       <StringPooling>false</StringPooling>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <StructMemberAlignment>4Bytes</StructMemberAlignment>
+      <StructMemberAlignment>Default</StructMemberAlignment>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -176,7 +176,7 @@
       <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>$(ProjectDir)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
-      <StructMemberAlignment>4Bytes</StructMemberAlignment>
+      <StructMemberAlignment>Default</StructMemberAlignment>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
