@@ -29,6 +29,8 @@
 #include <winternl.h>
 #include <tchar.h>
 
+#include <fenv.h>
+
 //============================================================================
 
 // This doesn't change during the execution of the program. This can be loaded
@@ -441,6 +443,10 @@ bool InstallD3D9Hooks()
 				pp.BackBufferCount = 1;
 				pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 
+				// save the rounding state. We'll restore it after we're done here.
+				// For some reason, CreateDeviceEx seems to tamper with it.
+				int round = fegetround();
+
 				IDirect3DDevice9Ex* deviceEx;
 				if (SUCCEEDED(hRes = d3d9ex->CreateDeviceEx(
 					D3DADAPTER_DEFAULT,
@@ -469,6 +475,9 @@ bool InstallD3D9Hooks()
 				{
 					SPDLOG_DEBUG("InstallD3D9Hooks: failed to CreateDeviceEx. Result={:#x}", hRes);
 				}
+
+				// restore floating point rounding state
+				fesetround(round);
 
 				d3d9ex->Release();
 			}
