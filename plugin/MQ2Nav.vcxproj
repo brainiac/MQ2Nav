@@ -31,27 +31,27 @@
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\Plugin.Release.props" />
+    <Import Project="..\..\..\CustomPlugin.Release.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\Plugin.Debug.props" />
+    <Import Project="..\..\..\CustomPlugin.Debug.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(ProjectDir)..\..\$(Configuration)\</OutDir>
+    <OutDir>$(ProjectDir)..\..\..\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
-    <OutDir>$(ProjectDir)..\..\$(Configuration)\</OutDir>
+    <OutDir>$(ProjectDir)..\..\..\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;..\dependencies;..\dependencies\imgui;..\dependencies\recast\DebugUtils\Include;..\dependencies\recast\DetourCrowd\Include;..\dependencies\recast\DetourTileCache\Include;..\dependencies\recast\Detour\Include;..\dependencies\recast\Recast\Include;..\dependencies\glm;..\dependencies\glm\glm;..\dependencies\zone-utilities\common;..\dependencies\zone-utilities\log;..\dependencies\zlib\include;..\dependencies\dx9\Include;..\dependencies\rapidjson\include;..\dependencies\spdlog\include;..\dependencies\fmt\include;$(ProjectDir)..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;..\dependencies;..\dependencies\imgui;..\dependencies\recast\DebugUtils\Include;..\dependencies\recast\DetourCrowd\Include;..\dependencies\recast\DetourTileCache\Include;..\dependencies\recast\Detour\Include;..\dependencies\recast\Recast\Include;..\dependencies\glm;..\dependencies\glm\glm;..\dependencies\zone-utilities\common;..\dependencies\zone-utilities\log;..\dependencies\zlib\include;..\dependencies\dx9\Include;..\dependencies\rapidjson\include;..\dependencies\spdlog\include;..\dependencies\fmt\include;$(ProjectDir)..\..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ProgramDatabase</DebugInformationFormat>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">MultiThreadedDebug</RuntimeLibrary>
@@ -78,7 +78,7 @@
       <StructMemberAlignment Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Default</StructMemberAlignment>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\..\Detours\lib;$(ProjectDir)..\dependencies\zlib\lib;$(ProjectDir)..\dependencies\dx9\lib;$(ProjectDir)..\..\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\..\..\Detours\lib;$(ProjectDir)..\dependencies\zlib\lib;$(ProjectDir)..\dependencies\dx9\lib;$(ProjectDir)..\..\..\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <DataExecutionPrevention>false</DataExecutionPrevention>
