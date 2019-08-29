@@ -8,8 +8,8 @@
 #include <memory>
 #include <vector>
 
-namespace EQUIStructs {
-	typedef struct _MAPLINE MAPLINE;
+namespace eqlib {
+	struct MAPLINE;
 }
 
 namespace nav {
@@ -30,10 +30,10 @@ public:
 
 	// Create a new line and return a shared pointer to it. The line will
 	// automatically be destroyed via DeleteLine.
-	static std::shared_ptr<EQUIStructs::MAPLINE> CreateSegment();
+	static std::shared_ptr<eqlib::MAPLINE> CreateSegment();
 
 protected:
-	std::vector<std::shared_ptr<EQUIStructs::MAPLINE>> m_lineSegments;
+	std::vector<std::shared_ptr<eqlib::MAPLINE>> m_lineSegments;
 	uint32_t m_color = 0xff00ff00; // green
 	int m_layer = 3; // layer 3
 };

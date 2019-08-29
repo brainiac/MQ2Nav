@@ -13,32 +13,13 @@ namespace nav {
 
 //============================================================================
 
-static PMQPLUGIN FindMQ2MapPlugin()
-{
-	PMQPLUGIN pPlugin = pPlugins;
-	while (pPlugin)
-	{
-		if (!_stricmp("MQ2Map", pPlugin->szFilename))
-		{
-			return pPlugin;
-		}
-
-		pPlugin = pPlugin->pNext;
-	}
-
-	return nullptr;
-}
-
 static void DeleteLineSegment(PMAPLINE pLine)
 {
 	using DeleteLineFunc = void(__cdecl*)(MAPLINE*);
 
-	if (PMQPLUGIN pPlugin = FindMQ2MapPlugin())
+	if (DeleteLineFunc deleteLine = (DeleteLineFunc)GetPluginProc("MQ2Map", "MQ2MapDeleteLine"))
 	{
-		if (DeleteLineFunc deleteLine = (DeleteLineFunc)GetProcAddress(pPlugin->hModule, "MQ2MapDeleteLine"))
-		{
-			deleteLine(pLine);
-		}
+		deleteLine(pLine);
 	}
 }
 
@@ -48,16 +29,13 @@ std::shared_ptr<MAPLINE> nav::MapItem::CreateSegment()
 {
 	using AddMapLineFunc = PMAPLINE(__cdecl*)();
 
-	if (PMQPLUGIN pPlugin = FindMQ2MapPlugin())
+	if (AddMapLineFunc addMapLine = (AddMapLineFunc)GetPluginProc("MQ2Map", "MQ2MapAddLine"))
 	{
-		if (AddMapLineFunc addMapLine = (AddMapLineFunc)GetProcAddress(pPlugin->hModule, "MQ2MapAddLine"))
+		if (MAPLINE* mapLine = addMapLine())
 		{
-			if (MAPLINE* mapLine = addMapLine())
-			{
-				std::shared_ptr<MAPLINE> ptr = std::shared_ptr<MAPLINE>(
-					mapLine, [](PMAPLINE line) { DeleteLineSegment(line); });
-				return ptr;
-			}
+			std::shared_ptr<MAPLINE> ptr = std::shared_ptr<MAPLINE>(
+				mapLine, [](PMAPLINE line) { DeleteLineSegment(line); });
+			return ptr;
 		}
 	}
 

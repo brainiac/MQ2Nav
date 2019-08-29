@@ -795,7 +795,7 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
 	{
 		if (ImGui::TreeNode("Door Data"))
 		{
-			DumpDataUI(door, sizeof(_DOOR));
+			DumpDataUI(door, sizeof(DOOR));
 
 			ImGui::TreePop();
 		}
