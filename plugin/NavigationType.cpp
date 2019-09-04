@@ -30,10 +30,9 @@ MQ2NavigationType::~MQ2NavigationType()
 {
 }
 
-bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR &Dest)
+bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQTypeVar& Dest)
 {
-	PMQ2TYPEMEMBER pMember = MQ2NavigationType::FindMember(Member);
-
+	MQTypeMember* pMember = MQ2NavigationType::FindMember(Member);
 	if (pMember) switch ((NavigationMembers)pMember->ID)
 	{
 	case Active:
@@ -82,7 +81,7 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 	return true;
 }
 
-bool MQ2NavigationType::ToString(MQ2VARPTR VarPtr, PCHAR Destination)
+bool MQ2NavigationType::ToString(MQVarPtr VarPtr, PCHAR Destination)
 {
 	strcpy_s(Destination, MAX_STRING, "TRUE");
 	return true;
@@ -99,19 +98,19 @@ MQ2NavPathType::~MQ2NavPathType()
 {
 }
 
-bool MQ2NavPathType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR& Dest)
+bool MQ2NavPathType::GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQTypeVar& Dest)
 {
 	return false;
 }
 
-bool MQ2NavPathType::ToString(MQ2VARPTR VarPtr, PCHAR Destination)
+bool MQ2NavPathType::ToString(MQVarPtr VarPtr, PCHAR Destination)
 {
 	return false;
 }
 
 //----------------------------------------------------------------------------
 
-static BOOL NavigateData(PCHAR szName, MQ2TYPEVAR& Dest)
+static bool NavigateData(const char* szName, MQTypeVar& Dest)
 {
 	Dest.DWord = 1;
 	Dest.Type = g_mq2NavigationType;

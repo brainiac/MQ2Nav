@@ -1342,7 +1342,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	// parse /nav spawn <text>
 	if (!_stricmp(buffer, "spawn"))
 	{
-		SEARCHSPAWN sSpawn;
+		MQSpawnSearch sSpawn;
 		ClearSearchSpawn(&sSpawn);
 
 		// Find a | starting from the right side. Split the string in two if we find it.
