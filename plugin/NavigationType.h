@@ -38,11 +38,11 @@ public:
 	MQ2NavigationType();
 	virtual ~MQ2NavigationType();
 
-	virtual bool GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR& Dest) override;
-	virtual bool ToString(MQ2VARPTR VarPtr, PCHAR Destination) override;
+	virtual bool GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQTypeVar& Dest) override;
+	virtual bool ToString(MQVarPtr VarPtr, PCHAR Destination) override;
 
-	virtual bool FromData(MQ2VARPTR& VarPtr, MQ2TYPEVAR& Source) override { return false; }
-	virtual bool FromString(MQ2VARPTR& VarPtr, PCHAR Source) override { return false; }
+	virtual bool FromData(MQVarPtr& VarPtr, MQTypeVar& Source) override { return false; }
+	virtual bool FromString(MQVarPtr& VarPtr, PCHAR Source) override { return false; }
 
 private:
 	MQ2NavigationPlugin* m_nav;
@@ -63,11 +63,11 @@ public:
 	MQ2NavPathType();
 	virtual ~MQ2NavPathType();
 
-	virtual bool GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR& Dest) override;
-	virtual bool ToString(MQ2VARPTR VarPtr, PCHAR Destination) override;
+	virtual bool GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQTypeVar& Dest) override;
+	virtual bool ToString(MQVarPtr VarPtr, PCHAR Destination) override;
 
-	virtual bool FromData(MQ2VARPTR& VarPtr, MQ2TYPEVAR& Source) override { return false; }
-	virtual bool FromString(MQ2VARPTR& VarPtr, PCHAR Source) override { return false; }
+	virtual bool FromData(MQVarPtr& VarPtr, MQTypeVar& Source) override { return false; }
+	virtual bool FromString(MQVarPtr& VarPtr, PCHAR Source) override { return false; }
 
 protected:
 };
