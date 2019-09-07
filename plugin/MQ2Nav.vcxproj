@@ -40,13 +40,11 @@
             Condition=" '$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Plugin.props))' != '' " />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LinkIncremental>false</LinkIncremental>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' And '$(SolutionName)'=='MQ2Nav'">
     <OutDir>$(MQ2SolutionDir)$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>true</LinkIncremental>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32' And '$(SolutionName)'=='MQ2Nav'">
     <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
     <OutDir>$(MQ2SolutionDir)$(Configuration)\</OutDir>
   </PropertyGroup>
