@@ -32,7 +32,7 @@ void NavMeshLoader::SetZoneId(int zoneId)
 	if (m_zoneId != -1)
 	{
 		// set or clear zone name
-		PCHAR zoneName = GetShortZone(zoneId);
+		const char* zoneName = GetShortZone(zoneId);
 		m_zoneShortName = zoneName ? zoneName : std::string();
 
 		if (m_zoneShortName == "UNKNOWN_ZONE")

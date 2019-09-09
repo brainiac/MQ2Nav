@@ -647,6 +647,8 @@ static void DoHelp()
 
 void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 {
+	char mutableLine[MAX_STRING] = { 0 };
+	strcpy_s(mutableLine, szLine);
 	CHAR buffer[MAX_STRING] = { 0 };
 	int i = 0;
 
@@ -658,7 +660,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 
 	ScopedLogLevel scopedLevel{ *m_chatSink, requestedLevel };
 
-	GetArg(buffer, szLine, 1);
+	GetArg(buffer, mutableLine, 1);
 
 	// parse /nav ui
 	if (!_stricmp(buffer, "ui"))
@@ -716,9 +718,9 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	// parse /nav recordwaypoint or /nav rwp
 	if (!_stricmp(buffer, "recordwaypoint") || !_stricmp(buffer, "rwp"))
 	{
-		GetArg(buffer, szLine, 2);
+		GetArg(buffer, mutableLine, 2);
 		std::string waypointName(buffer);
-		GetArg(buffer, szLine, 3);
+		GetArg(buffer, mutableLine, 3);
 		std::string desc(buffer);
 
 		if (waypointName.empty())
@@ -789,7 +791,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	{
 		int idx = 2;
 
-		GetArg(buffer, szLine, idx);
+		GetArg(buffer, mutableLine, idx);
 
 		if (!_stricmp(buffer, "reset"))
 		{
@@ -800,10 +802,10 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 		}
 		else
 		{
-			ParseOptions(szLine, idx, m_defaultOptions);
+			ParseOptions(mutableLine, idx, m_defaultOptions);
 
 			SPDLOG_INFO("Navigation options updated");
-			SPDLOG_DEBUG("Navigation options updated: {}", szLine);
+			SPDLOG_DEBUG("Navigation options updated: {}", mutableLine);
 		}
 
 		return;
@@ -812,7 +814,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	scopedLevel.Release();
 
 	// all thats left is a navigation command. leave if it isn't a valid one.
-	auto destination = ParseDestination(szLine, requestedLevel);
+	auto destination = ParseDestination(mutableLine, requestedLevel);
 	if (!destination->valid)
 		return;
 
@@ -1183,10 +1185,12 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 {
+	char mutableLine[MAX_STRING] = { 0 };
+	strcpy_s(mutableLine, szLine);
 	PDOOR pDoor = pDoorTarget;
 
 	// short circuit if the argument is "click"
-	GetArg(buffer, szLine, argIndex);
+	GetArg(buffer, mutableLine, argIndex);
 
 	int len = strlen(buffer);
 	if (len == 0 || !_stricmp(buffer, "click"))
@@ -1200,7 +1204,7 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 	if (!_stricmp(buffer, "id"))
 	{
 		argIndex++;
-		GetArg(buffer, szLine, argIndex++);
+		GetArg(buffer, mutableLine, argIndex++);
 
 		// bad param - no id provided
 		if (!buffer[0])
@@ -1273,8 +1277,10 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(const cha
 std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	const char* szLine, int& idx)
 {
+	char mutableLine[MAX_STRING] = { 0 };
+	strcpy_s(mutableLine, szLine);
 	CHAR buffer[MAX_STRING] = { 0 };
-	GetArg(buffer, szLine, idx++);
+	GetArg(buffer, mutableLine, idx++);
 
 	std::shared_ptr<DestinationInfo> result = std::make_shared<DestinationInfo>();
 	result->command = szLine;
@@ -1312,7 +1318,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	// parse /nav id #
 	if (!_stricmp(buffer, "id"))
 	{
-		GetArg(buffer, szLine, idx++);
+		GetArg(buffer, mutableLine, idx++);
 		DWORD reqId = 0;
 
 		try { reqId = boost::lexical_cast<DWORD>(buffer); }
@@ -1347,7 +1353,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 
 		// Find a | starting from the right side. Split the string in two if we find it.
 		// We'll send the first half to ParseSearchSpawn.
-		PCHAR text = GetNextArg(szLine, idx - 1);
+		PCHAR text = GetNextArg(mutableLine, idx - 1);
 
 		std::string_view tempView{ text };
 		size_t pos = tempView.find_last_of("|");
@@ -1383,7 +1389,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	{
 		if (!_stricmp(buffer, "door"))
 		{
-			PDOOR theDoor = ParseDoorTarget(buffer, szLine, idx);
+			PDOOR theDoor = ParseDoorTarget(buffer, mutableLine, idx);
 
 			if (!theDoor)
 			{
@@ -1415,7 +1421,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		}
 
 		// check for click and once
-		GetArg(buffer, szLine, idx++);
+		GetArg(buffer, mutableLine, idx++);
 
 		if (!_stricmp(buffer, "click"))
 		{
@@ -1428,7 +1434,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	// parse /nav waypoint
 	if (!_stricmp(buffer, "waypoint") || !_stricmp(buffer, "wp"))
 	{
-		GetArg(buffer, szLine, idx++);
+		GetArg(buffer, mutableLine, idx++);
 
 		nav::Waypoint wp;
 		if (nav::GetWaypoint(buffer, wp))
@@ -1469,7 +1475,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		int i = 0;
 		for (; i < 3; ++i)
 		{
-			char* item = GetArg(buffer, szLine, idx++);
+			char* item = GetArg(buffer, mutableLine, idx++);
 			if (!item || strlen(item) == 0)
 			{
 				--idx;
@@ -1529,6 +1535,8 @@ static bool to_bool(std::string str)
 
 void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOptions& options)
 {
+	char mutableLine[MAX_STRING] = { 0 };
+	strcpy_s(mutableLine, szLine);
 	CHAR buffer[MAX_STRING] = { 0 };
 
 	// If line has a | in it, start parsing options from there.
@@ -1542,7 +1550,7 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 		idx = 1;
 	}
 
-	GetArg(buffer, szLine, idx++);
+	GetArg(buffer, mutableLine, idx++);
 
 	while (strlen(buffer) > 0)
 	{
@@ -1601,7 +1609,7 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 			SPDLOG_DEBUG("Failed in ParseOptions: '{}': {}", arg, ex.what());
 		}
 
-		GetArg(buffer, szLine, idx++);
+		GetArg(buffer, mutableLine, idx++);
 	}
 }
 
