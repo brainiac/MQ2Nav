@@ -88,7 +88,7 @@ struct NavigationOptions
 	float distance = 0.f;          // distance to target
 	bool lineOfSight = true;       // does target need to be in los
 	bool paused = false;           // pathing is paused
-	bool track = true;            // if spawn is to be tracked
+	bool track = true;             // if spawn is to be tracked
 	FacingType facing = FacingType::Forward; //  Forward = normal, Backward = move along path facing backward.
 	// set a new default log level while the path is running. info is the default.
 	spdlog::level::level_enum logLevel = spdlog::level::info;

@@ -48,6 +48,9 @@ struct SettingsData
 
 	// open doors while navigation
 	bool open_doors = true;
+
+	// ignore scripted doors
+	bool ignore_scripted_doors = true;
 };
 SettingsData& GetSettings();
 

@@ -157,6 +157,7 @@ void UiController::PerformUpdateTab(TabPage page)
 				changed = true;
 			}
 			if (ImGui::IsItemHovered())
+			{
 				ImGui::SetTooltip(
 					"Auto Break Behavior\n"
 					"-------------------------------------------------\n"
@@ -164,13 +165,35 @@ void UiController::PerformUpdateTab(TabPage page)
 					"  Disable - Auto break is turned off\n"
 					"  Stop - Stop the navigation\n"
 					"  Pause - Pause navigation. /nav pause to unpause");
+			}
 
+			ImGui::NewLine();
+
+			if (ImGui::Checkbox("Automatically click nearby doors", &settings.open_doors))
+				changed = true;
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Scans for nearby doors to open automatically while navigating.\nTries to avoid clicking teleporters and elevators.");
+			}
+			ImGui::Indent();
+
+			if (ImGui::Checkbox("Ignore scripted doors", &settings.ignore_scripted_doors))
+				changed = true;
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Some doors are flagged as performing a scripted action.\nIgnore these \"doors\" and don't try to click them");
+			}
+
+			ImGui::Unindent();
+
+			ImGui::NewLine();
 			if (ImGui::Checkbox("Attempt to get unstuck", &settings.attempt_unstuck))
 				changed = true;
 			if (ImGui::IsItemHovered())
 			{
 				ImGui::SetTooltip("Automatically try to get unstuck of movement is impeeded.\nThis will do things like jump and click randomly. Use with caution!");
 			}
+
 
 			ImGui::NewLine();
 			ImGui::TextColored(ImColor(255, 255, 0), "Advanced Options");
