@@ -12,6 +12,8 @@
 #include <string>
 #include <sstream>
 
+#pragma comment(lib, "Shlwapi.lib")
+
 EQConfig::EQConfig()
 {
 	// Init COM library
