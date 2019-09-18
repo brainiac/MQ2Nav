@@ -179,6 +179,33 @@ void SaveSettings(bool showMessage/* = true*/)
 	SaveBoolSetting("DebugRenderPathing", g_settings.debug_render_pathing);
 }
 
+bool ParseIniCommand(const char* command)
+{
+	char szKeyName[MAX_STRING];
+	char szValue[MAX_STRING];
+
+	GetArg(szKeyName, command, 1);
+	GetArg(szValue, command, 2);
+
+	if (szKeyName[0] != 0 && szValue[0] != 0)
+	{
+		WritePrivateProfileStringA("Settings", szKeyName, szValue, INIFileName);
+
+		// cycle settings to clear any wierd inputs
+		LoadSettings(false);
+		SaveSettings(false);
+
+		return true;
+	}
+
+	return false;
+}
+
+bool ReadIniSetting(const char* keyName, char* pBuffer, size_t length)
+{
+	return GetPrivateProfileString("Settings", keyName, "", pBuffer, length, INIFileName) != 0;
+}
+
 //----------------------------------------------------------------------------
 
 } // namespace nav

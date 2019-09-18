@@ -6,6 +6,7 @@
 #include "NavigationType.h"
 
 #include "plugin/MQ2Navigation.h"
+#include "plugin/PluginSettings.h"
 
 //----------------------------------------------------------------------------
 
@@ -21,7 +22,7 @@ MQ2NavigationType::MQ2NavigationType()
 	TypeMember(MeshLoaded);
 	TypeMember(PathExists);
 	TypeMember(PathLength);
-
+	TypeMember(Setting);
 	TypeMember(Velocity);
 }
 
@@ -32,7 +33,9 @@ MQ2NavigationType::~MQ2NavigationType()
 bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR &Dest)
 {
 	PMQ2TYPEMEMBER pMember = MQ2NavigationType::FindMember(Member);
-	if (pMember) switch ((NavigationMembers)pMember->ID) {
+
+	if (pMember) switch ((NavigationMembers)pMember->ID)
+	{
 	case Active:
 		Dest.Type = pBoolType;
 		Dest.DWord = m_nav->IsActive();
@@ -53,12 +56,19 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 		Dest.Type = pFloatType;
 		Dest.Float = m_nav->GetNavigationPathLength(Index);
 		return true;
-
-
 	case CurrentPath:
 		//Dest.Type = g_mq2NavPathType.get();
 		//Dest.
 		break;
+	case Setting:
+		Dest.Type = pStringType;
+		if (nav::ReadIniSetting(Index, &DataTypeTemp[0], MAX_STRING))
+		{
+			Dest.Ptr = &DataTypeTemp[0];
+			return true;
+		}
+		return false;
+
 	case Velocity: {
 		Dest.Type = pIntType;
 		Dest.Int = static_cast<int>(glm::round(GetMyVelocity()));

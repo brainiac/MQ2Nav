@@ -627,6 +627,7 @@ static void DoHelp()
 	WriteChatf(PLUGIN_MSG "\ag/nav waypoint|wp <waypoint>\ax - navigate to waypoint");
 	WriteChatf(PLUGIN_MSG "\ag/nav stop\ax - stop navigation");
 	WriteChatf(PLUGIN_MSG "\ag/nav pause\ax - pause navigation");
+	WriteChatf(PLUGIN_MSG "\ag/nav ini <key> <value>\ax - Write a setting to the ini and reload settings");
 	WriteChatf(PLUGIN_MSG "\aoNavigation Options:\ax");
 	WriteChatf(PLUGIN_MSG "Options can be provided to navigation commands to alter their behavior.");
 	WriteChatf(PLUGIN_MSG "  \aydistance=<num>\ax - set the distance to navigate from the destination. shortcut: \agdist\ax");
@@ -657,7 +658,8 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	GetArg(buffer, szLine, 1);
 
 	// parse /nav ui
-	if (!_stricmp(buffer, "ui")) {
+	if (!_stricmp(buffer, "ui"))
+	{
 		nav::GetSettings().show_ui = !nav::GetSettings().show_ui;
 		nav::SaveSettings(false);
 		return;
@@ -756,6 +758,18 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	if (!_stricmp(buffer, "save"))
 	{
 		nav::SaveSettings(true);
+		return;
+	}
+
+	// parse /nav ini
+	if (!_stricmp(buffer, "ini"))
+	{
+		const char* pStr = GetNextArg(szLine, 1);
+
+		if (!nav::ParseIniCommand(pStr))
+		{
+			SPDLOG_ERROR("Usage: /nav ini <key> <value>");
+		}
 		return;
 	}
 
