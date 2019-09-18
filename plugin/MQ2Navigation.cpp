@@ -237,11 +237,28 @@ glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn)
 
 glm::vec3 GetMyPosition()
 {
-	auto charInfo = GetCharInfo();
-	if (!charInfo)
-		return {};
+	if (PSPAWNINFO pSpawn = (PSPAWNINFO)pLocalPlayer)
+	{
+		return GetSpawnPosition(pSpawn);
+	}
 
-	return GetSpawnPosition(charInfo->pSpawn);
+	return {};
+}
+
+float GetMyVelocity()
+{
+	if (PSPAWNINFO pSpawn = (PSPAWNINFO)pLocalPlayer)
+	{
+		glm::vec3 veloXYZ = {
+			pSpawn->SpeedX,
+			pSpawn->SpeedY,
+			pSpawn->SpeedZ
+		};
+
+		return glm::length(veloXYZ) * 20.0f;
+	}
+
+	return 0.0f;
 }
 
 class WriteChatSink : public spdlog::sinks::base_sink<spdlog::details::null_mutex>

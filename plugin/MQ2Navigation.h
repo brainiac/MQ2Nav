@@ -115,6 +115,7 @@ struct DestinationInfo
 
 glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn);
 glm::vec3 GetMyPosition();
+float GetMyVelocity();
 
 //----------------------------------------------------------------------------
 

@@ -320,7 +320,7 @@ void UiController::PerformUpdateTab(TabPage page)
 
 	auto modelLoader = g_mq2Nav->Get<ModelLoader>();
 	modelLoader->OnUpdateUI(isTools);
-	
+
 	if (isTools)
 	{
 		if (ImGui::CollapsingHeader("Door Handler Debug"))
@@ -375,6 +375,7 @@ void UiController::PerformUpdateTab(TabPage page)
 			ImGui::LabelText("Stuck Data", "(%.2f, %.2f) %d", g_mq2Nav->m_stuckX, g_mq2Nav->m_stuckY, g_mq2Nav->m_stuckTimer.time_since_epoch());
 			ImGui::LabelText("Last Click", "%d", g_mq2Nav->m_lastClick.time_since_epoch() / 1000000);
 			ImGui::LabelText("Pathfind Timer", "%d", g_mq2Nav->m_pathfindTimer.time_since_epoch() / 1000000);
+			ImGui::LabelText("Velocity", "%d", static_cast<int>(glm::round(GetMyVelocity())));
 		}
 	}
 

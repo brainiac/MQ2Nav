@@ -22,7 +22,7 @@ MQ2NavigationType::MQ2NavigationType()
 	TypeMember(PathExists);
 	TypeMember(PathLength);
 
-	//TypeMember(CurrentPath);
+	TypeMember(Velocity);
 }
 
 MQ2NavigationType::~MQ2NavigationType()
@@ -59,6 +59,11 @@ bool MQ2NavigationType::GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, M
 		//Dest.Type = g_mq2NavPathType.get();
 		//Dest.
 		break;
+	case Velocity: {
+		Dest.Type = pIntType;
+		Dest.Int = static_cast<int>(glm::round(GetMyVelocity()));
+		return true;
+	}
 	}
 
 	strcpy_s(DataTypeTemp, "NULL");
