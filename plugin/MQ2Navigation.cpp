@@ -969,7 +969,7 @@ void MQ2NavigationPlugin::AttemptClick()
 		return;
 
 	// don't execute if we've got an item on the cursor.
-	if (GetCharInfo2()->pInventoryArray && GetCharInfo2()->pInventoryArray->Inventory.Cursor)
+	if (GetPcProfile()->pInventoryArray && GetPcProfile()->pInventoryArray->Inventory.Cursor)
 		return;
 
 	clock::time_point now = clock::now();
@@ -1013,8 +1013,8 @@ void MQ2NavigationPlugin::StuckCheck()
 				&& !GetCharInfo()->Stunned
 				&& m_isActive)
 			{
-				MQ2Globals::ExecuteCmd(iJumpKey, 1, 0);
-				MQ2Globals::ExecuteCmd(iJumpKey, 0, 0);
+				ExecuteCmd(iJumpKey, 1, 0);
+				ExecuteCmd(iJumpKey, 0, 0);
 			}
 
 			m_stuckX = GetCharInfo()->pSpawn->X;

@@ -15,7 +15,7 @@ namespace nav {
 inline bool ValidIngame(bool bCheckDead)
 {
 	// CTD prevention function
-	return (GetGameState() == GAMESTATE_INGAME && GetCharInfo()->pSpawn && GetCharInfo2() && GetCharInfo() && GetCharInfo()->Stunned != 3);
+	return (GetGameState() == GAMESTATE_INGAME && GetCharInfo()->pSpawn && GetPcProfile() && GetCharInfo() && GetCharInfo()->Stunned != 3);
 }
 
 } // namespace nav
