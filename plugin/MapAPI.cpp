@@ -5,7 +5,7 @@
 #include "pch.h"
 #include "MapAPI.h"
 
-#include <MQ2Plugin.h>
+#include <mq/Plugin.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 

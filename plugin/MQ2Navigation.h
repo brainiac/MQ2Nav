@@ -8,7 +8,7 @@
 #include "common/Signal.h"
 #include "plugin/MapAPI.h"
 
-#include <MQ2Plugin.h>
+#include <mq/Plugin.h>
 #include <spdlog/common.h>
 
 #include <memory>

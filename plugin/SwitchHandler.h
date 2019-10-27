@@ -6,7 +6,7 @@
 
 #include "common/NavModule.h"
 
-#include <MQ2Plugin.h>
+#include <mq/Plugin.h>
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 
