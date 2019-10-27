@@ -8,7 +8,7 @@
 #include "common/NavModule.h"
 #include "common/Signal.h"
 
-#include <MQ2Plugin.h>
+#include <mq/Plugin.h>
 
 #include <chrono>
 #include <string>
