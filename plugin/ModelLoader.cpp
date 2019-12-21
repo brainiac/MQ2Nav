@@ -25,8 +25,6 @@
 #include <filesystem>
 #include <fstream>
 
-using namespace std::experimental;
-
 float GetDoorScale(PDOOR door)
 {
 	return (float)door->ScaleFactor / 100.0f;
@@ -453,7 +451,7 @@ void ModelLoader::DumpDoors()
 
 	// make sure directory exists so we can write to it!
 	std::error_code ec;
-	filesystem::create_directory(filename, ec);
+	std::filesystem::create_directory(filename, ec);
 
 	// filename for the door file
 	const char* zoneName = GetShortZone(m_zoneId);
