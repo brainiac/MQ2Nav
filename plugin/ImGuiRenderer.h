@@ -7,6 +7,8 @@
 #include "common/Signal.h"
 #include "plugin/Renderable.h"
 
+#include <mq/Plugin.h>
+
 #include <chrono>
 #include <memory>
 #include <vector>
