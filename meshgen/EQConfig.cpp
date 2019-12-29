@@ -4,7 +4,6 @@
 
 #include "meshgen/EQConfig.h"
 
-#include <atlbase.h>
 #include <windows.h>
 #include <ShObjIdl.h>
 
@@ -12,6 +11,8 @@
 #include <istream>
 #include <string>
 #include <sstream>
+
+#pragma comment(lib, "Shlwapi.lib")
 
 EQConfig::EQConfig()
 {

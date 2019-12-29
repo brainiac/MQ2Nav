@@ -145,7 +145,17 @@ void MapCircle::UpdateCircle()
 		m_lineSegments.clear();
 
 		for (int i = 0; i < count; ++i)
-			m_lineSegments.push_back(CreateSegment());
+		{
+			auto pMapLine = CreateSegment();
+			if (pMapLine)
+			{
+				m_lineSegments.push_back(pMapLine);
+			}
+			else
+			{
+				return;
+			}
+		}
 	}
 
 	for (int i = 0; i < count; ++i, angle += MAPCIRCLE_ANGLE_SIZE)

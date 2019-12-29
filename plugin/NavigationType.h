@@ -33,6 +33,9 @@ public:
 		// These return MQ2NavPathType
 		CurrentPath = 6,
 		PathTo = 7,
+
+		Setting = 8,
+		Velocity = 9,
 	};
 
 	MQ2NavigationType();

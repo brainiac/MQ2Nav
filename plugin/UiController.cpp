@@ -157,6 +157,7 @@ void UiController::PerformUpdateTab(TabPage page)
 				changed = true;
 			}
 			if (ImGui::IsItemHovered())
+			{
 				ImGui::SetTooltip(
 					"Auto Break Behavior\n"
 					"-------------------------------------------------\n"
@@ -164,13 +165,35 @@ void UiController::PerformUpdateTab(TabPage page)
 					"  Disable - Auto break is turned off\n"
 					"  Stop - Stop the navigation\n"
 					"  Pause - Pause navigation. /nav pause to unpause");
+			}
 
+			ImGui::NewLine();
+
+			if (ImGui::Checkbox("Automatically click nearby doors", &settings.open_doors))
+				changed = true;
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Scans for nearby doors to open automatically while navigating.\nTries to avoid clicking teleporters and elevators.");
+			}
+			ImGui::Indent();
+
+			if (ImGui::Checkbox("Ignore scripted doors", &settings.ignore_scripted_doors))
+				changed = true;
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Some doors are flagged as performing a scripted action.\nIgnore these \"doors\" and don't try to click them");
+			}
+
+			ImGui::Unindent();
+
+			ImGui::NewLine();
 			if (ImGui::Checkbox("Attempt to get unstuck", &settings.attempt_unstuck))
 				changed = true;
 			if (ImGui::IsItemHovered())
 			{
 				ImGui::SetTooltip("Automatically try to get unstuck of movement is impeeded.\nThis will do things like jump and click randomly. Use with caution!");
 			}
+
 
 			ImGui::NewLine();
 			ImGui::TextColored(ImColor(255, 255, 0), "Advanced Options");
@@ -320,7 +343,7 @@ void UiController::PerformUpdateTab(TabPage page)
 
 	auto modelLoader = g_mq2Nav->Get<ModelLoader>();
 	modelLoader->OnUpdateUI(isTools);
-	
+
 	if (isTools)
 	{
 		if (ImGui::CollapsingHeader("Door Handler Debug"))
@@ -375,6 +398,7 @@ void UiController::PerformUpdateTab(TabPage page)
 			ImGui::LabelText("Stuck Data", "(%.2f, %.2f) %d", g_mq2Nav->m_stuckX, g_mq2Nav->m_stuckY, g_mq2Nav->m_stuckTimer.time_since_epoch());
 			ImGui::LabelText("Last Click", "%d", g_mq2Nav->m_lastClick.time_since_epoch() / 1000000);
 			ImGui::LabelText("Pathfind Timer", "%d", g_mq2Nav->m_pathfindTimer.time_since_epoch() / 1000000);
+			ImGui::LabelText("Velocity", "%d", static_cast<int>(glm::round(GetMyVelocity())));
 		}
 	}
 

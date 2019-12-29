@@ -123,6 +123,7 @@ void LoadSettings(bool showMessage/* = true*/)
 	settings.map_line_layer = LoadNumberSetting("MapLineLayer", defaults.map_line_layer);
 
 	settings.open_doors = LoadBoolSetting("OpenDoors", defaults.open_doors);
+	settings.ignore_scripted_doors = LoadBoolSetting("IgnoreScriptedDoors", defaults.ignore_scripted_doors);
 
 	// debug settings
 	settings.debug_render_pathing = LoadBoolSetting("DebugRenderPathing", defaults.debug_render_pathing);
@@ -158,6 +159,7 @@ void SaveSettings(bool showMessage/* = true*/)
 	SaveVec3Setting("FindPolygonExtents", g_settings.find_polygon_extents);
 
 	SaveBoolSetting("OpenDoors", g_settings.open_doors);
+	SaveBoolSetting("IgnoreScriptedDoors", g_settings.ignore_scripted_doors);
 
 	SaveBoolSetting("MapLineEnabled", g_settings.map_line_enabled);
 	SaveNumberSetting("MapLineColor", g_settings.map_line_color);
@@ -175,6 +177,33 @@ void SaveSettings(bool showMessage/* = true*/)
 
 	// debug settings
 	SaveBoolSetting("DebugRenderPathing", g_settings.debug_render_pathing);
+}
+
+bool ParseIniCommand(const char* command)
+{
+	char szKeyName[MAX_STRING];
+	char szValue[MAX_STRING];
+
+	GetArg(szKeyName, command, 1);
+	GetArg(szValue, command, 2);
+
+	if (szKeyName[0] != 0 && szValue[0] != 0)
+	{
+		WritePrivateProfileStringA("Settings", szKeyName, szValue, INIFileName);
+
+		// cycle settings to clear any wierd inputs
+		LoadSettings(false);
+		SaveSettings(false);
+
+		return true;
+	}
+
+	return false;
+}
+
+bool ReadIniSetting(const char* keyName, char* pBuffer, size_t length)
+{
+	return GetPrivateProfileString("Settings", keyName, "", pBuffer, length, INIFileName) != 0;
 }
 
 //----------------------------------------------------------------------------

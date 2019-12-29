@@ -54,6 +54,13 @@ inline bool ShouldAutoUseSwitch(PDOOR door)
 		&& !SwitchIsTeleporter(door->Type)
 		&& door->Key == -1 /* todo: support keys */)
 	{
+		// if door is scripted, and option to ignore scripted doors is enabled,
+		// then do not activate the door
+		if (door->bHasScript && nav::GetSettings().ignore_scripted_doors)
+		{
+			return false;
+		}
+
 		return true;
 	}
 

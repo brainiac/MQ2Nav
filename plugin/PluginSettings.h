@@ -48,6 +48,9 @@ struct SettingsData
 
 	// open doors while navigation
 	bool open_doors = true;
+
+	// ignore scripted doors
+	bool ignore_scripted_doors = true;
 };
 SettingsData& GetSettings();
 
@@ -56,5 +59,11 @@ void LoadSettings(bool showMessage = false);
 
 // Save settings to the .ini file
 void SaveSettings(bool showMessage = false);
+
+// Parse a command to change settings
+bool ParseIniCommand(const char* command);
+
+// Read a setting string into the buffer
+bool ReadIniSetting(const char* keyName, char* pBuffer, size_t length);
 
 } // namespace nav
