@@ -41,7 +41,7 @@ const glm::ivec2 ExpansionLogoSize = { 128, 32 };
 std::pair<int, glm::ivec2> FindExpansionImage(int expansion, bool active)
 {
 	// get the image index
-	int imageIndex = expansion < ExpansionSlots.size() ? ExpansionSlots[expansion] : EmptyExpansion;
+	int imageIndex = expansion < ExpansionSlots.empty() ? ExpansionSlots[expansion] : EmptyExpansion;
 
 	const int ExpansionsPerFile = ExpansionsPerRow * ExpansionsPerColumn;
 

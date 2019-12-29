@@ -7,7 +7,7 @@
 #include "common/Signal.h"
 #include "plugin/MQ2Navigation.h"
 
-#include <d3dx9.h>
+//#include <d3dx9.h>
 
 //----------------------------------------------------------------------------
 
