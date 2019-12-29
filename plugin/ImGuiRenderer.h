@@ -40,9 +40,16 @@ private:
 
 private:
 	// indicates whether imgui is ready to be used
+#if !defined(MQNEXT)
 	bool m_imguiReady = false;
+#else
+	bool m_imguiReady = true;
+#endif
 	bool m_visible = true;
+	bool m_imguiConfigured = false;
 
+#if !defined(MQNEXT)
 	// we're holding onto the device, we need to maintain a refcount
 	IDirect3DDevice9* m_pDevice = nullptr;
+#endif
 };

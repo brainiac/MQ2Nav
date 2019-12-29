@@ -176,7 +176,7 @@ void EQConfig::SaveConfigToIni()
 	CHAR fullPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA(NULL, fullPath, MAX_PATH);
 	PathRemoveFileSpecA(fullPath);
-	PathAppendA(fullPath, "MeshGenerator.ini");
+	PathAppendA(fullPath, "config\\MeshGenerator.ini");
 
 	WritePrivateProfileString("General", "EverQuest Path", m_everquestPath.c_str(), fullPath);
 	WritePrivateProfileString("General", "Output Path", m_outputPath.c_str(), fullPath);

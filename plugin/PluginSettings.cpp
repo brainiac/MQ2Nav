@@ -184,8 +184,8 @@ bool ParseIniCommand(const char* command)
 	char szKeyName[MAX_STRING];
 	char szValue[MAX_STRING];
 
-	GetArg(szKeyName, command, 1);
-	GetArg(szValue, command, 2);
+	GetArg(szKeyName, (char*)command, 1);
+	GetArg(szValue, (char*)command, 2);
 
 	if (szKeyName[0] != 0 && szValue[0] != 0)
 	{

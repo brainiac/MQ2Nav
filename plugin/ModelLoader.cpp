@@ -216,7 +216,7 @@ public:
 
 					if (m_targetted || m_highlight || s_drawBoundingBoxes)
 					{
-						g_pDevice->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
+						gpD3D9Device->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
 						m_grpBB->SetTransform(&scale);
 						m_grpBB->Render();
 					}
@@ -434,7 +434,7 @@ void ModelLoader::UpdateModels()
 		if (modelInfo = zoneData->GetModelInfo(door->Name))
 		{
 			// Create new model object
-			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, modelInfo, g_pDevice);
+			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, modelInfo, gpD3D9Device);
 			m_modelData[door->ID] = md;
 		}
 	}
@@ -447,7 +447,7 @@ void ModelLoader::UpdateModels()
 
 void ModelLoader::DumpDoors()
 {
-	std::string filename = std::string(gszINIPath) + "\\MQ2Nav";
+	std::string filename = std::string(gPathResources) + "\\MQ2Nav";
 
 	// make sure directory exists so we can write to it!
 	std::error_code ec;
@@ -528,7 +528,7 @@ void DoorsDebugUI::Render()
 if (!m_showDoorsUI)
 		return;
 
-	ImGui::SetNextWindowSize(ImVec2(500, 120), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(500, 120), ImGuiCond_FirstUseEver);
 	if (!ImGui::Begin("EQ Doors", &m_showDoorsUI))
 	{
 		ImGui::End();

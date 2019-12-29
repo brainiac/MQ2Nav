@@ -41,7 +41,7 @@ const glm::ivec2 ExpansionLogoSize = { 128, 32 };
 std::pair<int, glm::ivec2> FindExpansionImage(int expansion, bool active)
 {
 	// get the image index
-	int imageIndex = expansion < ExpansionSlots.empty() ? ExpansionSlots[expansion] : EmptyExpansion;
+	int imageIndex = (expansion < ExpansionSlots.size()) ? ExpansionSlots[expansion] : EmptyExpansion;
 
 	const int ExpansionsPerFile = ExpansionsPerRow * ExpansionsPerColumn;
 
@@ -125,8 +125,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 	float yPos = 30;
 	float height = avail.y - (yPos * 2);
 
-	ImGui::SetNextWindowPos(ImVec2(xPos, yPos), ImGuiSetCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiSetCond_Always);
+	ImGui::SetNextWindowPos(ImVec2(xPos, yPos), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
 
 	bool show = true;
 

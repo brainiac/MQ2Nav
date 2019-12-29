@@ -71,7 +71,8 @@ void UiController::PerformUpdateUI()
 	if (!show_ui)
 		return;
 
-	bool do_ui = ImGui::Begin("MQ2Nav Tools", &show_ui, ImVec2(400, 400), -1, 0);
+	ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
+	bool do_ui = ImGui::Begin("MQ2Nav Tools", &show_ui, 0);
 
 	if (!show_ui) {
 		nav::GetSettings().show_ui = false;

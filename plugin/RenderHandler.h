@@ -6,6 +6,7 @@
 
 #include "common/Signal.h"
 #include "plugin/Renderable.h"
+#include <mq/Plugin.h>
 
 #include <d3dx9.h>
 #include <imgui.h>
@@ -15,7 +16,9 @@
 
 class RenderHooks;
 
-extern IDirect3DDevice9* g_pDevice;
+#if !defined(MQNEXT)
+extern IDirect3DDevice9* gpD3D9Device;
+#endif
 
 class RenderHandler
 {
@@ -29,8 +32,6 @@ public:
 
 	void AddRenderable(Renderable* renderable);
 	void RemoveRenderable(Renderable* renderable);
-
-private:
 
 	// Called by RenderHooks
 	void CreateDeviceObjects();

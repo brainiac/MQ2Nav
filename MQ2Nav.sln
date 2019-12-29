@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2010
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29609.76
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MQ2Nav_MeshGenerator", "meshgen\MeshGenerator.vcxproj", "{0F4E974D-3E48-44F0-945E-90C97E1E254D}"
 EndProject
@@ -34,10 +34,10 @@ Global
 		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0F4E974D-3E48-44F0-945E-90C97E1E254D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0F4E974D-3E48-44F0-945E-90C97E1E254D}.Debug|Win32.ActiveCfg = Debug|x64
 		{0F4E974D-3E48-44F0-945E-90C97E1E254D}.Debug|x64.ActiveCfg = Debug|x64
 		{0F4E974D-3E48-44F0-945E-90C97E1E254D}.Debug|x64.Build.0 = Debug|x64
-		{0F4E974D-3E48-44F0-945E-90C97E1E254D}.Release|Win32.ActiveCfg = Release|Win32
+		{0F4E974D-3E48-44F0-945E-90C97E1E254D}.Release|Win32.ActiveCfg = Release|x64
 		{0F4E974D-3E48-44F0-945E-90C97E1E254D}.Release|x64.ActiveCfg = Release|x64
 		{0F4E974D-3E48-44F0-945E-90C97E1E254D}.Release|x64.Build.0 = Release|x64
 		{81EA8021-75BF-4D3F-8F60-12755690F6F6}.Debug|Win32.ActiveCfg = Debug|Win32
@@ -122,5 +122,8 @@ Global
 		{2884B755-835B-49DA-9E3F-E34AD401A5B9} = {1C00A77D-99DC-4366-8569-E75827AAF729}
 		{6ECECB50-9DE7-4E61-BEED-C377C4D87B28} = {2884B755-835B-49DA-9E3F-E34AD401A5B9}
 		{45E99B43-F47B-4AAD-AC88-F95BF467F463} = {1C00A77D-99DC-4366-8569-E75827AAF729}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1498B1E1-4805-4819-A304-0BE8FDA62FD8}
 	EndGlobalSection
 EndGlobal
