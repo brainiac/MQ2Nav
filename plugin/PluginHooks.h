@@ -7,9 +7,12 @@
 #include "common/Signal.h"
 #include "plugin/MQ2Navigation.h"
 
-//#include <d3dx9.h>
+#include <mq/Plugin.h>
+#include <d3dx9.h>
 
 //----------------------------------------------------------------------------
+
+#if !defined(MQNEXT)
 
 // indicates whether imgui is ready to be used
 extern bool g_imguiReady;
@@ -23,9 +26,9 @@ extern POINT MouseLocation;
 // whether mouse is blocked from overlay capture or not
 extern bool MouseBlocked;
 
-extern IDirect3DDevice9* g_pDevice;
+extern IDirect3DDevice9* gpD3D9Device;
 
-extern bool g_deviceAcquired;
+extern bool gbDeviceAcquired;
 
 // Mouse state, pointed to by EQADDR_DIMOUSECOPY
 struct MouseStateData {
@@ -37,6 +40,8 @@ struct MouseStateData {
 	DWORD InWindow;
 };
 extern MouseStateData* MouseState;
+
+#endif // !defined(MQNEXT)
 
 //----------------------------------------------------------------------------
 

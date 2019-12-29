@@ -80,14 +80,23 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_impl_win32.cpp">
+    <ClCompile Include="..\dependencies\imgui\custom\imgui_user.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_impl_dx9.cpp">
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_droidsans_ttf.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="PluginAPI.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_fontawesome_ttf.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_materialicons_ttf.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_roboto_medium_ttf.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_roboto_regular_ttf.cpp">
+      <Filter>Source Files\imgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

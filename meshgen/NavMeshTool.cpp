@@ -273,7 +273,7 @@ void NavMeshTool::handleTools()
 #endif
 		ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, m_tilesWidth, m_tilesHeight);
 
-		ImGui::SameLine(ImGui::GetContentRegionAvailWidth() - 100);
+		ImGui::SameLine(ImGui::GetContentRegionAvail().x - 100);
 		if (ImGuiEx::ColoredButton("Reset Settings", ImVec2(100, 0), 0.0))
 		{
 			m_config = NavMeshConfig{};
@@ -308,7 +308,7 @@ void NavMeshTool::handleTools()
 
 			m_navMesh->SetNavMeshBounds(min, max);
 
-			ImGui::SetCursorPosX(ImGui::GetContentRegionAvailWidth() - 131);
+			ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - 131);
 			if (ImGuiEx::ColoredButton("Reset Bounding Box", ImVec2(130, 0), 0.0))
 			{
 				m_navMesh->SetNavMeshBounds(
@@ -677,7 +677,7 @@ void NavMeshTool::setOutputPath(const char* output_path)
 {
 	strcpy(m_outputPath, output_path);
 	char buffer[512];
-	sprintf(buffer, "%s\\MQ2Nav", output_path);
+	sprintf(buffer, "%s\\resources\\MQ2Nav", output_path);
 	CreateDirectory(buffer, NULL);
 }
 

@@ -24,8 +24,6 @@
 #define GLM_FORCE_RADIANS
 #include <glm.hpp>
 
-extern IDirect3DDevice9* g_pDevice;
-
 //----------------------------------------------------------------------------
 
 class NavMeshDebugDraw : public DebugDrawDX
@@ -52,9 +50,9 @@ private:
 //----------------------------------------------------------------------------
 
 NavMeshRenderer::NavMeshRenderer()
-	: m_pDevice(g_pDevice)
+	: m_pDevice(gpD3D9Device)
 	, m_state(new ConfigurableRenderState)
-	, m_primGroup(std::make_unique<RenderGroup>(g_pDevice))
+	, m_primGroup(std::make_unique<RenderGroup>(gpD3D9Device))
 {
 }
 
@@ -105,7 +103,7 @@ void NavMeshRenderer::CleanupObjects()
 	m_primGroup->Reset();
 	m_primGroup->InvalidateDeviceObjects();
 
-	m_primGroup = std::make_unique<RenderGroup>(g_pDevice);
+	m_primGroup = std::make_unique<RenderGroup>(gpD3D9Device);
 }
 
 bool NavMeshRenderer::CreateDeviceObjects()

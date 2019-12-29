@@ -23,32 +23,31 @@
 char ImGuiSettingsFile[MAX_PATH] = { 0 };
 
 ImGuiRenderer::ImGuiRenderer(HWND eqhwnd, IDirect3DDevice9* device)
+#if !defined(MQNEXT)
 	: m_pDevice(device)
+#endif
 {
+#if !defined(MQNEXT)
 	m_pDevice->AddRef();
 
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags = ImGuiConfigFlags_NoMouseCursorChange;
 
-	// TODO: Set optional io.ConfigFlags values, e.g. 'io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard' to enable keyboard controls.
-	// TODO: Fill optional fields of the io structure later.
-	// TODO: Load TTF/OTF fonts if you don't want to use the default font.
-	fmt::format_to(ImGuiSettingsFile, "{}\\MQ2NavUI.ini", gszINIPath);
+	fmt::format_to(ImGuiSettingsFile, "{}\\MQ2NavUI.ini", gPathConfig);
 	io.IniFilename = &ImGuiSettingsFile[0];
 
 	// Initialize helper Platform and Renderer bindings
 	ImGui_ImplWin32_Init(eqhwnd);
 	ImGui_ImplDX9_Init(device);
 
-	ImGui::SetupImGuiStyle(true, 0.7f);
-	ImGuiEx::ConfigureFonts();
-
 	g_renderHandler->AddRenderable(this);
+#endif
 }
 
 ImGuiRenderer::~ImGuiRenderer()
 {
+#if !defined(MQNEXT)
 	g_renderHandler->RemoveRenderable(this);
 
 	// Cleanup the ImGui overlay
@@ -59,17 +58,32 @@ ImGuiRenderer::~ImGuiRenderer()
 
 	m_pDevice->Release();
 	m_pDevice = nullptr;
+#endif
 }
 
 void ImGuiRenderer::InvalidateDeviceObjects()
 {
+#if !defined(MQNEXT)
 	m_imguiReady = false;
 	ImGui_ImplDX9_InvalidateDeviceObjects();
+#endif
 }
 
 bool ImGuiRenderer::CreateDeviceObjects()
 {
+	if (!m_imguiConfigured)
+	{
+		ImGui::SetupImGuiStyle(true, 0.7f);
+		ImGuiEx::ConfigureFonts();
+
+		m_imguiConfigured = true;
+	}
+
+#if !defined(MQNEXT)
 	return m_imguiReady = ImGui_ImplDX9_CreateDeviceObjects();
+#else
+	return m_imguiReady = true;
+#endif
 }
 
 void ImGuiRenderer::ImGuiRender()
@@ -82,16 +96,20 @@ void ImGuiRenderer::ImGuiRender()
 	if (gGameState != GAMESTATE_INGAME)
 		return;
 
+#if !defined(MQNEXT)
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
+#endif
 	// call the OnUpdateUI signal.
 	OnUpdateUI();
 
+#if !defined(MQNEXT)
 	// Render the ui
 	ImGui::Render();
 	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+#endif
 }
 
 void ImGuiRenderer::SetVisible(bool visible)

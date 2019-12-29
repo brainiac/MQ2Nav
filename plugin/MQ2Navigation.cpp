@@ -337,7 +337,7 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
 {
 	InitKeys();
 
-	std::string logFile = std::string(gszINIPath) + "\\MQ2Nav.log";
+	std::string logFile = std::string(gPathLogs) + "\\MQ2Nav.log";
 
 	// set up default logger
 	auto logger = spdlog::create<spdlog::sinks::basic_file_sink_mt>("MQ2Nav", logFile, true);
@@ -569,7 +569,7 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 std::string MQ2NavigationPlugin::GetDataDirectory() const
 {
 	// the root path is where we look for all of our mesh files
-	return std::string(gszINIPath) + "\\MQ2Nav";
+	return std::string(gPathResources) + "\\MQ2Nav";
 }
 
 void MQ2NavigationPlugin::SetLogLevel(spdlog::level::level_enum level)
@@ -589,7 +589,7 @@ void MQ2NavigationPlugin::InitializeRenderer()
 	g_renderHandler = new RenderHandler();
 
 	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
-	g_imguiRenderer = new ImGuiRenderer(eqhwnd, g_pDevice);
+	g_imguiRenderer = new ImGuiRenderer(eqhwnd, gpD3D9Device);
 }
 
 void MQ2NavigationPlugin::ShutdownRenderer()
@@ -769,7 +769,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	// parse /nav ini
 	if (!_stricmp(buffer, "ini"))
 	{
-		const char* pStr = GetNextArg(szLine, 1);
+		const char* pStr = GetNextArg((char*)szLine, 1);
 
 		if (!nav::ParseIniCommand(pStr))
 		{

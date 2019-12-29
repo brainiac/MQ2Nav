@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="custom\imgui_user.cpp" />
     <ClCompile Include="misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="misc\fonts\font_droidsans_ttf.cpp" />
     <ClCompile Include="misc\fonts\font_fontawesome_ttf.cpp" />
@@ -26,7 +27,6 @@
     <ClCompile Include="misc\fonts\font_roboto_medium_ttf.cpp" />
     <ClCompile Include="misc\fonts\font_roboto_regular_ttf.cpp" />
     <ClCompile Include="custom\imgui_column_headers.cpp" />
-    <ClCompile Include="custom\imgui_user.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />

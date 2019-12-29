@@ -90,7 +90,7 @@ private:
 //============================================================================
 
 Application::Application(const std::string& defaultZone)
-	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath() + "\\MQ2Nav", defaultZone))
+	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath() + "\\resources\\MQ2Nav", defaultZone))
 	, m_meshTool(new NavMeshTool(m_navMesh))
 	, m_resetCamera(true)
 	, m_width(1600), m_height(900)
@@ -739,7 +739,7 @@ void Application::RenderInterface()
 
 	if (m_showProperties)
 	{
-		ImGui::SetNextWindowPos(ImVec2(20, 21 + 20), ImGuiSetCond_FirstUseEver);
+		ImGui::SetNextWindowPos(ImVec2(20, 21 + 20), ImGuiCond_FirstUseEver);
 
 		ImGui::Begin("Properties", &m_showProperties, ImGuiWindowFlags_AlwaysAutoResize);
 
@@ -848,7 +848,7 @@ void Application::RenderInterface()
 
 	if (m_showMapAreas)
 	{
-		ImGui::SetNextWindowSize(ImVec2(440, 400), ImGuiSetCond_Once);
+		ImGui::SetNextWindowSize(ImVec2(440, 400), ImGuiCond_Once);
 
 		if (ImGui::Begin("Area Types", &m_showMapAreas))
 		{
@@ -995,15 +995,15 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	ImGui::SetColumnOffset(1, 35);
 
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
-	float offset = window->DC.CurrentLineTextBaseOffset;
-	window->DC.CurrentLineTextBaseOffset += 2.0f;
+	float offset = window->DC.CurrLineTextBaseOffset;
+	window->DC.CurrLineTextBaseOffset += 2.0f;
 
 	if (builtIn)
 		ImGui::Text("Built-in %d", areaId);
 	else
 		ImGui::Text("User %d", userIndex != -1 ? userIndex : areaId);
 
-	window->DC.CurrentLineTextBaseOffset = offset;
+	window->DC.CurrLineTextBaseOffset = offset;
 
 	ImGui::NextColumn();
 	ImGui::SetColumnOffset(2, 120);
@@ -1356,8 +1356,10 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 	}
 	else
 	{
-		ImGui::SetNextWindowPosCenter(ImGuiSetCond_Appearing);
-		ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiSetCond_Appearing);
+		auto& io = ImGui::GetIO();
+
+		ImGui::SetNextWindowPos(io.DisplaySize, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
+		ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_Appearing);
 
 		if (ImGui::Begin(m_import ? "Import Settings" : "Export Settings", open))
 		{

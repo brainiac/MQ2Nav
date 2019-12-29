@@ -77,12 +77,12 @@ void LoadWaypoints(int zoneId)
 	CHAR pchValue[MAX_STRING];
 	Waypoint wp;
 
-	if (GetPrivateProfileString(g_shortZone.c_str(), NULL, "", pchKeys, MAX_STRING * 10, INIFileName))
+	if (::GetPrivateProfileStringA(g_shortZone.c_str(), NULL, "", pchKeys, MAX_STRING * 10, INIFileName))
 	{
 		PCHAR pKeys = pchKeys;
 		while (pKeys[0] || pKeys[1])
 		{
-			GetPrivateProfileString(g_shortZone.c_str(), pKeys, "", pchValue, MAX_STRING, INIFileName);
+			::GetPrivateProfileStringA(g_shortZone.c_str(), pKeys, "", pchValue, MAX_STRING, INIFileName);
 
 			std::string name(pKeys);
 			bool valid = true;
@@ -128,8 +128,7 @@ void SaveWaypoint(const Waypoint& wp)
 {
 	std::string& serialized = wp.Serialize();
 
-	WritePrivateProfileString(g_shortZone.c_str(), wp.name.c_str(),
-		serialized.c_str(), INIFileName);
+	WritePrivateProfileString(g_shortZone, wp.name, serialized, INIFileName);
 }
 
 bool GetWaypoint(const std::string& name, Waypoint& wp)
@@ -153,7 +152,7 @@ bool DeleteWaypoint(const std::string& name)
 
 	g_waypoints.erase(iter);
 
-	WritePrivateProfileString(g_shortZone.c_str(), name.c_str(), NULL, INIFileName);
+	::WritePrivateProfileStringA(g_shortZone.c_str(), name.c_str(), "", INIFileName);
 	return true;
 }
 
@@ -250,7 +249,7 @@ void RenderWaypointsUI()
 	ImGui::Text("Waypoints for");
 	ImGui::SameLine(); ImGui::TextColored(ImColor(66, 244, 110), "%s", g_zoneName.c_str());
 
-	ImGui::SameLine(ImGui::GetContentRegionAvailWidth() - 100);
+	ImGui::SameLine(ImGui::GetContentRegionAvail().x - 100);
 	if (ImGui::Button("New", ImVec2(100, 0))) {
 		editWaypoint = Waypoint();
 		editWaypointName[0] = 0;

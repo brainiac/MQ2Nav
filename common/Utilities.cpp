@@ -37,7 +37,7 @@ namespace ImGuiEx
 		ImGuiWindow* window = GetCurrentWindow();
 		if (window->SkipItems)
 			return;
-		ImGuiContext& g = *GImGui;
+		auto& g = *ImGui::GetCurrentContext();
 		/*
 		// Commented out because it is not tested, but it should work, but it won't be centered
 		ImGuiWindowFlags flags = 0;
@@ -53,7 +53,7 @@ namespace ImGuiEx
 
 		// Horizontal Separator
 		float x1, x2;
-		if (window->DC.ColumnsSet == NULL && (width == 0))
+		if (window->DC.CurrentColumns == nullptr && (width == 0))
 		{
 			// Span whole window
 			///x1 = window->Pos.x; // This fails with SameLine(); CenteredSeparator();
@@ -72,11 +72,11 @@ namespace ImGuiEx
 			{
 				x2 = window->ClipRect.Max.x;
 				// Pad right side of columns (except the last one)
-				if (window->DC.ColumnsSet && (window->DC.ColumnsSet->Current < window->DC.ColumnsSet->Count - 1))
+				if (window->DC.CurrentColumns && (window->DC.CurrentColumns->Current < window->DC.CurrentColumns->Count - 1))
 					x2 -= g.Style.ItemSpacing.x;
 			}
 		}
-		float y1 = window->DC.CursorPos.y + int(window->DC.CurrentLineSize.y / 2.0f);
+		float y1 = window->DC.CursorPos.y + int(window->DC.CurrLineSize.y / 2.0f);
 		float y2 = y1 + 1.0f;
 
 		window->DC.CursorPos.x += width; //+ g.Style.ItemSpacing.x;
@@ -112,8 +112,8 @@ namespace ImGuiEx
 	// Create a centered separator which can be immediately followed by a item
 	void PreSeparator(float width) {
 		ImGuiWindow* window = GetCurrentWindow();
-		if (window->DC.CurrentLineSize.y == 0)
-			window->DC.CurrentLineSize.y = ImGui::GetTextLineHeight();
+		if (window->DC.CurrLineSize.y == 0)
+			window->DC.CurrLineSize.y = ImGui::GetTextLineHeight();
 		CenteredSeparator(width);
 		ImGui::SameLine();
 	}

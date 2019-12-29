@@ -591,7 +591,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 		return LoadResult::Corrupt;
 
 	scope_guard g = [file]() { fclose(file); };
-	
+
 	// read the whole file
 	size_t filesize = 0;
 	fseek(file, 0, SEEK_END);

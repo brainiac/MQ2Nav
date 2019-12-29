@@ -33,6 +33,11 @@
 
 //============================================================================
 
+// have detours been installed already?
+bool g_hooksInstalled = false;
+
+#if !defined(MQNEXT)
+
 // This doesn't change during the execution of the program. This can be loaded
 // at static initialization time because of this.
 DWORD EQGraphicsBaseAddress = (DWORD)GetModuleHandle("EQGraphicsDX9.dll");
@@ -281,9 +286,6 @@ bool GetOffsets()
 
 //----------------------------------------------------------------------------
 
-// have detours been installed already?
-bool g_hooksInstalled = false;
-
 // the handle to the graphics dll
 HMODULE g_dx9Module = 0;
 
@@ -320,6 +322,18 @@ void InstallHook(HookInfo hi)
 	g_hooks.push_back(hi);
 }
 
+static void RemoveDetours()
+{
+	for (HookInfo& hook : g_hooks)
+	{
+		if (hook.address != 0)
+		{
+			RemoveDetour(hook.address);
+			hook.address = 0;
+		}
+	}
+}
+
 template <typename T>
 void InstallDetour(DWORD address, const T& detour, const T& trampoline, PCHAR name)
 {
@@ -336,10 +350,10 @@ void InstallDetour(DWORD address, const T& detour, const T& trampoline, PCHAR na
 }
 
 // the global direct3d device that we are "borrowing"
-IDirect3DDevice9* g_pDevice = nullptr;
+IDirect3DDevice9* gpD3D9Device = nullptr;
 
 // represents whether the device has been acquired and is good to use.
-bool g_deviceAcquired = false;
+bool gbDeviceAcquired = false;
 
 HMODULE g_d3d9Module = 0;
 using D3D9CREATEEXPROC = HRESULT(WINAPI*)(UINT, IDirect3D9Ex**);
@@ -349,6 +363,7 @@ DWORD g_resetDeviceAddress = 0;
 
 // check if we are in the keyboard event handler during shutdown
 std::atomic_bool g_inKeyboardEventHandler = false;
+
 
 class RenderHooks
 {
@@ -391,12 +406,12 @@ public:
 	HRESULT WINAPI Reset_Trampoline(D3DPRESENT_PARAMETERS* pPresentationParameters);
 	HRESULT WINAPI Reset_Detour(D3DPRESENT_PARAMETERS* pPresentationParameters)
 	{
-		if (g_pDevice != GetThisDevice())
+		if (gpD3D9Device != GetThisDevice())
 		{
 			return Reset_Trampoline(pPresentationParameters);
 		}
 
-		g_deviceAcquired = false;
+		gbDeviceAcquired = false;
 
 		if (g_renderHandler)
 		{
@@ -409,7 +424,7 @@ public:
 	HRESULT WINAPI BeginScene_Trampoline();
 	HRESULT WINAPI BeginScene_Detour()
 	{
-		g_pDevice = GetThisDevice();
+		gpD3D9Device = GetThisDevice();
 
 		return BeginScene_Trampoline();
 	}
@@ -417,7 +432,7 @@ public:
 	HRESULT WINAPI EndScene_Trampoline();
 	HRESULT WINAPI EndScene_Detour()
 	{
-		if (GetThisDevice() != g_pDevice)
+		if (GetThisDevice() != gpD3D9Device)
 		{
 			return EndScene_Trampoline();
 		}
@@ -425,13 +440,13 @@ public:
 		// When TestCooperativeLevel returns all good, then we can reinitialize.
 		// This will let the renderer control our flow instead of having to
 		// poll for the state ourselves.
-		if (!g_deviceAcquired)
+		if (!gbDeviceAcquired)
 		{
 			HRESULT result = GetThisDevice()->TestCooperativeLevel();
 
 			if (result == D3D_OK)
 			{
-				g_deviceAcquired = true;
+				gbDeviceAcquired = true;
 
 				if (DetectResetDeviceHook())
 				{
@@ -450,10 +465,10 @@ public:
 
 		// Perform the render within a stateblock so we don't upset the
 		// rest of the rendering pipeline
-		if (g_deviceAcquired)
+		if (gbDeviceAcquired)
 		{
 			IDirect3DStateBlock9* stateBlock = nullptr;
-			g_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
+			gpD3D9Device->CreateStateBlock(D3DSBT_ALL, &stateBlock);
 
 			if (g_imguiRenderer)
 			{
@@ -474,10 +489,10 @@ public:
 	{
 		// Perform the render within a stateblock so we don't upset the
 		// rest of the rendering pipeline
-		if (g_deviceAcquired)
+		if (gbDeviceAcquired)
 		{
 			IDirect3DStateBlock9* stateBlock = nullptr;
-			g_pDevice->CreateStateBlock(D3DSBT_ALL, &stateBlock);
+			gpD3D9Device->CreateStateBlock(D3DSBT_ALL, &stateBlock);
 
 			if (g_renderHandler)
 			{
@@ -575,7 +590,6 @@ bool InstallD3D9Hooks()
 	return success;
 }
 
-
 //----------------------------------------------------------------------------
 // mouse / keyboard handling
 
@@ -606,7 +620,7 @@ void ProcessMouseEvent_Detour()
 			return;
 		}
 	}
-	
+
 	ProcessMouseEvent_Trampoline();
 }
 
@@ -671,7 +685,7 @@ HookStatus InitializeHooks()
 {
 	if (g_hooksInstalled)
 	{
-		if (!g_pDevice)
+		if (!gpD3D9Device)
 		{
 			return HookStatus::MissingDevice;
 		}
@@ -718,36 +732,95 @@ HookStatus InitializeHooks()
 #endif
 
 	g_hooksInstalled = true;
-	return !g_pDevice ? HookStatus::MissingDevice : HookStatus::Success;
+	return !gpD3D9Device ? HookStatus::MissingDevice : HookStatus::Success;
 }
+#endif // !defined(MQNEXT)
 
-static void RemoveDetours()
+#if defined(MQNEXT)
+
+static void MQCreateDeviceObjects()
 {
-	for (HookInfo& hook : g_hooks)
+	if (g_renderHandler)
 	{
-		if (hook.address != 0)
-		{
-			RemoveDetour(hook.address);
-			hook.address = 0;
-		}
+		g_renderHandler->CreateDeviceObjects();
 	}
 }
+
+static void MQInvalidateDeviceObjects()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->InvalidateDeviceObjects();
+	}
+}
+
+static void MQImGuiRender()
+{
+	if (g_imguiRenderer)
+	{
+		g_imguiRenderer->ImGuiRender();
+	}
+}
+
+static void MQGraphicsSceneRender()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->PerformRender();
+	}
+}
+
+static int sMQCallbacksId = -1;
+
+HookStatus InitializeHooks()
+{
+	if (g_hooksInstalled)
+	{
+		if (!gpD3D9Device)
+		{
+			return HookStatus::MissingDevice;
+		}
+
+		return HookStatus::Success;
+	}
+
+#if EQSWITCH_USESWTICH_LOGGING
+	EzDetour(EQSwitch__UseSwitch,
+		&EQSwitch_Detour::UseSwitch_Detour,
+		&EQSwitch_Detour::UseSwitch_Trampoline);
+#endif
+
+	MQRenderCallbacks callbacks;
+	callbacks.CreateDeviceObjects = MQCreateDeviceObjects;
+	callbacks.InvalidateDeviceObjects = MQInvalidateDeviceObjects;
+	callbacks.ImGuiRender = MQImGuiRender;
+	callbacks.GraphicsSceneRender = MQGraphicsSceneRender;
+
+	sMQCallbacksId = AddRenderCallbacks(callbacks);
+
+	g_hooksInstalled = true;
+	return !gpD3D9Device ? HookStatus::MissingDevice : HookStatus::Success;
+}
+#endif // defined(MQNEXT)
 
 void ShutdownHooks()
 {
 	if (!g_hooksInstalled)
 		return;
 
+	RemoveRenderCallbacks(sMQCallbacksId);
+
+#if !defined(MQNEXT)
 	RemoveDetours();
 
 	g_hooksInstalled = false;
 	g_hooks.clear();
 
 	// Release our Direct3D device before freeing the dx9 library
-	if (g_pDevice)
+	if (gpD3D9Device)
 	{
-		g_pDevice->Release();
-		g_pDevice = nullptr;
+		gpD3D9Device->Release();
+		gpD3D9Device = nullptr;
 	}
 
 	if (g_d3d9Module)
@@ -774,7 +847,7 @@ void ShutdownHooks()
 			}
 
 			// Wait a little bit AFTER the flag is cleared to allow enough time
-			// to leave the hook function. 
+			// to leave the hook function.
 			Sleep(5);
 
 			// I Spent 3 days trying to figure out why this was needed. The
@@ -787,6 +860,7 @@ void ShutdownHooks()
 		});
 		cleanup.detach();
 	}
+#endif
 }
 
 //----------------------------------------------------------------------------

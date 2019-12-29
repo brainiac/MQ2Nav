@@ -59,8 +59,8 @@
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</StringPooling>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</StringPooling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NAV_API_EXPORTS;NOMINMAX;GLM_SWIZZLE;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NAV_API_EXPORTS;_DEBUG;NOMINMAX;GLM_SWIZZLE;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">IMPORT_IMGUI;NAV_API_EXPORTS;NOMINMAX;GLM_SWIZZLE;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">IMPORT_IMGUI;NAV_API_EXPORTS;_DEBUG;NOMINMAX;GLM_SWIZZLE;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
       <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
       <BufferSecurityCheck Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</BufferSecurityCheck>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
@@ -96,8 +96,30 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="imgui\imgui_impl_dx9.cpp" />
-    <ClCompile Include="imgui\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\dependencies\imgui\custom\imgui_user.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_droidsans_ttf.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_fontawesome_ttf.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_materialicons_ttf.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_roboto_medium_ttf.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_roboto_regular_ttf.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -148,9 +170,6 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ProjectReference Include="..\common\MQ2Nav_Common.vcxproj">
       <Project>{45e99b43-f47b-4aad-ac88-f95bf467f463}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\dependencies\imgui\imgui.vcxproj">
-      <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
     </ProjectReference>
     <ProjectReference Include="..\dependencies\projects\libprotobuf.vcxproj">
       <Project>{6ececb50-9de7-4e61-beed-c377c4d87b28}</Project>
