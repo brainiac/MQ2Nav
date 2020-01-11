@@ -1194,7 +1194,7 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 		return pDoor;
 
 	// follows similarly to DoorTarget
-	if (!ppSwitchMgr || !pSwitchMgr) return pDoor;
+	if (!pSwitchMgr) return pDoor;
 	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
 
 	// look up door by id

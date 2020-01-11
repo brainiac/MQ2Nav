@@ -87,8 +87,7 @@
       <AdditionalDependencies>MQ2Main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>MKDIR "$(OutDir)MQ2Nav"
-XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
+      <Command>XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
