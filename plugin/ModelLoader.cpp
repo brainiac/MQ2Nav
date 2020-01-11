@@ -420,12 +420,11 @@ void ModelLoader::UpdateModels()
 	m_modelData.clear();
 
 	const char* zoneName = GetShortZone(m_zoneId);
-	CHAR szEQPath[MAX_STRING];
-	GetEQPath(szEQPath, MAX_STRING);
+	const std::string pathEQ = std::filesystem::absolute(".").string();
 
 	// this uses a lot of cpu, spin it off into its own thread so it
 	// doesn't block themain thread.
-	auto zoneData = std::make_unique<ZoneData>(szEQPath, zoneName);
+	auto zoneData = std::make_unique<ZoneData>(pathEQ, zoneName);
 
 	if (!zoneData->IsLoaded())
 	{
@@ -756,12 +755,12 @@ void ModelLoader::OnUpdateUI(bool visible)
 
 		if (ImGui::TreeNode("##ItemTable", "Ground Items"))
 		{
-			PGROUNDITEM pItem = *(PGROUNDITEM*)pItemList;
+			EQGroundItem* pItem = pItemList->Top;
 			while (pItem)
 			{
 				if (ImGui::TreeNode(pItem->Name, "%s (%d)", pItem->Name, pItem->DropID))
 				{
-					ImGui::LabelText("Id", "%d", pItem->ID);
+					ImGui::LabelText("Id", "%d", pItem->pContents);
 					ImGui::LabelText("DropId", "%d", pItem->DropID);
 					ImGui::LabelText("Name", "%s", pItem->Name);
 					ImGui::LabelText("Heading", "%.2f", pItem->Heading);
