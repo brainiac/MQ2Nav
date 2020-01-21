@@ -36,23 +36,23 @@ bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQ
 	if (pMember) switch ((NavigationMembers)pMember->ID)
 	{
 	case Active:
-		Dest.Type = pBoolType;
+		Dest.Type = mq::datatypes::pBoolType;
 		Dest.DWord = m_nav->IsActive();
 		return true;
 	case Paused:
-		Dest.Type = pBoolType;
+		Dest.Type = mq::datatypes::pBoolType;
 		Dest.DWord = m_nav->IsPaused();
 		return true;
 	case MeshLoaded:
-		Dest.Type = pBoolType;
+		Dest.Type = mq::datatypes::pBoolType;
 		Dest.DWord = m_nav->IsMeshLoaded();
 		return true;
 	case PathExists:
-		Dest.Type = pBoolType;
+		Dest.Type = mq::datatypes::pBoolType;
 		Dest.DWord = m_nav->CanNavigateToPoint(Index);
 		return true;
 	case PathLength:
-		Dest.Type = pFloatType;
+		Dest.Type = mq::datatypes::pFloatType;
 		Dest.Float = m_nav->GetNavigationPathLength(Index);
 		return true;
 	case CurrentPath:
@@ -60,7 +60,7 @@ bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQ
 		//Dest.
 		break;
 	case Setting:
-		Dest.Type = pStringType;
+		Dest.Type = mq::datatypes::pStringType;
 		if (nav::ReadIniSetting(Index, &DataTypeTemp[0], MAX_STRING))
 		{
 			Dest.Ptr = &DataTypeTemp[0];
@@ -69,14 +69,14 @@ bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQ
 		return false;
 
 	case Velocity: {
-		Dest.Type = pIntType;
+		Dest.Type = mq::datatypes::pIntType;
 		Dest.Int = static_cast<int>(glm::round(GetMyVelocity()));
 		return true;
 	}
 	}
 
 	strcpy_s(DataTypeTemp, "NULL");
-	Dest.Type = pStringType;
+	Dest.Type = mq::datatypes::pStringType;
 	Dest.Ptr = &DataTypeTemp[0];
 	return true;
 }
