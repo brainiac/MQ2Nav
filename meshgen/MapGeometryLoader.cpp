@@ -463,7 +463,7 @@ void MapGeometryLoader::LoadDoors()
 	//
 	// Load the door data
 	//
-	std::string filename = m_meshPath + "\\MQ2Nav\\" + m_zoneName + "_doors.json";
+	std::string filename = m_meshPath + "\\" + m_zoneName + "_doors.json";
 
 	std::error_code ec;
 	if (!fs::is_regular_file(filename, ec))

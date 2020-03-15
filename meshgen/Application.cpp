@@ -90,7 +90,7 @@ private:
 //============================================================================
 
 Application::Application(const std::string& defaultZone)
-	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath() + "\\resources\\MQ2Nav", defaultZone))
+	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath(), defaultZone))
 	, m_meshTool(new NavMeshTool(m_navMesh))
 	, m_resetCamera(true)
 	, m_width(1600), m_height(900)
@@ -104,8 +104,9 @@ Application::Application(const std::string& defaultZone)
 	GetModuleFileNameA(nullptr, fullPath, MAX_PATH);
 	PathRemoveFileSpecA(fullPath);
 
-	m_iniFile = fmt::format("{}/MeshGenerator_UI.ini", fullPath);
-	m_logFile = fmt::format("{}/MeshGenerator.log", fullPath);
+	// TODO: Support config directory
+	m_iniFile = fmt::format("{}/config/MeshGenerator_UI.ini", fullPath);
+	m_logFile = fmt::format("{}/logs/MeshGenerator.log", fullPath);
 
 	// set up default logger
 	auto logger = spdlog::create<spdlog::sinks::basic_file_sink_mt>("MeshGen", m_logFile, true);
@@ -899,11 +900,11 @@ void Application::ShowSettingsDialog()
 			m_eqConfig.SelectEverquestPath();
 		ImGui::PopItemWidth();
 
-		ImGui::Text("Navmesh Path");
+		ImGui::Text("Navmesh Path (Path to MQ2 root directory)");
 		ImGui::PushItemWidth(400);
 		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(244, 250, 125));
-		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetOutputPath().c_str(),
-			m_eqConfig.GetOutputPath().length(), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetMQ2Path().c_str(),
+			m_eqConfig.GetMQ2Path().length(), ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
@@ -1159,7 +1160,7 @@ void Application::ResetCamera()
 std::string Application::GetMeshFilename()
 {
 	std::stringstream ss;
-	ss << m_eqConfig.GetOutputPath() << "\\MQ2Nav\\" << m_zoneShortname << ".navmesh";
+	ss << m_eqConfig.GetOutputPath() << "\\" << m_zoneShortname << ".navmesh";
 
 	return ss.str();
 }
@@ -1178,8 +1179,7 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 	std::string eqPath = m_eqConfig.GetEverquestPath();
 	std::string outputPath = m_eqConfig.GetOutputPath();
 
-	auto ptr = std::make_unique<InputGeom>(
-		zoneShortName, eqPath, outputPath);
+	auto ptr = std::make_unique<InputGeom>(zoneShortName, eqPath);
 
 	auto geomLoader = std::make_unique<MapGeometryLoader>(
 		zoneShortName, eqPath, outputPath);
