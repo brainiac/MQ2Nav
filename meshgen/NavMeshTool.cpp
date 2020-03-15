@@ -676,9 +676,7 @@ void NavMeshTool::CancelBuildAllTiles(bool wait)
 void NavMeshTool::setOutputPath(const char* output_path)
 {
 	strcpy(m_outputPath, output_path);
-	char buffer[512];
-	sprintf(buffer, "%s\\resources\\MQ2Nav", output_path);
-	CreateDirectory(buffer, NULL);
+	CreateDirectory(output_path, nullptr);
 }
 
 void NavMeshTool::resetCommonSettings()

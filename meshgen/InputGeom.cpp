@@ -51,10 +51,9 @@ static bool intersectSegmentTriangle(const float* sp, const float* sq,
 
 //----------------------------------------------------------------------------
 
-InputGeom::InputGeom(const std::string& zoneShortName, const std::string& eqPath, const std::string& meshPath)
+InputGeom::InputGeom(const std::string& zoneShortName, const std::string& eqPath)
 	: m_zoneShortName(zoneShortName)
 	, m_eqPath(eqPath)
-	, m_meshPath(meshPath)
 {
 }
 

@@ -21,6 +21,7 @@ public:
 
 	const std::string& GetEverquestPath() const { return m_everquestPath; }
 	const std::string& GetOutputPath() const { return m_outputPath; }
+	const std::string& GetMQ2Path() const { return m_mq2Path; }
 
 	void SelectEverquestPath();
 	void SelectOutputPath();
@@ -51,6 +52,7 @@ private:
 	void LoadZones();
 
 	std::string m_everquestPath;
+	std::string m_mq2Path;
 	std::string m_outputPath;
 	bool m_useMaxExtents = true;
 
