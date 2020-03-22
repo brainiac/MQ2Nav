@@ -10,6 +10,12 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemDefinitionGroup>
+    <PreBuildEvent>
+      <Command>powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(ProjectDir)Versioning.ps1</Command>
+      <Message>Updating version resource...</Message>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{115BC0F5-8702-4EC6-9724-D0FBE76D80CB}</ProjectGuid>
     <RootNamespace>MQ2Nav</RootNamespace>
@@ -18,11 +24,13 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
@@ -162,6 +170,7 @@
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="RenderList.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="SwitchHandler.h" />
     <ClInclude Include="UiController.h" />
     <ClInclude Include="Waypoints.h" />
@@ -185,11 +194,15 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="EmbedResources.rc" />
+    <ResourceCompile Include="Version.rc" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\resources\VolumeLines.fx">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README.MD" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
