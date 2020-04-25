@@ -692,8 +692,28 @@ static void MQGraphicsSceneRender()
 
 static int sMQCallbacksId = -1;
 
+static void AddNavRenderCallbacks()
+{
+	if (sMQCallbacksId != -1)
+		return;
+
+	MQRenderCallbacks callbacks;
+	callbacks.CreateDeviceObjects = MQCreateDeviceObjects;
+	callbacks.InvalidateDeviceObjects = MQInvalidateDeviceObjects;
+	callbacks.ImGuiRender = MQImGuiRender;
+	callbacks.GraphicsSceneRender = MQGraphicsSceneRender;
+
+	sMQCallbacksId = AddRenderCallbacks(callbacks);
+}
+
 HookStatus InitializeHooks()
 {
+	if (gpD3D9Device)
+	{
+		g_hooksInstalled = true;
+		AddNavRenderCallbacks();
+	}
+
 	if (g_hooksInstalled)
 	{
 		if (!gpD3D9Device)
@@ -710,15 +730,6 @@ HookStatus InitializeHooks()
 		&EQSwitch_Detour::UseSwitch_Trampoline);
 #endif
 
-	MQRenderCallbacks callbacks;
-	callbacks.CreateDeviceObjects = MQCreateDeviceObjects;
-	callbacks.InvalidateDeviceObjects = MQInvalidateDeviceObjects;
-	callbacks.ImGuiRender = MQImGuiRender;
-	callbacks.GraphicsSceneRender = MQGraphicsSceneRender;
-
-	sMQCallbacksId = AddRenderCallbacks(callbacks);
-
-	g_hooksInstalled = true;
 	return !gpD3D9Device ? HookStatus::MissingDevice : HookStatus::Success;
 }
 #endif // defined(MQNEXT)
