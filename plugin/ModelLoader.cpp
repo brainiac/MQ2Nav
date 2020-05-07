@@ -10,10 +10,10 @@
 #include "plugin/Renderable.h"
 #include "plugin/RenderHandler.h"
 #include "plugin/Utilities.h"
+#include "imgui/ImGuiUtils.h"
 
 #include <boost/algorithm/string.hpp>
 #include <imgui.h>
-#include <imgui/custom/imgui_column_headers.h>
 #include <rapidjson/prettywriter.h>
 
 #define GLM_FORCE_RADIANS

@@ -9,6 +9,7 @@
 #include "meshgen/EQConfig.h"
 #include "common/NavMesh.h"
 #include "common/Utilities.h"
+#include "imgui/ImGuiUtils.h"
 
 #include <Recast.h>
 #include <SDL.h>
@@ -71,7 +72,7 @@ struct ImGuiConsoleLog
 		ImGui::BeginChild("scrolling");
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 1));
 		if (copy) ImGui::LogToClipboard();
-		ImGui::PushFont(ImGuiEx::ConsoleFont);
+		ImGui::PushFont(mq::imgui::ConsoleFont);
 
 		if (Filter.IsActive())
 		{

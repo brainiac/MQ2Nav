@@ -31,7 +31,7 @@ public:
 	void ImGuiRender();
 
 	void SetVisible(bool visible);
-	bool IsReady() const { return m_imguiReady; }
+	bool IsReady() const { return true; }
 
 	// add a signal to do ui stuff
 	Signal<> OnUpdateUI;
@@ -41,17 +41,5 @@ private:
 	virtual bool CreateDeviceObjects() override;
 
 private:
-	// indicates whether imgui is ready to be used
-#if !defined(MQNEXT)
-	bool m_imguiReady = false;
-#else
-	bool m_imguiReady = true;
-#endif
 	bool m_visible = true;
-	bool m_imguiConfigured = false;
-
-#if !defined(MQNEXT)
-	// we're holding onto the device, we need to maintain a refcount
-	IDirect3DDevice9* m_pDevice = nullptr;
-#endif
 };

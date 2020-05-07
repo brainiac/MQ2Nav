@@ -6,15 +6,15 @@
 #include "meshgen/InputGeom.h"
 #include "meshgen/NavMeshTool.h"
 #include "common/Utilities.h"
+#include "imgui/ImGuiUtils.h"
 
 #include <Recast.h>
 #include <RecastDebugDraw.h>
 #include <DetourDebugDraw.h>
 
-#include <imgui/imgui.h>
-#include <imgui/misc/fonts/IconsMaterialDesign.h>
+#include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include <imgui/imgui_internal.h>
+#include <imgui_internal.h>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <functional>
@@ -98,7 +98,7 @@ void ConvexVolumeTool::handleMenu()
 	if (!navMesh) return;
 
 	// show list of existing convex volumes
-	if (ImGui::CollapsingSubHeader("Help"))
+	if (mq::imgui::CollapsingSubHeader("Help"))
 	{
 		ImGui::TextWrapped("Volumes can be used to mark parts of the map with different area types, including"
 			" unwalkable areas. You can also create custom areas with modified travel costs, making certain"

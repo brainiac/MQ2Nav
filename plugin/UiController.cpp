@@ -14,9 +14,7 @@
 #include "plugin/Waypoints.h"
 #include "common/Utilities.h"
 
-#define IMGUI_INCLUDE_IMGUI_USER_H
 #include <imgui.h>
-#include <imgui/custom/imgui_user.h>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -412,7 +410,7 @@ void UiController::PerformUpdateTab(TabPage page)
 	else if (page == TabPage::Theme)
 	{
 		ImGui::ShowStyleEditor();
-		ImGui::ShowTestWindow();
+		ImGui::ShowDemoWindow();
 	}
 #endif
 }

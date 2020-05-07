@@ -4,7 +4,6 @@
 
 #include "meshgen/ZonePicker.h"
 
-#include <imgui/imgui.h>
 #include <boost/algorithm/string.hpp>
 #include <glm/glm.hpp>
 
@@ -13,7 +12,8 @@
 #pragma warning (push)
 #pragma warning (disable : 4312 4244)
 
-#include <imgui/stb_image.h>
+#include <imgui.h>
+#include <stb/stb_image.h>
 
 #pragma warning (pop)
 
