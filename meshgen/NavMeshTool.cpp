@@ -12,6 +12,8 @@
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
 #include "common/proto/NavMeshFile.pb.h"
+#include "imgui/ImGuiUtils.h"
+#include "imgui/fonts/IconsMaterialDesign.h"
 
 #include <Recast.h>
 #include <RecastDebugDraw.h>
@@ -19,13 +21,11 @@
 #include <DetourDebugDraw.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshBuilder.h>
-#include <imgui/misc/fonts/IconsMaterialDesign.h>
 
 #include <SDL.h>
-#include <imgui/imgui.h>
-#include <imgui/custom/imgui_user.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <imgui.h>
 
 #include <ppl.h>
 #include <agents.h>
@@ -182,7 +182,7 @@ bool ToolButton(const char* text, const char* tooltip, bool active)
 		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor(100, 100, 100, 255));
 	}
 
-	ImGui::PushFont(ImGuiEx::LargeIconFont);
+	ImGui::PushFont(mq::imgui::LargeIconFont);
 
 	bool result = ImGui::Button(text, ImVec2(30, 30));
 
@@ -317,7 +317,7 @@ void NavMeshTool::handleTools()
 			}
 		}
 
-		if (ImGui::CollapsingSubHeader("Advanced Options"))
+		if (mq::imgui::CollapsingSubHeader("Advanced Options"))
 		{
 			// Region
 			ImGui::Text("Region");
@@ -329,7 +329,7 @@ void NavMeshTool::handleTools()
 				"Merge Region Area:\n"
 				"  - Any regions with a span count smaller than this value will, if possible,\n"
 				"    be merged with larger regions.";
-			ImGuiEx::HelpMarker(RegionHelp, 600.0f, ImGuiEx::ConsoleFont);
+			mq::imgui::HelpMarker(RegionHelp, 600.0f, mq::imgui::ConsoleFont);
 
 			ImGui::SliderFloat("Min Region Size", &m_config.regionMinSize, 0.0f, 150.0f, "%.0f");
 			ImGui::SliderFloat("Merged Region Size", &m_config.regionMergeSize, 0.0f, 150.0f, "%.0f");
@@ -366,7 +366,7 @@ void NavMeshTool::handleTools()
 				"    if you have large open areas with small obstacles (not a problem if you use\n"
 				"    tiles)\n"
 				"  * good choice to use for tiled navmesh with medium and small sized tiles";
-			ImGuiEx::HelpMarker(PartitioningHelp, 600.0f, ImGuiEx::ConsoleFont);
+			mq::imgui::HelpMarker(PartitioningHelp, 600.0f, mq::imgui::ConsoleFont);
 
 			const char *partition_types[] = { "Watershed", "Monotone", "Layers" };
 			ImGui::Combo("Partition Type", (int*)&m_config.partitionType, partition_types, 3);
@@ -383,7 +383,7 @@ void NavMeshTool::handleTools()
 				"Verts Per Poly:\n"
 				"  - The maximum number of vertices allowed for polygons generatd during the\n"
 				"    contour to polygon conversion process.\n";
-			ImGuiEx::HelpMarker(PolygonizationHelp, 600.0f, ImGuiEx::ConsoleFont);
+			mq::imgui::HelpMarker(PolygonizationHelp, 600.0f, mq::imgui::ConsoleFont);
 
 			ImGui::SliderFloat("Max Edge Length", &m_config.edgeMaxLen, 0.0f, 50.0f, "%.0f");
 			ImGui::SliderFloat("Max Edge Error", &m_config.edgeMaxError, 0.1f, 3.0f, "%.1f");
@@ -399,7 +399,7 @@ void NavMeshTool::handleTools()
 				"Sample Max Error:\n"
 				"  - The maximum distance the detail mesh surface should deviate from\n"
 				"    heightfield data. (for height detail only).\n";
-			ImGuiEx::HelpMarker(DetailMeshHelp, 600.0f, ImGuiEx::ConsoleFont);
+			mq::imgui::HelpMarker(DetailMeshHelp, 600.0f, mq::imgui::ConsoleFont);
 
 			ImGui::SliderFloat("Sample Distance", &m_config.detailSampleDist, 0.0f, 0.9f, "%.2f");
 			ImGui::SliderFloat("Max Sample Error", &m_config.detailSampleMaxError, 0.0f, 100.0f, "%.1f");

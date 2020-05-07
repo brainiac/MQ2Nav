@@ -21,6 +21,8 @@
 #include "plugin/UiController.h"
 #include "plugin/Utilities.h"
 #include "plugin/Waypoints.h"
+#include "imgui/ImGuiUtils.h"
+#include "imgui/fonts/IconsFontAwesome.h"
 
 #include <fmt/format.h>
 #include <glm/gtc/constants.hpp>
@@ -29,7 +31,6 @@
 #include <imgui.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
-#include <imgui/misc/fonts/IconsFontAwesome.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -1745,7 +1746,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 		ImGui::NewLine();
 
-		ImGui::PushFont(ImGuiEx::LargeTextFont);
+		ImGui::PushFont(mq::imgui::LargeTextFont);
 		ImGui::TextColored(ImColor(29, 171, 255), "Navigation State");
 		ImGui::PopFont();
 		ImGui::Separator();
@@ -1913,7 +1914,7 @@ void MQ2NavigationPlugin::RenderPathList()
 		}
 
 		ImGui::NextColumn();
-		ImGui::PushFont(ImGuiEx::ConsoleFont);
+		ImGui::PushFont(mq::imgui::ConsoleFont);
 
 		ImGui::TextColored(color, "%04d: %.2f, %.2f, %.2f", i,
 			pos[0], pos[1], pos[2]);

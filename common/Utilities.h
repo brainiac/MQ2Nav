@@ -20,15 +20,6 @@ struct ImFont;
 
 namespace ImGuiEx
 {
-	void HelpMarker(const char* text, float width = 450.0f, ImFont* tooltipFont = nullptr);
-
-	void ConfigureFonts();
-
-	extern ImFont* DefaultFont;
-	extern ImFont* LargeIconFont;
-	extern ImFont* ConsoleFont;
-	extern ImFont* LargeTextFont;
-
 	void CenteredSeparator(float width = 0);
 	void SameLineSeparator(float width = 0);
 	void PreSeparator(float width);

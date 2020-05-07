@@ -8,6 +8,7 @@
 #include "meshgen/InputGeom.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/ImGuiWidgets.h"
+#include "imgui/ImGuiUtils.h"
 
 #include <Recast.h>
 #include <RecastDebugDraw.h>
@@ -15,7 +16,6 @@
 
 #include <fmt/format.h>
 #include <imgui/imgui.h>
-#include <imgui/custom/imgui_user.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -247,7 +247,7 @@ void OffMeshConnectionTool::handleRenderOverlay(const glm::mat4& proj,
 	{
 		glm::vec3 pos = glm::project(m_state->m_hitPos, model, proj, view);
 
-		ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
+		mq::imgui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
 	}
 
 	// Tool help

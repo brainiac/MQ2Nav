@@ -301,7 +301,7 @@ void RenderWaypointsUI()
 	{
 		ImVec2 rightPaneContentSize = ImGui::GetContentRegionAvail();
 		ImGui::BeginChild("WaypointsView", ImVec2(rightPaneContentSize.x, rightPaneContentSize.y - 5));
-		ImGui::BeginChild("TopPart", ImVec2(0, -(ImGui::GetItemsLineHeightWithSpacing() + 1)));
+		ImGui::BeginChild("TopPart", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + 1)));
 
 		ImGui::Text("Waypoint Name");
 		ImGui::PushItemWidth(-1);

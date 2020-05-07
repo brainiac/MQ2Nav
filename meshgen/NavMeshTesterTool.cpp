@@ -4,6 +4,7 @@
 
 #include "meshgen/NavMeshTesterTool.h"
 #include "common/NavMeshData.h"
+#include "imgui/ImGuiUtils.h"
 
 #include <Recast.h>
 #include <RecastDebugDraw.h>
@@ -12,9 +13,8 @@
 #include <DetourDebugDraw.h>
 #include <DetourCommon.h>
 
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
-#include <imgui/custom/imgui_user.h>
+#include <imgui.h>
+#include <imgui_internal.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -1138,13 +1138,13 @@ void NavMeshTesterTool::handleRenderOverlay(const glm::mat4& proj,
 	{
 		glm::vec3 pos = glm::project(m_spos, model, proj, view);
 
-		ImGui::RenderTextCentered((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
+		mq::imgui::RenderTextCentered((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
 	}
 	if (m_eposSet)
 	{
 		glm::vec3 pos = glm::project(m_epos, model, proj, view);
 
-		ImGui::RenderTextCentered((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "End");
+		mq::imgui::RenderTextCentered((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "End");
 	}
 
 	// Tool help

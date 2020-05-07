@@ -14,12 +14,11 @@
 #include "meshgen/imgui/imgui_impl_sdl.h"
 #include "common/Utilities.h"
 
+#include "imgui/ImGuiUtils.h"
+
 #include <RecastDebugDraw.h>
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
-#include <imgui/misc/fonts/IconsFontAwesome.h>
-#include <imgui/misc/fonts/IconsMaterialDesign.h>
-#include <imgui/custom/imgui_utils.h>
+#include <imgui.h>
+#include <imgui_internal.h>
 #include <fmt/format.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -128,7 +127,8 @@ Application::Application(const std::string& defaultZone)
 	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 
 	InitializeWindow();
-	ImGui::SetupImGuiStyle(true, 0.8f);
+
+	mq::imgui::ConfigureStyle();
 }
 
 Application::~Application()
@@ -194,13 +194,15 @@ bool Application::InitializeWindow()
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.IniFilename = m_iniFile.c_str();
+	//io.ConfigFlags |= /*ImGuiConfigFlags_ViewportsEnable | */ImGuiConfigFlags_DockingEnable/* | ImGuiConfigFlags_DpiEnableScaleViewports | ImGuiConfigFlags_DpiEnableScaleFonts*/;
+	//io.ConfigDockingWithShift = true;
 
 	ImGui::StyleColorsDark();
 
 	ImGui_ImplSDL2_InitForOpenGL(m_window, m_glContext);
 	ImGui_ImplOpenGL2_Init();
 
-	ImGuiEx::ConfigureFonts();
+	mq::imgui::ConfigureFonts();
 
 	glEnable(GL_CULL_FACE);
 
@@ -318,6 +320,15 @@ int Application::RunMainLoop()
 		ImGui::Render();
 		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 		SDL_GL_SwapWindow(m_window);
+
+		ImGuiIO& io = ImGui::GetIO();
+
+		// Update and Render additional Platform Windows
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
 
 		// Do additional work here after rendering
 
@@ -575,7 +586,7 @@ void Application::RenderInterface()
 
 	if (!m_activityMessage.empty())
 	{
-		ImGui::RenderTextCentered(ImVec2(m_width / 2, m_height / 2),
+		mq::imgui::RenderTextCentered(ImVec2(m_width / 2, m_height / 2),
 			ImColor(255, 255, 255, 128), m_activityMessage.c_str(), m_progress);
 	}
 

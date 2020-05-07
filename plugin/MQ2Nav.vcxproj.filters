@@ -10,9 +10,6 @@
     <Filter Include="Resource Files">
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
-    <Filter Include="Source Files\imgui">
-      <UniqueIdentifier>{54299c1d-0c0b-4043-8dba-753451cfd4bb}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\imgui">
       <UniqueIdentifier>{969a4178-459f-4be7-bb2f-d6928fa181b3}</UniqueIdentifier>
     </Filter>
@@ -22,6 +19,7 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="..\README.MD" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="KeybindHandler.cpp">
@@ -77,24 +75,6 @@
     </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\dependencies\imgui\custom\imgui_user.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_droidsans_ttf.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_fontawesome_ttf.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_materialicons_ttf.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_roboto_medium_ttf.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\dependencies\imgui\misc\fonts\font_roboto_regular_ttf.cpp">
-      <Filter>Source Files\imgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -181,9 +161,6 @@
     <ResourceCompile Include="Version.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="README.MD" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\resources\VolumeLines.fx">
