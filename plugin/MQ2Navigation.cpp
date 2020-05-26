@@ -211,19 +211,6 @@ void ClickDoor(PDOOR pDoor)
 	ClickSwitch(click, (EQSwitch*)pDoor);
 }
 
-static void ClickGroundItem(PGROUNDITEM pGroundItem)
-{
-	CHAR szName[MAX_STRING] = { 0 };
-	GetFriendlyNameForGroundItem(pGroundItem, szName, sizeof(szName));
-
-	CHAR Command[MAX_STRING] = { 0 };
-	sprintf_s(Command, "/itemtarget \"%s\"", szName);
-	HideDoCommand((PSPAWNINFO)pLocalPlayer, Command, FALSE);
-
-	sprintf_s(Command, "/click left item");
-	HideDoCommand((PSPAWNINFO)pLocalPlayer, Command, FALSE);
-}
-
 glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn)
 {
 	if (pSpawn)
@@ -413,7 +400,7 @@ void MQ2NavigationPlugin::Plugin_OnEndZone()
 	}
 
 	pDoorTarget = nullptr;
-	pGroundTarget = nullptr;
+	mq::ClearGroundSpawn();
 }
 
 void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
@@ -447,17 +434,17 @@ void MQ2NavigationPlugin::Plugin_OnAddGroundItem(PGROUNDITEM pGroundItem)
 void MQ2NavigationPlugin::Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 {
 	// if the item we targetted for navigation has been removed, clear it out
-	if (m_pEndingItem == pGroundItem)
+	if (m_endingGround == pGroundItem)
 	{
-		m_pEndingItem = nullptr;
+		m_endingGround.Reset();
 
 		if (m_isActive)
 		{
 			auto info = m_activePath->GetDestinationInfo();
 
-			if (info->pGroundItem == pGroundItem)
+			if (info->groundItem == pGroundItem)
 			{
-				info->pGroundItem = nullptr;
+				info->groundItem = {};
 			}
 		}
 	}
@@ -879,7 +866,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	if (destInfo->clickType != ClickType::None)
 	{
 		m_pEndingDoor = destInfo->pDoor;
-		m_pEndingItem = destInfo->pGroundItem;
+		m_endingGround = destInfo->groundItem;
 	}
 
 	m_activePath = std::make_shared<NavigationPath>(destInfo);
@@ -981,9 +968,9 @@ void MQ2NavigationPlugin::AttemptClick()
 	{
 		ClickDoor(m_pEndingDoor);
 	}
-	else if (m_pEndingItem && GetDistance(m_pEndingItem->X, m_pEndingItem->Y) < 25)
+	else if (m_endingGround && m_endingGround.Distance(pCharSpawn) < 25)
 	{
-		ClickGroundItem(m_pEndingItem);
+		mq::ClickMouseItem(pCharSpawn, m_endingGround, true);
 	}
 }
 
@@ -1077,7 +1064,7 @@ void MQ2NavigationPlugin::MovementFinished(const glm::vec3& dest, FacingType fac
 {
 	SPDLOG_INFO("Reached destination at: {}", dest.yxz());
 
-	if (m_pEndingItem || m_pEndingDoor)
+	if (m_endingGround || m_pEndingDoor)
 	{
 		Look(dest, FacingType::Forward);
 		AttemptClick();
@@ -1404,18 +1391,21 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		}
 		else
 		{
-			if (!pGroundTarget)
+			if (!mq::CurrentGroundSpawn())
 			{
 				SPDLOG_ERROR("No ground item target!");
 				return result;
 			}
 
 			result->type = DestinationType::GroundItem;
-			result->pGroundItem = pGroundTarget;
-			result->eqDestinationPos = { pGroundTarget->X, pGroundTarget->Y, pGroundTarget->Z };
+			result->groundItem = mq::CurrentGroundSpawn();
+
+			CVector3 position = result->groundItem.Position();
+
+			result->eqDestinationPos = { position.X, position.Y, position.Z };
 			result->valid = true;
 
-			SPDLOG_INFO("Navigating to ground item: {}", pGroundTarget->Name);
+			SPDLOG_INFO("Navigating to ground item: {} ({})", result->groundItem.DisplayName(), result->groundItem.ID());
 		}
 
 		// check for click and once
@@ -1683,7 +1673,7 @@ void MQ2NavigationPlugin::ResetPath()
 	Get<SwitchHandler>()->SetActive(false);
 
 	m_pEndingDoor = nullptr;
-	m_pEndingItem = nullptr;
+	m_endingGround.Reset();
 	m_activePath.reset();
 }
 
@@ -1786,7 +1776,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 			case DestinationType::GroundItem:
 				ImGui::Text("Navigating to object:"); ImGui::SameLine();
-				ImGui::TextColored(ImColor(0, 255, 0), info->pGroundItem->Name);
+				ImGui::TextColored(ImColor(0, 255, 0), "%s (%d)", info->groundItem.DisplayName().c_str(), info->groundItem.ID());
 				break;
 
 			case DestinationType::Location:
