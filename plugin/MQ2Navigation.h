@@ -103,7 +103,7 @@ struct DestinationInfo
 
 	PSPAWNINFO pSpawn = nullptr;
 	PDOOR pDoor = nullptr;
-	PGROUNDITEM pGroundItem = nullptr;
+	MQGroundSpawn groundItem;
 	ClickType clickType = ClickType::None;
 	HeightType heightType = HeightType::Explicit;
 	NavigationOptions options;
@@ -288,7 +288,7 @@ private:
 
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;
-	PGROUNDITEM m_pEndingItem = nullptr;
+	MQGroundSpawn m_endingGround;
 
 	// whether the current path is active or not
 	bool m_isActive = false;
