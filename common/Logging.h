@@ -18,7 +18,7 @@ namespace fmt {
 
 		template <typename FormatContext>
 		auto format(const glm::vec3& p, FormatContext& ctx) {
-			return format_to(ctx.begin(), "({:.2f}, {:.2f}, {:.2f})", p.x, p.y, p.z);
+			return format_to(ctx.out(), "({:.2f}, {:.2f}, {:.2f})", p.x, p.y, p.z);
 		}
 	};
 
@@ -29,7 +29,7 @@ namespace fmt {
 
 		template <typename FormatContext>
 		auto format(const glm::vec2& p, FormatContext& ctx) {
-			return format_to(ctx.begin(), "({:.2f}, {:.2f})", p.x, p.y);
+			return format_to(ctx.out(), "({:.2f}, {:.2f})", p.x, p.y);
 		}
 	};
 }

@@ -168,7 +168,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\dependencies\fmt\src\format.cc" />
-    <ClCompile Include="..\dependencies\fmt\src\posix.cc" />
+    <ClCompile Include="..\dependencies\fmt\src\os.cc" />
     <ClCompile Include="FindPattern.cpp" />
     <ClCompile Include="JsonProto.cpp" />
     <ClCompile Include="NavMesh.cpp" />
