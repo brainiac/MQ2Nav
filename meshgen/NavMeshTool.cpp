@@ -3,6 +3,7 @@
 #include "meshgen/Application.h"
 #include "meshgen/ConvexVolumeTool.h"
 #include "meshgen/InputGeom.h"
+#include "meshgen/NavMeshInfoTool.h"
 #include "meshgen/NavMeshPruneTool.h"
 #include "meshgen/NavMeshTesterTool.h"
 #include "meshgen/NavMeshTileTool.h"
@@ -239,6 +240,12 @@ void NavMeshTool::handleTools()
 	if (ToolButton(ICON_MD_PLACE, "Waypoints Tool", type == ToolType::WAYPOINTS))
 	{
 		setTool(new WaypointsTool);
+	}
+	ImGui::SameLine();
+
+	if (ToolButton(ICON_MD_INFO, "Navmesh Info", type == ToolType::INFO))
+	{
+		setTool(new NavMeshInfoTool);
 	}
 
 	ImGui::Separator();

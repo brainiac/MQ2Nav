@@ -50,6 +50,7 @@ enum struct ToolType : uint32_t
 	OFFMESH_CONNECTION,
 	CONVEX_VOLUME,
 	WAYPOINTS,
+	INFO,
 	MAX_TOOLS
 };
 
