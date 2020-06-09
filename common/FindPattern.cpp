@@ -38,7 +38,7 @@ uintptr_t FindPattern(uintptr_t dwAddress, uint32_t dwLen, uintptr_t dwAddressUp
 {
 	if (dwAddress + dwLen >= dwAddressUpperBound)
 	{
-		dwLen = dwAddressUpperBound - dwAddress;
+		dwLen = static_cast<uint32_t>(dwAddressUpperBound - dwAddress);
 	}
 
 	return FindPattern(dwAddress, dwLen, bMask, szMask);
