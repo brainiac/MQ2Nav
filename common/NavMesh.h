@@ -105,7 +105,8 @@ public:
 		MissingFile,
 		Corrupt,
 		VersionMismatch,
-		ZoneMismatch
+		ZoneMismatch,
+		OutOfMemory,
 	};
 
 	LoadResult LoadNavMeshFile();

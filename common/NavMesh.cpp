@@ -652,19 +652,26 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 
 	if (compressed)
 	{
-		std::vector<uint8_t> data;
-		if (!DecompressMemory(data_ptr, data_size, data, uncompressedSize))
+		try
 		{
-			SPDLOG_ERROR("loadMesh: failed to decompress mesh file");
-			return LoadResult::Corrupt;
+			std::vector<uint8_t> data;
+			if (!DecompressMemory(data_ptr, data_size, data, uncompressedSize))
+			{
+				SPDLOG_ERROR("loadMesh: failed to decompress mesh file");
+				return LoadResult::Corrupt;
+			}
+
+			buffer.reset();
+
+			if (!file_proto.ParseFromArray(&data[0], (int)data.size()))
+			{
+				SPDLOG_ERROR("loadMesh: failed to parse mesh file");
+				return LoadResult::Corrupt;
+			}
 		}
-
-		buffer.reset();
-
-		if (!file_proto.ParseFromArray(&data[0], (int)data.size()))
+		catch (const std::bad_alloc&)
 		{
-			SPDLOG_ERROR("loadMesh: failed to parse mesh file");
-			return LoadResult::Corrupt;
+			return LoadResult::OutOfMemory;
 		}
 	}
 	else
