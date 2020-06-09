@@ -107,6 +107,10 @@ bool NavMeshLoader::LoadNavMesh()
 	case NavMesh::LoadResult::ZoneMismatch:
 		SPDLOG_ERROR("Couldn't load mesh file. It isn't for this zone.");
 		break;
+
+	case NavMesh::LoadResult::OutOfMemory:
+		SPDLOG_ERROR("Couldn't load mesh file. Ran out of memory!");
+		break;
 	}
 
 	return success;
