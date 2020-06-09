@@ -15,7 +15,10 @@
 #include <zlib.h>
 #include <cstdio>
 
+#if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <Windows.h>
 
 ImFont* ImGuiEx::DefaultFont = nullptr;
@@ -249,7 +252,8 @@ bool CompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& ou
 	return true;
 }
 
-bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data)
+bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data,
+	size_t decompressedSize)
 {
 	z_stream zs; // z_stream is zlib's control structure
 	memset(&zs, 0, sizeof(zs));
@@ -263,7 +267,15 @@ bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& 
 	int ret;
 	const size_t BUFSIZE = 128 * 1024;
 	uint8_t temp_buffer[BUFSIZE];
+
+	// If we didn't get a decompressedSize then do an inflate but only tally the size.
+	// We do this because we really don't want to make tons of allocations as we go.
+	// Once we finish, we'll run the call again with the calculated size.
+	bool calculateOnly = (decompressedSize == 0);
+
+	// Otherwise we know the size and can reserve the exact amount we need.
 	std::vector<uint8_t> buffer;
+	buffer.reserve(decompressedSize);
 
 	// get the decompressed bytes blockwise using repeated calls to inflate
 	do {
@@ -272,15 +284,21 @@ bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& 
 
 		ret = inflate(&zs, 0);
 
-		if (buffer.size() < zs.total_out) {
+		if (!calculateOnly && buffer.size() < zs.total_out) {
 			buffer.insert(buffer.end(), temp_buffer, temp_buffer + zs.total_out - buffer.size());
 		}
 
 	} while (ret == Z_OK);
 
+	decompressedSize = zs.total_out;
 	inflateEnd(&zs);
 
 	if (ret != Z_STREAM_END) return false;
+
+	if (calculateOnly && decompressedSize != 0)
+	{
+		return DecompressMemory(in_data, in_data_size, out_data, decompressedSize);
+	}
 
 	out_data.swap(buffer);
 	return true;
