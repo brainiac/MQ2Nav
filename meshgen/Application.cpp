@@ -783,6 +783,7 @@ void Application::RenderInterface()
 
 			if (m_navMesh->IsNavMeshLoaded())
 			{
+				ImGui::Separator();
 				if (ImGui::Button(ICON_FA_FLOPPY_O " Save"))
 					SaveMesh();
 			}
