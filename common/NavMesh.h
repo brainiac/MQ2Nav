@@ -47,6 +47,7 @@ class NavMesh : public NavModule
 public:
 	NavMesh(const std::string& folderName = std::string(),
 		const std::string& zoneName = std::string());
+
 	~NavMesh();
 
 	NavMesh(const NavMesh&) = delete;
@@ -109,8 +110,15 @@ public:
 
 	LoadResult LoadNavMeshFile();
 
+	// Load a specific file into this instance
+	LoadResult LoadNavMeshFile(const std::string& filename);
+
 	// save the currently loaded mesh to a file
 	bool SaveNavMeshFile();
+
+	// save the currently loaded mesh to another file
+	bool SaveNavMeshFile(const std::string& filename,
+		NavMeshHeaderVersion version = NavMeshHeaderVersion::Latest);
 
 	void SetNavMeshBounds(const glm::vec3& min, const glm::vec3& max);
 	void GetNavMeshBounds(glm::vec3& min, glm::vec3& max);
@@ -122,6 +130,8 @@ public:
 	const NavMeshConfig& GetNavMeshConfig() const { return m_config; }
 
 	std::vector<dtTileRef> GetTileRefsForPoint(const glm::vec3& pos);
+
+	int GetHeaderVersion() const { return static_cast<int>(m_version); }
 
 	//------------------------------------------------------------------------
 	// area types
@@ -188,10 +198,14 @@ public:
 	// events
 
 	Signal<> OnNavMeshChanged;
-	
+
 private:
 	LoadResult LoadMesh(const char* filename);
-	bool SaveMesh(const char* filename);
+
+	bool SaveMeshV4(const char* filename);
+	bool SaveMeshV5(const char* filename);
+
+	bool SaveMesh(const char* filename, NavMeshHeaderVersion version = NavMeshHeaderVersion::Latest);
 
 	void UpdateDataFile();
 	void InitializeAreas();
@@ -207,6 +221,7 @@ private:
 	std::string m_zoneName;
 	std::string m_dataFile;
 	LoadResult m_lastLoadResult = LoadResult::None;
+	NavMeshHeaderVersion m_version = {};
 
 	std::shared_ptr<dtNavMesh> m_navMesh;
 	std::shared_ptr<dtNavMeshQuery> m_navMeshQuery;

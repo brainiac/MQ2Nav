@@ -96,7 +96,13 @@ const char* const NAVMESH_FILE_EXTENSION = ".navmesh";
 
 // header constants
 const int NAVMESH_FILE_MAGIC = 'MSET';
-const int NAVMESH_FILE_VERSION = 4;
+
+enum struct NavMeshHeaderVersion : uint16_t {
+	Version4 = 4,                // base version
+	Version5 = 5,                // version 5 introduced headerSize and uncompressedSize
+
+	Latest = Version5,
+};
 
 enum struct NavMeshFileFlags : uint16_t {
 	COMPRESSED = 0x0001
@@ -108,6 +114,12 @@ struct MeshFileHeader
 	uint32_t magic;
 	uint16_t version;
 	NavMeshFileFlags flags;
+};
+
+struct MeshFileHeaderV5 : MeshFileHeader
+{
+	uint32_t uncompressedSize;
+	uint32_t headerSize;
 };
 
 // compatibility version of the navmesh data

@@ -83,7 +83,11 @@ inline float distSqr(const glm::vec3& v1, const glm::vec3& v2)
 //----------------------------------------------------------------------------
 
 bool CompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data);
-bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data);
+
+// Decompress memory. If we know the decompressed size, we can optimize the size of the buffer.
+// th
+bool DecompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data,
+	size_t decompressedSize = 0);
 
 
 //----------------------------------------------------------------------------

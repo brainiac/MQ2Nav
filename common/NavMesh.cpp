@@ -570,6 +570,14 @@ NavMesh::LoadResult NavMesh::LoadNavMeshFile()
 	return m_lastLoadResult;
 }
 
+NavMesh::LoadResult NavMesh::LoadNavMeshFile(const std::string& filename)
+{
+	m_lastLoadResult = LoadMesh(filename.c_str());
+	OnNavMeshChanged();
+
+	return m_lastLoadResult;
+}
+
 NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 {
 	// cache the filename of the file we tried to load
@@ -609,7 +617,10 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 
 	// read header
 	MeshFileHeader* fileHeader = (MeshFileHeader*)data_ptr;
-	data_ptr += sizeof(MeshFileHeader); data_size -= sizeof(MeshFileHeader);
+
+	uint32_t uncompressedSize = 0;
+	size_t headerSize = 0;
+	uint16_t headerVersion = fileHeader->version;
 
 	if (fileHeader->magic != NAVMESH_FILE_MAGIC)
 	{
@@ -617,11 +628,24 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 		return LoadResult::Corrupt;
 	}
 
-	if (fileHeader->version != NAVMESH_FILE_VERSION)
+	if (headerVersion == (uint16_t)NavMeshHeaderVersion::Version4)
 	{
-		SPDLOG_ERROR("loadMesh: mesh file has an incompatible version number");
+		headerSize = sizeof(MeshFileHeader);
+	}
+	else if (headerVersion >= (uint16_t)NavMeshHeaderVersion::Version5)
+	{
+		MeshFileHeaderV5* fileHeaderV5 = (MeshFileHeaderV5*)data_ptr;
+
+		headerSize = fileHeaderV5->headerSize;
+		uncompressedSize = fileHeaderV5->uncompressedSize;
+	}
+	else
+	{
+		SPDLOG_ERROR("loadMesh: mesh file has an incompatible version number: {0}", headerVersion);
 		return LoadResult::VersionMismatch;
 	}
+
+	data_ptr += headerSize; data_size -= headerSize;
 
 	bool compressed = +(fileHeader->flags & NavMeshFileFlags::COMPRESSED) != 0;
 	nav::NavMeshFile file_proto;
@@ -629,7 +653,7 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	if (compressed)
 	{
 		std::vector<uint8_t> data;
-		if (!DecompressMemory(data_ptr, data_size, data))
+		if (!DecompressMemory(data_ptr, data_size, data, uncompressedSize))
 		{
 			SPDLOG_ERROR("loadMesh: failed to decompress mesh file");
 			return LoadResult::Corrupt;
@@ -652,14 +676,19 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 		}
 	}
 
-	if (file_proto.zone_short_name() != m_zoneName)
+	if (m_zoneName.empty())
+	{
+		m_zoneName = file_proto.zone_short_name();
+	}
+	else if (file_proto.zone_short_name() != m_zoneName)
 	{
 		SPDLOG_ERROR("loadMesh: zone name mismatch! mesh is for '{}'", file_proto.zone_short_name());
 		return LoadResult::ZoneMismatch;
 	}
 
-	ResetSavedData(PersistedDataFields::All);
+	m_version = static_cast<NavMeshHeaderVersion>(headerVersion);
 
+	ResetSavedData(PersistedDataFields::All);
 	LoadFromProto(file_proto, PersistedDataFields::All);
 
 	return LoadResult::Success;
@@ -675,7 +704,12 @@ bool NavMesh::SaveNavMeshFile()
 	return SaveMesh(m_dataFile.c_str());
 }
 
-bool NavMesh::SaveMesh(const char* filename)
+bool NavMesh::SaveNavMeshFile(const std::string& filename, NavMeshHeaderVersion version)
+{
+	return SaveMesh(filename.c_str(), version);
+}
+
+bool NavMesh::SaveMeshV4(const char* filename)
 {
 	if (!m_navMesh)
 	{
@@ -699,12 +733,11 @@ bool NavMesh::SaveMesh(const char* filename)
 	// Store header.
 	MeshFileHeader header;
 	header.magic = NAVMESH_FILE_MAGIC;
-	header.version = NAVMESH_FILE_VERSION;
+	header.version = (uint16_t)NavMeshHeaderVersion::Version4;
 	header.flags = NavMeshFileFlags{};
+	outfile.write((const char*)&header, sizeof(header));
 
 	if (compress) header.flags |= NavMeshFileFlags::COMPRESSED;
-
-	outfile.write((const char*)&header, sizeof(MeshFileHeader));
 
 	if (compress)
 	{
@@ -721,8 +754,75 @@ bool NavMesh::SaveMesh(const char* filename)
 		file_proto.SerializeToOstream(&outfile);
 	}
 
+	m_version = NavMeshHeaderVersion::Version4;
 	outfile.close();
 	return true;
+}
+
+bool NavMesh::SaveMeshV5(const char* filename)
+{
+	if (!m_navMesh)
+	{
+		return false;
+	}
+
+	std::ofstream outfile(filename, std::ios::binary | std::ios::trunc);
+	if (!outfile.is_open())
+		return false;
+
+	// todo: Configuration
+	bool compress = true;
+
+	// Build the NavMeshFile proto
+
+	nav::NavMeshFile file_proto;
+	file_proto.set_zone_short_name(m_zoneName);
+
+	SaveToProto(file_proto, PersistedDataFields::All);
+
+	// Store header.
+	MeshFileHeaderV5 header;
+	header.magic = NAVMESH_FILE_MAGIC;
+	header.version = (uint16_t)NavMeshHeaderVersion::Version5;
+	header.flags = NavMeshFileFlags{};
+	header.headerSize = sizeof(MeshFileHeaderV5);
+	header.uncompressedSize = 0;
+
+	if (compress) header.flags |= NavMeshFileFlags::COMPRESSED;
+
+	if (compress)
+	{
+		std::string buffer;
+		file_proto.SerializeToString(&buffer);
+
+		// save the uncompressed size and write out the header
+		header.uncompressedSize = (uint32_t)buffer.length();
+		outfile.write((const char*)&header, sizeof(header));
+
+		std::vector<uint8_t> data;
+		CompressMemory(&buffer[0], buffer.length(), data);
+
+		outfile.write((const char*)&data[0], data.size());
+	}
+	else
+	{
+		outfile.write((const char*)&header, sizeof(header));
+		file_proto.SerializeToOstream(&outfile);
+	}
+
+	m_version = NavMeshHeaderVersion::Version5;
+	outfile.close();
+	return true;
+}
+
+bool NavMesh::SaveMesh(const char* filename, NavMeshHeaderVersion version /*= NavMeshHeaderVersion::Latest*/)
+{
+	if (version == NavMeshHeaderVersion::Version4)
+		return SaveMeshV4(filename);
+	if (version == NavMeshHeaderVersion::Version5)
+		return SaveMeshV5(filename);
+
+	return false;
 }
 
 //----------------------------------------------------------------------------
