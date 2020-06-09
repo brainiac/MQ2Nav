@@ -49,8 +49,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,32
- PRODUCTVERSION 1,32
+ FILEVERSION 1,3,3
+ PRODUCTVERSION 1,3,3
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -71,12 +71,11 @@ BEGIN
 #else
             VALUE "FileDescription", "MQ2Nav Release Version"
 #endif
-            VALUE "FileVersion", "1.32"
+            VALUE "FileVersion", "1.3.3"
             VALUE "InternalName", "MQ2Nav.dll"
-            VALUE "LegalCopyright", "Licensed under the GNU GPL v2"
             VALUE "OriginalFilename", "MQ2Nav.dll"
             VALUE "ProductName", "MQ2Nav"
-            VALUE "ProductVersion", "1.32"
+            VALUE "ProductVersion", "1.3.3"
         END
     END
     BLOCK "VarFileInfo"
