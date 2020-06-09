@@ -1,6 +1,6 @@
 $CPPFile = Get-ChildItem -Recurse PluginMain.cpp
 $ResFile = Get-ChildItem -Recurse Version.rc
-$VersionMatch = Select-String -Path $CPPFile -Pattern 'PLUGIN_VERSION\((.*)\)'
+$VersionMatch = Select-String -Path $CPPFile -Pattern 'MQ2NAV_PLUGIN_VERSION\s\"(.*)\"'
 $Version = $VersionMatch.Matches.Groups[1].Value
 If ($Version) {
     $VersionCommas = $Version -replace '\.', ','
