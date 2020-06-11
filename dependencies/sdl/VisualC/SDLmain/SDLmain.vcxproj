@@ -21,29 +21,29 @@
   <PropertyGroup Label="Globals">
     <ProjectName>SDL2main</ProjectName>
     <ProjectGuid>{DA956FD3-E142-46F2-9DD5-C78BEBB56B7A}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -101,6 +101,7 @@
       <CompileAs>Default</CompileAs>
       <ExceptionHandling>false</ExceptionHandling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Lib>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -122,6 +123,7 @@
       <CompileAs>Default</CompileAs>
       <ExceptionHandling>false</ExceptionHandling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Lib>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -144,6 +146,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Lib>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -166,6 +169,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Lib>
       <SuppressStartupBanner>true</SuppressStartupBanner>

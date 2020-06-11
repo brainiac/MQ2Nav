@@ -17,7 +17,7 @@
 #include <iterator>
 #include <filesystem>
 
-namespace fs = std::experimental::filesystem::v1;
+namespace fs = std::filesystem;
 
 typedef std::shared_ptr<EQEmu::EQG::Geometry> ModelPtr;
 typedef std::shared_ptr<EQEmu::S3D::Geometry> OldModelPtr;

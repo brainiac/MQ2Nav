@@ -21,29 +21,29 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{6ECECB50-9DE7-4E61-BEED-C377C4D87B28}</ProjectGuid>
     <RootNamespace>libprotobuf</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -94,6 +94,7 @@
       <DisableSpecificWarnings>4244;4267;4018;4355;4800;4251;4996;4146;4305;4506</DisableSpecificWarnings>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -108,6 +109,7 @@
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)..\protobuf\src</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4244;4267;4018;4355;4800;4251;4996;4146;4305;4506</DisableSpecificWarnings>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,6 +123,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)..\protobuf\src</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4244;4267;4018;4355;4800;4251;4996;4146;4305;4506</DisableSpecificWarnings>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -137,6 +140,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>$(ProjectDir)..\protobuf\src</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4244;4267;4018;4355;4800;4251;4996;4146;4305;4506</DisableSpecificWarnings>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

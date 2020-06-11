@@ -37,7 +37,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4244)
 
-namespace fs = std::experimental::filesystem::v1;
+namespace fs = std::filesystem;
 
 //============================================================================
 

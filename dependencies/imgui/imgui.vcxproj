@@ -60,32 +60,32 @@
     <ProjectGuid>{81EA8021-75BF-4D3F-8F60-12755690F6F6}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>imgui</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -137,6 +137,7 @@
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <StructMemberAlignment>Default</StructMemberAlignment>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -156,6 +157,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -177,6 +179,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <StructMemberAlignment>Default</StructMemberAlignment>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -198,6 +201,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>$(ProjectDir)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
