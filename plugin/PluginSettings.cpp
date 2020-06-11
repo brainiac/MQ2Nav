@@ -110,6 +110,7 @@ void LoadSettings(bool showMessage/* = true*/)
 	settings.autobreak = LoadBoolSetting("AutoBreak", defaults.autobreak);
 	settings.autopause = LoadBoolSetting("AutoPause", defaults.autopause);
 	settings.autoreload = LoadBoolSetting("AutoReload", defaults.autoreload);
+	settings.render_doortarget = LoadBoolSetting("RenderDoorTarget", defaults.render_doortarget);
 	settings.show_ui = LoadBoolSetting("ShowUI", defaults.show_ui);
 	settings.show_nav_path = LoadBoolSetting("ShowNavPath", defaults.show_nav_path);
 	settings.attempt_unstuck = LoadBoolSetting("AttemptUnstuck", defaults.attempt_unstuck);

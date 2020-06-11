@@ -286,6 +286,18 @@ void UiController::PerformUpdateTab(TabPage page)
 				g_mq2Nav->GetMapLine()->SetLayer(settings.map_line_layer);
 				changed = true;
 			}
+
+			//============================================================================
+			// Display - Misc
+			//============================================================================
+			ImGui::NewLine();
+			ImGui::TextColored(ImColor(255, 255, 0), "Misc Draw Settings");
+			ImGuiEx::CenteredSeparator();
+
+			if (ImGui::Checkbox("Draw bounding box around door target", &settings.render_doortarget))
+				changed = true;
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("When a door/switch is targeted, draw a bounding box around the object on the screen.");
 		}
 
 		if (m_settingsSection == Mesh)

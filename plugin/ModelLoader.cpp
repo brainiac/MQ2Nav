@@ -7,6 +7,7 @@
 
 #include "plugin/ImGuiRenderer.h"
 #include "plugin/DebugDrawDX.h"
+#include "plugin/PluginSettings.h"
 #include "plugin/Renderable.h"
 #include "plugin/RenderHandler.h"
 #include "plugin/Utilities.h"
@@ -109,7 +110,7 @@ public:
 	}
 
 	void RegenerateMesh()
-	{	
+	{
 		{
 			DebugDrawDX dd(m_grpBB.get());
 
@@ -372,22 +373,29 @@ void ModelLoader::OnPulse()
 	DWORD doorTargetId = -1;
 	if (pDoorTarget)
 		doorTargetId = pDoorTarget->ID;
-	if (doorTargetId != m_lastDoorTargetId)
+	m_lastDoorTargetId = doorTargetId;
+
+	// Don't render doortarget if setting is disabled.
+	bool showDoorTarget = nav::GetSettings().render_doortarget;
+	if (!showDoorTarget)
+		doorTargetId = -1;
+
+	if (doorTargetId != m_lastDoorTargetRenderId)
 	{
-		if (m_lastDoorTargetId >= 0)
+		if (m_lastDoorTargetRenderId >= 0)
 		{
-			if (auto model = m_modelData[m_lastDoorTargetId])
+			if (auto model = m_modelData[m_lastDoorTargetRenderId])
 			{
 				model->SetTargetted(false);
 			}
 		}
 
-		m_lastDoorTargetId = doorTargetId;
+		m_lastDoorTargetRenderId = doorTargetId;
 		m_doorsUI->m_lastDoorTargetId = doorTargetId;
 
-		if (m_lastDoorTargetId >= 0)
+		if (m_lastDoorTargetRenderId >= 0)
 		{
-			if (auto model = m_modelData[m_lastDoorTargetId])
+			if (auto model = m_modelData[m_lastDoorTargetRenderId])
 			{
 				model->SetTargetted(true);
 			}
@@ -510,7 +518,7 @@ void ModelLoader::Reset()
 	m_zoneId = 0;
 	m_zoneFile.clear();
 	m_models.clear();
-	m_lastDoorTargetId = -1;
+	m_lastDoorTargetRenderId = -1;
 	m_loadedDoorCount = 0;
 	m_modelData.clear();
 }
@@ -582,7 +590,7 @@ if (!m_showDoorsUI)
 			less = a->State < b->State;
 		else if (m_doorsSortColumn == Sort_Distance)
 			less = GetDistance(a) < GetDistance(b);
-		
+
 		return less;
 	});
 
@@ -701,7 +709,7 @@ void ModelLoader::OnUpdateUI(bool visible)
 		if (ImGui::TreeNode("##SwitchTable", "Door Objects"))
 		{
 			PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
-			
+
 			if (m_lastDoorTargetId >= 0)
 			{
 				PDOOR door = nullptr;

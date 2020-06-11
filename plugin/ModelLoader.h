@@ -32,7 +32,7 @@ public:
 	virtual void Shutdown() override;
 	virtual void OnPulse() override;
 
-	void SetZoneId(int zoneId);
+	void SetZoneId(int zoneId) override;
 	void Reset();
 
 	void OnUpdateUI(bool visible);
@@ -47,6 +47,7 @@ private:
 	int m_zoneId = 0;
 	std::string m_zoneFile;
 	int m_lastDoorTargetId = -1;
+	int m_lastDoorTargetRenderId = -1;
 	int m_loadedDoorCount = 0;
 
 	std::map<std::string, std::shared_ptr<EQEmu::EQG::Geometry>> m_models;

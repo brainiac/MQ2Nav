@@ -19,6 +19,9 @@ struct SettingsData
 	// auto reload navmesh if file changes
 	bool autoreload = true;
 
+	// render targeted door objects
+	bool render_doortarget = true;
+
 	// show the MQ2Nav Tools debug ui
 	bool show_ui = true;
 
