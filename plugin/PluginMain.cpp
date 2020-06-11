@@ -8,7 +8,7 @@
 #include "../PluginAPI.h"
 
 PreSetup("MQ2Nav");
-PLUGIN_VERSION(1.32);
+PLUGIN_VERSION(1.33);
 
 #define PLUGIN_NAME "MQ2Nav"
 #define MQ2NAV_PLUGIN_VERSION "1.3.2"
