@@ -390,10 +390,10 @@ void MQ2NavigationPlugin::Plugin_OnBeginZone()
 	if (!m_initialized)
 		return;
 
-	UpdateCurrentZone();
-
 	// stop active path if one exists
 	ResetPath();
+
+	UpdateCurrentZone();
 
 	for (const auto& m : m_modules)
 	{
