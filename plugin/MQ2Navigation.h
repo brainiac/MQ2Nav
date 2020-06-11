@@ -315,10 +315,10 @@ private:
 	std::shared_ptr<spdlog::sinks::sink> m_chatSink;
 };
 
-extern std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
+extern MQ2NavigationPlugin* g_mq2Nav;
 
-extern std::unique_ptr<RenderHandler> g_renderHandler;
-extern std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
+extern RenderHandler* g_renderHandler;
+extern ImGuiRenderer* g_imguiRenderer;
 
 //----------------------------------------------------------------------------
 

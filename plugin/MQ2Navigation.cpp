@@ -44,8 +44,8 @@ using namespace std::chrono_literals;
 
 //============================================================================
 
-std::unique_ptr<RenderHandler> g_renderHandler;
-std::unique_ptr<ImGuiRenderer> g_imguiRenderer;
+RenderHandler* g_renderHandler = nullptr;
+ImGuiRenderer* g_imguiRenderer = nullptr;
 
 // ----------------------------------------
 // key IDs & pointers
@@ -586,20 +586,23 @@ spdlog::level::level_enum MQ2NavigationPlugin::GetLogLevel() const
 
 void MQ2NavigationPlugin::InitializeRenderer()
 {
-	g_renderHandler = std::make_unique<RenderHandler>();
+	g_renderHandler = new RenderHandler();
 
 	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
-	g_imguiRenderer = std::make_unique<ImGuiRenderer>(eqhwnd, g_pDevice);
+	g_imguiRenderer = new ImGuiRenderer(eqhwnd, g_pDevice);
 }
 
 void MQ2NavigationPlugin::ShutdownRenderer()
 {
-	g_imguiRenderer.reset();
+	delete g_imguiRenderer;
+	g_imguiRenderer = nullptr;
 
 	if (g_renderHandler)
 	{
 		g_renderHandler->Shutdown();
-		g_renderHandler.reset();
+
+		delete g_renderHandler;
+		g_renderHandler = nullptr;
 	}
 }
 

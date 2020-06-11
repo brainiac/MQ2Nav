@@ -10,12 +10,12 @@
 
 //----------------------------------------------------------------------------
 
-std::unique_ptr<MQ2NavigationType> g_mq2NavigationType;
-std::unique_ptr<MQ2NavPathType> g_mq2NavPathType;
+MQ2NavigationType* g_mq2NavigationType = nullptr;
+MQ2NavPathType* g_mq2NavPathType = nullptr;
 
 MQ2NavigationType::MQ2NavigationType()
 	: MQ2Type("Navigation")
-	, m_nav(g_mq2Nav.get())
+	, m_nav(g_mq2Nav)
 {
 	TypeMember(Active);
 	TypeMember(Paused);
@@ -114,17 +114,17 @@ bool MQ2NavPathType::ToString(MQ2VARPTR VarPtr, PCHAR Destination)
 static BOOL NavigateData(PCHAR szName, MQ2TYPEVAR& Dest)
 {
 	Dest.DWord = 1;
-	Dest.Type = g_mq2NavigationType.get();
+	Dest.Type = g_mq2NavigationType;
 	return true;
 }
 
 void InitializeMQ2NavMacroData()
 {
-	g_mq2NavigationType = std::make_unique<MQ2NavigationType>();
+	g_mq2NavigationType = new MQ2NavigationType();
 	AddMQ2Data("Navigation", NavigateData);
 	AddMQ2Data("Nav", NavigateData);
 
-	g_mq2NavPathType = std::make_unique<MQ2NavPathType>();
+	g_mq2NavPathType = new MQ2NavPathType();
 }
 
 void ShutdownMQ2NavMacroData()
@@ -132,6 +132,9 @@ void ShutdownMQ2NavMacroData()
 	RemoveMQ2Data("Navigation");
 	RemoveMQ2Data("Nav");
 
-	g_mq2NavigationType.reset();
-	g_mq2NavPathType.reset();
+	delete g_mq2NavigationType;
+	g_mq2NavigationType = nullptr;
+
+	delete g_mq2NavPathType;
+	g_mq2NavPathType = nullptr;
 }

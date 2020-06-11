@@ -18,7 +18,7 @@ PLUGIN_VERSION(1.32);
 
 //----------------------------------------------------------------------------
 
-std::unique_ptr<MQ2NavigationPlugin> g_mq2Nav;
+MQ2NavigationPlugin* g_mq2Nav;
 
 //----------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@ PLUGIN_API void InitializePlugin()
 
 	WriteChatf(PLUGIN_MSG "v%s by brainiac (\aohttps://github.com/brainiac/MQ2Nav\ax)", MQ2NAV_PLUGIN_VERSION);
 
-	g_mq2Nav = std::make_unique<MQ2NavigationPlugin>();
+	g_mq2Nav = new MQ2NavigationPlugin();
 	g_mq2Nav->Plugin_Initialize();
 
 	if (g_mq2Nav->InitializationFailed())
@@ -42,7 +42,9 @@ PLUGIN_API void ShutdownPlugin()
 	DebugSpewAlways("Shutting down MQ2Nav");
 
 	g_mq2Nav->Plugin_Shutdown();
-	g_mq2Nav.reset();
+
+	delete g_mq2Nav;
+	g_mq2Nav = nullptr;
 }
 
 PLUGIN_API void OnPulse()

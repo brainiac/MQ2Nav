@@ -51,7 +51,7 @@ private:
 	MQ2NavigationPlugin* m_nav;
 };
 
-extern std::unique_ptr<MQ2NavigationType> g_mq2NavigationType;
+extern MQ2NavigationType* g_mq2NavigationType;
 
 //----------------------------------------------------------------------------
 
@@ -60,7 +60,6 @@ class MQ2NavPathType : public MQ2Type
 public:
 	enum NavPathMembers {
 		IsValid = 1,
-		
 	};
 
 	MQ2NavPathType();
@@ -75,4 +74,4 @@ public:
 protected:
 };
 
-extern std::unique_ptr<MQ2NavPathType> g_mq2NavPathType;
+extern MQ2NavPathType* g_mq2NavPathType;
