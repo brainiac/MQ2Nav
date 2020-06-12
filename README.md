@@ -20,7 +20,7 @@ Building
 
 ##### Requirements
 
-* Visual Studio 2017 (15.5)
+* Visual Studio 2019
 
 MQ2Nav is a unique plugin. You do not want to add it to your solution. Instead you will build it in a separate solution apart from MacroQuest2.sln.
 
