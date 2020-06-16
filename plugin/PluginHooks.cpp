@@ -162,8 +162,8 @@ SigPatternInfo FlushDxKeyboard_PatternInfo[] = {
 	},
 	// 81 EC ? ? ? ? 8B 0D ? ? ? ? B8 ? ? ? ? 89 04 24 85 C9 74 16 8B 01 8D 14 24 6A 00 52 8D 54 24 0C 52
 	{
-		"xx????xx????x????xxxxxxxxxxxxxxxxxxxx",
-		(const unsigned char*)"\x81\xEC\x00\x00\x00\x00\x8B\x0D\x00\x00\x00\x00\xB8\x00\x00\x00\x00\x89\x04\x24\x85\xC9\x74\x16\x8",
+		"xx????xx????x????",
+		(const unsigned char*)"\x81\xEC\x00\x00\x00\x00\x8B\x0D\x00\x00\x00\x00\xB8\x00\x00\x00\x00",
 		0x550000, 0xB50000,
 	},
 #endif
