@@ -544,8 +544,8 @@ void Application::UpdateCamera()
 	m_moveD = rcClamp(m_moveD + m_timeDelta * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
 	m_moveUp = rcClamp(m_moveUp + m_timeDelta * 4 * (keystate[SDL_SCANCODE_SPACE] ? 1 : -1), 0.0f, 1.0f);
 	m_moveDown = rcClamp(m_moveDown + m_timeDelta * 4 * (keystate[SDL_SCANCODE_C] ? 1 : -1), 0.0f, 1.0f);
-
-	float keybSpeed = 250.0f;
+	
+	float keybSpeed = m_camMoveSpeed;
 	if (SDL_GetModState() & KMOD_SHIFT)
 		keybSpeed *= 10.0f;
 
@@ -788,6 +788,8 @@ void Application::RenderInterface()
 					SaveMesh();
 			}
 		}
+		ImGui::Separator();
+		ImGui::SliderFloat("Cam Movement Speed", &m_camMoveSpeed, 10, 350);
 
 		ImGui::End();
 	}
