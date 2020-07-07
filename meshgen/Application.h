@@ -236,6 +236,9 @@ private:
 	bool m_showProperties = true;
 	bool m_showMapAreas = false;
 	bool m_showOverlay = true;
+	
+	// Keyboard speed adjustment
+	float m_camMoveSpeed = 250.0f;
 
 	// zone to load on next pass
 	std::string m_nextZoneToLoad;
