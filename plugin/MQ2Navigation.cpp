@@ -1466,7 +1466,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		int i = 0;
 		for (; i < 3; ++i)
 		{
-			char* item = GetArg(buffer, mutableLine, idx++);
+			const char* item = GetArg(buffer, mutableLine, idx++);
 			if (!item || strlen(item) == 0)
 			{
 				--idx;

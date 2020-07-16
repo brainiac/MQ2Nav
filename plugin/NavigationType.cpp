@@ -30,7 +30,7 @@ MQ2NavigationType::~MQ2NavigationType()
 {
 }
 
-bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQTypeVar& Dest)
+bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Index, MQTypeVar& Dest)
 {
 	MQTypeMember* pMember = MQ2NavigationType::FindMember(Member);
 	if (pMember) switch ((NavigationMembers)pMember->ID)
@@ -98,7 +98,7 @@ MQ2NavPathType::~MQ2NavPathType()
 {
 }
 
-bool MQ2NavPathType::GetMember(MQVarPtr VarPtr, PCHAR Member, PCHAR Index, MQTypeVar& Dest)
+bool MQ2NavPathType::GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Index, MQTypeVar& Dest)
 {
 	return false;
 }
