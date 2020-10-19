@@ -333,7 +333,7 @@ void UiController::PerformUpdateTab(TabPage page)
 			}
 			if (settings.use_find_polygon_extents)
 			{
-				if (ImGui::InputFloat3("Polygon search extents", glm::value_ptr(settings.find_polygon_extents), 1))
+				if (ImGui::InputFloat3("Polygon search extents", glm::value_ptr(settings.find_polygon_extents), "%.1f"))
 					changed = true;
 				if (ImGui::IsItemHovered())
 				{

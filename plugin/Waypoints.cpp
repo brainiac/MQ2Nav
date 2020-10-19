@@ -312,7 +312,7 @@ void RenderWaypointsUI()
 		ImGui::PushItemWidth(-44);
 		glm::vec3 tempPos = editWaypoint.location;
 		std::swap(tempPos.x, tempPos.y);
-		if (ImGui::InputFloat3("##Location", &tempPos.x, 2))
+		if (ImGui::InputFloat3("##Location", &tempPos.x, "%.2f"))
 		{
 			std::swap(tempPos.x, tempPos.y);
 			editWaypoint.location = tempPos;
