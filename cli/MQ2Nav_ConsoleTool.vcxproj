@@ -105,8 +105,8 @@
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\dependencies\imgui\imgui.vcxproj">
-      <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
+    <ProjectReference Include="..\..\..\src\imgui\imgui.vcxproj">
+      <Project>{1777e251-0f50-496a-b8c5-ec7f41a0b186}</Project>
     </ProjectReference>
     <ProjectReference Include="..\common\MQ2Nav_Common.vcxproj">
       <Project>{45e99b43-f47b-4aad-ac88-f95bf467f463}</Project>

@@ -764,7 +764,7 @@ void Application::RenderInterface()
 		ImGui::Separator();
 
 		float camPos[3] = { m_cam.z, m_cam.x, m_cam.y };
-		if (ImGui::InputFloat3("Position", camPos, 2))
+		if (ImGui::InputFloat3("Position", camPos, "%.2f"))
 		{
 			m_cam.x = camPos[1];
 			m_cam.y = camPos[2];
@@ -1052,12 +1052,12 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	if (areaId == 0)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(128, 128, 128));
-		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, 1, ImGuiInputTextFlags_ReadOnly);
+		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, "%.1f", ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 	}
 	else
 	{
-		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, 1);
+		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, "%.1f");
 	}
 
 	ImGui::PopItemWidth();
