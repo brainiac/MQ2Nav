@@ -957,7 +957,7 @@ void MQ2NavigationPlugin::AttemptClick()
 		return;
 
 	// don't execute if we've got an item on the cursor.
-	if (GetPcProfile()->pInventoryArray && GetPcProfile()->pInventoryArray->Inventory.Cursor)
+	if (GetPcProfile()->GetInventorySlot(InvSlot_Cursor))
 		return;
 
 	clock::time_point now = clock::now();
