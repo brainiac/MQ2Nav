@@ -369,8 +369,8 @@ void ModelLoader::OnPulse()
 	}
 
 	DWORD doorTargetId = -1;
-	if (pDoorTarget)
-		doorTargetId = pDoorTarget->ID;
+	if (pSwitchTarget)
+		doorTargetId = pSwitchTarget->ID;
 	m_lastDoorTargetId = doorTargetId;
 
 	// Don't render doortarget if setting is disabled.

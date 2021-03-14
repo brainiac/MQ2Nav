@@ -399,7 +399,7 @@ void MQ2NavigationPlugin::Plugin_OnEndZone()
 		m.second->OnEndZone();
 	}
 
-	pDoorTarget = nullptr;
+	pSwitchTarget = nullptr;
 	mq::ClearGroundSpawn();
 }
 
@@ -1175,7 +1175,7 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 {
 	char mutableLine[MAX_STRING] = { 0 };
 	strcpy_s(mutableLine, szLine);
-	PDOOR pDoor = pDoorTarget;
+	PDOOR pDoor = pSwitchTarget;
 
 	// short circuit if the argument is "click"
 	GetArg(buffer, mutableLine, argIndex);
