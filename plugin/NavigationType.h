@@ -44,9 +44,6 @@ public:
 	virtual bool GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Index, MQTypeVar& Dest) override;
 	virtual bool ToString(MQVarPtr VarPtr, PCHAR Destination) override;
 
-	virtual bool FromData(MQVarPtr& VarPtr, MQTypeVar& Source) override { return false; }
-	virtual bool FromString(MQVarPtr& VarPtr, const char* Source) override { return false; }
-
 private:
 	MQ2NavigationPlugin* m_nav;
 };
@@ -67,11 +64,6 @@ public:
 
 	virtual bool GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Index, MQTypeVar& Dest) override;
 	virtual bool ToString(MQVarPtr VarPtr, PCHAR Destination) override;
-
-	virtual bool FromData(MQVarPtr& VarPtr, MQTypeVar& Source) override { return false; }
-	virtual bool FromString(MQVarPtr& VarPtr, const char* Source) override { return false; }
-
-protected:
 };
 
 extern MQ2NavPathType* g_mq2NavPathType;
