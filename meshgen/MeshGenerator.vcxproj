@@ -64,27 +64,14 @@
     <ProjectReference Include="..\common\MQ2Nav_Common.vcxproj">
       <Project>{45e99b43-f47b-4aad-ac88-f95bf467f463}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\dependencies\projects\libprotobuf.vcxproj">
-      <Project>{6ececb50-9de7-4e61-beed-c377c4d87b28}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\dependencies\projects\zone-utilities.vcxproj">
+    <ProjectReference Include="..\dependencies\zone-utilities\zone-utilities.vcxproj">
       <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
     </ProjectReference>
     <ProjectReference Include="..\dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\dependencies\sdl\VisualC\SDLmain\SDLmain.vcxproj">
-      <Project>{da956fd3-e142-46f2-9dd5-c78bebb56b7a}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\dependencies\sdl\VisualC\SDL\SDL.vcxproj">
-      <Project>{81ce8daf-ebb2-4761-8e45-b71abcca8c68}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\dependencies\zlib\zlib.vcxproj">
-      <Project>{d5fc478c-d94c-437f-9911-14f1fb7b9a2b}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="..\dependencies\glm\util\glm.natvis" />
     <Natvis Include="meshgen.natvis" />
   </ItemGroup>
   <ItemGroup>
@@ -130,13 +117,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>MeshGenerator</TargetName>
     <LinkIncremental>false</LinkIncremental>
-    <IntDir>$(ProjectDir)..\build\x64\$(Configuration)\$(ProjectName)\</IntDir>
-    <OutDir>$(MQ2BuildDirectory)bin\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>MeshGenerator</TargetName>
-    <IntDir>$(ProjectDir)..\build\x64\$(Configuration)\$(ProjectName)\</IntDir>
-    <OutDir>$(MQ2BuildDirectory)bin\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -159,12 +142,12 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\dependencies\sdl\lib;$(ProjectDir)..\dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>fmtd.lib;zlibd.lib;libprotobufd.lib;SDL2d.lib;SDL2maind.lib;imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)resources"</Command>
+      <Command>mkdir "$(OutDir)resources"
+XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)resources"</Command>
     </PostBuildEvent>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -190,12 +173,12 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\dependencies\sdl\lib;$(ProjectDir)..\dependencies\zlib\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>fmt.lib;zlib.lib;libprotobuf.lib;SDL2.lib;SDL2main.lib;imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)resources"</Command>
+      <Command>mkdir "$(OutDir)resources"
+XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)resources"</Command>
     </PostBuildEvent>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -204,9 +187,9 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\dependencies\projects\protobuf.targets" />
+    <Import Project="..\tools\protoc\protobuf.targets" />
   </ImportGroup>
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="..\dependencies\projects\protobuf.props" />
+    <Import Project="..\tools\protoc\protobuf.props" />
   </ImportGroup>
 </Project>

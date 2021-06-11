@@ -7,7 +7,7 @@
 #include <boost/algorithm/string.hpp>
 #include <glm/glm.hpp>
 
-#include <SDL_opengl.h>
+#include <SDL2/SDL_opengl.h>
 
 #pragma warning (push)
 #pragma warning (disable : 4312 4244)

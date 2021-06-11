@@ -12,7 +12,7 @@
 #include "imgui/ImGuiUtils.h"
 
 #include <Recast.h>
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 #include <imgui/imgui.h>
 #include <spdlog/spdlog.h>

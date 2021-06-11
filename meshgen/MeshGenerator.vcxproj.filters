@@ -150,9 +150,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="..\dependencies\glm\util\glm.natvis">
-      <Filter>Resource Files</Filter>
-    </Natvis>
     <Natvis Include="meshgen.natvis">
       <Filter>Resource Files</Filter>
     </Natvis>

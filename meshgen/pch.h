@@ -33,5 +33,5 @@
 #include <shlobj.h>
 #include <Shlwapi.h>
 
-#include <SDL.h>
-#include <SDL_syswm.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
