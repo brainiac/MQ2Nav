@@ -8,7 +8,7 @@
 #include <zone-utilities/common/safe_alloc.h>
 
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <fmt/format.h>
 
 #include <string>
 #include <vector>
@@ -41,9 +41,7 @@ public:
 
 	static std::string GetZoneFile(ZoneData* zd)
 	{
-		return (boost::format("%s\\%s.eqg")
-			% zd->GetEQPath()
-			% zd->GetZoneName()).str();
+		return fmt::format("{}\\{}.eqg", zd->GetEQPath(), zd->GetZoneName());
 	}
 
 	static bool IsValid(ZoneData* zd)
@@ -55,9 +53,7 @@ public:
 	{
 		bool loadedSomething = m_archive.Open(GetZoneFile(m_zd));
 
-		std::string base_filename = (boost::format("%s\\%s")
-			% m_zd->GetEQPath()
-			% m_zd->GetZoneName()).str();
+		std::string base_filename = fmt::format("{}\\{}", m_zd->GetEQPath(), m_zd->GetZoneName());
 
 		// next we need to try to read an _assets file and load more eqg based data.
 		std::string assets_file = base_filename + "_assets.txt";
@@ -75,7 +71,7 @@ public:
 
 				for (auto& name : filenames)
 				{
-					std::string asset_file = (boost::format("%s\\%s") % m_zd->GetEQPath() % name).str();
+					std::string asset_file = fmt::format("{}\\{}", m_zd->GetEQPath(), name);
 					EQEmu::PFS::Archive archive;
 
 					if (!archive.Open(asset_file))
@@ -175,9 +171,7 @@ public:
 
 	static bool IsValid(ZoneData* zd)
 	{
-		std::string filename = (boost::format("%s\\%s.s3d")
-			% zd->GetEQPath()
-			% zd->GetZoneName()).str();
+		std::string filename = fmt::format("{}\\{}.s3d", zd->GetEQPath(), zd->GetZoneName());
 
 		return fs::exists(filename, std::error_code());
 	}
@@ -186,9 +180,7 @@ public:
 	{
 		std::vector<EQEmu::S3D::WLDFragment> zone_object_frags;
 
-		std::string base_filename = (boost::format("%s\\%s")
-			% m_zd->GetEQPath()
-			% m_zd->GetZoneName()).str();
+		std::string base_filename = fmt::format("{}\\{}", m_zd->GetEQPath(), m_zd->GetZoneName());
 		bool loadedSomething = false;
 
 		EQEmu::PFS::Archive archive;
@@ -202,8 +194,7 @@ public:
 				suffix += std::to_string(i);
 
 			std::string wld_name = m_zd->GetZoneName() + suffix + ".wld";
-			std::string file_name = (boost::format("%s\\%s.s3d")
-				% m_zd->GetEQPath() % (m_zd->GetZoneName() + suffix)).str();
+			std::string file_name = fmt::format("{}\\{}.s3d", m_zd->GetEQPath(), m_zd->GetZoneName() + suffix);
 
 			EQEmu::S3DLoader loader;
 			std::vector<EQEmu::S3D::WLDFragment> frags;
@@ -248,7 +239,7 @@ public:
 
 				for (auto& name : filenames)
 				{
-					std::string asset_file = (boost::format("%s\\%s") % m_zd->GetEQPath() % name).str();
+					std::string asset_file = fmt::format("{}\\{}", m_zd->GetEQPath(), name);
 					EQEmu::PFS::Archive archive;
 
 					if (!archive.Open(asset_file))

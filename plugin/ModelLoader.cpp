@@ -18,7 +18,7 @@
 #include <rapidjson/prettywriter.h>
 
 #define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 #include <DebugDraw.h>
 #include <d3d9types.h>
@@ -760,8 +760,8 @@ void ModelLoader::OnUpdateUI(bool visible)
 			{
 				if (ImGui::TreeNode(pItem->Name, "%s (%d)", pItem->Name, pItem->DropID))
 				{
-					ImGui::LabelText("Id", "%d", pItem->pContents);
 					ImGui::LabelText("DropId", "%d", pItem->DropID);
+					ImGui::LabelText("SubId", "%d", pItem->DropSubID);
 					ImGui::LabelText("Name", "%s", pItem->Name);
 					ImGui::LabelText("Heading", "%.2f", pItem->Heading);
 					ImGui::DragFloat3("Position", &pItem->Y);

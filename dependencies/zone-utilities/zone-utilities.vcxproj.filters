@@ -15,186 +15,186 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\zone-utilities\common\string_util.h">
+    <ClInclude Include="common\any.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\water_map.h">
+    <ClInclude Include="common\compression.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\water_map_v1.h">
+    <ClInclude Include="common\eqemu_endian.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\water_map_v2.h">
+    <ClInclude Include="common\eqg_geometry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\wld_fragment.h">
+    <ClInclude Include="common\eqg_invis_wall.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\wld_fragment_reference.h">
+    <ClInclude Include="common\eqg_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\wld_structs.h">
+    <ClInclude Include="common\eqg_material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\zone_map.h">
+    <ClInclude Include="common\eqg_model_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\any.h">
+    <ClInclude Include="common\eqg_region.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\compression.h">
+    <ClInclude Include="common\eqg_structs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqemu_endian.h">
+    <ClInclude Include="common\eqg_terrain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_geometry.h">
+    <ClInclude Include="common\eqg_terrain_tile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_invis_wall.h">
+    <ClInclude Include="common\eqg_v4_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_loader.h">
+    <ClInclude Include="common\eqg_water_sheet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_material.h">
+    <ClInclude Include="common\light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_model_loader.h">
+    <ClInclude Include="common\octree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_region.h">
+    <ClInclude Include="common\oriented_bounding_box.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_structs.h">
+    <ClInclude Include="common\pfs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_terrain.h">
+    <ClInclude Include="common\pfs_crc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_terrain_tile.h">
+    <ClInclude Include="common\placeable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_v4_loader.h">
+    <ClInclude Include="common\placeable_group.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\eqg_water_sheet.h">
+    <ClInclude Include="common\s3d_bsp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\light.h">
+    <ClInclude Include="common\s3d_geometry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\octree.h">
+    <ClInclude Include="common\s3d_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\oriented_bounding_box.h">
+    <ClInclude Include="common\s3d_skeleton_track.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\pfs.h">
+    <ClInclude Include="common\s3d_texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\pfs_crc.h">
+    <ClInclude Include="common\s3d_texture_brush.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\placeable.h">
+    <ClInclude Include="common\s3d_texture_brush_set.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\placeable_group.h">
+    <ClInclude Include="common\safe_alloc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\s3d_bsp.h">
+    <ClInclude Include="common\string_util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\s3d_geometry.h">
+    <ClInclude Include="common\water_map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\s3d_loader.h">
+    <ClInclude Include="common\water_map_v1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\s3d_skeleton_track.h">
+    <ClInclude Include="common\water_map_v2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\s3d_texture.h">
+    <ClInclude Include="common\wld_fragment.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\s3d_texture_brush.h">
+    <ClInclude Include="common\wld_fragment_reference.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\s3d_texture_brush_set.h">
+    <ClInclude Include="common\wld_structs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\common\safe_alloc.h">
+    <ClInclude Include="common\zone_map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_base.h">
+    <ClInclude Include="log\log_base.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_file.h">
+    <ClInclude Include="log\log_file.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_macros.h">
+    <ClInclude Include="log\log_macros.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_manager.h">
+    <ClInclude Include="log\log_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_stdout.h">
+    <ClInclude Include="log\log_stdout.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\zone-utilities\log\log_types.h">
+    <ClInclude Include="log\log_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\zone-utilities\common\water_map.cpp">
+    <ClCompile Include="common\compression.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\water_map_v1.cpp">
+    <ClCompile Include="common\eqg_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\water_map_v2.cpp">
+    <ClCompile Include="common\eqg_model_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\wld_fragment.cpp">
+    <ClCompile Include="common\eqg_v4_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\zone_map.cpp">
+    <ClCompile Include="common\oriented_bounding_box.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\compression.cpp">
+    <ClCompile Include="common\pfs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\oriented_bounding_box.cpp">
+    <ClCompile Include="common\pfs_crc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\pfs.cpp">
+    <ClCompile Include="common\s3d_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\pfs_crc.cpp">
+    <ClCompile Include="common\string_util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\s3d_loader.cpp">
+    <ClCompile Include="common\water_map.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\string_util.cpp">
+    <ClCompile Include="common\water_map_v1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\log\log_file.cpp">
+    <ClCompile Include="common\water_map_v2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\log\log_manager.cpp">
+    <ClCompile Include="common\wld_fragment.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\log\log_stdout.cpp">
+    <ClCompile Include="common\zone_map.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\eqg_loader.cpp">
+    <ClCompile Include="log\log_file.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\eqg_model_loader.cpp">
+    <ClCompile Include="log\log_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\zone-utilities\common\eqg_v4_loader.cpp">
+    <ClCompile Include="log\log_stdout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

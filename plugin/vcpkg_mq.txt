@@ -1,0 +1,10 @@
+boost-algorithm
+boost-lexical-cast
+boost-math
+directxsdk
+fmt
+glm
+rapidjson
+protobuf
+spdlog
+zlib

@@ -9,7 +9,7 @@
 #include "plugin/Renderable.h"
 #include "plugin/RenderList.h"
 
-#include <d3dx9.h>
+#include <directxsdk/d3dx9.h>
 #include <d3d9caps.h>
 #include <cassert>
 #include <thread>

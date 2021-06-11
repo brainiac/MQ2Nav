@@ -14,7 +14,7 @@
 #include <DebugDraw.h>
 
 #define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 //============================================================================
 

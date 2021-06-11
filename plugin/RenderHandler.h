@@ -8,7 +8,7 @@
 #include "plugin/Renderable.h"
 #include <mq/Plugin.h>
 
-#include <d3dx9.h>
+#include <directxsdk/d3dx9.h>
 #include <imgui.h>
 
 #include <memory>

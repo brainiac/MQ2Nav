@@ -18,7 +18,7 @@
 #endif
 
 #include <windows.h>
-#include <d3dx9.h>
+#include <directxsdk/d3dx9.h>
 
 //----------------------------------------------------------------------------
 

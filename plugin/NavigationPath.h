@@ -14,11 +14,11 @@
 #include <DetourPathCorridor.h>
 
 #define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <d3d9.h>
-#include <d3dx9.h>
+#include <directxsdk/d3dx9.h>
 
 #include <imgui.h>
 #include <memory>

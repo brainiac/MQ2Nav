@@ -19,68 +19,68 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\zone-utilities\common\any.h" />
-    <ClInclude Include="..\zone-utilities\common\compression.h" />
-    <ClInclude Include="..\zone-utilities\common\eqemu_endian.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_geometry.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_invis_wall.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_loader.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_material.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_model_loader.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_region.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_structs.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_terrain.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_terrain_tile.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_v4_loader.h" />
-    <ClInclude Include="..\zone-utilities\common\eqg_water_sheet.h" />
-    <ClInclude Include="..\zone-utilities\common\light.h" />
-    <ClInclude Include="..\zone-utilities\common\octree.h" />
-    <ClInclude Include="..\zone-utilities\common\oriented_bounding_box.h" />
-    <ClInclude Include="..\zone-utilities\common\pfs.h" />
-    <ClInclude Include="..\zone-utilities\common\pfs_crc.h" />
-    <ClInclude Include="..\zone-utilities\common\placeable.h" />
-    <ClInclude Include="..\zone-utilities\common\placeable_group.h" />
-    <ClInclude Include="..\zone-utilities\common\s3d_bsp.h" />
-    <ClInclude Include="..\zone-utilities\common\s3d_geometry.h" />
-    <ClInclude Include="..\zone-utilities\common\s3d_loader.h" />
-    <ClInclude Include="..\zone-utilities\common\s3d_skeleton_track.h" />
-    <ClInclude Include="..\zone-utilities\common\s3d_texture.h" />
-    <ClInclude Include="..\zone-utilities\common\s3d_texture_brush.h" />
-    <ClInclude Include="..\zone-utilities\common\s3d_texture_brush_set.h" />
-    <ClInclude Include="..\zone-utilities\common\safe_alloc.h" />
-    <ClInclude Include="..\zone-utilities\common\string_util.h" />
-    <ClInclude Include="..\zone-utilities\common\water_map.h" />
-    <ClInclude Include="..\zone-utilities\common\water_map_v1.h" />
-    <ClInclude Include="..\zone-utilities\common\water_map_v2.h" />
-    <ClInclude Include="..\zone-utilities\common\wld_fragment.h" />
-    <ClInclude Include="..\zone-utilities\common\wld_fragment_reference.h" />
-    <ClInclude Include="..\zone-utilities\common\wld_structs.h" />
-    <ClInclude Include="..\zone-utilities\common\zone_map.h" />
-    <ClInclude Include="..\zone-utilities\log\log_base.h" />
-    <ClInclude Include="..\zone-utilities\log\log_file.h" />
-    <ClInclude Include="..\zone-utilities\log\log_macros.h" />
-    <ClInclude Include="..\zone-utilities\log\log_manager.h" />
-    <ClInclude Include="..\zone-utilities\log\log_stdout.h" />
-    <ClInclude Include="..\zone-utilities\log\log_types.h" />
+    <ClInclude Include="common\any.h" />
+    <ClInclude Include="common\compression.h" />
+    <ClInclude Include="common\eqemu_endian.h" />
+    <ClInclude Include="common\eqg_geometry.h" />
+    <ClInclude Include="common\eqg_invis_wall.h" />
+    <ClInclude Include="common\eqg_loader.h" />
+    <ClInclude Include="common\eqg_material.h" />
+    <ClInclude Include="common\eqg_model_loader.h" />
+    <ClInclude Include="common\eqg_region.h" />
+    <ClInclude Include="common\eqg_structs.h" />
+    <ClInclude Include="common\eqg_terrain.h" />
+    <ClInclude Include="common\eqg_terrain_tile.h" />
+    <ClInclude Include="common\eqg_v4_loader.h" />
+    <ClInclude Include="common\eqg_water_sheet.h" />
+    <ClInclude Include="common\light.h" />
+    <ClInclude Include="common\octree.h" />
+    <ClInclude Include="common\oriented_bounding_box.h" />
+    <ClInclude Include="common\pfs.h" />
+    <ClInclude Include="common\pfs_crc.h" />
+    <ClInclude Include="common\placeable.h" />
+    <ClInclude Include="common\placeable_group.h" />
+    <ClInclude Include="common\s3d_bsp.h" />
+    <ClInclude Include="common\s3d_geometry.h" />
+    <ClInclude Include="common\s3d_loader.h" />
+    <ClInclude Include="common\s3d_skeleton_track.h" />
+    <ClInclude Include="common\s3d_texture.h" />
+    <ClInclude Include="common\s3d_texture_brush.h" />
+    <ClInclude Include="common\s3d_texture_brush_set.h" />
+    <ClInclude Include="common\safe_alloc.h" />
+    <ClInclude Include="common\string_util.h" />
+    <ClInclude Include="common\water_map.h" />
+    <ClInclude Include="common\water_map_v1.h" />
+    <ClInclude Include="common\water_map_v2.h" />
+    <ClInclude Include="common\wld_fragment.h" />
+    <ClInclude Include="common\wld_fragment_reference.h" />
+    <ClInclude Include="common\wld_structs.h" />
+    <ClInclude Include="common\zone_map.h" />
+    <ClInclude Include="log\log_base.h" />
+    <ClInclude Include="log\log_file.h" />
+    <ClInclude Include="log\log_macros.h" />
+    <ClInclude Include="log\log_manager.h" />
+    <ClInclude Include="log\log_stdout.h" />
+    <ClInclude Include="log\log_types.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\zone-utilities\common\compression.cpp" />
-    <ClCompile Include="..\zone-utilities\common\eqg_loader.cpp" />
-    <ClCompile Include="..\zone-utilities\common\eqg_model_loader.cpp" />
-    <ClCompile Include="..\zone-utilities\common\eqg_v4_loader.cpp" />
-    <ClCompile Include="..\zone-utilities\common\oriented_bounding_box.cpp" />
-    <ClCompile Include="..\zone-utilities\common\pfs.cpp" />
-    <ClCompile Include="..\zone-utilities\common\pfs_crc.cpp" />
-    <ClCompile Include="..\zone-utilities\common\s3d_loader.cpp" />
-    <ClCompile Include="..\zone-utilities\common\string_util.cpp" />
-    <ClCompile Include="..\zone-utilities\common\water_map.cpp" />
-    <ClCompile Include="..\zone-utilities\common\water_map_v1.cpp" />
-    <ClCompile Include="..\zone-utilities\common\water_map_v2.cpp" />
-    <ClCompile Include="..\zone-utilities\common\wld_fragment.cpp" />
-    <ClCompile Include="..\zone-utilities\common\zone_map.cpp" />
-    <ClCompile Include="..\zone-utilities\log\log_file.cpp" />
-    <ClCompile Include="..\zone-utilities\log\log_manager.cpp" />
-    <ClCompile Include="..\zone-utilities\log\log_stdout.cpp" />
+    <ClCompile Include="common\compression.cpp" />
+    <ClCompile Include="common\eqg_loader.cpp" />
+    <ClCompile Include="common\eqg_model_loader.cpp" />
+    <ClCompile Include="common\eqg_v4_loader.cpp" />
+    <ClCompile Include="common\oriented_bounding_box.cpp" />
+    <ClCompile Include="common\pfs.cpp" />
+    <ClCompile Include="common\pfs_crc.cpp" />
+    <ClCompile Include="common\s3d_loader.cpp" />
+    <ClCompile Include="common\string_util.cpp" />
+    <ClCompile Include="common\water_map.cpp" />
+    <ClCompile Include="common\water_map_v1.cpp" />
+    <ClCompile Include="common\water_map_v2.cpp" />
+    <ClCompile Include="common\wld_fragment.cpp" />
+    <ClCompile Include="common\zone_map.cpp" />
+    <ClCompile Include="log\log_file.cpp" />
+    <ClCompile Include="log\log_manager.cpp" />
+    <ClCompile Include="log\log_stdout.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{200FB60C-6C01-48A7-886A-8E3683EB21BC}</ProjectGuid>
@@ -131,6 +131,9 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), src\Common.props))\src\Common.props" Condition=" '$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), src\Common.props))' != '' " />
+  </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IntDir>$(ProjectDir)..\..\build\$(Configuration)\$(ProjectName)\</IntDir>
@@ -155,7 +158,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\glm\glm;$(ProjectDir)..\zlib\include;$(ProjectDir)..\zone-utilities\log</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)log;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -177,7 +180,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\glm\glm;$(ProjectDir)..\zlib\include;$(ProjectDir)..\zone-utilities\log</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)log;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -199,7 +202,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\glm\glm;$(ProjectDir)..\zlib\include;$(ProjectDir)..\zone-utilities\log</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)log;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4018</DisableSpecificWarnings>
@@ -222,7 +225,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\glm\glm;$(ProjectDir)..\zlib\include;$(ProjectDir)..\zone-utilities\log</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)log;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4018</DisableSpecificWarnings>

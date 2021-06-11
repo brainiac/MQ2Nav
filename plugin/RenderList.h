@@ -7,10 +7,10 @@
 
 #include "plugin/Renderable.h"
 
-#include <d3dx9.h>
+#include <directxsdk/d3dx9.h>
 
 #define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 #include <map>
 #include <memory>

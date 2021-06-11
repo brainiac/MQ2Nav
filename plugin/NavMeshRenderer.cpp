@@ -22,7 +22,7 @@
 #include <imgui.h>
 
 #define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 //----------------------------------------------------------------------------
 

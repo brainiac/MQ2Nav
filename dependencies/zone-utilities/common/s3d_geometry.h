@@ -5,7 +5,7 @@
 #define GLM_FORCE_RADIANS
 #endif
 
-#include <glm.hpp>
+#include <glm/glm.hpp>
 #include <vector>
 #include "s3d_texture_brush_set.h"
 
