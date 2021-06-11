@@ -971,9 +971,9 @@ void MQ2NavigationPlugin::AttemptClick()
 	{
 		ClickDoor(m_pEndingDoor);
 	}
-	else if (m_endingGround && m_endingGround.Distance(pCharSpawn) < 25)
+	else if (m_endingGround && m_endingGround.Distance(pControlledPlayer) < 25)
 	{
-		mq::ClickMouseItem(pCharSpawn, m_endingGround, true);
+		mq::ClickMouseItem(m_endingGround, true);
 	}
 }
 
@@ -1025,7 +1025,7 @@ void MQ2NavigationPlugin::Look(const glm::vec3& pos, FacingType facing)
 	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
 	if (gFaceAngle < 0.0f) gFaceAngle += 512.0f;
 
-	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)gFaceAngle;
+	pControlledPlayer->Heading = (float)gFaceAngle;
 
 	// This is a sentinel value telling MQ2 to not adjust the face angle
 	gFaceAngle = 10000.0f;
@@ -1355,7 +1355,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 
 		ParseSearchSpawn(szSpawnSearch, &sSpawn);
 
-		if (PSPAWNINFO pSpawn = SearchThroughSpawns(&sSpawn, (PSPAWNINFO)pCharSpawn))
+		if (PSPAWNINFO pSpawn = SearchThroughSpawns(&sSpawn, pControlledPlayer))
 		{
 			result->eqDestinationPos = GetSpawnPosition(pSpawn);
 			result->pSpawn = pSpawn;
