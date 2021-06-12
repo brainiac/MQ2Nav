@@ -256,6 +256,8 @@ void EQConfig::SelectOutputPath()
 	if (!result.empty())
 	{
 		m_mq2Path = result;
+		m_outputPath = m_mq2Path + "\\resources\\MQ2Nav";
+
 		SaveConfigToIni();
 	}
 }

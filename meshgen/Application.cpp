@@ -924,7 +924,10 @@ void Application::ShowSettingsDialog()
 		ImGui::SameLine();
 		ImGui::PushItemWidth(125);
 		if (ImGui::Button("Change##OutputPath", ImVec2(120, 0)))
+		{
 			m_eqConfig.SelectOutputPath();
+			m_navMesh->SetNavMeshDirectory(m_eqConfig.GetOutputPath());
+		}
 		ImGui::PopItemWidth();
 
 		bool useExtents = m_eqConfig.GetUseMaxExtents();
