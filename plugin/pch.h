@@ -6,7 +6,12 @@
 
 #pragma message( "Building Precompiled Header for MQ2Nav" )
 
-#define GLM_FORCE_RADIANS
+#if !defined(GLM_FORCE_RADIANS)
+#error Missing GLM_FORCE_RADIANS define!
+#endif
+#if !defined(GLM_FORCE_CTOR_INIT)
+#error Missing GLM_FORCE_CTOR_INIT define!
+#endif
 
 #include <imgui.h>
 #include <fmt/format.h>

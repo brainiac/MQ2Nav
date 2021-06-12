@@ -16,7 +16,13 @@
 #include <typeinfo>
 #include <unordered_map>
 
+#ifndef GLM_FORCE_RADIANS
 #define GLM_FORCE_RADIANS
+#endif
+#ifndef GLM_FORCE_CTOR_INIT
+#define GLM_FORCE_CTOR_INIT
+#endif
+
 #include <glm/glm.hpp>
 
 #define PLUGIN_MSG "\ag[MQ2Nav]\ax "

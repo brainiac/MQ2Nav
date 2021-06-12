@@ -13,7 +13,6 @@
 #include <RecastDebugDraw.h>
 #include <DebugDraw.h>
 
-#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 
 //============================================================================
