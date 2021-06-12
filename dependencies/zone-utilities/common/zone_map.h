@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
-#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 
 #define BEST_Z_INVALID -99999
