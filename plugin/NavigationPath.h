@@ -17,7 +17,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <d3d9.h>
-#include <directxsdk/d3dx9.h>
 
 #include <imgui.h>
 #include <memory>
@@ -29,6 +28,7 @@
 class NavMesh;
 class NavigationLine;
 struct DestinationInfo;
+struct ID3DXEffect;
 
 struct StraightPath
 {
@@ -224,12 +224,12 @@ private:
 	// about the other vertex (the other end of the line).
 	struct TVertex
 	{
-		D3DXVECTOR3 pos;
-		D3DXVECTOR3 otherPos;
-		D3DXVECTOR3 adjPos; // position of previous or next line segment, depending on the vertex
-		FLOAT thickness;
-		FLOAT adjHint;
-		FLOAT type;
+		glm::vec3    pos;
+		glm::vec3    otherPos;
+		glm::vec3    adjPos; // position of previous or next line segment, depending on the vertex
+		float        thickness;
+		float        adjHint;
+		float        type;
 	};
 
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;

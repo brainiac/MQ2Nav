@@ -12,7 +12,6 @@
 #include "dependencies/zone-utilities/common/eqg_loader.h"
 #include "dependencies/zone-utilities/common/s3d_loader.h"
 
-#include <directxsdk/d3dx9.h>
 #include <d3d9caps.h>
 
 #include <string>

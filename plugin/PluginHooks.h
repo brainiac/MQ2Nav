@@ -8,7 +8,6 @@
 #include "plugin/MQ2Navigation.h"
 
 #include <mq/Plugin.h>
-#include <directxsdk/d3dx9.h>
 
 //----------------------------------------------------------------------------
 

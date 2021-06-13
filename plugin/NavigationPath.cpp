@@ -21,6 +21,8 @@
 #include <DetourNode.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
+#include <d3dx9.h>
+
 
 //----------------------------------------------------------------------------
 // constants
@@ -764,7 +766,7 @@ void NavigationLine::GenerateBuffers()
 	if (m_vertexBuffer->Lock(0, bufferLength * sizeof(TVertex), (void**)&vertexDest, D3DLOCK_DISCARD) < 0)
 		return;
 
-	D3DXVECTOR3* pt = (D3DXVECTOR3*)&m_path->m_currentPath->verts[0];
+	glm::vec3* pt = &m_path->m_currentPath->verts[0];
 	uint8_t* flags = &m_path->m_currentPath->flags[0];
 
 	int index = 0;
@@ -776,7 +778,7 @@ void NavigationLine::GenerateBuffers()
 		float type = 0.f;
 
 		// this point
-		D3DXVECTOR3 v0;
+		glm::vec3 v0;
 		if (i == -1) // use starting pos for first point
 		{
 			v0.x = m_startPos.z;
@@ -797,20 +799,20 @@ void NavigationLine::GenerateBuffers()
 		}
 
 		// next point
-		D3DXVECTOR3 v1;
+		glm::vec3 v1;
 		v1.x = pt[1].z;
 		v1.y = pt[1].x;
 		v1.z = pt[1].y + 1;
 
 		// following point
-		D3DXVECTOR3 nextPos;
+		glm::vec3 nextPos;
 		int nextIdx = node < size - 2 ? 2 : 1;
 		nextPos.x = pt[nextIdx].z;
 		nextPos.y = pt[nextIdx].x;
 		nextPos.z = pt[nextIdx].y + 1;
 
 		// previous point
-		D3DXVECTOR3 prevPos;
+		glm::vec3 prevPos;
 		int prevIdx = node > 0 ? -1 : 0;
 		prevPos.x = pt[prevIdx].z;
 		prevPos.y = pt[prevIdx].x;

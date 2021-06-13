@@ -177,8 +177,7 @@ void ResetDeviceState()
 		gpD3D9Device->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
 	}
 
-	D3DXMATRIX matrix;
-	D3DXMatrixIdentity(&matrix);
+	glm::mat4 matrix = glm::identity<glm::mat4>();
 
-	gpD3D9Device->SetTransform(D3DTS_WORLD, &matrix);
+	gpD3D9Device->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&matrix);
 }

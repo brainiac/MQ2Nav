@@ -188,13 +188,15 @@ public:
 					bool zDisabled = m_targetted || m_highlight;
 
 					// create a matrix to scale the object by the scale amount
-					D3DXMATRIX scale;
 					float scaleFactor = GetDoorScale(door);
-					D3DXMatrixScaling(&scale, scaleFactor, scaleFactor, scaleFactor);
+
+					//D3DXMatrixScaling(&scale, scaleFactor, scaleFactor, scaleFactor);
 
 					// multiply the transform matrix by the scale matrix to produce new matrix
-					D3DXMATRIX* mtx = (D3DXMATRIX*)(&door->pSwitch->transformMatrix); 
-					scale = scale * *mtx;
+					glm::mat4* mtx = (glm::mat4*)(&door->pSwitch->transformMatrix);
+					glm::mat4 scale = glm::scale(*mtx, glm::vec3(scaleFactor));
+
+					//scale = scale * *mtx;
 
 #if 0
 					// if attachment matrix exists, apply it next
