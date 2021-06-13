@@ -99,9 +99,6 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 		m_line = g_mq2Nav->GetGameLine();
 		m_line->SetVisible(m_renderPaths);
 		m_line->SetCurrentPos(m_lastPos);
-
-		m_debugDrawGrp = std::make_unique<RenderGroup>(gpD3D9Device);
-		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
 	}
 	else
 	{
@@ -270,6 +267,12 @@ void NavigationPath::UpdatePath(bool force, bool incremental)
 			renderPath[i + 1] = node;
 	}
 	m_renderPath = renderPath;
+
+	if (m_renderPaths && !m_debugDrawGrp && gpD3D9Device)
+	{
+		m_debugDrawGrp = std::make_unique<RenderGroup>(gpD3D9Device);
+		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
+	}
 
 	// Give the path debug an update
 	if (m_debugDrawGrp)
