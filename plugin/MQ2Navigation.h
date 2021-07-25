@@ -7,6 +7,7 @@
 #include "common/NavModule.h"
 #include "common/Signal.h"
 #include "plugin/MapAPI.h"
+#include "../PluginAPI.h"
 
 #include <mq/Plugin.h>
 #include <spdlog/common.h>
@@ -58,17 +59,13 @@ class ImGuiRenderer;
 class NavMesh;
 class SwitchHandler;
 
+class NavAPIImpl;
+
 //----------------------------------------------------------------------------
 
-enum class DestinationType
-{
-	None,
-	Location,
-	Door,
-	GroundItem,
-	Spawn,
-	Waypoint,
-};
+using nav::DestinationType;
+using nav::NavigationOptions;
+using nav::FacingType;
 
 enum class ClickType
 {
@@ -82,22 +79,9 @@ enum class HeightType
 	Nearest
 };
 
-enum class FacingType
+struct NavigationArguments
 {
-	Forward,
-	Backward,
-};
-
-
-struct NavigationOptions
-{
-	float distance = 0.f;          // distance to target
-	bool lineOfSight = true;       // does target need to be in los
-	bool paused = false;           // pathing is paused
-	bool track = true;             // if spawn is to be tracked
-	FacingType facing = FacingType::Forward; //  Forward = normal, Backward = move along path facing backward.
-	// set a new default log level while the path is running. info is the default.
-	spdlog::level::level_enum logLevel = spdlog::level::info;
+	std::string tag;
 };
 
 struct DestinationInfo
@@ -115,6 +99,7 @@ struct DestinationInfo
 	NavigationOptions options;
 	std::string waypoint;
 	bool isTarget = false;
+	std::string tag;
 
 	bool valid = false;
 };
@@ -175,7 +160,7 @@ public:
 	bool InitializationFailed() const { return m_initializationFailed; }
 
 	// Handler for /navigate
-	void Command_Navigate(const char* szLine);
+	void Command_Navigate(std::string_view line);
 
 	std::string GetDataDirectory() const;
 
@@ -221,17 +206,16 @@ public:
 	bool IsMeshLoaded() const;
 
 	// Check if a point is pathable (given a coordinate string)
-	bool CanNavigateToPoint(const char* szLine);
+	bool CanNavigateToPoint(std::string_view line);
 
 	// Check how far away a point is (given a coordinate string)
-	float GetNavigationPathLength(const char* szLine);
+	float GetNavigationPathLength(std::string_view line);
 
 	// Parse a destination command from string
-	std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine,
+	std::shared_ptr<DestinationInfo> ParseDestination(std::string_view line,
 		spdlog::level::level_enum logLevel = spdlog::level::err);
 
-	void ParseOptions(const char* szLine, int index,
-		NavigationOptions& target);
+	void ParseOptions(std::string_view line, int index, NavigationOptions& target, NavigationArguments* args);
 
 	// Begin navigating to a point
 	void BeginNavigation(const std::shared_ptr<DestinationInfo>& dest);
@@ -242,6 +226,8 @@ public:
 	std::shared_ptr<NavigationPath> GetActivePath() const { return m_activePath; }
 
 	std::shared_ptr<NavigationLine> GetGameLine() const { return m_gameLine; }
+
+	nav::NavCommandState* GetCurrentCommandState() { return m_isActive ? m_currentCommandState.get() : nullptr; }
 
 private:
 	void InitializeRenderer();
@@ -254,7 +240,7 @@ private:
 
 	void RenderPathList();
 
-	std::shared_ptr<DestinationInfo> ParseDestinationInternal(const char* szLine, int& argIndex);
+	std::shared_ptr<DestinationInfo> ParseDestinationInternal(std::string_view line, int& argIndex);
 
 	//----------------------------------------------------------------------------
 
@@ -270,7 +256,8 @@ private:
 	void MovementFinished(const glm::vec3& dest, FacingType facing);
 	void AttemptMovement();
 
-	void Stop();
+	void Stop(bool reachedDestination);
+	void SetPaused(bool paused);
 
 	void ResetPath();
 
@@ -319,6 +306,8 @@ private:
 	NavigationOptions m_defaultOptions;
 
 	std::shared_ptr<spdlog::sinks::sink> m_chatSink;
+
+	std::unique_ptr<nav::NavCommandState> m_currentCommandState;
 };
 
 extern MQ2NavigationPlugin* g_mq2Nav;
@@ -376,3 +365,4 @@ private:
 };
 
 //============================================================================
+
