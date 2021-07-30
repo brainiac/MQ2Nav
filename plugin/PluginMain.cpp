@@ -229,4 +229,9 @@ PLUGIN_API void NavCommand(PSPAWNINFO pChar, PCHAR szLine)
 	ExecuteNavCommand(szLine);
 }
 
+PLUGIN_API nav::NavAPI* GetPluginInterface()
+{
+	return GetNavAPI();
+}
+
 //============================================================================

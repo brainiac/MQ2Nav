@@ -102,11 +102,9 @@ using fObserverCallback = void(*)(nav::NavObserverEvent eventType, const nav::Na
 
 // The main interface to Nav. Acquire it by calling GetNavAPIFromPlugin(). Be sure
 // to stop using it if you unload the plugin.
-class NavAPI
+class NavAPI : public mq::PluginInterface
 {
 public:
-	virtual ~NavAPI() {}
-
 	//----------------------------------------------------------------------------
 	// Original Nav api exposed through the NavAPI interface
 
@@ -144,29 +142,5 @@ public:
 	// Unregisters an observer that was registered with RegisterNavObserver
 	virtual void UnregisterNavObserver(int observerId) = 0;
 };
-
-} // namespace nav
-
-// Retrieve the pointer to the nav api. You are free to store this pointer in your plugin.
-// If MQ2Nav is unloaded, you need to clear the pointer. Check for plugin being unloaded
-// in the OnUnloadPlugin callback.
-
-NAV_API nav::NavAPI* GetNavAPI();
-
-// Convenience function for getting the api from the plugin.
-namespace nav {
-
-inline nav::NavAPI* GetNavAPIFromPlugin()
-{
-	using navAPIptr = nav::NavAPI* (*)();
-
-	navAPIptr navAPIFunc = (navAPIptr)GetPluginProc("MQ2Nav", "GetNavAPI");
-	if (navAPIFunc)
-	{
-		return navAPIFunc();
-	}
-
-	return nullptr;
-}
 
 } // namespace nav

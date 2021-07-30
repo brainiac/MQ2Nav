@@ -60,6 +60,9 @@ class NavMesh;
 class SwitchHandler;
 
 class NavAPIImpl;
+class NavAPI;
+
+nav::NavAPI* GetNavAPI();
 
 //----------------------------------------------------------------------------
 
