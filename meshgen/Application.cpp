@@ -1334,7 +1334,7 @@ ImportExportSettingsDialog::ImportExportSettingsDialog(
 	, m_import(import)
 {
 	fs::path settingsPath = navMesh->GetNavMeshDirectory();
-	settingsPath /= "Setings";
+	settingsPath /= "Settings";
 	settingsPath /= navMesh->GetZoneName() + ".json";
 
 	m_defaultFilename = std::make_unique<char[]>(256);
