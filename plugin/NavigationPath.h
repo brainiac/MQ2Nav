@@ -137,6 +137,8 @@ public:
 	dtNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
 
+	bool IsFailed() const { return m_failed; }
+
 	Signal<> PathUpdated;
 	Signal<> RenderPathUpdated;
 
@@ -151,11 +153,14 @@ private:
 		bool incremental);
 	void UpdatePathProperties();
 
+private:
 	std::shared_ptr<DestinationInfo> m_destinationInfo;
 
 	std::unique_ptr<RenderGroup> m_debugDrawGrp;
 	glm::vec3 m_destination;
 	glm::vec3 m_lastPos;
+
+	bool m_failed = false;
 
 	// the plugin owns the mesh
 	std::shared_ptr<dtNavMesh> m_navMesh;

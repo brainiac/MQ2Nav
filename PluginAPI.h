@@ -91,6 +91,7 @@ enum class NavObserverEvent
 	NavPauseChanged,             // when navigation is paused or unpaused by the user
 	NavCanceled,                 // when navigation is canceled, either by starting a new command or by /nav stop
 	NavDestinationReached,       // when navigation reaches its destination.
+	NavFailed,                   // navigation command was executed but failed to start
 };
 
 // Observer function - Registering an observer function will allow your plugin to

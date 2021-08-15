@@ -1076,6 +1076,10 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 		m_activePath->SetShowNavigationPaths(nav::GetSettings().show_nav_path);
 		m_isActive = m_activePath->GetPathSize() > 0;
 	}
+	else if (m_activePath->IsFailed())
+	{
+		s_navAPIImpl->DispatchObserverEvent(nav::NavObserverEvent::NavFailed, m_currentCommandState.get());
+	}
 
 	m_mapLine->SetNavigationPath(m_activePath.get());
 	m_gameLine->SetNavigationPath(m_activePath.get());

@@ -341,6 +341,7 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 		if (!incremental)
 		{
 			SPDLOG_ERROR("Could not locate starting point on navmesh: {}", startPos.zxy());
+			m_failed = true;
 		}
 
 		return {};
@@ -359,6 +360,7 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 		if (!incremental)
 		{
 			SPDLOG_ERROR("Could not locate destination on navmesh: {}", endPos.zxy());
+			m_failed = true;
 		}
 
 		return {};
