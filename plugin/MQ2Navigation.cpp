@@ -10,6 +10,7 @@
 #include "plugin/ImGuiRenderer.h"
 #include "plugin/KeybindHandler.h"
 #include "plugin/ModelLoader.h"
+#include "plugin/PluginHooks.h"
 #include "plugin/PluginSettings.h"
 #include "plugin/NavigationPath.h"
 #include "plugin/NavigationType.h"
@@ -43,10 +44,6 @@ using namespace std::chrono_literals;
 
 RenderHandler* g_renderHandler = nullptr;
 ImGuiRenderer* g_imguiRenderer = nullptr;
-
-// have detours been installed already?
-static bool g_hooksInstalled = false;
-static int sMQCallbacksId = -1;
 
 // ----------------------------------------
 // key IDs & pointers
@@ -184,70 +181,7 @@ void TrueMoveOff(MOVEMENT_DIR ucDirection)
 	}
 };
 
-//============================================================================
 
-static void MQCreateDeviceObjects()
-{
-	if (g_renderHandler)
-	{
-		g_renderHandler->CreateDeviceObjects();
-	}
-}
-
-static void MQInvalidateDeviceObjects()
-{
-	if (g_renderHandler)
-	{
-		g_renderHandler->InvalidateDeviceObjects();
-	}
-}
-
-static void MQImGuiRender()
-{
-	if (g_imguiRenderer)
-	{
-		g_imguiRenderer->ImGuiRender();
-	}
-}
-
-static void MQGraphicsSceneRender()
-{
-	if (g_renderHandler)
-	{
-		g_renderHandler->PerformRender();
-	}
-}
-
-static void AddNavRenderCallbacks()
-{
-	if (sMQCallbacksId != -1)
-		return;
-
-	MQRenderCallbacks callbacks;
-	callbacks.CreateDeviceObjects = MQCreateDeviceObjects;
-	callbacks.InvalidateDeviceObjects = MQInvalidateDeviceObjects;
-	callbacks.ImGuiRender = MQImGuiRender;
-	callbacks.GraphicsSceneRender = MQGraphicsSceneRender;
-
-	sMQCallbacksId = AddRenderCallbacks(callbacks);
-}
-
-static void InitializeHooks()
-{
-	if (!g_hooksInstalled)
-	{
-		g_hooksInstalled = true;
-		AddNavRenderCallbacks();
-	}
-}
-
-static void ShutdownHooks()
-{
-	if (!g_hooksInstalled)
-		return;
-
-	RemoveRenderCallbacks(sMQCallbacksId);
-}
 
 //============================================================================
 
@@ -549,6 +483,11 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 		if (GetGameState() != GAMESTATE_INGAME)
 			return;
 
+		if (m_retryHooks)
+		{
+			m_retryHooks = false;
+			Plugin_Initialize();
+		}
 		return;
 	}
 
@@ -597,7 +536,13 @@ void MQ2NavigationPlugin::Plugin_OnEndZone()
 void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
 {
 	if (!m_initialized)
+	{
+		if (m_retryHooks) {
+			m_retryHooks = false;
+			Plugin_Initialize();
+		}
 		return;
+	}
 
 	if (GameState == GAMESTATE_INGAME) {
 		UpdateCurrentZone();
@@ -658,7 +603,13 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	if (m_initialized)
 		return;
 
-	InitializeHooks();
+	HookStatus status = InitializeHooks();
+	if (status != HookStatus::Success)
+	{
+		m_retryHooks = (status == HookStatus::MissingDevice);
+		m_initializationFailed = (status == HookStatus::MissingOffset);
+		return;
+	}
 
 	nav::LoadSettings();
 

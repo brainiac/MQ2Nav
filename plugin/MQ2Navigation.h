@@ -160,6 +160,7 @@ public:
 	void Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn);
 
 	bool IsInitialized() const { return m_initialized; }
+	bool InitializationFailed() const { return m_initializationFailed; }
 
 	// Handler for /navigate
 	void Command_Navigate(std::string_view line);
@@ -277,6 +278,9 @@ private:
 
 	bool m_initialized = false;
 	int m_zoneId = -1;
+
+	bool m_retryHooks = false;
+	bool m_initializationFailed = false;
 
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;

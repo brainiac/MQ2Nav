@@ -104,6 +104,7 @@
     <ClCompile Include="MapAPI.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
+    <ClCompile Include="PluginHooks.cpp" />
     <ClCompile Include="PluginSettings.cpp" />
     <ClCompile Include="NavigationPath.cpp" />
     <ClCompile Include="NavigationType.cpp" />
@@ -127,6 +128,7 @@
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="MQ2Navigation.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="PluginHooks.h" />
     <ClInclude Include="PluginSettings.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="NavigationPath.h" />
