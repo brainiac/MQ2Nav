@@ -6,7 +6,6 @@
 #include "ImGuiRenderer.h"
 
 #include "plugin/MQ2Navigation.h"
-#include "plugin/PluginHooks.h"
 #include "plugin/RenderHandler.h"
 #include "common/Utilities.h"
 
