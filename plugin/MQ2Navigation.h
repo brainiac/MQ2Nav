@@ -26,8 +26,8 @@
 
 #include <glm/glm.hpp>
 
-#define PLUGIN_MSG "\ag[MQ2Nav]\ax "
-
+#define PLUGIN_MSG "\ag[Nav]\ax "
+#define PLUGIN_MSG_LOG(x) x "[Nav]\ax "
 
 #if !defined(GAMESTATE_ZONING)
 #define GAMESTATE_ZONING 4
