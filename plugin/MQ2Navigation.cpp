@@ -1029,6 +1029,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	}
 	else if (m_activePath->IsFailed())
 	{
+		UpdateCommandState(m_currentCommandState.get(), *m_activePath->GetDestinationInfo());
 		s_navAPIImpl->DispatchObserverEvent(nav::NavObserverEvent::NavFailed, m_currentCommandState.get());
 	}
 
