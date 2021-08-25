@@ -202,7 +202,7 @@ bool Application::InitializeWindow()
 	ImGui_ImplSDL2_InitForOpenGL(m_window, m_glContext);
 	ImGui_ImplOpenGL2_Init();
 
-	mq::imgui::ConfigureFonts();
+	mq::imgui::ConfigureFonts(io.Fonts);
 
 	glEnable(GL_CULL_FACE);
 
