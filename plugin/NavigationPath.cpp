@@ -759,6 +759,11 @@ void NavigationLine::GenerateBuffers()
 			m_vertexBuffer->Release();
 		}
 
+		if (!gpD3D9Device) {
+			m_vertexBuffer = nullptr;
+			return;
+		}
+
 		HRESULT hr = gpD3D9Device->CreateVertexBuffer(bufferLength * sizeof(TVertex),
 			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT,
 			&m_vertexBuffer, nullptr);
