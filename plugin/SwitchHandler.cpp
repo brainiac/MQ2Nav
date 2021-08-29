@@ -32,6 +32,11 @@ inline bool SwitchIsElevator(uint8_t typeId)
 	return typeId == 59;
 }
 
+inline bool SwitchIsNeighborhoodDoor(uint8_t typeId)
+{
+	return typeId == 161;
+}
+
 SwitchHandler::SwitchHandler()
 	: m_slowUpdateInterval(1s)
 	, m_fastUpdateInterval(50ms)
@@ -52,6 +57,7 @@ inline bool ShouldAutoUseSwitch(PDOOR door)
 {
 	if (door && door->bVisible && door->bUsable
 		&& !SwitchIsTeleporter(door->Type)
+		&& !SwitchIsNeighborhoodDoor(door->Type)
 		&& door->Key == -1 /* todo: support keys */)
 	{
 		// if door is scripted, and option to ignore scripted doors is enabled,
