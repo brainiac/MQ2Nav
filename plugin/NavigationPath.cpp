@@ -341,9 +341,9 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 		if (!incremental)
 		{
 			SPDLOG_ERROR("Could not locate starting point on navmesh: {}", startPos.zxy());
-			m_failed = true;
 		}
 
+		m_failed = true;
 		return {};
 	}
 
@@ -360,9 +360,9 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 		if (!incremental)
 		{
 			SPDLOG_ERROR("Could not locate destination on navmesh: {}", endPos.zxy());
-			m_failed = true;
 		}
 
+		m_failed = true;
 		return {};
 	}
 
@@ -428,6 +428,8 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	if (dtStatusFailed(status))
 	{
 		SPDLOG_DEBUG("findPath from {} to {} failed.", startPos, endPos);
+
+		m_failed = true;
 		return {};
 	}
 
@@ -441,6 +443,8 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 		{
 			SPDLOG_ERROR("Could not reach destination (too far away): {}", endPos.zxy());
 		}
+
+		m_failed = true;
 		return {};
 	}
 
@@ -455,6 +459,7 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 			SPDLOG_ERROR("Could not find path to destination: {}", endPos.zxy());
 		}
 
+		m_failed = true;
 		return {};
 	}
 
