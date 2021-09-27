@@ -207,7 +207,7 @@ void ImGuiEx::CenteredSeparator(float width)
 
 	window->DC.CursorPos.x += width; //+ g.Style.ItemSpacing.x;
 
-	if (!window->DC.GroupStack.empty())
+	if (!g.GroupStack.empty())
 		x1 += window->DC.Indent.x;
 
 	const ImRect bb(ImVec2(x1, y1), ImVec2(x2, y2));

@@ -90,6 +90,16 @@ void UiController::PerformUpdateUI()
 			if (ImGui::BeginTabItem(s_tabNames[i]))
 			{
 				m_selectedTab = i;
+				TabPage selectedTab = static_cast<TabPage>(m_selectedTab);
+
+				ImGui::Separator();
+
+				//ImGui::BeginChild("tab frame");
+
+				PerformUpdateTab(selectedTab);
+				OnTabUpdate(selectedTab);
+
+				//ImGui::EndChild();
 
 				ImGui::EndTabItem();
 			}
@@ -97,17 +107,6 @@ void UiController::PerformUpdateUI()
 
 		ImGui::EndTabBar();
 	}
-
-	TabPage selectedTab = static_cast<TabPage>(m_selectedTab);
-
-	ImGui::Separator();
-
-	ImGui::BeginChild("tab frame");
-
-	PerformUpdateTab(selectedTab);
-	OnTabUpdate(selectedTab);
-
-	ImGui::EndChild();
 	ImGui::End();
 }
 
@@ -115,7 +114,7 @@ void UiController::PerformUpdateTab(TabPage page)
 {
 	if (page == TabPage::Settings)
 	{
-		ImGui::Columns(2);
+		ImGui::Columns(2, "##SettingsTab");
 		ImGui::SetColumnWidth(0, 100);
 
 		if (ImGui::Selectable("Navigation", m_settingsSection == Navigation))
