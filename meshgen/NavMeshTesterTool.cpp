@@ -321,7 +321,9 @@ void NavMeshTesterTool::handleMenu()
 		}
 	}
 
-	if (ImGui::ButtonEx("Set Random End", ImVec2(0, 0), !m_sposSet ? ImGuiButtonFlags_Disabled : 0))
+	ImGui::BeginDisabled(!m_sposSet);
+
+	if (ImGui::ButtonEx("Set Random End", ImVec2(0, 0)))
 	{
 		if (m_sposSet)
 		{
@@ -334,6 +336,8 @@ void NavMeshTesterTool::handleMenu()
 			}
 		}
 	}
+
+	ImGui::EndDisabled();
 
 	ImGui::Separator();
 
@@ -353,7 +357,10 @@ void NavMeshTesterTool::handleMenu()
 			}
 		}
 	}
-	if (ImGui::ButtonEx("Make Random Points Around", ImVec2(0, 0), !m_sposSet ? ImGuiButtonFlags_Disabled : 0))
+
+	ImGui::BeginDisabled(!m_sposSet);
+
+	if (ImGui::ButtonEx("Make Random Points Around", ImVec2(0, 0)))
 	{
 		if (m_sposSet)
 		{
@@ -373,6 +380,7 @@ void NavMeshTesterTool::handleMenu()
 			}
 		}
 	}
+	ImGui::EndDisabled();
 
 	uint32_t includeFlags = m_filter.getIncludeFlags();
 	uint32_t excludeFlags = m_filter.getExcludeFlags();

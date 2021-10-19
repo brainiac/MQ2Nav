@@ -94,7 +94,7 @@ struct ImGuiConsoleLog
 		ImGui::PopFont();
 
 		if (ScrollToBottom)
-			ImGui::SetScrollHere(1.0f);
+			ImGui::SetScrollHereY(1.0f);
 		ScrollToBottom = false;
 
 		ImGui::PopStyleVar();
