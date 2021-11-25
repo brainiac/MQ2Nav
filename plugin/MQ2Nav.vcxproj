@@ -12,7 +12,7 @@
   </ItemGroup>
   <ItemDefinitionGroup>
     <PreBuildEvent>
-      <Command>powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(ProjectDir)Versioning.ps1</Command>
+      <Command>powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -File "$(ProjectDir)Versioning.ps1"</Command>
       <Message>Updating version resource...</Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>
