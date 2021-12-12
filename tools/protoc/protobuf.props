@@ -11,7 +11,7 @@
 	</PropertyGroup>
 	<ItemDefinitionGroup>
 		<ProtocolBuffer>
-			<CommandLineTemplate>"$(MSBuildThisFileDirectory)bin\protoc.exe" --cpp_out="%(RootDir)%(Directory)." --proto_path="%(RootDir)%(Directory)." --proto_path="$(ProtoImportPath)" "%(FullPath)"
+			<CommandLineTemplate>"$(MQ2Root)contrib\vcpkg\installed\x64-windows\tools\protobuf\protoc.exe" --cpp_out="%(RootDir)%(Directory)." --proto_path="%(RootDir)%(Directory)." --proto_path="$(ProtoImportPath)" "%(FullPath)"
 			</CommandLineTemplate>
 			<Outputs>$(MSBuildProjectDirectory)\%(RelativeDir)%(Filename).pb.cc;$(MSBuildProjectDirectory)\%(RelativeDir)%(Filename).pb.h</Outputs>
 			<ExecutionDescription> proto: %(FullPath)</ExecutionDescription>
