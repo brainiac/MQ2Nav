@@ -265,21 +265,21 @@ protected:
 		{
 		case level::critical:
 		case level::err:
-			fmt::format_to(formatted, PLUGIN_MSG_LOG("\ar") "{}", msg.payload);
+			fmt::format_to(fmt::appender(formatted), PLUGIN_MSG_LOG("\ar") "{}", msg.payload);
 			break;
 
 		case level::trace:
 		case level::debug:
-			fmt::format_to(formatted, PLUGIN_MSG_LOG("\a#7f7f7f") "{}", msg.payload);
+			fmt::format_to(fmt::appender(formatted), PLUGIN_MSG_LOG("\a#7f7f7f") "{}", msg.payload);
 			break;
 
 		case level::warn:
-			fmt::format_to(formatted, PLUGIN_MSG_LOG("\ay") "{}", msg.payload);
+			fmt::format_to(fmt::appender(formatted), PLUGIN_MSG_LOG("\ay") "{}", msg.payload);
 			break;
 
 		case level::info:
 		default:
-			fmt::format_to(formatted, PLUGIN_MSG_LOG("\ag") "{}", msg.payload);
+			fmt::format_to(fmt::appender(formatted), PLUGIN_MSG_LOG("\ag") "{}", msg.payload);
 			break;
 		}
 
