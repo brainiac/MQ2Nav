@@ -146,8 +146,7 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(OutDir)resources"
-XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)resources"</Command>
+      <Command>(if not exist "$(OutDir)resources" mkdir "$(OutDir)resources") &amp;&amp; XCOPY /y "$(ProjectDir)..\plugin\resources\Zones.ini" "$(OutDir)resources"</Command>
     </PostBuildEvent>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -176,8 +175,7 @@ XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)resources"</Command>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(OutDir)resources"
-XCOPY /y "$(ProjectDir)..\resources\Zones.ini" "$(OutDir)resources"</Command>
+      <Command>(if not exist "$(OutDir)resources" mkdir "$(OutDir)resources") &amp;&amp; XCOPY /y "$(ProjectDir)..\plugin\resources\Zones.ini" "$(OutDir)resources"</Command>
     </PostBuildEvent>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
