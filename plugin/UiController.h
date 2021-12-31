@@ -15,10 +15,6 @@ enum class TabPage {
 	Waypoints,
 	Settings,
 	Tools,
-#if defined(_DEBUG)
-	Theme,
-#endif
-
 	Max
 };
 
@@ -40,12 +36,15 @@ public:
 	bool IsUiOn() const;
 
 	void PerformUpdateUI();
+	void DrawNavSettingsPanel();
 
 	virtual void OnBeginZone() override;
 	virtual void OnEndZone() override;
 
 private:
 	void PerformUpdateTab(TabPage page);
+
+	void DrawSettingsUI(bool fromSettingsPanel);
 
 	int m_selectedTab = static_cast<int>(TabPage::Navigation);
 

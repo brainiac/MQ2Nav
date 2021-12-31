@@ -585,32 +585,6 @@ void MQ2NavigationPlugin::Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn)
 	}
 }
 
-static void MQCreateDeviceObjects()
-{
-	if (g_renderHandler)
-	{
-		g_renderHandler->CreateDeviceObjects();
-	}
-}
-
-static void MQInvalidateDeviceObjects()
-{
-	if (g_renderHandler)
-	{
-		g_renderHandler->InvalidateDeviceObjects();
-	}
-}
-
-static void MQGraphicsSceneRender()
-{
-	if (g_renderHandler)
-	{
-		g_renderHandler->PerformRender();
-	}
-}
-
-static int sMQCallbacksId = -1;
-
 void MQ2NavigationPlugin::Plugin_OnUpdateImGui()
 {
 	if (auto ui = Get<UiController>())
@@ -625,11 +599,11 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 		return;
 
 	MQRenderCallbacks callbacks;
-	callbacks.CreateDeviceObjects = MQCreateDeviceObjects;
-	callbacks.InvalidateDeviceObjects = MQInvalidateDeviceObjects;
-	callbacks.GraphicsSceneRender = MQGraphicsSceneRender;
+	callbacks.CreateDeviceObjects = MQCallback_CreateDeviceObjects;
+	callbacks.InvalidateDeviceObjects = MQCallback_InvalidateDeviceObjects;
+	callbacks.GraphicsSceneRender = MQCallback_GraphicsSceneRender;
 
-	sMQCallbacksId = AddRenderCallbacks(callbacks);
+	m_renderCallbacks = AddRenderCallbacks(callbacks);
 
 	nav::LoadSettings();
 
@@ -665,6 +639,8 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 
 	AddCommand("/navigate", NavigateCommand);
 
+	AddSettingsPanel("plugins/Nav", MQCallback_NavSettingsPanel);
+
 	InitializeMQ2NavMacroData();
 
 	auto ui = Get<UiController>();
@@ -676,13 +652,54 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	g_renderHandler->AddRenderable(m_gameLine.get());
 }
 
+void MQ2NavigationPlugin::MQCallback_CreateDeviceObjects()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->CreateDeviceObjects();
+	}
+}
+
+void MQ2NavigationPlugin::MQCallback_InvalidateDeviceObjects()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->InvalidateDeviceObjects();
+	}
+}
+
+void MQ2NavigationPlugin::MQCallback_GraphicsSceneRender()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->PerformRender();
+	}
+}
+
+void MQ2NavigationPlugin::MQCallback_NavSettingsPanel()
+{
+	if (g_mq2Nav)
+	{
+		g_mq2Nav->DrawNavSettingsPanel();
+	}
+}
+
+void MQ2NavigationPlugin::DrawNavSettingsPanel()
+{
+	if (auto ui = Get<UiController>())
+	{
+		ui->DrawNavSettingsPanel();
+	}
+}
+
 void MQ2NavigationPlugin::Plugin_Shutdown()
 {
 	if (!m_initialized)
 		return;
 
-	RemoveRenderCallbacks(sMQCallbacksId);
-
+	RemoveRenderCallbacks(m_renderCallbacks);
+	RemoveSettingsPanel("plugins/Nav");
+	
 	RemoveCommand("/navigate");
 	ShutdownMQ2NavMacroData();
 

@@ -266,6 +266,12 @@ private:
 
 	void OnMovementKeyPressed();
 
+	static void MQCallback_CreateDeviceObjects();
+	static void MQCallback_InvalidateDeviceObjects();
+	static void MQCallback_GraphicsSceneRender();
+	static void MQCallback_NavSettingsPanel();
+	void DrawNavSettingsPanel();
+
 private:
 	std::shared_ptr<NavigationPath> m_activePath;
 
@@ -308,6 +314,7 @@ private:
 	std::shared_ptr<spdlog::sinks::sink> m_chatSink;
 
 	std::unique_ptr<nav::NavCommandState> m_currentCommandState;
+	int m_renderCallbacks = -1;
 };
 
 extern MQ2NavigationPlugin* g_mq2Nav;
