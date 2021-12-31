@@ -126,8 +126,6 @@ Application::Application(const std::string& defaultZone)
 	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 
 	InitializeWindow();
-
-	mq::imgui::ConfigureStyle();
 }
 
 Application::~Application()
@@ -138,9 +136,13 @@ Application::~Application()
 bool Application::InitializeWindow()
 {
 	// Init SDL
-	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+	int sdlInitResult = SDL_Init(SDL_INIT_EVERYTHING);
+	if (sdlInitResult != 0)
 	{
-		printf("Could not initialize SDL\n");
+		char szMessage[256];
+		sprintf_s(szMessage, "Could not initialize SDL: %d", sdlInitResult);
+
+		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
 		return false;
 	}
 
@@ -202,6 +204,7 @@ bool Application::InitializeWindow()
 	ImGui_ImplOpenGL2_Init();
 
 	mq::imgui::ConfigureFonts(io.Fonts);
+	mq::imgui::ConfigureStyle();
 
 	glEnable(GL_CULL_FACE);
 
