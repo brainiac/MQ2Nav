@@ -24,7 +24,6 @@
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/msvc_sink.h>
-#include <boost/algorithm/string.hpp>
 
 #include <algorithm>
 #include <atomic>

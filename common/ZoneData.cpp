@@ -7,8 +7,8 @@
 #include <zone-utilities/common/eqg_model_loader.h>
 #include <zone-utilities/common/safe_alloc.h>
 
-#include <boost/algorithm/string.hpp>
 #include <fmt/format.h>
+#include <mq/base/String.h>
 
 #include <string>
 #include <vector>
@@ -104,7 +104,7 @@ public:
 
 	ModelPtr GetModel(const std::string& modelName)
 	{
-		std::string name = boost::to_lower_copy(modelName) + ".mod";
+		std::string name = mq::to_lower_copy(modelName) + ".mod";
 		auto fileIter = m_modelsByFile.find(name);
 		if (fileIter != m_modelsByFile.end())
 		{
@@ -272,7 +272,7 @@ public:
 
 	OldModelPtr GetS3dModel(const std::string& modelName)
 	{
-		std::string actualName = boost::to_upper_copy(modelName) + "_DMSPRITEDEF";
+		std::string actualName = mq::to_upper_copy(modelName) + "_DMSPRITEDEF";
 
 		auto iter = m_s3dModels.find(actualName);
 		if (iter != m_s3dModels.end())
@@ -283,7 +283,7 @@ public:
 
 	ModelPtr GetEQGModel(const std::string& modelName)
 	{
-		std::string eqgName = boost::to_lower_copy(modelName) + ".mod";
+		std::string eqgName = mq::to_lower_copy(modelName) + ".mod";
 
 		auto iter = m_eqgModels.find(eqgName);
 		if (iter != m_eqgModels.end())

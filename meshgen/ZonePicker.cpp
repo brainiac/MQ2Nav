@@ -4,7 +4,7 @@
 
 #include "meshgen/ZonePicker.h"
 
-#include <boost/algorithm/string.hpp>
+#include <mq/base/String.h>
 #include <glm/glm.hpp>
 
 #include <SDL2/SDL_opengl.h>
@@ -234,7 +234,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 				const std::string& shortName = mapIter.first;
 				const std::string& longName = mapIter.second;
 
-				if (boost::ifind_first(shortName, text) || boost::ifind_first(longName, text))
+				if (mq::ci_find_substr(shortName, text) != -1
+					|| mq::ci_find_substr(longName, text) != -1)
 				{
 					ImGui::PushID(shortName.c_str());
 

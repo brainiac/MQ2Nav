@@ -1,6 +1,3 @@
-boost-algorithm
-boost-lexical-cast
-boost-math
 fmt
 glm
 rapidjson

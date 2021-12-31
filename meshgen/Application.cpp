@@ -28,7 +28,6 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <zone-utilities/log/log_base.h>
 #include <zone-utilities/log/log_macros.h>
-#include <boost/algorithm/string.hpp>
 
 #include <filesystem>
 #include <sstream>

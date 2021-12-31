@@ -8,7 +8,7 @@
 #include "plugin/MQ2Navigation.h"
 #include "plugin/NavigationPath.h"
 
-#include <boost/lexical_cast.hpp>
+#include <mq/base/Config.h>
 #include <spdlog/spdlog.h>
 
 namespace nav {
@@ -16,6 +16,7 @@ namespace nav {
 //----------------------------------------------------------------------------
 
 SettingsData g_settings;
+static const std::string SettingsSection = "Settings";
 
 SettingsData& GetSettings()
 {
@@ -24,78 +25,42 @@ SettingsData& GetSettings()
 
 static inline bool LoadBoolSetting(const std::string& name, bool default)
 {
-	char szTemp[MAX_STRING] = { 0 };
-
-	GetPrivateProfileString("Settings", name.c_str(), default ? "on" : "off",
-		szTemp, MAX_STRING, INIFileName);
-	return (!_strnicmp(szTemp, "on", 3));
+	return mq::GetPrivateProfileBool(SettingsSection, name, default, INIFileName);
 }
 
 static inline glm::vec3 LoadVec3Setting(const std::string& name, const glm::vec3& defaultValue)
 {
-	try
-	{
-		char szTemp[40] = { 0 };
-		glm::vec3 value;
+	glm::vec3 value;
 
-		GetPrivateProfileString("Settings", (name + "X").c_str(),
-			boost::lexical_cast<std::string>(defaultValue.x).c_str(), szTemp, 40, INIFileName);
-		value.x = boost::lexical_cast<float>(szTemp);
+	value.x = mq::GetPrivateProfileFloat(SettingsSection, fmt::format("{}X", name), defaultValue.x, INIFileName);
+	value.y = mq::GetPrivateProfileFloat(SettingsSection, fmt::format("{}Y", name), defaultValue.y, INIFileName);
+	value.z = mq::GetPrivateProfileFloat(SettingsSection, fmt::format("{}Z", name), defaultValue.z, INIFileName);
 
-		GetPrivateProfileString("Settings", (name + "Y").c_str(),
-			boost::lexical_cast<std::string>(defaultValue.y).c_str(), szTemp, 40, INIFileName);
-		value.y = boost::lexical_cast<float>(szTemp);
-
-		GetPrivateProfileString("Settings", (name + "Z").c_str(),
-			boost::lexical_cast<std::string>(defaultValue.z).c_str(), szTemp, 40, INIFileName);
-		value.z = boost::lexical_cast<float>(szTemp);
-
-		return value;
-	}
-	catch (const boost::bad_lexical_cast&)
-	{
-		return defaultValue;
-	}
+	return value;
 }
 
 template <typename T>
 static inline T LoadNumberSetting(const std::string& name, T defaultValue)
 {
-	T value = T{};
-
-	try
-	{
-		char szTemp[40] = { 0 };
-
-		GetPrivateProfileString("Settings", name.c_str(),
-			boost::lexical_cast<std::string>(defaultValue).c_str(), szTemp, 40, INIFileName);
-
-		value = boost::lexical_cast<T>(szTemp);
-	}
-	catch (const boost::bad_lexical_cast&) {}
-
-	return value;
+	return mq::GetPrivateProfileValue<T>(SettingsSection, name, defaultValue, INIFileName);
 }
 
 static inline void SaveBoolSetting(const std::string& name, bool value)
 {
-	WritePrivateProfileString("Settings", name.c_str(), value ? "on" : "off", INIFileName);
+	mq::WritePrivateProfileBool(SettingsSection, name, value, INIFileName);
 }
 
 template <typename T>
 static inline void SaveNumberSetting(const std::string& name, T value)
 {
-	WritePrivateProfileString("Settings", name.c_str(), std::to_string(value).c_str(), INIFileName);
+	mq::WritePrivateProfileString(SettingsSection, name, std::to_string(value).c_str(), INIFileName);
 }
 
 static inline void SaveVec3Setting(const std::string& name, const glm::vec3& value)
 {
-	WritePrivateProfileString("Settings", (name + "X").c_str(),
-		boost::lexical_cast<std::string>(value.x).c_str(), INIFileName);
-	WritePrivateProfileString("Settings", (name + "Y").c_str(),
-		boost::lexical_cast<std::string>(value.y).c_str(), INIFileName);
-	WritePrivateProfileString("Settings", (name + "Z").c_str(),
-		boost::lexical_cast<std::string>(value.z).c_str(), INIFileName);
+	mq::WritePrivateProfileFloat(SettingsSection, fmt::format("{}X", name), value.x, INIFileName);
+	mq::WritePrivateProfileFloat(SettingsSection, fmt::format("{}Y", name), value.y, INIFileName);
+	mq::WritePrivateProfileFloat(SettingsSection, fmt::format("{}Z", name), value.z, INIFileName);
 }
 
 void LoadSettings(bool showMessage/* = true*/)

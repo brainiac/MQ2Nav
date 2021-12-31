@@ -24,7 +24,6 @@
 
 #include <atomic>
 #include <thread>
-#include <boost/algorithm/string.hpp>
 #include <spdlog/spdlog.h>
 #include <winternl.h>
 #include <tchar.h>

@@ -13,7 +13,6 @@
 #include "plugin/Utilities.h"
 #include "imgui/ImGuiUtils.h"
 
-#include <boost/algorithm/string.hpp>
 #include <imgui.h>
 #include <rapidjson/prettywriter.h>
 

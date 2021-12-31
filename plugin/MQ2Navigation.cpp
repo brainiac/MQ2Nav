@@ -29,8 +29,6 @@
 #include <glm/gtx/norm.hpp>
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
-#include <boost/algorithm/string.hpp>
-#include <boost/lexical_cast.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -1441,14 +1439,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(s
 	if (!_stricmp(buffer, "id"))
 	{
 		GetArg(buffer, mutableLine, idx++);
-		DWORD reqId = 0;
-
-		try { reqId = boost::lexical_cast<DWORD>(buffer); }
-		catch (const boost::bad_lexical_cast&)
-		{
-			SPDLOG_ERROR("Bad spawn id!");
-			return result;
-		}
+		int reqId = GetIntFromString(buffer, 0);
 
 		PSPAWNINFO target = (PSPAWNINFO)GetSpawnByID(reqId);
 		if (!target)
@@ -1607,8 +1598,10 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(s
 				break;
 			}
 
-			try { tmpDestination[i] = boost::lexical_cast<double>(item); }
-			catch (const boost::bad_lexical_cast&) {
+			std::string_view sv{ item };
+			auto result = std::from_chars(sv.data(), sv.data() + sv.size(), tmpDestination[i]);
+
+			if (result.ec != std::errc{}) {
 				--idx;
 				break;
 			}
@@ -1699,7 +1692,7 @@ void MQ2NavigationPlugin::ParseOptions(std::string_view line, int idx, Navigatio
 
 			if (key == "distance" || key == "dist")
 			{
-				options.distance = boost::lexical_cast<int>(value);
+				options.distance = GetIntFromString(value, 0);
 			}
 			else if (key == "los" || key == "lineofsight")
 			{
