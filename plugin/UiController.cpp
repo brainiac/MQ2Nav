@@ -5,7 +5,6 @@
 #include "pch.h"
 #include "UiController.h"
 
-#include "plugin/ImGuiRenderer.h"
 #include "plugin/ModelLoader.h"
 #include "plugin/MQ2Navigation.h"
 #include "plugin/NavigationPath.h"
@@ -35,7 +34,6 @@ namespace
 
 void UiController::Initialize()
 {
-	m_uiConn = g_imguiRenderer->OnUpdateUI.Connect([this]() { PerformUpdateUI(); });
 }
 
 void UiController::Shutdown()
@@ -49,16 +47,10 @@ bool UiController::IsUiOn() const
 
 void UiController::OnBeginZone()
 {
-	// hide imgui while zoning
-	if (g_imguiRenderer)
-		g_imguiRenderer->SetVisible(false);
 }
 
 void UiController::OnEndZone()
 {
-	// restore imgui after zoning
-	if (g_imguiRenderer)
-		g_imguiRenderer->SetVisible(true);
 }
 
 void UiController::PerformUpdateUI()

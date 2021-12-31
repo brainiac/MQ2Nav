@@ -5,7 +5,6 @@
 #include "pch.h"
 #include "ModelLoader.h"
 
-#include "plugin/ImGuiRenderer.h"
 #include "plugin/DebugDrawDX.h"
 #include "plugin/PluginSettings.h"
 #include "plugin/Renderable.h"

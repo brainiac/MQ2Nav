@@ -5,7 +5,6 @@
 #include "pch.h"
 #include "RenderHandler.h"
 
-#include "plugin/PluginHooks.h"
 #include "plugin/MQ2Navigation.h"
 
 #include <cassert>

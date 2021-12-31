@@ -39,11 +39,12 @@ public:
 
 	bool IsUiOn() const;
 
+	void PerformUpdateUI();
+
 	virtual void OnBeginZone() override;
 	virtual void OnEndZone() override;
 
 private:
-	void PerformUpdateUI();
 	void PerformUpdateTab(TabPage page);
 
 	int m_selectedTab = static_cast<int>(TabPage::Navigation);

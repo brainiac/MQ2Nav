@@ -30,11 +30,6 @@ PLUGIN_API void InitializePlugin()
 
 	g_mq2Nav = new MQ2NavigationPlugin();
 	g_mq2Nav->Plugin_Initialize();
-
-	if (g_mq2Nav->InitializationFailed())
-	{
-		WriteChatf(PLUGIN_MSG "\arFailed to initialize plugin!");
-	}
 }
 
 PLUGIN_API void ShutdownPlugin()
@@ -101,6 +96,12 @@ PLUGIN_API void OnRemoveSpawn(PSPAWNINFO pSpawn)
 {
 	if (g_mq2Nav)
 		g_mq2Nav->Plugin_OnRemoveSpawn(pSpawn);
+}
+
+PLUGIN_API void OnUpdateImGui()
+{
+	if (g_mq2Nav)
+		g_mq2Nav->Plugin_OnUpdateImGui();
 }
 
 //============================================================================

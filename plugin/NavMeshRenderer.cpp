@@ -6,7 +6,6 @@
 #include "NavMeshRenderer.h"
 
 #include "common/NavMesh.h"
-#include "plugin/ImGuiRenderer.h"
 #include "plugin/MQ2Navigation.h"
 #include "plugin/PluginSettings.h"
 #include "plugin/RenderHandler.h"

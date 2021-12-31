@@ -7,10 +7,8 @@
 
 #include "common/Logging.h"
 #include "common/NavMesh.h"
-#include "plugin/ImGuiRenderer.h"
 #include "plugin/KeybindHandler.h"
 #include "plugin/ModelLoader.h"
-#include "plugin/PluginHooks.h"
 #include "plugin/PluginSettings.h"
 #include "plugin/NavigationPath.h"
 #include "plugin/NavigationType.h"
@@ -481,11 +479,6 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 		if (GetGameState() != GAMESTATE_INGAME)
 			return;
 
-		if (m_retryHooks)
-		{
-			m_retryHooks = false;
-			Plugin_Initialize();
-		}
 		return;
 	}
 
@@ -535,10 +528,6 @@ void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
 {
 	if (!m_initialized)
 	{
-		if (m_retryHooks) {
-			m_retryHooks = false;
-			Plugin_Initialize();
-		}
 		return;
 	}
 
@@ -596,18 +585,51 @@ void MQ2NavigationPlugin::Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn)
 	}
 }
 
+static void MQCreateDeviceObjects()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->CreateDeviceObjects();
+	}
+}
+
+static void MQInvalidateDeviceObjects()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->InvalidateDeviceObjects();
+	}
+}
+
+static void MQGraphicsSceneRender()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->PerformRender();
+	}
+}
+
+static int sMQCallbacksId = -1;
+
+void MQ2NavigationPlugin::Plugin_OnUpdateImGui()
+{
+	if (auto ui = Get<UiController>())
+	{
+		ui->PerformUpdateUI();
+	}
+}
+
 void MQ2NavigationPlugin::Plugin_Initialize()
 {
 	if (m_initialized)
 		return;
 
-	HookStatus status = InitializeHooks();
-	if (status != HookStatus::Success)
-	{
-		m_retryHooks = (status == HookStatus::MissingDevice);
-		m_initializationFailed = (status == HookStatus::MissingOffset);
-		return;
-	}
+	MQRenderCallbacks callbacks;
+	callbacks.CreateDeviceObjects = MQCreateDeviceObjects;
+	callbacks.InvalidateDeviceObjects = MQInvalidateDeviceObjects;
+	callbacks.GraphicsSceneRender = MQGraphicsSceneRender;
+
+	sMQCallbacksId = AddRenderCallbacks(callbacks);
 
 	nav::LoadSettings();
 
@@ -659,6 +681,8 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 	if (!m_initialized)
 		return;
 
+	RemoveRenderCallbacks(sMQCallbacksId);
+
 	RemoveCommand("/navigate");
 	ShutdownMQ2NavMacroData();
 
@@ -676,7 +700,6 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 	m_modules.clear();
 
 	ShutdownRenderer();
-	ShutdownHooks();
 
 	m_initialized = false;
 	spdlog::shutdown();
@@ -703,16 +726,10 @@ spdlog::level::level_enum MQ2NavigationPlugin::GetLogLevel() const
 void MQ2NavigationPlugin::InitializeRenderer()
 {
 	g_renderHandler = new RenderHandler();
-
-	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
-	g_imguiRenderer = new ImGuiRenderer(eqhwnd, gpD3D9Device);
 }
 
 void MQ2NavigationPlugin::ShutdownRenderer()
 {
-	delete g_imguiRenderer;
-	g_imguiRenderer = nullptr;
-
 	if (g_renderHandler)
 	{
 		g_renderHandler->Shutdown();

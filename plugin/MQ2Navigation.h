@@ -158,9 +158,9 @@ public:
 	void Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem);
 	void Plugin_OnAddSpawn(PSPAWNINFO pSpawn);
 	void Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn);
+	void Plugin_OnUpdateImGui();
 
 	bool IsInitialized() const { return m_initialized; }
-	bool InitializationFailed() const { return m_initializationFailed; }
 
 	// Handler for /navigate
 	void Command_Navigate(std::string_view line);
@@ -279,9 +279,6 @@ private:
 	bool m_initialized = false;
 	int m_zoneId = -1;
 
-	bool m_retryHooks = false;
-	bool m_initializationFailed = false;
-
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;
 	MQGroundSpawn m_endingGround;
@@ -316,7 +313,6 @@ private:
 extern MQ2NavigationPlugin* g_mq2Nav;
 
 extern RenderHandler* g_renderHandler;
-extern ImGuiRenderer* g_imguiRenderer;
 
 //----------------------------------------------------------------------------
 

@@ -13,10 +13,6 @@
 
 class RenderHooks;
 
-#if !defined(MQNEXT)
-extern IDirect3DDevice9* gpD3D9Device;
-#endif
-
 class RenderHandler
 {
 	friend class RenderHooks;
