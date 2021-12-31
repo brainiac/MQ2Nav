@@ -479,6 +479,12 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 		if (GetGameState() != GAMESTATE_INGAME)
 			return;
 
+		if (m_retryInit)
+		{
+			m_retryInit = false;
+			Plugin_Initialize();
+		}
+
 		return;
 	}
 
@@ -528,6 +534,12 @@ void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
 {
 	if (!m_initialized)
 	{
+		if (m_retryInit)
+		{
+			m_retryInit = false;
+			Plugin_Initialize();
+		}
+
 		return;
 	}
 
@@ -587,6 +599,9 @@ void MQ2NavigationPlugin::Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn)
 
 void MQ2NavigationPlugin::Plugin_OnUpdateImGui()
 {
+	if (!m_initialized)
+		return;
+
 	if (auto ui = Get<UiController>())
 	{
 		ui->PerformUpdateUI();
@@ -597,6 +612,12 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 {
 	if (m_initialized)
 		return;
+
+	if (gpD3D9Device)
+	{
+		m_retryInit = true;
+		return;
+	}
 
 	MQRenderCallbacks callbacks;
 	callbacks.CreateDeviceObjects = MQCallback_CreateDeviceObjects;

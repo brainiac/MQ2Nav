@@ -48,9 +48,7 @@ private:
 //----------------------------------------------------------------------------
 
 NavMeshRenderer::NavMeshRenderer()
-	: m_pDevice(gpD3D9Device)
-	, m_state(new ConfigurableRenderState)
-	, m_primGroup(std::make_unique<RenderGroup>(gpD3D9Device))
+	: m_state(new ConfigurableRenderState)
 {
 }
 
@@ -89,24 +87,30 @@ void NavMeshRenderer::Shutdown()
 
 //----------------------------------------------------------------------------
 
+void NavMeshRenderer::CleanupObjects()
+{
+	StopLoad();
+
+	if (m_primGroup)
+	{
+		m_primGroup->Reset();
+		m_primGroup->InvalidateDeviceObjects();
+	}
+}
+
 void NavMeshRenderer::InvalidateDeviceObjects()
 {
 	CleanupObjects();
 }
 
-void NavMeshRenderer::CleanupObjects()
-{
-	StopLoad();
-
-	m_primGroup->Reset();
-	m_primGroup->InvalidateDeviceObjects();
-
-	m_primGroup = std::make_unique<RenderGroup>(gpD3D9Device);
-}
-
 bool NavMeshRenderer::CreateDeviceObjects()
 {
-	return m_primGroup->CreateDeviceObjects();
+	if (m_primGroup)
+	{
+		return m_primGroup->CreateDeviceObjects();
+	}
+
+	return true;
 }
 
 void NavMeshRenderer::Render()
@@ -126,45 +130,48 @@ void NavMeshRenderer::Render()
 		m_loaded = m_enabled;
 	}
 
-	if (!m_loaded || m_loading)
+	if (!m_loaded || m_loading || !m_primGroup || !gpD3D9Device)
 		return;
 
-	m_pDevice->SetPixelShader(nullptr);
-	m_pDevice->SetVertexShader(nullptr);
+	IDirect3DDevice9* pDevice = gpD3D9Device;
+	if (!pDevice) return;
 
-	m_pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_ANISOTROPIC);
-	m_pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_ANISOTROPIC);
+	pDevice->SetPixelShader(nullptr);
+	pDevice->SetVertexShader(nullptr);
+
+	pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_ANISOTROPIC);
+	pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_ANISOTROPIC);
 
 	if (m_useStateEditor)
 	{
-		m_state->ApplyState(m_pDevice);
+		m_state->ApplyState(pDevice);
 	}
 	else
 	{
-		m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-		m_pDevice->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-		m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-		m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+		pDevice->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+		pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 
-		m_pDevice->SetRenderState(D3DRS_ALPHATESTENABLE, true);
-		m_pDevice->SetRenderState(D3DRS_ALPHAREF, 0);
-		m_pDevice->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
+		pDevice->SetRenderState(D3DRS_ALPHATESTENABLE, true);
+		pDevice->SetRenderState(D3DRS_ALPHAREF, 0);
+		pDevice->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
 
-		m_pDevice->SetRenderState(D3DRS_ZENABLE, true);
-		m_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-		m_pDevice->SetRenderState(D3DRS_ZWRITEENABLE, true);
+		pDevice->SetRenderState(D3DRS_ZENABLE, true);
+		pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		pDevice->SetRenderState(D3DRS_ZWRITEENABLE, true);
 
-		m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-		m_pDevice->SetRenderState(D3DRS_LIGHTING, false);
-		m_pDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+		pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+		pDevice->SetRenderState(D3DRS_LIGHTING, false);
+		pDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
 
-		m_pDevice->SetRenderState(D3DRS_STENCILENABLE, false);
+		pDevice->SetRenderState(D3DRS_STENCILENABLE, false);
 
 		// disable the rest of the texture stages
 		for (int i = 0; i < 8; i++)
 		{
-			m_pDevice->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-			m_pDevice->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
+			pDevice->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+			pDevice->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
 		}
 	}
 
@@ -188,11 +195,13 @@ void NavMeshRenderer::StartLoad()
 	m_loading = true;
 	int tilesToLoad = 0;
 
-	if (!m_navMesh->IsNavMeshLoaded())
+	if (!m_navMesh->IsNavMeshLoaded() || !gpD3D9Device)
 		return;
 
 	std::shared_ptr<const dtNavMesh> navMesh =
 		std::static_pointer_cast<const dtNavMesh>(m_navMesh->GetNavMesh());
+
+	m_primGroup = std::make_unique<RenderGroup>(gpD3D9Device);
 
 	std::shared_ptr<NavMeshDebugDraw> dd = std::make_shared<NavMeshDebugDraw>(
 		this, m_primGroup.get());
@@ -235,7 +244,10 @@ void NavMeshRenderer::UpdateNavMesh()
 	if (!m_enabled)
 		return;
 
-	m_primGroup->Reset();
+	if (m_primGroup)
+	{
+		m_primGroup->Reset();
+	}
 
 	// if we don't have a navmesh, don't build the geometry
 	if (!m_navMesh->IsNavMeshLoaded())

@@ -51,7 +51,6 @@ private:
 	unsigned int GetColorForPolyArea(uint8_t areaType);
 
 private:
-	IDirect3DDevice9* m_pDevice = nullptr;
 	NavMesh* m_navMesh = nullptr;
 
 	bool m_enabled = false;
