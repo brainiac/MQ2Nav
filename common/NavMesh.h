@@ -7,9 +7,9 @@
 #include "common/Enum.h"
 #include "common/NavMeshData.h"
 #include "common/NavModule.h"
-#include "common/Signal.h"
 
 #include <DetourNavMesh.h>
+#include <mq/base/Signal.h>
 
 #include <array>
 #include <map>
@@ -198,7 +198,7 @@ public:
 	//------------------------------------------------------------------------
 	// events
 
-	Signal<> OnNavMeshChanged;
+	mq::Signal<> OnNavMeshChanged;
 
 private:
 	LoadResult LoadMesh(const char* filename);

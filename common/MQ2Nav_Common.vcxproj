@@ -146,7 +146,6 @@
     <ClInclude Include="NavMeshData.h" />
     <ClInclude Include="NavModule.h" />
     <ClInclude Include="proto\NavMeshFile.pb.h" />
-    <ClInclude Include="Signal.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="ZoneData.h" />
   </ItemGroup>

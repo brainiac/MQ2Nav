@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "common/Signal.h"
 #include "common/Utilities.h"
 #include "plugin/MQ2Navigation.h"
 #include "plugin/Renderable.h"
@@ -15,7 +14,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
+#include <mq/base/Signal.h>
 #include <d3d9.h>
 
 #include <imgui.h>
@@ -139,8 +138,8 @@ public:
 
 	bool IsFailed() const { return m_failed; }
 
-	Signal<> PathUpdated;
-	Signal<> RenderPathUpdated;
+	mq::Signal<> PathUpdated;
+	mq::Signal<> RenderPathUpdated;
 
 private:
 	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
@@ -180,7 +179,7 @@ private:
 	dtQueryFilter m_filter;
 	glm::vec3 m_extents = { 5, 10, 5 }; // note: X, Z, Y
 
-	Signal<>::ScopedConnection m_navMeshConn;
+	mq::Signal<>::ScopedConnection m_navMeshConn;
 };
 
 //----------------------------------------------------------------------------
@@ -254,7 +253,7 @@ private:
 	bool m_visible = false;
 	glm::vec3 m_startPos;
 
-	Signal<>::ScopedConnection m_pathUpdated;
+	mq::Signal<>::ScopedConnection m_pathUpdated;
 };
 
 extern NavigationLine::LineStyle gNavigationLineStyle;

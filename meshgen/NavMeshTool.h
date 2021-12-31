@@ -176,7 +176,7 @@ private:
 	InputGeom* m_geom = nullptr;
 
 	std::shared_ptr<NavMesh> m_navMesh;
-	Signal<>::ScopedConnection m_navMeshConn;
+	mq::Signal<>::ScopedConnection m_navMeshConn;
 
 	std::unique_ptr<Tool> m_tool;
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;

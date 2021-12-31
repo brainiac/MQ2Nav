@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include "common/Signal.h"
 #include "plugin/Renderable.h"
+
 #include <mq/Plugin.h>
-
 #include <imgui.h>
-
 #include <memory>
 #include <list>
 

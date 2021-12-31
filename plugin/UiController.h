@@ -5,7 +5,8 @@
 #pragma once
 
 #include "common/NavModule.h"
-#include "common/Signal.h"
+
+#include <mq/base/Signal.h>
 
 #include <memory>
 
@@ -31,10 +32,10 @@ public:
 	virtual void Shutdown() override;
 
 	// general signal for ui update.
-	Signal<> OnUpdateUI;
+	mq::Signal<> OnUpdateUI;
 
 	// signal for when a tab page is updated
-	Signal<TabPage> OnTabUpdate;
+	mq::Signal<TabPage> OnTabUpdate;
 
 	bool IsUiOn() const;
 
@@ -50,5 +51,5 @@ private:
 	enum Section { Navigation, Mesh, Display };
 	int m_settingsSection = Navigation;
 
-	Signal<>::ScopedConnection m_uiConn;
+	mq::Signal<>::ScopedConnection m_uiConn;
 };

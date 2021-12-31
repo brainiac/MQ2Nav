@@ -6,7 +6,6 @@
 
 #include "common/NavMesh.h"
 #include "common/NavModule.h"
-#include "common/Signal.h"
 
 #include <mq/Plugin.h>
 

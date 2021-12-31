@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "common/Signal.h"
 #include "common/NavModule.h"
 #include "common/ZoneData.h"
 #include "plugin/MQ2Navigation.h"

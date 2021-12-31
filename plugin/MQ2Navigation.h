@@ -5,11 +5,11 @@
 #pragma once
 
 #include "common/NavModule.h"
-#include "common/Signal.h"
 #include "plugin/MapAPI.h"
 #include "../PluginAPI.h"
 
 #include <mq/Plugin.h>
+#include <mq/base/Signal.h>
 #include <spdlog/common.h>
 
 #include <memory>
@@ -274,7 +274,7 @@ private:
 	std::shared_ptr<NavigationMapLine> m_mapLine;
 	std::shared_ptr<NavigationLine> m_gameLine;
 
-	Signal<>::ScopedConnection m_uiConn;
+	mq::Signal<>::ScopedConnection m_uiConn;
 
 	bool m_initialized = false;
 	int m_zoneId = -1;
@@ -302,8 +302,8 @@ private:
 
 	clock::time_point m_pathfindTimer = clock::now();
 
-	Signal<>::ScopedConnection m_keypressConn;
-	Signal<TabPage>::ScopedConnection m_updateTabConn;
+	mq::Signal<>::ScopedConnection m_keypressConn;
+	mq::Signal<TabPage>::ScopedConnection m_updateTabConn;
 
 	std::unordered_map<size_t, std::unique_ptr<NavModule>> m_modules;
 	NavigationOptions m_defaultOptions;
@@ -344,7 +344,7 @@ private:
 private:
 	NavigationPath* m_path = nullptr;
 	bool m_enabled = true;
-	Signal<>::ScopedConnection m_updateConn;
+	mq::Signal<>::ScopedConnection m_updateConn;
 
 	nav::MapLine m_mapLine;
 	nav::MapCircle m_mapCircle;

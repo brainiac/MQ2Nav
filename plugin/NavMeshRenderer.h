@@ -5,9 +5,10 @@
 #pragma once
 
 #include "common/NavModule.h"
-#include "common/Signal.h"
 #include "plugin/Renderable.h"
 #include "plugin/RenderList.h"
+
+#include <mq/base/Signal.h>
 
 #include <d3d9caps.h>
 #include <cassert>
@@ -58,7 +59,7 @@ private:
 	bool m_initialized = false;
 
 	std::unique_ptr<RenderGroup> m_primGroup;
-	Signal<>::ScopedConnection m_meshConn;
+	mq::Signal<>::ScopedConnection m_meshConn;
 
 	std::unique_ptr<ConfigurableRenderState> m_state;
 	bool m_useStateEditor = false;

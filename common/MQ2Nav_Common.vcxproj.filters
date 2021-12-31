@@ -27,9 +27,6 @@
     <ClInclude Include="FindPattern.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Signal.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
