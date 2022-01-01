@@ -613,7 +613,7 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	if (m_initialized)
 		return;
 
-	if (gpD3D9Device)
+	if (!gpD3D9Device)
 	{
 		m_retryInit = true;
 		return;
