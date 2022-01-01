@@ -28,10 +28,7 @@ float GetDoorScale(PDOOR door)
 	return (float)door->ScaleFactor / 100.0f;
 }
 
-#if defined(Teleport_Table_x) && defined(Teleport_Table_Size_x)
-#define USE_TP_COORDS
-#endif
-
+#define RENDER_MODELS  0
 
 #pragma region Object Model Debug Rendering
 
@@ -210,7 +207,7 @@ public:
 					if (m_targetted)
 					{
 						m_grpModel->SetTransform(&scale);
-						m_grpModel->Render(phase);
+						m_grpModel->Render();
 					}
 #endif
 
@@ -276,36 +273,6 @@ private:
 #pragma endregion
 
 //----------------------------------------------------------------------------
-
-#define RENDER_MODELS  0
-
-const char* GetTeleportName(DWORD id)
-{
-#if defined(USE_TP_COORDS)
-	struct tp_coords
-	{
-		DWORD    Index;
-		FLOAT    Y;
-		FLOAT    X;
-		FLOAT    Z;
-		FLOAT    Heading;
-		DWORD    ZoneId;
-		DWORD    FilterId;
-		DWORD    VehicalId;
-	};
-	DWORD TableSize = *(DWORD*)Teleport_Table_Size;
-	tp_coords *tp = (tp_coords*)Teleport_Table;
-
-	if (id < TableSize)
-	{
-		DWORD zoneId = tp[id].ZoneId & 0x7fff;
-
-		return GetShortZone(zoneId);
-	}
-#endif
-
-	return "UNKNOWN";
-}
 
 class DoorsDebugUI
 {
