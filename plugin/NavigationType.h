@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <MQ2Plugin.h>
+#include <mq/Plugin.h>
 
 #include <memory>
 
@@ -41,11 +41,8 @@ public:
 	MQ2NavigationType();
 	virtual ~MQ2NavigationType();
 
-	virtual bool GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR& Dest) override;
-	virtual bool ToString(MQ2VARPTR VarPtr, PCHAR Destination) override;
-
-	virtual bool FromData(MQ2VARPTR& VarPtr, MQ2TYPEVAR& Source) override { return false; }
-	virtual bool FromString(MQ2VARPTR& VarPtr, PCHAR Source) override { return false; }
+	virtual bool GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Index, MQTypeVar& Dest) override;
+	virtual bool ToString(MQVarPtr VarPtr, PCHAR Destination) override;
 
 private:
 	MQ2NavigationPlugin* m_nav;
@@ -65,13 +62,8 @@ public:
 	MQ2NavPathType();
 	virtual ~MQ2NavPathType();
 
-	virtual bool GetMember(MQ2VARPTR VarPtr, PCHAR Member, PCHAR Index, MQ2TYPEVAR& Dest) override;
-	virtual bool ToString(MQ2VARPTR VarPtr, PCHAR Destination) override;
-
-	virtual bool FromData(MQ2VARPTR& VarPtr, MQ2TYPEVAR& Source) override { return false; }
-	virtual bool FromString(MQ2VARPTR& VarPtr, PCHAR Source) override { return false; }
-
-protected:
+	virtual bool GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Index, MQTypeVar& Dest) override;
+	virtual bool ToString(MQVarPtr VarPtr, PCHAR Destination) override;
 };
 
 extern MQ2NavPathType* g_mq2NavPathType;

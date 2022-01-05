@@ -4,14 +4,6 @@
 
 #include "Utilities.h"
 
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
-#include <imgui/misc/fonts/font_fontawesome_ttf.h>
-#include <imgui/misc/fonts/font_roboto_regular_ttf.h>
-#include <imgui/misc/fonts/font_materialicons_ttf.h>
-#include <imgui/misc/fonts/IconsFontAwesome.h>
-#include <imgui/misc/fonts/IconsMaterialDesign.h>
-
 #include <zlib.h>
 #include <cstdio>
 
@@ -21,183 +13,10 @@
 
 #include <Windows.h>
 
-ImFont* ImGuiEx::DefaultFont = nullptr;
-ImFont* ImGuiEx::ConsoleFont = nullptr;
-ImFont* ImGuiEx::LargeIconFont = nullptr;
-ImFont* ImGuiEx::LargeTextFont = nullptr;
+#include <imgui.h>
+#include <imgui_internal.h>
 
 //============================================================================
-
-namespace ImGuiEx
-{
-	using namespace ImGui;
-
-	void CenteredSeparator(float width)
-	{
-		ImGuiWindow* window = GetCurrentWindow();
-		if (window->SkipItems)
-			return;
-		ImGuiContext& g = *GImGui;
-		/*
-		// Commented out because it is not tested, but it should work, but it won't be centered
-		ImGuiWindowFlags flags = 0;
-		if ((flags & (ImGuiSeparatorFlags_Horizontal | ImGuiSeparatorFlags_Vertical)) == 0)
-			flags |= (window->DC.LayoutType == ImGuiLayoutType_Horizontal) ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal;
-		IM_ASSERT(ImIsPowerOfTwo((int)(flags & (ImGuiSeparatorFlags_Horizontal | ImGuiSeparatorFlags_Vertical))));   // Check that only 1 option is selected
-		if (flags & ImGuiSeparatorFlags_Vertical)
-		{
-			VerticalSeparator();
-			return;
-		}
-		*/
-
-		// Horizontal Separator
-		float x1, x2;
-		if (window->DC.ColumnsSet == NULL && (width == 0))
-		{
-			// Span whole window
-			///x1 = window->Pos.x; // This fails with SameLine(); CenteredSeparator();
-			// Nah, we have to detect if we have a sameline in a different way
-			x1 = window->DC.CursorPos.x;
-			x2 = x1 + window->Size.x;
-		}
-		else
-		{
-			// Start at the cursor
-			x1 = window->DC.CursorPos.x;
-			if (width != 0) {
-				x2 = x1 + width;
-			}
-			else
-			{
-				x2 = window->ClipRect.Max.x;
-				// Pad right side of columns (except the last one)
-				if (window->DC.ColumnsSet && (window->DC.ColumnsSet->Current < window->DC.ColumnsSet->Count - 1))
-					x2 -= g.Style.ItemSpacing.x;
-			}
-		}
-		float y1 = window->DC.CursorPos.y + int(window->DC.CurrentLineSize.y / 2.0f);
-		float y2 = y1 + 1.0f;
-
-		window->DC.CursorPos.x += width; //+ g.Style.ItemSpacing.x;
-
-		if (!window->DC.GroupStack.empty())
-			x1 += window->DC.Indent.x;
-
-		const ImRect bb(ImVec2(x1, y1), ImVec2(x2, y2));
-		ItemSize(ImVec2(0.0f, 0.0f)); // NB: we don't provide our width so that it doesn't get feed back into AutoFit, we don't provide height to not alter layout.
-		if (!ItemAdd(bb, NULL))
-		{
-			return;
-		}
-
-		window->DrawList->AddLine(bb.Min, ImVec2(bb.Max.x, bb.Min.y), GetColorU32(ImGuiCol_Border));
-
-		/* // Commented out because LogText is hard to reach outside imgui.cpp
-		if (g.LogEnabled)
-		LogText(IM_NEWLINE "--------------------------------");
-		*/
-	}
-
-	// Create a centered separator right after the current item.
-	// Eg.: 
-	// ImGui::PreSeparator(10);
-	// ImGui::Text("Section VI");
-	// ImGui::SameLineSeparator();
-	void SameLineSeparator(float width) {
-		ImGui::SameLine();
-		CenteredSeparator(width);
-	}
-
-	// Create a centered separator which can be immediately followed by a item
-	void PreSeparator(float width) {
-		ImGuiWindow* window = GetCurrentWindow();
-		if (window->DC.CurrentLineSize.y == 0)
-			window->DC.CurrentLineSize.y = ImGui::GetTextLineHeight();
-		CenteredSeparator(width);
-		ImGui::SameLine();
-	}
-
-	// The value for width is arbitrary. But it looks nice.
-	void TextSeparator(char* text, float pre_width)
-	{
-		PreSeparator(pre_width);
-		Text(text);
-		SameLineSeparator();
-	}
-}
-
-void ImGuiEx::HelpMarker(const char* desc, float width, ImFont* tooltipFont)
-{
-	ImGui::TextDisabled(ICON_FA_QUESTION_CIRCLE_O);
-
-	if (ImGui::IsItemHovered())
-	{
-		ImGui::BeginTooltip();
-		ImGui::PushTextWrapPos(width);
-
-		if (tooltipFont)
-		{
-			ImGui::PushFont(tooltipFont);
-		}
-
-		ImGui::TextUnformatted(desc);
-
-		if (tooltipFont)
-		{
-			ImGui::PopFont();
-		}
-
-		ImGui::PopTextWrapPos();
-		ImGui::EndTooltip();
-	}
-}
-
-void ImGuiEx::ConfigureFonts()
-{
-	ImGuiIO& io = ImGui::GetIO();
-
-	// font: Roboto Regular @ 16px
-	DefaultFont = io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
-		GetRobotoRegularCompressedSize(), 16.0);
-
-	// font: FontAwesome
-	ImFontConfig faConfig;
-	faConfig.MergeMode = true;
-	faConfig.GlyphMinAdvanceX = 14.0f;
-	static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-	io.Fonts->AddFontFromMemoryCompressedTTF(GetFontAwesomeCompressedData(),
-		GetFontAwesomeCompressedSize(), 13.0f, &faConfig, icon_ranges);
-
-	// font: Material Design Icons
-	ImFontConfig mdConfig;
-	mdConfig.MergeMode = true;
-	mdConfig.GlyphMinAdvanceX = 13.0f;
-	static const ImWchar md_icon_ranges[] = { ICON_MIN_MD, ICON_MAX_MD, 0 };
-	io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
-		GetMaterialIconsCompressedSize(), 13.0f, &mdConfig, md_icon_ranges);
-
-	// font: Material Design Icons (Large)
-	ImFontConfig mdConfig2;
-	mdConfig2.GlyphMinAdvanceX = 16.0f;
-	LargeIconFont = io.Fonts->AddFontFromMemoryCompressedTTF(GetMaterialIconsCompressedData(),
-		GetMaterialIconsCompressedSize(), 16.0f, &mdConfig2, md_icon_ranges);
-
-	mdConfig2.DstFont = LargeIconFont;
-	mdConfig2.MergeMode = true;
-
-	io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
-		GetRobotoRegularCompressedSize(), 16.0, &mdConfig2);
-
-	// add default proggy clean font as a secondary font
-	ConsoleFont = io.Fonts->AddFontDefault();
-
-	// a large text font for headings.
-	LargeTextFont = io.Fonts->AddFontFromMemoryCompressedTTF(GetRobotoRegularCompressedData(),
-		GetRobotoRegularCompressedSize(), 22);
-}
-
-//----------------------------------------------------------------------------
 
 bool CompressMemory(void* in_data, size_t in_data_size, std::vector<uint8_t>& out_data)
 {
@@ -335,6 +154,103 @@ std::string_view LoadResource(int resourceId)
 	}
 
 	return ret;
+}
+
+using namespace ImGui;
+
+void ImGuiEx::CenteredSeparator(float width)
+{
+	ImGuiWindow* window = GetCurrentWindow();
+	if (window->SkipItems)
+		return;
+	auto& g = *ImGui::GetCurrentContext();
+	/*
+	// Commented out because it is not tested, but it should work, but it won't be centered
+	ImGuiWindowFlags flags = 0;
+	if ((flags & (ImGuiSeparatorFlags_Horizontal | ImGuiSeparatorFlags_Vertical)) == 0)
+		flags |= (window->DC.LayoutType == ImGuiLayoutType_Horizontal) ? ImGuiSeparatorFlags_Vertical : ImGuiSeparatorFlags_Horizontal;
+	IM_ASSERT(ImIsPowerOfTwo((int)(flags & (ImGuiSeparatorFlags_Horizontal | ImGuiSeparatorFlags_Vertical))));   // Check that only 1 option is selected
+	if (flags & ImGuiSeparatorFlags_Vertical)
+	{
+		VerticalSeparator();
+		return;
+	}
+	*/
+
+	// Horizontal Separator
+	float x1, x2;
+	if (window->DC.CurrentColumns == nullptr && (width == 0))
+	{
+		// Span whole window
+		///x1 = window->Pos.x; // This fails with SameLine(); CenteredSeparator();
+		// Nah, we have to detect if we have a sameline in a different way
+		x1 = window->DC.CursorPos.x;
+		x2 = x1 + window->Size.x;
+	}
+	else
+	{
+		// Start at the cursor
+		x1 = window->DC.CursorPos.x;
+		if (width != 0) {
+			x2 = x1 + width;
+		}
+		else
+		{
+			x2 = window->ClipRect.Max.x;
+			// Pad right side of columns (except the last one)
+			if (window->DC.CurrentColumns && (window->DC.CurrentColumns->Current < window->DC.CurrentColumns->Count - 1))
+				x2 -= g.Style.ItemSpacing.x;
+		}
+	}
+	float y1 = window->DC.CursorPos.y + int(window->DC.CurrLineSize.y / 2.0f);
+	float y2 = y1 + 1.0f;
+
+	window->DC.CursorPos.x += width; //+ g.Style.ItemSpacing.x;
+
+	if (!g.GroupStack.empty())
+		x1 += window->DC.Indent.x;
+
+	const ImRect bb(ImVec2(x1, y1), ImVec2(x2, y2));
+	ItemSize(ImVec2(0.0f, 0.0f)); // NB: we don't provide our width so that it doesn't get feed back into AutoFit, we don't provide height to not alter layout.
+	if (!ItemAdd(bb, NULL))
+	{
+		return;
+	}
+
+	window->DrawList->AddLine(bb.Min, ImVec2(bb.Max.x, bb.Min.y), GetColorU32(ImGuiCol_Border));
+
+	/* // Commented out because LogText is hard to reach outside imgui.cpp
+	if (g.LogEnabled)
+	LogText(IM_NEWLINE "--------------------------------");
+	*/
+}
+
+// Create a centered separator right after the current item.
+// Eg.: 
+// ImGui::PreSeparator(10);
+// ImGui::Text("Section VI");
+// ImGui::SameLineSeparator();
+void ImGuiEx::SameLineSeparator(float width)
+{
+	ImGui::SameLine();
+	CenteredSeparator(width);
+}
+
+// Create a centered separator which can be immediately followed by a item
+void ImGuiEx::PreSeparator(float width) {
+	ImGuiWindow* window = GetCurrentWindow();
+	if (window->DC.CurrLineSize.y == 0)
+		window->DC.CurrLineSize.y = ImGui::GetTextLineHeight();
+	CenteredSeparator(width);
+	ImGui::SameLine();
+}
+
+// The value for width is arbitrary. But it looks nice.
+void ImGuiEx::TextSeparator(char* text, float pre_width)
+{
+	PreSeparator(pre_width);
+	Text(text);
+	SameLineSeparator();
 }
 
 bool ImGuiEx::ColoredButton(const char* text, const ImVec2& size, float hue)

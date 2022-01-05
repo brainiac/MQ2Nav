@@ -139,7 +139,7 @@ void EQConfig::LoadConfigFromIni()
 	CHAR fullPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA(NULL, fullPath, MAX_PATH);
 	PathRemoveFileSpecA(fullPath);
-	PathAppendA(fullPath, "MeshGenerator.ini");
+	PathAppendA(fullPath, "\\config\\MeshGenerator.ini");
 
 	CHAR eqPath[MAX_PATH] = { 0 };
 	bool changed = false;
@@ -161,8 +161,10 @@ void EQConfig::LoadConfigFromIni()
 	}
 	else
 	{
-		m_outputPath = outPath;
+		m_mq2Path = outPath;
 	}
+
+	m_outputPath = m_mq2Path + "\\resources\\MQ2Nav";
 
 	char szTemp[10] = { 0 };
 	GetPrivateProfileString("General", "ZoneMaxExtents", m_useMaxExtents ? "true" : "false",
@@ -176,10 +178,10 @@ void EQConfig::SaveConfigToIni()
 	CHAR fullPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA(NULL, fullPath, MAX_PATH);
 	PathRemoveFileSpecA(fullPath);
-	PathAppendA(fullPath, "MeshGenerator.ini");
+	PathAppendA(fullPath, "config\\MeshGenerator.ini");
 
 	WritePrivateProfileString("General", "EverQuest Path", m_everquestPath.c_str(), fullPath);
-	WritePrivateProfileString("General", "Output Path", m_outputPath.c_str(), fullPath);
+	WritePrivateProfileString("General", "Output Path", m_mq2Path.c_str(), fullPath);
 	WritePrivateProfileString("General", "ZoneMaxExtents", m_useMaxExtents ? "true" : "false", fullPath);
 }
 
@@ -189,7 +191,7 @@ void EQConfig::LoadZones()
 	CHAR fullPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA(NULL, fullPath, MAX_PATH);
 	PathRemoveFileSpecA(fullPath);
-	PathAppendA(fullPath, "Zones.ini");
+	PathAppendA(fullPath, "resources\\Zones.ini");
 
 	m_loadedMaps.clear();
 	m_mapNames.clear();
@@ -253,7 +255,9 @@ void EQConfig::SelectOutputPath()
 
 	if (!result.empty())
 	{
-		m_outputPath = result;
+		m_mq2Path = result;
+		m_outputPath = m_mq2Path + "\\resources\\MQ2Nav";
+
 		SaveConfigToIni();
 	}
 }

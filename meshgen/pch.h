@@ -7,7 +7,10 @@
 
 #include "targetver.h"
 
+#if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
+#endif
+
 // Windows Header Files:
 #include <windows.h>
 
@@ -30,5 +33,5 @@
 #include <shlobj.h>
 #include <Shlwapi.h>
 
-#include <SDL.h>
-#include <SDL_syswm.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>

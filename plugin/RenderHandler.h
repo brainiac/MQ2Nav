@@ -4,18 +4,14 @@
 
 #pragma once
 
-#include "common/Signal.h"
 #include "plugin/Renderable.h"
 
-#include <d3dx9.h>
+#include <mq/Plugin.h>
 #include <imgui.h>
-
 #include <memory>
 #include <list>
 
 class RenderHooks;
-
-extern IDirect3DDevice9* g_pDevice;
 
 class RenderHandler
 {
@@ -29,8 +25,6 @@ public:
 
 	void AddRenderable(Renderable* renderable);
 	void RemoveRenderable(Renderable* renderable);
-
-private:
 
 	// Called by RenderHooks
 	void CreateDeviceObjects();

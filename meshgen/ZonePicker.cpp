@@ -4,16 +4,16 @@
 
 #include "meshgen/ZonePicker.h"
 
-#include <imgui/imgui.h>
-#include <boost/algorithm/string.hpp>
+#include <mq/base/String.h>
 #include <glm/glm.hpp>
 
-#include <SDL_opengl.h>
+#include <SDL2/SDL_opengl.h>
 
 #pragma warning (push)
 #pragma warning (disable : 4312 4244)
 
-#include <imgui/stb_image.h>
+#include <imgui.h>
+#include <stb/stb_image.h>
 
 #pragma warning (pop)
 
@@ -41,7 +41,7 @@ const glm::ivec2 ExpansionLogoSize = { 128, 32 };
 std::pair<int, glm::ivec2> FindExpansionImage(int expansion, bool active)
 {
 	// get the image index
-	int imageIndex = expansion < ExpansionSlots.size() ? ExpansionSlots[expansion] : EmptyExpansion;
+	int imageIndex = (expansion < ExpansionSlots.size()) ? ExpansionSlots[expansion] : EmptyExpansion;
 
 	const int ExpansionsPerFile = ExpansionsPerRow * ExpansionsPerColumn;
 
@@ -125,8 +125,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 	float yPos = 30;
 	float height = avail.y - (yPos * 2);
 
-	ImGui::SetNextWindowPos(ImVec2(xPos, yPos), ImGuiSetCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiSetCond_Always);
+	ImGui::SetNextWindowPos(ImVec2(xPos, yPos), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
 
 	bool show = true;
 
@@ -234,7 +234,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 				const std::string& shortName = mapIter.first;
 				const std::string& longName = mapIter.second;
 
-				if (boost::ifind_first(shortName, text) || boost::ifind_first(longName, text))
+				if (mq::ci_find_substr(shortName, text) != -1
+					|| mq::ci_find_substr(longName, text) != -1)
 				{
 					ImGui::PushID(shortName.c_str());
 

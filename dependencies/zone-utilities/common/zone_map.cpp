@@ -7,7 +7,6 @@
 #include <tuple>
 #include <map>
 #include <zlib.h>
-#define _USE_MATH_DEFINES
 #include <math.h>
 
 uint32_t InflateData(const char* buffer, uint32_t len, char* out_buffer, uint32_t out_len_max) {

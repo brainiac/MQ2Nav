@@ -29,7 +29,7 @@ namespace
 		"duck"
 	};
 
-	void NavKeyPressed(char*, int keyDown)
+	void NavKeyPressed(const char*, bool keyDown)
 	{
 		if (keyDown && s_handler)
 		{

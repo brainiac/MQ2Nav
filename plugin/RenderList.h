@@ -7,10 +7,8 @@
 
 #include "plugin/Renderable.h"
 
-#include <d3dx9.h>
-
-#define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <d3d9.h>
+#include <glm/glm.hpp>
 
 #include <map>
 #include <memory>
@@ -50,7 +48,7 @@ public:
 	// Render the geometry
 	virtual void Render();
 
-	void SetTransform(D3DXMATRIX* mtx) { m_mtx = mtx; }
+	void SetTransform(glm::mat4* mtx) { m_mtx = mtx; }
 	void SetEQCoords(bool eqCoords) { m_eqCoords = eqCoords; }
 
 	PrimitiveType GetType() const { return m_type; }
@@ -83,9 +81,9 @@ private:
 
 	struct Vertex
 	{
-		D3DXVECTOR3 pos;
+		glm::vec3   pos;
 		D3DCOLOR    col;
-		D3DXVECTOR2 uv;
+		glm::vec2   uv;
 	};
 	static const DWORD VertexType = (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 
@@ -110,7 +108,7 @@ private:
 	int m_tempIndex = 0;
 	int m_tempMax = 0;
 
-	D3DXMATRIX* m_mtx = nullptr;
+	glm::mat4* m_mtx = nullptr;
 	bool m_eqCoords = false;
 
 private:
@@ -166,7 +164,7 @@ public:
 			m_primLists[i]->SetEQCoords(eqCoords);
 	}
 
-	void SetTransform(D3DXMATRIX* mtx)
+	void SetTransform(glm::mat4* mtx)
 	{
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
 		{

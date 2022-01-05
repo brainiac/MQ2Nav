@@ -5,7 +5,6 @@
 #include "pch.h"
 #include "RenderList.h"
 
-#include <d3d9.h>
 #include <imgui.h>
 
 #include <algorithm>
@@ -130,13 +129,9 @@ void RenderList::AddLine()
 	m_currentPrim->count++;
 }
 
-inline float distance(const D3DXVECTOR3& a, const D3DXVECTOR3& b)
+inline float distance(const glm::vec3& a, const glm::vec3& b)
 {
-	float X = a.x - b.x;
-	float Y = a.y - b.y;
-	float Z = a.z - b.z;
-
-	return sqrtf(X*X + Y*Y + Z*Z);
+	return glm::distance(a, b);
 }
 
 void RenderList::AddTriangle()
@@ -177,7 +172,7 @@ void RenderList::Render()
 
 	if (m_mtx)
 	{
-		m_pDevice->SetTransform(D3DTS_WORLD, m_mtx);
+		m_pDevice->SetTransform(D3DTS_WORLD, (D3DMATRIX*)m_mtx);
 		m_mtx = nullptr;
 	}
 

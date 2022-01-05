@@ -1,8 +1,7 @@
 #ifndef EQEMU_ORIENTED_BOUNDNG_BOX_H
 #define EQEMU_ORIENTED_BOUNDNG_BOX_H
 
-#define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 glm::mat4 CreateRotateMatrix(float rx, float ry, float rz);
 glm::mat4 CreateTranslateMatrix(float tx, float ty, float tz);

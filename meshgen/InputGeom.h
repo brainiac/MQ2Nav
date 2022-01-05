@@ -14,7 +14,7 @@ static const int MAX_CONVEXVOL_PTS = 12;
 class InputGeom
 {
 public:
-	InputGeom(const std::string& zoneShortName, const std::string& eqPath, const std::string& meshPath);
+	InputGeom(const std::string& zoneShortName, const std::string& eqPath);
 	~InputGeom();
 
 	bool loadGeometry(std::unique_ptr<MapGeometryLoader> loader, class rcContext* ctx);
@@ -32,7 +32,6 @@ public:
 private:
 	std::string m_eqPath;
 	std::string m_zoneShortName;
-	std::string m_meshPath;
 
 	std::unique_ptr<rcChunkyTriMesh> m_chunkyMesh;
 	std::unique_ptr<MapGeometryLoader> m_loader;

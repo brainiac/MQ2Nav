@@ -4,14 +4,13 @@
 
 #include "meshgen/NavMeshTileTool.h"
 
-#include <DebugDraw.h>
+#include "imgui/ImGuiUtils.h"
+#include "imgui/fonts/IconsMaterialDesign.h"
 
-#include <imgui/imgui.h>
-#include <imgui/custom/imgui_user.h>
+#include <DebugDraw.h>
+#include <imgui.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#include <imgui/misc/fonts/IconsMaterialDesign.h>
 
 void NavMeshTileTool::init(NavMeshTool* meshTool)
 {
@@ -80,7 +79,7 @@ void NavMeshTileTool::handleRenderOverlay(const glm::mat4& proj,
 		int tx = 0, ty = 0;
 
 		m_meshTool->GetTilePos(m_hitPos, tx, ty);
-		ImGui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220),
+		mq::imgui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220),
 			"%.2f %.2f %.2f\nTile: (%d,%d)", m_hitPos.z, m_hitPos.x, m_hitPos.y,
 			tx, ty);
 	}

@@ -5,7 +5,8 @@
 #pragma once
 
 #include "common/NavModule.h"
-#include "common/Signal.h"
+
+#include <mq/base/Signal.h>
 
 #include <memory>
 
@@ -14,10 +15,6 @@ enum class TabPage {
 	Waypoints,
 	Settings,
 	Tools,
-#if defined(_DEBUG)
-	Theme,
-#endif
-
 	Max
 };
 
@@ -31,24 +28,28 @@ public:
 	virtual void Shutdown() override;
 
 	// general signal for ui update.
-	Signal<> OnUpdateUI;
+	mq::Signal<> OnUpdateUI;
 
 	// signal for when a tab page is updated
-	Signal<TabPage> OnTabUpdate;
+	mq::Signal<TabPage> OnTabUpdate;
 
 	bool IsUiOn() const;
+
+	void PerformUpdateUI();
+	void DrawNavSettingsPanel();
 
 	virtual void OnBeginZone() override;
 	virtual void OnEndZone() override;
 
 private:
-	void PerformUpdateUI();
 	void PerformUpdateTab(TabPage page);
+
+	void DrawSettingsUI(bool fromSettingsPanel);
 
 	int m_selectedTab = static_cast<int>(TabPage::Navigation);
 
 	enum Section { Navigation, Mesh, Display };
 	int m_settingsSection = Navigation;
 
-	Signal<>::ScopedConnection m_uiConn;
+	mq::Signal<>::ScopedConnection m_uiConn;
 };

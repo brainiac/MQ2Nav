@@ -13,7 +13,6 @@
 #include <DetourDebugDraw.h>
 
 #include <imgui.h>
-#include <imgui/custom/imgui_user.h>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <vector>

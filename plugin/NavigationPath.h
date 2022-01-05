@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "common/Signal.h"
 #include "common/Utilities.h"
 #include "plugin/MQ2Navigation.h"
 #include "plugin/Renderable.h"
@@ -13,12 +12,10 @@
 #include <DetourNavMeshQuery.h>
 #include <DetourPathCorridor.h>
 
-#define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
+#include <mq/base/Signal.h>
 #include <d3d9.h>
-#include <d3dx9.h>
 
 #include <imgui.h>
 #include <memory>
@@ -30,6 +27,7 @@
 class NavMesh;
 class NavigationLine;
 struct DestinationInfo;
+struct ID3DXEffect;
 
 struct StraightPath
 {
@@ -138,8 +136,10 @@ public:
 	dtNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	dtNavMeshQuery* GetNavMeshQuery() const { return m_query.get(); }
 
-	Signal<> PathUpdated;
-	Signal<> RenderPathUpdated;
+	bool IsFailed() const { return m_failed; }
+
+	mq::Signal<> PathUpdated;
+	mq::Signal<> RenderPathUpdated;
 
 private:
 	void SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
@@ -152,11 +152,14 @@ private:
 		bool incremental);
 	void UpdatePathProperties();
 
+private:
 	std::shared_ptr<DestinationInfo> m_destinationInfo;
 
 	std::unique_ptr<RenderGroup> m_debugDrawGrp;
 	glm::vec3 m_destination;
 	glm::vec3 m_lastPos;
+
+	bool m_failed = false;
 
 	// the plugin owns the mesh
 	std::shared_ptr<dtNavMesh> m_navMesh;
@@ -176,7 +179,7 @@ private:
 	dtQueryFilter m_filter;
 	glm::vec3 m_extents = { 5, 10, 5 }; // note: X, Z, Y
 
-	Signal<>::ScopedConnection m_navMeshConn;
+	mq::Signal<>::ScopedConnection m_navMeshConn;
 };
 
 //----------------------------------------------------------------------------
@@ -225,12 +228,12 @@ private:
 	// about the other vertex (the other end of the line).
 	struct TVertex
 	{
-		D3DXVECTOR3 pos;
-		D3DXVECTOR3 otherPos;
-		D3DXVECTOR3 adjPos; // position of previous or next line segment, depending on the vertex
-		FLOAT thickness;
-		FLOAT adjHint;
-		FLOAT type;
+		glm::vec3    pos;
+		glm::vec3    otherPos;
+		glm::vec3    adjPos; // position of previous or next line segment, depending on the vertex
+		float        thickness;
+		float        adjHint;
+		float        type;
 	};
 
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;
@@ -250,7 +253,7 @@ private:
 	bool m_visible = false;
 	glm::vec3 m_startPos;
 
-	Signal<>::ScopedConnection m_pathUpdated;
+	mq::Signal<>::ScopedConnection m_pathUpdated;
 };
 
 extern NavigationLine::LineStyle gNavigationLineStyle;

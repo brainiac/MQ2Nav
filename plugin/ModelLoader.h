@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "common/Signal.h"
 #include "common/NavModule.h"
 #include "common/ZoneData.h"
 #include "plugin/MQ2Navigation.h"
@@ -12,7 +11,6 @@
 #include "dependencies/zone-utilities/common/eqg_loader.h"
 #include "dependencies/zone-utilities/common/s3d_loader.h"
 
-#include <d3dx9.h>
 #include <d3d9caps.h>
 
 #include <string>

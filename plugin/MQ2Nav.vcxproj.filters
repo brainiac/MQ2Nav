@@ -2,18 +2,13 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{886d9276-9e49-46b6-916d-1c686e0900c1}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{029c2c0d-43f2-4dd8-80b7-928ae31df7c2}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
     <Filter Include="Resource Files">
-      <UniqueIdentifier>{55570512-5592-4def-ab72-e27b303cbb0f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\imgui">
-      <UniqueIdentifier>{54299c1d-0c0b-4043-8dba-753451cfd4bb}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
     <Filter Include="Header Files\imgui">
       <UniqueIdentifier>{969a4178-459f-4be7-bb2f-d6928fa181b3}</UniqueIdentifier>
@@ -23,16 +18,13 @@
     <None Include="..\resources\Zones.ini">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="packages.config" />
+    <None Include="..\README.MD" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="KeybindHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ModelLoader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ImGuiRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MQ2Navigation.cpp">
@@ -74,17 +66,8 @@
     <ClCompile Include="PluginSettings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PluginHooks.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui\imgui_impl_win32.cpp">
-      <Filter>Source Files\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui\imgui_impl_dx9.cpp">
-      <Filter>Source Files\imgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -95,9 +78,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DebugDrawDX.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ImGuiRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MQ2Navigation.h">
@@ -142,9 +122,6 @@
     <ClInclude Include="EmbedResources.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PluginHooks.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="PluginSettings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -160,9 +137,15 @@
     <ClInclude Include="imgui\imgui_impl_win32.h">
       <Filter>Header Files\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="EmbedResources.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="Version.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

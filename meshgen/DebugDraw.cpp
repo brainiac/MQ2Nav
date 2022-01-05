@@ -4,8 +4,8 @@
 
 #include "meshgen/DebugDraw.h"
 
-#include <SDL.h>
-#include <SDL_OpenGL.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_OpenGL.h>
 
 //----------------------------------------------------------------------------
 

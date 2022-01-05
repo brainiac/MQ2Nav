@@ -20,19 +20,21 @@ Building
 
 ##### Requirements
 
-* Visual Studio 2019
+* Visual Studio 2019 (16.10+)
+
+* MacroQuest (next)
+
+This build of MQ2Nav requires the new MacroQuest.
 
 MQ2Nav is a unique plugin. You do not want to add it to your solution. Instead you will build it in a separate solution apart from MacroQuest2.sln.
 
-1. Check out the sources into <your macroquest source folder>/MQ2Nav. MQ2Nav should be next to MQ2Main, etc.
-2. Open MacroQuest2.sln and build
+1. Check out the sources into <your macroquest source folder>/plugins/MQ2Nav. MQ2Nav should be placed in the /plugins folder in the root of the checkout. This folder is dedicated to your plugins.
+2. Open MacroQuest.sln and build
 3. Open MQ2Nav\MQ2Nav.sln and select the configuration (most people will want Release)
 4. **build MQ2Nav.dll:** select the Win32 architecture and build
 5. **build MeshGenerator.exe:** select the x64 architecture and build
 
-The first time you build, you'll download some NuGet packages.
-
-The outputs will go into your Release (or Debug, depending on your selected configuration) folder.
+The first time you build, you'll build the vcpkg dependencies.
 
 ### Third Party Libraries
 

@@ -10,6 +10,12 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemDefinitionGroup>
+    <PreBuildEvent>
+      <Command>powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -File "$(ProjectDir)Versioning.ps1"</Command>
+      <Message>Updating version resource...</Message>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{115BC0F5-8702-4EC6-9724-D0FBE76D80CB}</ProjectGuid>
     <RootNamespace>MQ2Nav</RootNamespace>
@@ -18,11 +24,13 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
@@ -31,37 +39,29 @@
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\Plugin.Release.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\Plugin.Debug.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), src\Plugin.props))\src\Plugin.props" Condition=" '$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), src\Plugin.props))' != '' " />
+    <Import Project="..\Properties.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(ProjectDir)..\..\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>true</LinkIncremental>
-    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
-    <OutDir>$(ProjectDir)..\..\$(Configuration)\</OutDir>
-  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;..\dependencies;..\dependencies\imgui;..\dependencies\recast\DebugUtils\Include;..\dependencies\recast\DetourCrowd\Include;..\dependencies\recast\DetourTileCache\Include;..\dependencies\recast\Detour\Include;..\dependencies\recast\Recast\Include;..\dependencies\glm;..\dependencies\glm\glm;..\dependencies\zone-utilities\common;..\dependencies\zone-utilities\log;..\dependencies\zlib\include;..\dependencies\dx9\Include;..\dependencies\rapidjson\include;..\dependencies\spdlog\include;..\dependencies\fmt\include;$(ProjectDir)..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;..\dependencies;..\dependencies\recast\DebugUtils\Include;..\dependencies\recast\DetourCrowd\Include;..\dependencies\recast\DetourTileCache\Include;..\dependencies\recast\Detour\Include;..\dependencies\recast\Recast\Include;..\dependencies\zone-utilities\common;..\dependencies\zone-utilities\log;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ProgramDatabase</DebugInformationFormat>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">MultiThreadedDebug</RuntimeLibrary>
-      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</FunctionLevelLinking>
+      <FunctionLevelLinking Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</FunctionLevelLinking>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Disabled</Optimization>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</StringPooling>
       <StringPooling Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</StringPooling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NAV_API_EXPORTS;NOMINMAX;GLM_SWIZZLE;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NAV_API_EXPORTS;_DEBUG;NOMINMAX;GLM_SWIZZLE;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NAV_API_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NAV_API_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4018;4244</DisableSpecificWarnings>
       <BufferSecurityCheck Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</BufferSecurityCheck>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
@@ -78,37 +78,31 @@
       <StructMemberAlignment Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Default</StructMemberAlignment>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\..\Detours\lib;$(ProjectDir)..\dependencies\zlib\lib;$(ProjectDir)..\dependencies\dx9\lib;$(ProjectDir)..\..\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <DataExecutionPrevention>false</DataExecutionPrevention>
       <ImportLibrary>$(OutDir)$(ProjectName).lib</ImportLibrary>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
       <OptimizeReferences Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</OptimizeReferences>
-      <AdditionalDependencies>MQ2Main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)'=='Debug'">d3d9.lib;d3dx9.lib;libprotobufd.lib;zlibd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)'=='Release'">d3d9.lib;d3dx9.lib;libprotobuf.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>MKDIR "$(OutDir)MQ2Nav"
-XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
+      <Command>XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)..\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\resources\Zones.ini" />
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="imgui\imgui_impl_dx9.cpp" />
-    <ClCompile Include="imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SwitchHandler.cpp" />
-    <ClCompile Include="ImGuiRenderer.cpp" />
     <ClCompile Include="KeybindHandler.cpp" />
     <ClCompile Include="MapAPI.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="MQ2Navigation.cpp" />
-    <ClCompile Include="PluginHooks.cpp" />
     <ClCompile Include="PluginSettings.cpp" />
     <ClCompile Include="NavigationPath.cpp" />
     <ClCompile Include="NavigationType.cpp" />
@@ -124,7 +118,6 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <ClInclude Include="..\PluginAPI.h" />
     <ClInclude Include="DebugDrawDX.h" />
     <ClInclude Include="EmbedResources.h" />
-    <ClInclude Include="ImGuiRenderer.h" />
     <ClInclude Include="imgui\imgui_impl_dx9.h" />
     <ClInclude Include="imgui\imgui_impl_win32.h" />
     <ClInclude Include="KeybindHandler.h" />
@@ -132,7 +125,6 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="MQ2Navigation.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="PluginHooks.h" />
     <ClInclude Include="PluginSettings.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="NavigationPath.h" />
@@ -142,6 +134,7 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="RenderList.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="SwitchHandler.h" />
     <ClInclude Include="UiController.h" />
     <ClInclude Include="Waypoints.h" />
@@ -150,38 +143,24 @@ XCOPY /y "$(ProjectDir)..\resources\d3dx9_43.dll" "$(OutDir)"</Command>
     <ProjectReference Include="..\common\MQ2Nav_Common.vcxproj">
       <Project>{45e99b43-f47b-4aad-ac88-f95bf467f463}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\dependencies\imgui\imgui.vcxproj">
-      <Project>{81ea8021-75bf-4d3f-8f60-12755690f6f6}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\dependencies\projects\libprotobuf.vcxproj">
-      <Project>{6ececb50-9de7-4e61-beed-c377c4d87b28}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\dependencies\projects\zone-utilities.vcxproj">
-      <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\dependencies\recast\Recast.vcxproj">
       <Project>{c8a45a79-5cfa-4d9c-987c-eacc4e59724c}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\dependencies\zlib\zlib.vcxproj">
-      <Project>{d5fc478c-d94c-437f-9911-14f1fb7b9a2b}</Project>
+    <ProjectReference Include="..\dependencies\zone-utilities\zone-utilities.vcxproj">
+      <Project>{200fb60c-6c01-48a7-886a-8e3683eb21bc}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="EmbedResources.rc" />
+    <ResourceCompile Include="Version.rc" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\resources\VolumeLines.fx">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README.MD" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(SolutionDir)packages\boost.1.72.0.0\build\boost.targets" Condition="Exists('$(SolutionDir)packages\boost.1.72.0.0\build\boost.targets')" />
-  </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('$(SolutionDir)packages\boost.1.72.0.0\build\boost.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)packages\boost.1.72.0.0\build\boost.targets'))" />
-  </Target>
 </Project>

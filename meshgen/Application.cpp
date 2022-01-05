@@ -14,12 +14,11 @@
 #include "meshgen/imgui/imgui_impl_sdl.h"
 #include "common/Utilities.h"
 
+#include "imgui/ImGuiUtils.h"
+
 #include <RecastDebugDraw.h>
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
-#include <imgui/misc/fonts/IconsFontAwesome.h>
-#include <imgui/misc/fonts/IconsMaterialDesign.h>
-#include <imgui/custom/imgui_utils.h>
+#include <imgui.h>
+#include <imgui_internal.h>
 #include <fmt/format.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -29,7 +28,6 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <zone-utilities/log/log_base.h>
 #include <zone-utilities/log/log_macros.h>
-#include <boost/algorithm/string.hpp>
 
 #include <filesystem>
 #include <sstream>
@@ -90,7 +88,7 @@ private:
 //============================================================================
 
 Application::Application(const std::string& defaultZone)
-	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath() + "\\MQ2Nav", defaultZone))
+	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath(), defaultZone))
 	, m_meshTool(new NavMeshTool(m_navMesh))
 	, m_resetCamera(true)
 	, m_width(1600), m_height(900)
@@ -104,8 +102,9 @@ Application::Application(const std::string& defaultZone)
 	GetModuleFileNameA(nullptr, fullPath, MAX_PATH);
 	PathRemoveFileSpecA(fullPath);
 
-	m_iniFile = fmt::format("{}/MeshGenerator_UI.ini", fullPath);
-	m_logFile = fmt::format("{}/MeshGenerator.log", fullPath);
+	// TODO: Support config directory
+	m_iniFile = fmt::format("{}/config/MeshGenerator_UI.ini", fullPath);
+	m_logFile = fmt::format("{}/logs/MeshGenerator.log", fullPath);
 
 	// set up default logger
 	auto logger = spdlog::create<spdlog::sinks::basic_file_sink_mt>("MeshGen", m_logFile, true);
@@ -127,7 +126,6 @@ Application::Application(const std::string& defaultZone)
 	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 
 	InitializeWindow();
-	ImGui::SetupImGuiStyle(true, 0.8f);
 }
 
 Application::~Application()
@@ -138,9 +136,13 @@ Application::~Application()
 bool Application::InitializeWindow()
 {
 	// Init SDL
-	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+	int sdlInitResult = SDL_Init(SDL_INIT_EVERYTHING);
+	if (sdlInitResult != 0)
 	{
-		printf("Could not initialize SDL\n");
+		char szMessage[256];
+		sprintf_s(szMessage, "Could not initialize SDL: %d", sdlInitResult);
+
+		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
 		return false;
 	}
 
@@ -193,13 +195,16 @@ bool Application::InitializeWindow()
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.IniFilename = m_iniFile.c_str();
+	//io.ConfigFlags |= /*ImGuiConfigFlags_ViewportsEnable | */ImGuiConfigFlags_DockingEnable/* | ImGuiConfigFlags_DpiEnableScaleViewports | ImGuiConfigFlags_DpiEnableScaleFonts*/;
+	//io.ConfigDockingWithShift = true;
 
 	ImGui::StyleColorsDark();
 
 	ImGui_ImplSDL2_InitForOpenGL(m_window, m_glContext);
 	ImGui_ImplOpenGL2_Init();
 
-	ImGuiEx::ConfigureFonts();
+	mq::imgui::ConfigureFonts(io.Fonts);
+	mq::imgui::ConfigureStyle();
 
 	glEnable(GL_CULL_FACE);
 
@@ -317,6 +322,15 @@ int Application::RunMainLoop()
 		ImGui::Render();
 		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 		SDL_GL_SwapWindow(m_window);
+
+		ImGuiIO& io = ImGui::GetIO();
+
+		// Update and Render additional Platform Windows
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
 
 		// Do additional work here after rendering
 
@@ -574,7 +588,7 @@ void Application::RenderInterface()
 
 	if (!m_activityMessage.empty())
 	{
-		ImGui::RenderTextCentered(ImVec2(m_width / 2, m_height / 2),
+		mq::imgui::RenderTextCentered(ImVec2(m_width / 2, m_height / 2),
 			ImColor(255, 255, 255, 128), m_activityMessage.c_str(), m_progress);
 	}
 
@@ -739,7 +753,7 @@ void Application::RenderInterface()
 
 	if (m_showProperties)
 	{
-		ImGui::SetNextWindowPos(ImVec2(20, 21 + 20), ImGuiSetCond_FirstUseEver);
+		ImGui::SetNextWindowPos(ImVec2(20, 21 + 20), ImGuiCond_FirstUseEver);
 
 		ImGui::Begin("Properties", &m_showProperties, ImGuiWindowFlags_AlwaysAutoResize);
 
@@ -752,7 +766,7 @@ void Application::RenderInterface()
 		ImGui::Separator();
 
 		float camPos[3] = { m_cam.z, m_cam.x, m_cam.y };
-		if (ImGui::InputFloat3("Position", camPos, 2))
+		if (ImGui::InputFloat3("Position", camPos, "%.2f"))
 		{
 			m_cam.x = camPos[1];
 			m_cam.y = camPos[2];
@@ -848,7 +862,7 @@ void Application::RenderInterface()
 
 	if (m_showMapAreas)
 	{
-		ImGui::SetNextWindowSize(ImVec2(440, 400), ImGuiSetCond_Once);
+		ImGui::SetNextWindowSize(ImVec2(440, 400), ImGuiCond_Once);
 
 		if (ImGui::Begin("Area Types", &m_showMapAreas))
 		{
@@ -902,17 +916,20 @@ void Application::ShowSettingsDialog()
 			m_eqConfig.SelectEverquestPath();
 		ImGui::PopItemWidth();
 
-		ImGui::Text("Navmesh Path");
+		ImGui::Text("Navmesh Path (Path to MQ2 root directory)");
 		ImGui::PushItemWidth(400);
 		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(244, 250, 125));
-		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetOutputPath().c_str(),
-			m_eqConfig.GetOutputPath().length(), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetMQ2Path().c_str(),
+			m_eqConfig.GetMQ2Path().length(), ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 		ImGui::PushItemWidth(125);
 		if (ImGui::Button("Change##OutputPath", ImVec2(120, 0)))
+		{
 			m_eqConfig.SelectOutputPath();
+			m_navMesh->SetNavMeshDirectory(m_eqConfig.GetOutputPath());
+		}
 		ImGui::PopItemWidth();
 
 		bool useExtents = m_eqConfig.GetUseMaxExtents();
@@ -995,15 +1012,15 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	ImGui::SetColumnOffset(1, 35);
 
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
-	float offset = window->DC.CurrentLineTextBaseOffset;
-	window->DC.CurrentLineTextBaseOffset += 2.0f;
+	float offset = window->DC.CurrLineTextBaseOffset;
+	window->DC.CurrLineTextBaseOffset += 2.0f;
 
 	if (builtIn)
 		ImGui::Text("Built-in %d", areaId);
 	else
 		ImGui::Text("User %d", userIndex != -1 ? userIndex : areaId);
 
-	window->DC.CurrentLineTextBaseOffset = offset;
+	window->DC.CurrLineTextBaseOffset = offset;
 
 	ImGui::NextColumn();
 	ImGui::SetColumnOffset(2, 120);
@@ -1040,12 +1057,12 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	if (areaId == 0)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(128, 128, 128));
-		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, 1, ImGuiInputTextFlags_ReadOnly);
+		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, "%.1f", ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 	}
 	else
 	{
-		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, 1);
+		changed |= ImGui::InputFloat("##cost", &cost, 0.0f, 0.0f, "%.1f");
 	}
 
 	ImGui::PopItemWidth();
@@ -1162,7 +1179,7 @@ void Application::ResetCamera()
 std::string Application::GetMeshFilename()
 {
 	std::stringstream ss;
-	ss << m_eqConfig.GetOutputPath() << "\\MQ2Nav\\" << m_zoneShortname << ".navmesh";
+	ss << m_eqConfig.GetOutputPath() << "\\" << m_zoneShortname << ".navmesh";
 
 	return ss.str();
 }
@@ -1181,8 +1198,7 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 	std::string eqPath = m_eqConfig.GetEverquestPath();
 	std::string outputPath = m_eqConfig.GetOutputPath();
 
-	auto ptr = std::make_unique<InputGeom>(
-		zoneShortName, eqPath, outputPath);
+	auto ptr = std::make_unique<InputGeom>(zoneShortName, eqPath);
 
 	auto geomLoader = std::make_unique<MapGeometryLoader>(
 		zoneShortName, eqPath, outputPath);
@@ -1320,7 +1336,7 @@ ImportExportSettingsDialog::ImportExportSettingsDialog(
 	, m_import(import)
 {
 	fs::path settingsPath = navMesh->GetNavMeshDirectory();
-	settingsPath /= "Setings";
+	settingsPath /= "Settings";
 	settingsPath /= navMesh->GetZoneName() + ".json";
 
 	m_defaultFilename = std::make_unique<char[]>(256);
@@ -1356,8 +1372,10 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 	}
 	else
 	{
-		ImGui::SetNextWindowPosCenter(ImGuiSetCond_Appearing);
-		ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiSetCond_Appearing);
+		auto& io = ImGui::GetIO();
+
+		ImGui::SetNextWindowPos(io.DisplaySize, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
+		ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_Appearing);
 
 		if (ImGui::Begin(m_import ? "Import Settings" : "Export Settings", open))
 		{

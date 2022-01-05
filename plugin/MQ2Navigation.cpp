@@ -7,10 +7,8 @@
 
 #include "common/Logging.h"
 #include "common/NavMesh.h"
-#include "plugin/ImGuiRenderer.h"
 #include "plugin/KeybindHandler.h"
 #include "plugin/ModelLoader.h"
-#include "plugin/PluginHooks.h"
 #include "plugin/PluginSettings.h"
 #include "plugin/NavigationPath.h"
 #include "plugin/NavigationType.h"
@@ -21,24 +19,20 @@
 #include "plugin/UiController.h"
 #include "plugin/Utilities.h"
 #include "plugin/Waypoints.h"
+#include "imgui/ImGuiUtils.h"
+#include "imgui/fonts/IconsFontAwesome.h"
 
 #include <fmt/format.h>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
-#include <boost/algorithm/string.hpp>
-#include <boost/lexical_cast.hpp>
-#include <imgui/misc/fonts/IconsFontAwesome.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/msvc_sink.h>
 #include <chrono>
 #include <set>
-
-#pragma comment (lib, "d3d9.lib")
-#pragma comment (lib, "d3dx9.lib")
 
 using namespace std::chrono_literals;
 
@@ -210,19 +204,6 @@ void ClickDoor(PDOOR pDoor)
 	ClickSwitch(click, (EQSwitch*)pDoor);
 }
 
-static void ClickGroundItem(PGROUNDITEM pGroundItem)
-{
-	CHAR szName[MAX_STRING] = { 0 };
-	GetFriendlyNameForGroundItem(pGroundItem, szName, sizeof(szName));
-
-	CHAR Command[MAX_STRING] = { 0 };
-	sprintf_s(Command, "/itemtarget \"%s\"", szName);
-	HideDoCommand((PSPAWNINFO)pLocalPlayer, Command, FALSE);
-
-	sprintf_s(Command, "/click left item");
-	HideDoCommand((PSPAWNINFO)pLocalPlayer, Command, FALSE);
-}
-
 glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn)
 {
 	if (pSpawn)
@@ -280,21 +261,21 @@ protected:
 		{
 		case level::critical:
 		case level::err:
-			fmt::format_to(formatted, PLUGIN_MSG "\ar{}", msg.payload);
+			fmt::format_to(fmt::appender(formatted), PLUGIN_MSG_LOG("\ar") "{}", msg.payload);
 			break;
 
 		case level::trace:
 		case level::debug:
-			fmt::format_to(formatted, PLUGIN_MSG "\a#7f7f7f{}", msg.payload);
+			fmt::format_to(fmt::appender(formatted), PLUGIN_MSG_LOG("\a#7f7f7f") "{}", msg.payload);
 			break;
 
 		case level::warn:
-			fmt::format_to(formatted, PLUGIN_MSG "\ay{}", msg.payload);
+			fmt::format_to(fmt::appender(formatted), PLUGIN_MSG_LOG("\ay") "{}", msg.payload);
 			break;
 
 		case level::info:
 		default:
-			fmt::format_to(formatted, PLUGIN_MSG "{}", msg.payload);
+			fmt::format_to(fmt::appender(formatted), PLUGIN_MSG_LOG("\ag") "{}", msg.payload);
 			break;
 		}
 
@@ -332,12 +313,143 @@ spdlog::level::level_enum ExtractLogLevel(std::string_view input,
 
 //============================================================================
 
+class NavAPIImpl : public nav::NavAPI
+{
+public:
+	NavAPIImpl(MQ2NavigationPlugin* plugin)
+		: m_plugin(plugin)
+	{
+	}
+
+	virtual ~NavAPIImpl()
+	{
+	}
+
+	virtual bool IsInitialized() override
+	{
+		return m_plugin->IsInitialized();
+	}
+
+	virtual bool IsNavMeshLoaded() override
+	{
+		return m_plugin->IsMeshLoaded();
+	}
+
+	virtual bool IsNavPathActive() override
+	{
+		return m_plugin->IsActive();
+	}
+
+	virtual bool IsNavPathPaused() override
+	{
+		return m_plugin->IsPaused();
+	}
+
+	virtual bool IsDestinationReachable(std::string_view destination) override
+	{
+		return m_plugin->IsInitialized() && m_plugin->CanNavigateToPoint(destination);
+	}
+
+	virtual float GetPathLength(std::string_view destination) override
+	{
+		if (m_plugin->IsInitialized())
+			return m_plugin->GetNavigationPathLength(destination);
+		return -1.0f;
+	}
+
+	virtual bool ExecuteNavCommand(std::string_view command) override
+	{
+		if (m_plugin->IsInitialized())
+		{
+			m_plugin->Command_Navigate(command);
+			return true;
+		}
+
+		return false;
+	}
+
+	virtual const nav::NavCommandState* GetNavCommandState() override
+	{
+		if (m_plugin->IsInitialized())
+			return m_plugin->GetCurrentCommandState();
+
+		return nullptr;
+	}
+
+	virtual int RegisterNavObserver(nav::fObserverCallback callback, void* userData) override
+	{
+		int observerId = m_nextObserverId++;
+
+		ObserverRecord record;
+		record.callback = callback;
+		record.userData = userData;
+		record.observerId = observerId;
+		observerRecords.push_back(record);
+
+		return observerId;
+	}
+
+	virtual void UnregisterNavObserver(int observerId) override
+	{
+		observerRecords.erase(
+			std::remove_if(
+				observerRecords.begin(), observerRecords.end(),
+				[observerId](const ObserverRecord& rec) { return rec.observerId == observerId; }),
+			observerRecords.end());
+	}
+
+	//============================================================================
+
+	void DispatchObserverEvent(nav::NavObserverEvent event, nav::NavCommandState* state)
+	{
+		for (const ObserverRecord& record : observerRecords)
+		{
+			record.callback(event, *state, record.userData);
+		}
+	}
+
+private:
+	MQ2NavigationPlugin* m_plugin;
+
+	int m_nextObserverId = 1;
+
+	struct ObserverRecord
+	{
+		nav::fObserverCallback callback;
+		void* userData;
+		int observerId;
+	};
+	std::vector<ObserverRecord> observerRecords;
+};
+
+NavAPIImpl* s_navAPIImpl = nullptr;
+
+nav::NavAPI* GetNavAPI()
+{
+	return s_navAPIImpl;
+}
+
+void UpdateCommandState(nav::NavCommandState* state, const DestinationInfo& destinationInfo)
+{
+	state->command = destinationInfo.command;
+	state->destination = destinationInfo.eqDestinationPos;
+	state->paused = false;
+	state->type = destinationInfo.type;
+	state->options = destinationInfo.options;
+	state->tag = destinationInfo.tag;
+}
+
+//============================================================================
+
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
 {
 	InitKeys();
 
-	std::string logFile = std::string(gszINIPath) + "\\MQ2Nav.log";
+	s_navAPIImpl = new NavAPIImpl(this);
+	m_currentCommandState = std::make_unique<nav::NavCommandState>();
+
+	std::string logFile = std::string(gPathLogs) + "\\MQ2Nav.log";
 
 	// set up default logger
 	auto logger = spdlog::create<spdlog::sinks::basic_file_sink_mt>("MQ2Nav", logFile, true);
@@ -355,6 +467,8 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
 
 MQ2NavigationPlugin::~MQ2NavigationPlugin()
 {
+	delete s_navAPIImpl;
+	s_navAPIImpl = nullptr;
 }
 
 void MQ2NavigationPlugin::Plugin_OnPulse()
@@ -365,11 +479,12 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 		if (GetGameState() != GAMESTATE_INGAME)
 			return;
 
-		if (m_retryHooks)
+		if (m_retryInit)
 		{
-			m_retryHooks = false;
+			m_retryInit = false;
 			Plugin_Initialize();
 		}
+
 		return;
 	}
 
@@ -411,18 +526,20 @@ void MQ2NavigationPlugin::Plugin_OnEndZone()
 		m.second->OnEndZone();
 	}
 
-	pDoorTarget = nullptr;
-	pGroundTarget = nullptr;
+	pSwitchTarget = nullptr;
+	mq::ClearGroundSpawn();
 }
 
 void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
 {
 	if (!m_initialized)
 	{
-		if (m_retryHooks) {
-			m_retryHooks = false;
+		if (m_retryInit)
+		{
+			m_retryInit = false;
 			Plugin_Initialize();
 		}
+
 		return;
 	}
 
@@ -446,17 +563,17 @@ void MQ2NavigationPlugin::Plugin_OnAddGroundItem(PGROUNDITEM pGroundItem)
 void MQ2NavigationPlugin::Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem)
 {
 	// if the item we targetted for navigation has been removed, clear it out
-	if (m_pEndingItem == pGroundItem)
+	if (m_endingGround == pGroundItem)
 	{
-		m_pEndingItem = nullptr;
+		m_endingGround.Reset();
 
 		if (m_isActive)
 		{
 			auto info = m_activePath->GetDestinationInfo();
 
-			if (info->pGroundItem == pGroundItem)
+			if (info->groundItem == pGroundItem)
 			{
-				info->pGroundItem = nullptr;
+				info->groundItem = {};
 			}
 		}
 	}
@@ -480,18 +597,34 @@ void MQ2NavigationPlugin::Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn)
 	}
 }
 
+void MQ2NavigationPlugin::Plugin_OnUpdateImGui()
+{
+	if (!m_initialized)
+		return;
+
+	if (auto ui = Get<UiController>())
+	{
+		ui->PerformUpdateUI();
+	}
+}
+
 void MQ2NavigationPlugin::Plugin_Initialize()
 {
 	if (m_initialized)
 		return;
 
-	HookStatus status = InitializeHooks();
-	if (status != HookStatus::Success)
+	if (!gpD3D9Device)
 	{
-		m_retryHooks = (status == HookStatus::MissingDevice);
-		m_initializationFailed = (status == HookStatus::MissingOffset);
+		m_retryInit = true;
 		return;
 	}
+
+	MQRenderCallbacks callbacks;
+	callbacks.CreateDeviceObjects = MQCallback_CreateDeviceObjects;
+	callbacks.InvalidateDeviceObjects = MQCallback_InvalidateDeviceObjects;
+	callbacks.GraphicsSceneRender = MQCallback_GraphicsSceneRender;
+
+	m_renderCallbacks = AddRenderCallbacks(callbacks);
 
 	nav::LoadSettings();
 
@@ -527,6 +660,8 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 
 	AddCommand("/navigate", NavigateCommand);
 
+	AddSettingsPanel("plugins/Nav", MQCallback_NavSettingsPanel);
+
 	InitializeMQ2NavMacroData();
 
 	auto ui = Get<UiController>();
@@ -538,17 +673,60 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	g_renderHandler->AddRenderable(m_gameLine.get());
 }
 
+void MQ2NavigationPlugin::MQCallback_CreateDeviceObjects()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->CreateDeviceObjects();
+	}
+}
+
+void MQ2NavigationPlugin::MQCallback_InvalidateDeviceObjects()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->InvalidateDeviceObjects();
+	}
+}
+
+void MQ2NavigationPlugin::MQCallback_GraphicsSceneRender()
+{
+	if (g_renderHandler)
+	{
+		g_renderHandler->PerformRender();
+	}
+}
+
+void MQ2NavigationPlugin::MQCallback_NavSettingsPanel()
+{
+	if (g_mq2Nav)
+	{
+		g_mq2Nav->DrawNavSettingsPanel();
+	}
+}
+
+void MQ2NavigationPlugin::DrawNavSettingsPanel()
+{
+	if (auto ui = Get<UiController>())
+	{
+		ui->DrawNavSettingsPanel();
+	}
+}
+
 void MQ2NavigationPlugin::Plugin_Shutdown()
 {
 	if (!m_initialized)
 		return;
 
+	RemoveRenderCallbacks(m_renderCallbacks);
+	RemoveSettingsPanel("plugins/Nav");
+	
 	RemoveCommand("/navigate");
 	ShutdownMQ2NavMacroData();
 
 	g_renderHandler->RemoveRenderable(m_gameLine.get());
 
-	Stop();
+	Stop(false);
 
 	// shut down all of the modules
 	for (const auto& m : m_modules)
@@ -560,7 +738,6 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 	m_modules.clear();
 
 	ShutdownRenderer();
-	ShutdownHooks();
 
 	m_initialized = false;
 	spdlog::shutdown();
@@ -569,7 +746,7 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 std::string MQ2NavigationPlugin::GetDataDirectory() const
 {
 	// the root path is where we look for all of our mesh files
-	return std::string(gszINIPath) + "\\MQ2Nav";
+	return std::string(gPathResources) + "\\MQ2Nav";
 }
 
 void MQ2NavigationPlugin::SetLogLevel(spdlog::level::level_enum level)
@@ -587,16 +764,10 @@ spdlog::level::level_enum MQ2NavigationPlugin::GetLogLevel() const
 void MQ2NavigationPlugin::InitializeRenderer()
 {
 	g_renderHandler = new RenderHandler();
-
-	HWND eqhwnd = *reinterpret_cast<HWND*>(EQADDR_HWND);
-	g_imguiRenderer = new ImGuiRenderer(eqhwnd, g_pDevice);
 }
 
 void MQ2NavigationPlugin::ShutdownRenderer()
 {
-	delete g_imguiRenderer;
-	g_imguiRenderer = nullptr;
-
 	if (g_renderHandler)
 	{
 		g_renderHandler->Shutdown();
@@ -645,20 +816,22 @@ static void DoHelp()
 	//WriteChatf(PLUGIN_MSG "\ag/nav options reset\ax - reset options to default");
 }
 
-void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
+void MQ2NavigationPlugin::Command_Navigate(std::string_view line)
 {
+	char mutableLine[MAX_STRING] = { 0 };
+	strncpy_s(mutableLine, line.data(), line.length());
 	CHAR buffer[MAX_STRING] = { 0 };
 	int i = 0;
 
-	SPDLOG_DEBUG("Handling Command: {}", szLine);
+	SPDLOG_DEBUG("Handling Command: {}", line);
 
-	spdlog::level::level_enum requestedLevel = ExtractLogLevel(szLine, m_defaultOptions.logLevel);
+	spdlog::level::level_enum requestedLevel = ExtractLogLevel(line, m_defaultOptions.logLevel);
 	if (requestedLevel != m_defaultOptions.logLevel)
 		SPDLOG_DEBUG("Log level temporarily set to: {}", spdlog::level::to_string_view(requestedLevel));
 
 	ScopedLogLevel scopedLevel{ *m_chatSink, requestedLevel };
 
-	GetArg(buffer, szLine, 1);
+	GetArg(buffer, mutableLine, 1);
 
 	// parse /nav ui
 	if (!_stricmp(buffer, "ui"))
@@ -676,18 +849,8 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 			SPDLOG_WARN("Navigation must be active to pause");
 			return;
 		}
-		m_isPaused = !m_isPaused;
-		if (m_isPaused)
-		{
-			SPDLOG_INFO("Pausing Navigation");
 
-			TrueMoveOff(APPLY_TO_ALL);
-		}
-		else
-		{
-			SPDLOG_INFO("Resuming Navigation");
-		}
-
+		SetPaused(!m_isPaused);
 		return;
 	}
 
@@ -696,7 +859,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	{
 		if (m_isActive)
 		{
-			Stop();
+			Stop(false);
 		}
 		else
 		{
@@ -716,9 +879,9 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	// parse /nav recordwaypoint or /nav rwp
 	if (!_stricmp(buffer, "recordwaypoint") || !_stricmp(buffer, "rwp"))
 	{
-		GetArg(buffer, szLine, 2);
+		GetArg(buffer, mutableLine, 2);
 		std::string waypointName(buffer);
-		GetArg(buffer, szLine, 3);
+		GetArg(buffer, mutableLine, 3);
 		std::string desc(buffer);
 
 		if (waypointName.empty())
@@ -767,7 +930,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	// parse /nav ini
 	if (!_stricmp(buffer, "ini"))
 	{
-		const char* pStr = GetNextArg(szLine, 1);
+		const char* pStr = GetNextArg(mutableLine, 1);
 
 		if (!nav::ParseIniCommand(pStr))
 		{
@@ -789,7 +952,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	{
 		int idx = 2;
 
-		GetArg(buffer, szLine, idx);
+		GetArg(buffer, mutableLine, idx);
 
 		if (!_stricmp(buffer, "reset"))
 		{
@@ -800,10 +963,10 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 		}
 		else
 		{
-			ParseOptions(szLine, idx, m_defaultOptions);
+			ParseOptions(mutableLine, idx, m_defaultOptions, nullptr);
 
 			SPDLOG_INFO("Navigation options updated");
-			SPDLOG_DEBUG("Navigation options updated: {}", szLine);
+			SPDLOG_DEBUG("Navigation options updated: {}", mutableLine);
 		}
 
 		return;
@@ -812,7 +975,7 @@ void MQ2NavigationPlugin::Command_Navigate(const char* szLine)
 	scopedLevel.Release();
 
 	// all thats left is a navigation command. leave if it isn't a valid one.
-	auto destination = ParseDestination(szLine, requestedLevel);
+	auto destination = ParseDestination(mutableLine, requestedLevel);
 	if (!destination->valid)
 		return;
 
@@ -879,7 +1042,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	if (destInfo->clickType != ClickType::None)
 	{
 		m_pEndingDoor = destInfo->pDoor;
-		m_pEndingItem = destInfo->pGroundItem;
+		m_endingGround = destInfo->groundItem;
 	}
 
 	m_activePath = std::make_shared<NavigationPath>(destInfo);
@@ -917,6 +1080,11 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 		m_activePath->SetShowNavigationPaths(nav::GetSettings().show_nav_path);
 		m_isActive = m_activePath->GetPathSize() > 0;
 	}
+	else if (m_activePath->IsFailed())
+	{
+		UpdateCommandState(m_currentCommandState.get(), *m_activePath->GetDestinationInfo());
+		s_navAPIImpl->DispatchObserverEvent(nav::NavObserverEvent::NavFailed, m_currentCommandState.get());
+	}
 
 	m_mapLine->SetNavigationPath(m_activePath.get());
 	m_gameLine->SetNavigationPath(m_activePath.get());
@@ -931,6 +1099,11 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 	if (m_isActive)
 	{
 		EzCommand("/squelch /stick off");
+
+		UpdateCommandState(m_currentCommandState.get(), *m_activePath->GetDestinationInfo());
+		m_currentCommandState->paused = m_isPaused;
+
+		s_navAPIImpl->DispatchObserverEvent(nav::NavObserverEvent::NavStarted, m_currentCommandState.get());
 	}
 }
 
@@ -950,11 +1123,11 @@ void MQ2NavigationPlugin::OnMovementKeyPressed()
 	{
 		if (nav::GetSettings().autobreak)
 		{
-			Stop();
+			Stop(false);
 		}
 		else if (nav::GetSettings().autopause)
 		{
-			m_isPaused = true;
+			SetPaused(true);
 		}
 	}
 }
@@ -967,7 +1140,7 @@ void MQ2NavigationPlugin::AttemptClick()
 		return;
 
 	// don't execute if we've got an item on the cursor.
-	if (GetCharInfo2()->pInventoryArray && GetCharInfo2()->pInventoryArray->Inventory.Cursor)
+	if (GetPcProfile()->GetInventorySlot(InvSlot_Cursor))
 		return;
 
 	clock::time_point now = clock::now();
@@ -981,9 +1154,9 @@ void MQ2NavigationPlugin::AttemptClick()
 	{
 		ClickDoor(m_pEndingDoor);
 	}
-	else if (m_pEndingItem && GetDistance(m_pEndingItem->X, m_pEndingItem->Y) < 25)
+	else if (m_endingGround && m_endingGround.Distance(pControlledPlayer) < 25)
 	{
-		ClickGroundItem(m_pEndingItem);
+		mq::ClickMouseItem(m_endingGround, true);
 	}
 }
 
@@ -1011,8 +1184,8 @@ void MQ2NavigationPlugin::StuckCheck()
 				&& !GetCharInfo()->Stunned
 				&& m_isActive)
 			{
-				MQ2Globals::ExecuteCmd(iJumpKey, 1, 0);
-				MQ2Globals::ExecuteCmd(iJumpKey, 0, 0);
+				ExecuteCmd(iJumpKey, 1, 0);
+				ExecuteCmd(iJumpKey, 0, 0);
 			}
 
 			m_stuckX = GetCharInfo()->pSpawn->X;
@@ -1035,7 +1208,7 @@ void MQ2NavigationPlugin::Look(const glm::vec3& pos, FacingType facing)
 	if (gFaceAngle >= 512.0f) gFaceAngle -= 512.0f;
 	if (gFaceAngle < 0.0f) gFaceAngle += 512.0f;
 
-	((PSPAWNINFO)pCharSpawn)->Heading = (FLOAT)gFaceAngle;
+	pControlledPlayer->Heading = (float)gFaceAngle;
 
 	// This is a sentinel value telling MQ2 to not adjust the face angle
 	gFaceAngle = 10000.0f;
@@ -1077,7 +1250,7 @@ void MQ2NavigationPlugin::MovementFinished(const glm::vec3& dest, FacingType fac
 {
 	SPDLOG_INFO("Reached destination at: {}", dest.yxz());
 
-	if (m_pEndingItem || m_pEndingDoor)
+	if (m_endingGround || m_pEndingDoor)
 	{
 		Look(dest, FacingType::Forward);
 		AttemptClick();
@@ -1087,14 +1260,14 @@ void MQ2NavigationPlugin::MovementFinished(const glm::vec3& dest, FacingType fac
 		Look(dest, facing);
 	}
 
-	Stop();
+	Stop(true);
 }
 
 void MQ2NavigationPlugin::AttemptMovement()
 {
 	if (m_requestStop)
 	{
-		Stop();
+		Stop(false);
 	}
 
 	if (m_isActive)
@@ -1109,6 +1282,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 				&& info->options.track)
 			{
 				info->eqDestinationPos = GetSpawnPosition(info->pSpawn);
+				m_currentCommandState->destination = info->eqDestinationPos;
 			}
 
 			// update path
@@ -1130,7 +1304,7 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 	if (m_activePath->IsAtEnd())
 	{
-		MovementFinished(dest,options.facing);
+		MovementFinished(dest, options.facing);
 	}
 	else if (m_activePath->GetPathSize() > 0)
 	{
@@ -1183,24 +1357,26 @@ void MQ2NavigationPlugin::AttemptMovement()
 
 PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 {
-	PDOOR pDoor = pDoorTarget;
+	char mutableLine[MAX_STRING] = { 0 };
+	strcpy_s(mutableLine, szLine);
+	PDOOR pDoor = pSwitchTarget;
 
 	// short circuit if the argument is "click"
-	GetArg(buffer, szLine, argIndex);
+	GetArg(buffer, mutableLine, argIndex);
 
 	int len = strlen(buffer);
 	if (len == 0 || !_stricmp(buffer, "click"))
 		return pDoor;
 
 	// follows similarly to DoorTarget
-	if (!ppSwitchMgr || !pSwitchMgr) return pDoor;
+	if (!pSwitchMgr) return pDoor;
 	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
 
 	// look up door by id
 	if (!_stricmp(buffer, "id"))
 	{
 		argIndex++;
-		GetArg(buffer, szLine, argIndex++);
+		GetArg(buffer, mutableLine, argIndex++);
 
 		// bad param - no id provided
 		if (!buffer[0])
@@ -1248,13 +1424,13 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 	return pDoor;
 }
 
-std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(const char* szLine,
+std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(std::string_view line,
 	spdlog::level::level_enum logLevel)
 {
 	ScopedLogLevel logScope{ *m_chatSink, logLevel };
 
 	int idx = 1;
-	auto result = ParseDestinationInternal(szLine, idx);
+	auto result = ParseDestinationInternal(line, idx);
 
 	if (result->valid)
 	{
@@ -1264,20 +1440,25 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(const cha
 		//--------------------------------------------------------------------
 		// parse options
 
-		ParseOptions(szLine, idx, result->options);
+		NavigationArguments args;
+
+		ParseOptions(line, idx, result->options, &args);
+
+		result->tag = std::move(args.tag);
 	}
 
 	return result;
 }
 
-std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
-	const char* szLine, int& idx)
+std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(std::string_view line, int& idx)
 {
+	char mutableLine[MAX_STRING] = { 0 };
+	strncpy_s(mutableLine, line.data(), line.size());
 	CHAR buffer[MAX_STRING] = { 0 };
-	GetArg(buffer, szLine, idx++);
+	GetArg(buffer, mutableLine, idx++);
 
 	std::shared_ptr<DestinationInfo> result = std::make_shared<DestinationInfo>();
-	result->command = szLine;
+	result->command = std::string(line);
 	result->options = m_defaultOptions;
 
 	if (!GetCharInfo() || !GetCharInfo()->pSpawn)
@@ -1312,15 +1493,8 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	// parse /nav id #
 	if (!_stricmp(buffer, "id"))
 	{
-		GetArg(buffer, szLine, idx++);
-		DWORD reqId = 0;
-
-		try { reqId = boost::lexical_cast<DWORD>(buffer); }
-		catch (const boost::bad_lexical_cast&)
-		{
-			SPDLOG_ERROR("Bad spawn id!");
-			return result;
-		}
+		GetArg(buffer, mutableLine, idx++);
+		int reqId = GetIntFromString(buffer, 0);
 
 		PSPAWNINFO target = (PSPAWNINFO)GetSpawnByID(reqId);
 		if (!target)
@@ -1342,12 +1516,12 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	// parse /nav spawn <text>
 	if (!_stricmp(buffer, "spawn"))
 	{
-		SEARCHSPAWN sSpawn;
+		MQSpawnSearch sSpawn;
 		ClearSearchSpawn(&sSpawn);
 
 		// Find a | starting from the right side. Split the string in two if we find it.
 		// We'll send the first half to ParseSearchSpawn.
-		PCHAR text = GetNextArg(szLine, idx - 1);
+		PCHAR text = GetNextArg(mutableLine, idx - 1);
 
 		std::string_view tempView{ text };
 		size_t pos = tempView.find_last_of("|");
@@ -1361,7 +1535,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 
 		ParseSearchSpawn(szSpawnSearch, &sSpawn);
 
-		if (PSPAWNINFO pSpawn = SearchThroughSpawns(&sSpawn, (PSPAWNINFO)pCharSpawn))
+		if (PSPAWNINFO pSpawn = SearchThroughSpawns(&sSpawn, pControlledPlayer))
 		{
 			result->eqDestinationPos = GetSpawnPosition(pSpawn);
 			result->pSpawn = pSpawn;
@@ -1372,7 +1546,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		}
 		else
 		{
-			SPDLOG_ERROR("Could not find spawn matching search '{}'", szLine);
+			SPDLOG_ERROR("Could not find spawn matching search '{}'", line);
 		}
 
 		return result;
@@ -1383,7 +1557,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	{
 		if (!_stricmp(buffer, "door"))
 		{
-			PDOOR theDoor = ParseDoorTarget(buffer, szLine, idx);
+			PDOOR theDoor = ParseDoorTarget(buffer, mutableLine, idx);
 
 			if (!theDoor)
 			{
@@ -1400,22 +1574,25 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		}
 		else
 		{
-			if (!pGroundTarget)
+			if (!mq::CurrentGroundSpawn())
 			{
 				SPDLOG_ERROR("No ground item target!");
 				return result;
 			}
 
 			result->type = DestinationType::GroundItem;
-			result->pGroundItem = pGroundTarget;
-			result->eqDestinationPos = { pGroundTarget->X, pGroundTarget->Y, pGroundTarget->Z };
+			result->groundItem = mq::CurrentGroundSpawn();
+
+			CVector3 position = result->groundItem.Position();
+
+			result->eqDestinationPos = { position.X, position.Y, position.Z };
 			result->valid = true;
 
-			SPDLOG_INFO("Navigating to ground item: {}", pGroundTarget->Name);
+			SPDLOG_INFO("Navigating to ground item: {} ({})", result->groundItem.DisplayName(), result->groundItem.ID());
 		}
 
 		// check for click and once
-		GetArg(buffer, szLine, idx++);
+		GetArg(buffer, mutableLine, idx++);
 
 		if (!_stricmp(buffer, "click"))
 		{
@@ -1428,7 +1605,7 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 	// parse /nav waypoint
 	if (!_stricmp(buffer, "waypoint") || !_stricmp(buffer, "wp"))
 	{
-		GetArg(buffer, szLine, idx++);
+		GetArg(buffer, mutableLine, idx++);
 
 		nav::Waypoint wp;
 		if (nav::GetWaypoint(buffer, wp))
@@ -1469,15 +1646,17 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		int i = 0;
 		for (; i < 3; ++i)
 		{
-			char* item = GetArg(buffer, szLine, idx++);
+			const char* item = GetArg(buffer, mutableLine, idx++);
 			if (!item || strlen(item) == 0)
 			{
 				--idx;
 				break;
 			}
 
-			try { tmpDestination[i] = boost::lexical_cast<double>(item); }
-			catch (const boost::bad_lexical_cast&) {
+			std::string_view sv{ item };
+			auto result = std::from_chars(sv.data(), sv.data() + sv.size(), tmpDestination[i]);
+
+			if (result.ec != std::errc{}) {
 				--idx;
 				break;
 			}
@@ -1506,13 +1685,13 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(
 		}
 		else
 		{
-			SPDLOG_ERROR("Invalid location: {}", szLine);
+			SPDLOG_ERROR("Invalid location: {}", line);
 		}
 
 		return result;
 	}
 
-	SPDLOG_ERROR("Invalid nav destination: {}", szLine);
+	SPDLOG_ERROR("Invalid nav destination: {}", line);
 	return result;
 }
 
@@ -1527,22 +1706,23 @@ static bool to_bool(std::string str)
 	return b;
 }
 
-void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOptions& options)
+void MQ2NavigationPlugin::ParseOptions(std::string_view line, int idx, NavigationOptions& options, NavigationArguments* args)
 {
+	char mutableLine[MAX_STRING] = { 0 };
+	strncpy_s(mutableLine, line.data(), line.length());
 	CHAR buffer[MAX_STRING] = { 0 };
 
 	// If line has a | in it, start parsing options from there.
 	std::string tempString;
-	std::string_view tempView{ szLine };
-	size_t pos = tempView.find_last_of("|");
+	size_t pos = line.find_last_of("|");
 	if (pos != std::string_view::npos)
 	{
-		tempString = std::string{ tempView.substr(pos + 1) };
-		szLine = tempString.c_str();
+		std::string_view temp = line.substr(pos + 1);
+		strncpy_s(mutableLine, temp.data(), temp.length());
 		idx = 1;
 	}
 
-	GetArg(buffer, szLine, idx++);
+	GetArg(buffer, mutableLine, idx++);
 
 	while (strlen(buffer) > 0)
 	{
@@ -1567,7 +1747,7 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 
 			if (key == "distance" || key == "dist")
 			{
-				options.distance = boost::lexical_cast<int>(value);
+				options.distance = GetIntFromString(value, 0);
 			}
 			else if (key == "los" || key == "lineofsight")
 			{
@@ -1594,14 +1774,17 @@ void MQ2NavigationPlugin::ParseOptions(const char* szLine, int idx, NavigationOp
 				else if (value != "forward")
 					SPDLOG_ERROR("invalid argument for facing=<forward|backward");
 			}
-
+			else if (args && key == "tag")
+			{
+				args->tag = value;
+			}
 		}
 		catch (const std::exception& ex)
 		{
 			SPDLOG_DEBUG("Failed in ParseOptions: '{}': {}", arg, ex.what());
 		}
 
-		GetArg(buffer, szLine, idx++);
+		GetArg(buffer, mutableLine, idx++);
 	}
 }
 
@@ -1615,12 +1798,12 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const std::shared_ptr<Destina
 	return -1;
 }
 
-float MQ2NavigationPlugin::GetNavigationPathLength(const char* szLine)
+float MQ2NavigationPlugin::GetNavigationPathLength(std::string_view line)
 {
 	float result = -1.f;
 
 	// Find distance to path. Logging is disabled
-	auto dest = ParseDestination(szLine, spdlog::level::off);
+	auto dest = ParseDestination(line, spdlog::level::off);
 	if (dest->valid)
 	{
 		ScopedLogLevel level{ *m_chatSink, dest->options.logLevel };
@@ -1631,10 +1814,10 @@ float MQ2NavigationPlugin::GetNavigationPathLength(const char* szLine)
 	return result;
 }
 
-bool MQ2NavigationPlugin::CanNavigateToPoint(const char* szLine)
+bool MQ2NavigationPlugin::CanNavigateToPoint(std::string_view line)
 {
 	bool result = false;
-	auto dest = ParseDestination(szLine, spdlog::level::off);
+	auto dest = ParseDestination(line, spdlog::level::off);
 	if (dest->valid)
 	{
 		ScopedLogLevel level{ *m_chatSink, dest->options.logLevel };
@@ -1650,20 +1833,54 @@ bool MQ2NavigationPlugin::CanNavigateToPoint(const char* szLine)
 	return result;
 }
 
-void MQ2NavigationPlugin::Stop()
+void MQ2NavigationPlugin::Stop(bool reachedDestination)
 {
 	if (m_isActive)
 	{
-		SPDLOG_INFO("Stopping navigation");
+		if (!reachedDestination)
+		{
+			SPDLOG_INFO("Stopping navigation");
+			s_navAPIImpl->DispatchObserverEvent(nav::NavObserverEvent::NavCanceled, m_currentCommandState.get());
+		}
+		else
+		{
+			s_navAPIImpl->DispatchObserverEvent(nav::NavObserverEvent::NavDestinationReached, m_currentCommandState.get());
+		}
 
 		TrueMoveOff(APPLY_TO_ALL);
+		m_isActive = false;
 	}
 
 	ResetPath();
 }
 
+void MQ2NavigationPlugin::SetPaused(bool paused)
+{
+	if (paused == m_isPaused)
+		return;
+	m_isPaused = paused;
+	if (m_isPaused)
+	{
+		SPDLOG_INFO("Pausing Navigation");
+		TrueMoveOff(APPLY_TO_ALL);
+	}
+	else
+	{
+		SPDLOG_INFO("Resuming Navigation");
+	}
+
+	m_currentCommandState->paused = m_isPaused;
+	s_navAPIImpl->DispatchObserverEvent(nav::NavObserverEvent::NavPauseChanged, m_currentCommandState.get());
+}
+
 void MQ2NavigationPlugin::ResetPath()
 {
+	// Double check if we need to send cancel event.
+	if (m_activePath && m_isActive)
+	{
+		s_navAPIImpl->DispatchObserverEvent(nav::NavObserverEvent::NavCanceled, m_currentCommandState.get());
+	}
+
 	if (m_mapLine)
 		m_mapLine->SetNavigationPath(nullptr);
 	if (m_gameLine)
@@ -1677,7 +1894,7 @@ void MQ2NavigationPlugin::ResetPath()
 	Get<SwitchHandler>()->SetActive(false);
 
 	m_pEndingDoor = nullptr;
-	m_pEndingItem = nullptr;
+	m_endingGround.Reset();
 	m_activePath.reset();
 }
 
@@ -1737,7 +1954,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 		ImGui::NewLine();
 
-		ImGui::PushFont(ImGuiEx::LargeTextFont);
+		ImGui::PushFont(mq::imgui::LargeTextFont);
 		ImGui::TextColored(ImColor(29, 171, 255), "Navigation State");
 		ImGui::PopFont();
 		ImGui::Separator();
@@ -1780,7 +1997,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 			case DestinationType::GroundItem:
 				ImGui::Text("Navigating to object:"); ImGui::SameLine();
-				ImGui::TextColored(ImColor(0, 255, 0), info->pGroundItem->Name);
+				ImGui::TextColored(ImColor(0, 255, 0), "%s (%d)", info->groundItem.DisplayName().c_str(), info->groundItem.ID());
 				break;
 
 			case DestinationType::Location:
@@ -1788,7 +2005,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 				ImGui::Text("Navigating to location:"); ImGui::SameLine();
 				{
 					//ImGui::PushFont(ImGuiEx::ConsoleFont);
-					auto& pos = info->eqDestinationPos;
+					const auto& pos = info->eqDestinationPos;
 					ImGui::TextColored(ImColor(0, 255, 0), "%.2f %.2f %.2f", pos.x, pos.y, pos.z);
 					//ImGui::PopFont();
 				}
@@ -1804,12 +2021,10 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 			}
 			ImGui::SameLine();
 
-			if (ImGui::Checkbox("Paused", &m_isPaused))
+			bool tempPaused = m_isPaused;
+			if (ImGui::Checkbox("Paused", &tempPaused))
 			{
-				if (m_isPaused)
-				{
-					TrueMoveOff(APPLY_TO_ALL);
-				}
+				SetPaused(tempPaused);
 			}
 
 			ImGui::NewLine();
@@ -1905,7 +2120,7 @@ void MQ2NavigationPlugin::RenderPathList()
 		}
 
 		ImGui::NextColumn();
-		ImGui::PushFont(ImGuiEx::ConsoleFont);
+		ImGui::PushFont(mq::imgui::ConsoleFont);
 
 		ImGui::TextColored(color, "%04d: %.2f, %.2f, %.2f", i,
 			pos[0], pos[1], pos[2]);

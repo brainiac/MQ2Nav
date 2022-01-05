@@ -9,9 +9,10 @@
 #include "meshgen/EQConfig.h"
 #include "common/NavMesh.h"
 #include "common/Utilities.h"
+#include "imgui/ImGuiUtils.h"
 
 #include <Recast.h>
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 #include <imgui/imgui.h>
 #include <spdlog/spdlog.h>
@@ -60,7 +61,7 @@ struct ImGuiConsoleLog
 
 	void Draw(const char* title, bool* p_opened = nullptr)
 	{
-		ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiSetCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
 		ImGui::Begin(title, p_opened);
 		if (ImGui::Button("Clear")) Clear();
 		ImGui::SameLine();
@@ -71,7 +72,7 @@ struct ImGuiConsoleLog
 		ImGui::BeginChild("scrolling");
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 1));
 		if (copy) ImGui::LogToClipboard();
-		ImGui::PushFont(ImGuiEx::ConsoleFont);
+		ImGui::PushFont(mq::imgui::ConsoleFont);
 
 		if (Filter.IsActive())
 		{
@@ -93,7 +94,7 @@ struct ImGuiConsoleLog
 		ImGui::PopFont();
 
 		if (ScrollToBottom)
-			ImGui::SetScrollHere(1.0f);
+			ImGui::SetScrollHereY(1.0f);
 		ScrollToBottom = false;
 
 		ImGui::PopStyleVar();

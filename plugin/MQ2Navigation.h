@@ -5,10 +5,11 @@
 #pragma once
 
 #include "common/NavModule.h"
-#include "common/Signal.h"
 #include "plugin/MapAPI.h"
+#include "../PluginAPI.h"
 
-#include <MQ2Plugin.h>
+#include <mq/Plugin.h>
+#include <mq/base/Signal.h>
 #include <spdlog/common.h>
 
 #include <memory>
@@ -16,11 +17,17 @@
 #include <typeinfo>
 #include <unordered_map>
 
+#ifndef GLM_FORCE_RADIANS
 #define GLM_FORCE_RADIANS
+#endif
+#ifndef GLM_FORCE_CTOR_INIT
+#define GLM_FORCE_CTOR_INIT
+#endif
+
 #include <glm/glm.hpp>
 
-#define PLUGIN_MSG "\ag[MQ2Nav]\ax "
-
+#define PLUGIN_MSG "\ag[Nav]\ax "
+#define PLUGIN_MSG_LOG(x) x "[Nav]\ax "
 
 #if !defined(GAMESTATE_ZONING)
 #define GAMESTATE_ZONING 4
@@ -52,17 +59,16 @@ class ImGuiRenderer;
 class NavMesh;
 class SwitchHandler;
 
+class NavAPIImpl;
+class NavAPI;
+
+nav::NavAPI* GetNavAPI();
+
 //----------------------------------------------------------------------------
 
-enum class DestinationType
-{
-	None,
-	Location,
-	Door,
-	GroundItem,
-	Spawn,
-	Waypoint,
-};
+using nav::DestinationType;
+using nav::NavigationOptions;
+using nav::FacingType;
 
 enum class ClickType
 {
@@ -76,22 +82,9 @@ enum class HeightType
 	Nearest
 };
 
-enum class FacingType
+struct NavigationArguments
 {
-	Forward,
-	Backward,
-};
-
-
-struct NavigationOptions
-{
-	float distance = 0.f;          // distance to target
-	bool lineOfSight = true;       // does target need to be in los
-	bool paused = false;           // pathing is paused
-	bool track = true;             // if spawn is to be tracked
-	FacingType facing = FacingType::Forward; //  Forward = normal, Backward = move along path facing backward.
-	// set a new default log level while the path is running. info is the default.
-	spdlog::level::level_enum logLevel = spdlog::level::info;
+	std::string tag;
 };
 
 struct DestinationInfo
@@ -103,12 +96,13 @@ struct DestinationInfo
 
 	PSPAWNINFO pSpawn = nullptr;
 	PDOOR pDoor = nullptr;
-	PGROUNDITEM pGroundItem = nullptr;
+	MQGroundSpawn groundItem;
 	ClickType clickType = ClickType::None;
 	HeightType heightType = HeightType::Explicit;
 	NavigationOptions options;
 	std::string waypoint;
 	bool isTarget = false;
+	std::string tag;
 
 	bool valid = false;
 };
@@ -164,12 +158,12 @@ public:
 	void Plugin_OnRemoveGroundItem(PGROUNDITEM pGroundItem);
 	void Plugin_OnAddSpawn(PSPAWNINFO pSpawn);
 	void Plugin_OnRemoveSpawn(PSPAWNINFO pSpawn);
+	void Plugin_OnUpdateImGui();
 
 	bool IsInitialized() const { return m_initialized; }
-	bool InitializationFailed() const { return m_initializationFailed; }
 
 	// Handler for /navigate
-	void Command_Navigate(const char* szLine);
+	void Command_Navigate(std::string_view line);
 
 	std::string GetDataDirectory() const;
 
@@ -215,17 +209,16 @@ public:
 	bool IsMeshLoaded() const;
 
 	// Check if a point is pathable (given a coordinate string)
-	bool CanNavigateToPoint(const char* szLine);
+	bool CanNavigateToPoint(std::string_view line);
 
 	// Check how far away a point is (given a coordinate string)
-	float GetNavigationPathLength(const char* szLine);
+	float GetNavigationPathLength(std::string_view line);
 
 	// Parse a destination command from string
-	std::shared_ptr<DestinationInfo> ParseDestination(const char* szLine,
+	std::shared_ptr<DestinationInfo> ParseDestination(std::string_view line,
 		spdlog::level::level_enum logLevel = spdlog::level::err);
 
-	void ParseOptions(const char* szLine, int index,
-		NavigationOptions& target);
+	void ParseOptions(std::string_view line, int index, NavigationOptions& target, NavigationArguments* args);
 
 	// Begin navigating to a point
 	void BeginNavigation(const std::shared_ptr<DestinationInfo>& dest);
@@ -236,6 +229,8 @@ public:
 	std::shared_ptr<NavigationPath> GetActivePath() const { return m_activePath; }
 
 	std::shared_ptr<NavigationLine> GetGameLine() const { return m_gameLine; }
+
+	nav::NavCommandState* GetCurrentCommandState() { return m_isActive ? m_currentCommandState.get() : nullptr; }
 
 private:
 	void InitializeRenderer();
@@ -248,7 +243,7 @@ private:
 
 	void RenderPathList();
 
-	std::shared_ptr<DestinationInfo> ParseDestinationInternal(const char* szLine, int& argIndex);
+	std::shared_ptr<DestinationInfo> ParseDestinationInternal(std::string_view line, int& argIndex);
 
 	//----------------------------------------------------------------------------
 
@@ -264,11 +259,18 @@ private:
 	void MovementFinished(const glm::vec3& dest, FacingType facing);
 	void AttemptMovement();
 
-	void Stop();
+	void Stop(bool reachedDestination);
+	void SetPaused(bool paused);
 
 	void ResetPath();
 
 	void OnMovementKeyPressed();
+
+	static void MQCallback_CreateDeviceObjects();
+	static void MQCallback_InvalidateDeviceObjects();
+	static void MQCallback_GraphicsSceneRender();
+	static void MQCallback_NavSettingsPanel();
+	void DrawNavSettingsPanel();
 
 private:
 	std::shared_ptr<NavigationPath> m_activePath;
@@ -278,17 +280,15 @@ private:
 	std::shared_ptr<NavigationMapLine> m_mapLine;
 	std::shared_ptr<NavigationLine> m_gameLine;
 
-	Signal<>::ScopedConnection m_uiConn;
+	mq::Signal<>::ScopedConnection m_uiConn;
 
 	bool m_initialized = false;
+	bool m_retryInit = false;
 	int m_zoneId = -1;
-
-	bool m_retryHooks = false;
-	bool m_initializationFailed = false;
 
 	// ending criteria (pick up item / click door)
 	PDOOR m_pEndingDoor = nullptr;
-	PGROUNDITEM m_pEndingItem = nullptr;
+	MQGroundSpawn m_endingGround;
 
 	// whether the current path is active or not
 	bool m_isActive = false;
@@ -306,19 +306,21 @@ private:
 
 	clock::time_point m_pathfindTimer = clock::now();
 
-	Signal<>::ScopedConnection m_keypressConn;
-	Signal<TabPage>::ScopedConnection m_updateTabConn;
+	mq::Signal<>::ScopedConnection m_keypressConn;
+	mq::Signal<TabPage>::ScopedConnection m_updateTabConn;
 
 	std::unordered_map<size_t, std::unique_ptr<NavModule>> m_modules;
 	NavigationOptions m_defaultOptions;
 
 	std::shared_ptr<spdlog::sinks::sink> m_chatSink;
+
+	std::unique_ptr<nav::NavCommandState> m_currentCommandState;
+	int m_renderCallbacks = -1;
 };
 
 extern MQ2NavigationPlugin* g_mq2Nav;
 
 extern RenderHandler* g_renderHandler;
-extern ImGuiRenderer* g_imguiRenderer;
 
 //----------------------------------------------------------------------------
 
@@ -346,7 +348,7 @@ private:
 private:
 	NavigationPath* m_path = nullptr;
 	bool m_enabled = true;
-	Signal<>::ScopedConnection m_updateConn;
+	mq::Signal<>::ScopedConnection m_updateConn;
 
 	nav::MapLine m_mapLine;
 	nav::MapCircle m_mapCircle;

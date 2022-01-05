@@ -5,7 +5,8 @@
 #pragma once
 
 #include "common/NavModule.h"
-#include "common/Signal.h"
+
+#include <mq/base/Signal.h>
 
 //----------------------------------------------------------------------------
 
@@ -20,7 +21,7 @@ public:
 
 	void ReloadKeybinds();
 
-	Signal<> OnMovementKeyPressed;
+	mq::Signal<> OnMovementKeyPressed;
 
 private:
 	void InstallKeybinds();

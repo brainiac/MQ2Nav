@@ -19,18 +19,12 @@
     <Filter Include="Proto Files\Generated Files">
       <UniqueIdentifier>{99cd0bff-a60e-4967-ac60-e29b97046a0a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\fmt">
-      <UniqueIdentifier>{1a6915de-3b37-44a1-b17b-36c71d8affe8}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ZoneData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FindPattern.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Signal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Utilities.h">
@@ -80,15 +74,6 @@
     <ClCompile Include="JsonProto.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\dependencies\fmt\src\format.cc">
-      <Filter>Source Files\fmt</Filter>
-    </ClCompile>
-    <ClCompile Include="..\dependencies\fmt\src\os.cc">
-      <Filter>Source Files\fmt</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Natvis Include="..\dependencies\glm\util\glm.natvis" />
   </ItemGroup>
   <ItemGroup>
     <ProtocolBuffer Include="proto\NavMeshFile.proto">
@@ -99,6 +84,5 @@
     <None Include="..\cpp.hint">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="packages.config" />
   </ItemGroup>
 </Project>

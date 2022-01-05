@@ -6,7 +6,12 @@
 
 #pragma message( "Building Precompiled Header for MQ2Nav" )
 
-#define GLM_FORCE_RADIANS
+#if !defined(GLM_FORCE_RADIANS)
+#error Missing GLM_FORCE_RADIANS define!
+#endif
+#if !defined(GLM_FORCE_CTOR_INIT)
+#error Missing GLM_FORCE_CTOR_INIT define!
+#endif
 
 #include <imgui.h>
 #include <fmt/format.h>
@@ -19,8 +24,6 @@
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/msvc_sink.h>
-#include <boost/algorithm/string.hpp>
-#include <boost/lexical_cast.hpp>
 
 #include <algorithm>
 #include <atomic>

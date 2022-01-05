@@ -7,8 +7,8 @@
 
 #include "common/Utilities.h"
 
+#include <mq/base/String.h>
 #include <imgui.h>
-#include <boost/algorithm/string.hpp>
 #include <spdlog/spdlog.h>
 
 namespace nav {
@@ -77,12 +77,12 @@ void LoadWaypoints(int zoneId)
 	CHAR pchValue[MAX_STRING];
 	Waypoint wp;
 
-	if (GetPrivateProfileString(g_shortZone.c_str(), NULL, "", pchKeys, MAX_STRING * 10, INIFileName))
+	if (::GetPrivateProfileStringA(g_shortZone.c_str(), NULL, "", pchKeys, MAX_STRING * 10, INIFileName))
 	{
 		PCHAR pKeys = pchKeys;
 		while (pKeys[0] || pKeys[1])
 		{
-			GetPrivateProfileString(g_shortZone.c_str(), pKeys, "", pchValue, MAX_STRING, INIFileName);
+			::GetPrivateProfileStringA(g_shortZone.c_str(), pKeys, "", pchValue, MAX_STRING, INIFileName);
 
 			std::string name(pKeys);
 			bool valid = true;
@@ -128,14 +128,13 @@ void SaveWaypoint(const Waypoint& wp)
 {
 	std::string& serialized = wp.Serialize();
 
-	WritePrivateProfileString(g_shortZone.c_str(), wp.name.c_str(),
-		serialized.c_str(), INIFileName);
+	WritePrivateProfileString(g_shortZone, wp.name, serialized, INIFileName);
 }
 
 bool GetWaypoint(const std::string& name, Waypoint& wp)
 {
 	auto iter = std::find_if(g_waypoints.begin(), g_waypoints.end(),
-		[&name](const Waypoint& wp) { return boost::iequals(wp.name, name); });
+		[&name](const Waypoint& wp) { return mq::ci_equals(wp.name, name); });
 
 	bool result = (iter != g_waypoints.end());
 
@@ -153,7 +152,7 @@ bool DeleteWaypoint(const std::string& name)
 
 	g_waypoints.erase(iter);
 
-	WritePrivateProfileString(g_shortZone.c_str(), name.c_str(), NULL, INIFileName);
+	::WritePrivateProfileStringA(g_shortZone.c_str(), name.c_str(), "", INIFileName);
 	return true;
 }
 
@@ -250,7 +249,7 @@ void RenderWaypointsUI()
 	ImGui::Text("Waypoints for");
 	ImGui::SameLine(); ImGui::TextColored(ImColor(66, 244, 110), "%s", g_zoneName.c_str());
 
-	ImGui::SameLine(ImGui::GetContentRegionAvailWidth() - 100);
+	ImGui::SameLine(ImGui::GetContentRegionAvail().x - 100);
 	if (ImGui::Button("New", ImVec2(100, 0))) {
 		editWaypoint = Waypoint();
 		editWaypointName[0] = 0;
@@ -302,7 +301,7 @@ void RenderWaypointsUI()
 	{
 		ImVec2 rightPaneContentSize = ImGui::GetContentRegionAvail();
 		ImGui::BeginChild("WaypointsView", ImVec2(rightPaneContentSize.x, rightPaneContentSize.y - 5));
-		ImGui::BeginChild("TopPart", ImVec2(0, -(ImGui::GetItemsLineHeightWithSpacing() + 1)));
+		ImGui::BeginChild("TopPart", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + 1)));
 
 		ImGui::Text("Waypoint Name");
 		ImGui::PushItemWidth(-1);
@@ -313,7 +312,7 @@ void RenderWaypointsUI()
 		ImGui::PushItemWidth(-44);
 		glm::vec3 tempPos = editWaypoint.location;
 		std::swap(tempPos.x, tempPos.y);
-		if (ImGui::InputFloat3("##Location", &tempPos.x, 2))
+		if (ImGui::InputFloat3("##Location", &tempPos.x, "%.2f"))
 		{
 			std::swap(tempPos.x, tempPos.y);
 			editWaypoint.location = tempPos;

@@ -21,6 +21,8 @@
 #include <DetourNode.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
+#include <d3dx9.h>
+
 
 //----------------------------------------------------------------------------
 // constants
@@ -97,9 +99,6 @@ void NavigationPath::SetShowNavigationPaths(bool renderPaths)
 		m_line = g_mq2Nav->GetGameLine();
 		m_line->SetVisible(m_renderPaths);
 		m_line->SetCurrentPos(m_lastPos);
-
-		m_debugDrawGrp = std::make_unique<RenderGroup>(g_pDevice);
-		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
 	}
 	else
 	{
@@ -269,6 +268,12 @@ void NavigationPath::UpdatePath(bool force, bool incremental)
 	}
 	m_renderPath = renderPath;
 
+	if (m_renderPaths && !m_debugDrawGrp && gpD3D9Device)
+	{
+		m_debugDrawGrp = std::make_unique<RenderGroup>(gpD3D9Device);
+		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
+	}
+
 	// Give the path debug an update
 	if (m_debugDrawGrp)
 	{
@@ -338,6 +343,7 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 			SPDLOG_ERROR("Could not locate starting point on navmesh: {}", startPos.zxy());
 		}
 
+		m_failed = true;
 		return {};
 	}
 
@@ -356,6 +362,7 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 			SPDLOG_ERROR("Could not locate destination on navmesh: {}", endPos.zxy());
 		}
 
+		m_failed = true;
 		return {};
 	}
 
@@ -421,6 +428,8 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	if (dtStatusFailed(status))
 	{
 		SPDLOG_DEBUG("findPath from {} to {} failed.", startPos, endPos);
+
+		m_failed = true;
 		return {};
 	}
 
@@ -434,6 +443,8 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 		{
 			SPDLOG_ERROR("Could not reach destination (too far away): {}", endPos.zxy());
 		}
+
+		m_failed = true;
 		return {};
 	}
 
@@ -448,6 +459,7 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 			SPDLOG_ERROR("Could not find path to destination: {}", endPos.zxy());
 		}
 
+		m_failed = true;
 		return {};
 	}
 
@@ -553,7 +565,7 @@ bool NavigationLine::CreateDeviceObjects()
 	ID3DXBuffer* errors = nullptr;
 
 	HRESULT hr = D3DXCreateEffect(
-		g_pDevice,
+		gpD3D9Device,
 		shaderFile.data(),
 		shaderFile.length(),
 		nullptr,
@@ -589,7 +601,7 @@ bool NavigationLine::CreateDeviceObjects()
 		D3DDECL_END()
 	};
 
-	hr = g_pDevice->CreateVertexDeclaration(vertexElements, &m_vDeclaration);
+	hr = gpD3D9Device->CreateVertexDeclaration(vertexElements, &m_vDeclaration);
 	if (FAILED(hr))
 	{
 		InvalidateDeviceObjects();
@@ -639,11 +651,11 @@ void NavigationLine::Render()
 
 	D3DXMATRIX world;
 	D3DXMatrixIdentity(&world);
-	g_pDevice->SetTransform(D3DTS_WORLD, &world);
+	gpD3D9Device->SetTransform(D3DTS_WORLD, &world);
 
 	D3DXMATRIX view, proj, mWVP, mWV;
-	g_pDevice->GetTransform(D3DTS_VIEW, &view);
-	g_pDevice->GetTransform(D3DTS_PROJECTION, &proj);
+	gpD3D9Device->GetTransform(D3DTS_VIEW, &view);
+	gpD3D9Device->GetTransform(D3DTS_PROJECTION, &proj);
 
 	mWV = world * view;
 	mWVP = world * view * proj;
@@ -653,13 +665,13 @@ void NavigationLine::Render()
 	m_effect->SetMatrix("mWVP", &mWVP);
 
 	DWORD depthTest = 0, depthFunc = 0;
-	g_pDevice->GetRenderState(D3DRS_ZENABLE, &depthTest);
-	g_pDevice->GetRenderState(D3DRS_ZFUNC, &depthFunc);
+	gpD3D9Device->GetRenderState(D3DRS_ZENABLE, &depthTest);
+	gpD3D9Device->GetRenderState(D3DRS_ZFUNC, &depthFunc);
 
-	g_pDevice->SetVertexDeclaration(m_vDeclaration);
-	g_pDevice->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
+	gpD3D9Device->SetVertexDeclaration(m_vDeclaration);
+	gpD3D9Device->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
 
-	g_pDevice->Clear(0, 0, D3DCLEAR_STENCIL, 0, 0, 0);
+	gpD3D9Device->Clear(0, 0, D3DCLEAR_STENCIL, 0, 0, 0);
 
 	UINT passes = 0;
 	m_effect->Begin(&passes, 0);
@@ -676,7 +688,7 @@ void NavigationLine::Render()
 				m_effect->EndPass();
 				continue;
 			}
-			g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_GREATER);
+			gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_GREATER);
 			m_effect->SetFloat("opacity", gNavigationLineStyle.hiddenOpacity);
 			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth));
 			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.hiddenColor);
@@ -684,7 +696,7 @@ void NavigationLine::Render()
 			break;
 
 		case 1: // visible
-			g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+			gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
 			m_effect->SetFloat("opacity", gNavigationLineStyle.opacity);
 			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth));
 			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.visibleColor);
@@ -697,7 +709,7 @@ void NavigationLine::Render()
 				m_effect->EndPass();
 				continue;
 			}
-			g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_GREATER);
+			gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_GREATER);
 			m_effect->SetFloat("opacity", gNavigationLineStyle.hiddenOpacity);
 			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth);
 			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
@@ -705,7 +717,7 @@ void NavigationLine::Render()
 			break;
 
 		case 3: // border - visible
-			g_pDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+			gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
 			m_effect->SetFloat("opacity", gNavigationLineStyle.opacity);
 			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth);
 			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
@@ -718,7 +730,7 @@ void NavigationLine::Render()
 		// render
 		for (auto& cmd : m_commands)
 		{
-			g_pDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP,
+			gpD3D9Device->DrawPrimitive(D3DPT_TRIANGLESTRIP,
 				cmd.StartVertex, cmd.PrimitiveCount);
 		}
 
@@ -727,8 +739,8 @@ void NavigationLine::Render()
 
 	m_effect->End();
 
-	g_pDevice->SetRenderState(D3DRS_ZENABLE, depthTest);
-	g_pDevice->SetRenderState(D3DRS_ZFUNC, depthFunc);
+	gpD3D9Device->SetRenderState(D3DRS_ZENABLE, depthTest);
+	gpD3D9Device->SetRenderState(D3DRS_ZFUNC, depthFunc);
 }
 
 void NavigationLine::GenerateBuffers()
@@ -747,7 +759,12 @@ void NavigationLine::GenerateBuffers()
 			m_vertexBuffer->Release();
 		}
 
-		HRESULT hr = g_pDevice->CreateVertexBuffer(bufferLength * sizeof(TVertex),
+		if (!gpD3D9Device) {
+			m_vertexBuffer = nullptr;
+			return;
+		}
+
+		HRESULT hr = gpD3D9Device->CreateVertexBuffer(bufferLength * sizeof(TVertex),
 			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT,
 			&m_vertexBuffer, nullptr);
 
@@ -764,7 +781,7 @@ void NavigationLine::GenerateBuffers()
 	if (m_vertexBuffer->Lock(0, bufferLength * sizeof(TVertex), (void**)&vertexDest, D3DLOCK_DISCARD) < 0)
 		return;
 
-	D3DXVECTOR3* pt = (D3DXVECTOR3*)&m_path->m_currentPath->verts[0];
+	glm::vec3* pt = &m_path->m_currentPath->verts[0];
 	uint8_t* flags = &m_path->m_currentPath->flags[0];
 
 	int index = 0;
@@ -776,7 +793,7 @@ void NavigationLine::GenerateBuffers()
 		float type = 0.f;
 
 		// this point
-		D3DXVECTOR3 v0;
+		glm::vec3 v0;
 		if (i == -1) // use starting pos for first point
 		{
 			v0.x = m_startPos.z;
@@ -797,20 +814,20 @@ void NavigationLine::GenerateBuffers()
 		}
 
 		// next point
-		D3DXVECTOR3 v1;
+		glm::vec3 v1;
 		v1.x = pt[1].z;
 		v1.y = pt[1].x;
 		v1.z = pt[1].y + 1;
 
 		// following point
-		D3DXVECTOR3 nextPos;
+		glm::vec3 nextPos;
 		int nextIdx = node < size - 2 ? 2 : 1;
 		nextPos.x = pt[nextIdx].z;
 		nextPos.y = pt[nextIdx].x;
 		nextPos.z = pt[nextIdx].y + 1;
 
 		// previous point
-		D3DXVECTOR3 prevPos;
+		glm::vec3 prevPos;
 		int prevIdx = node > 0 ? -1 : 0;
 		prevPos.x = pt[prevIdx].z;
 		prevPos.y = pt[prevIdx].x;

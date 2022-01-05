@@ -5,20 +5,17 @@
 #include "pch.h"
 #include "ModelLoader.h"
 
-#include "plugin/ImGuiRenderer.h"
 #include "plugin/DebugDrawDX.h"
 #include "plugin/PluginSettings.h"
 #include "plugin/Renderable.h"
 #include "plugin/RenderHandler.h"
 #include "plugin/Utilities.h"
+#include "imgui/ImGuiUtils.h"
 
-#include <boost/algorithm/string.hpp>
 #include <imgui.h>
-#include <imgui/custom/imgui_column_headers.h>
 #include <rapidjson/prettywriter.h>
 
-#define GLM_FORCE_RADIANS
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 #include <DebugDraw.h>
 #include <d3d9types.h>
@@ -31,10 +28,7 @@ float GetDoorScale(PDOOR door)
 	return (float)door->ScaleFactor / 100.0f;
 }
 
-#if defined(Teleport_Table_x) && defined(Teleport_Table_Size_x)
-#define USE_TP_COORDS
-#endif
-
+#define RENDER_MODELS  0
 
 #pragma region Object Model Debug Rendering
 
@@ -189,13 +183,15 @@ public:
 					bool zDisabled = m_targetted || m_highlight;
 
 					// create a matrix to scale the object by the scale amount
-					D3DXMATRIX scale;
 					float scaleFactor = GetDoorScale(door);
-					D3DXMatrixScaling(&scale, scaleFactor, scaleFactor, scaleFactor);
+
+					//D3DXMatrixScaling(&scale, scaleFactor, scaleFactor, scaleFactor);
 
 					// multiply the transform matrix by the scale matrix to produce new matrix
-					D3DXMATRIX* mtx = (D3DXMATRIX*)(&door->pSwitch->transformMatrix); 
-					scale = scale * *mtx;
+					glm::mat4* mtx = (glm::mat4*)(&door->pSwitch->transformMatrix);
+					glm::mat4 scale = glm::scale(*mtx, glm::vec3(scaleFactor));
+
+					//scale = scale * *mtx;
 
 #if 0
 					// if attachment matrix exists, apply it next
@@ -211,13 +207,13 @@ public:
 					if (m_targetted)
 					{
 						m_grpModel->SetTransform(&scale);
-						m_grpModel->Render(phase);
+						m_grpModel->Render();
 					}
 #endif
 
 					if (m_targetted || m_highlight || s_drawBoundingBoxes)
 					{
-						g_pDevice->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
+						gpD3D9Device->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
 						m_grpBB->SetTransform(&scale);
 						m_grpBB->Render();
 					}
@@ -277,36 +273,6 @@ private:
 #pragma endregion
 
 //----------------------------------------------------------------------------
-
-#define RENDER_MODELS  0
-
-const char* GetTeleportName(DWORD id)
-{
-#if defined(USE_TP_COORDS)
-	struct tp_coords
-	{
-		DWORD    Index;
-		FLOAT    Y;
-		FLOAT    X;
-		FLOAT    Z;
-		FLOAT    Heading;
-		DWORD    ZoneId;
-		DWORD    FilterId;
-		DWORD    VehicalId;
-	};
-	DWORD TableSize = *(DWORD*)Teleport_Table_Size;
-	tp_coords *tp = (tp_coords*)Teleport_Table;
-
-	if (id < TableSize)
-	{
-		DWORD zoneId = tp[id].ZoneId & 0x7fff;
-
-		return GetShortZone(zoneId);
-	}
-#endif
-
-	return "UNKNOWN";
-}
 
 class DoorsDebugUI
 {
@@ -369,8 +335,8 @@ void ModelLoader::OnPulse()
 	}
 
 	DWORD doorTargetId = -1;
-	if (pDoorTarget)
-		doorTargetId = pDoorTarget->ID;
+	if (pSwitchTarget)
+		doorTargetId = pSwitchTarget->ID;
 	m_lastDoorTargetId = doorTargetId;
 
 	// Don't render doortarget if setting is disabled.
@@ -420,12 +386,11 @@ void ModelLoader::UpdateModels()
 	m_modelData.clear();
 
 	const char* zoneName = GetShortZone(m_zoneId);
-	CHAR szEQPath[MAX_STRING];
-	GetEQPath(szEQPath, MAX_STRING);
+	const std::string pathEQ = std::filesystem::absolute(".").string();
 
 	// this uses a lot of cpu, spin it off into its own thread so it
 	// doesn't block themain thread.
-	auto zoneData = std::make_unique<ZoneData>(szEQPath, zoneName);
+	auto zoneData = std::make_unique<ZoneData>(pathEQ, zoneName);
 
 	if (!zoneData->IsLoaded())
 	{
@@ -442,7 +407,7 @@ void ModelLoader::UpdateModels()
 		if (modelInfo = zoneData->GetModelInfo(door->Name))
 		{
 			// Create new model object
-			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, modelInfo, g_pDevice);
+			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, modelInfo, gpD3D9Device);
 			m_modelData[door->ID] = md;
 		}
 	}
@@ -455,7 +420,7 @@ void ModelLoader::UpdateModels()
 
 void ModelLoader::DumpDoors()
 {
-	std::string filename = std::string(gszINIPath) + "\\MQ2Nav";
+	std::string filename = std::string(gPathResources) + "\\MQ2Nav";
 
 	// make sure directory exists so we can write to it!
 	std::error_code ec;
@@ -536,7 +501,7 @@ void DoorsDebugUI::Render()
 if (!m_showDoorsUI)
 		return;
 
-	ImGui::SetNextWindowSize(ImVec2(500, 120), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(500, 120), ImGuiCond_FirstUseEver);
 	if (!ImGui::Begin("EQ Doors", &m_showDoorsUI))
 	{
 		ImGui::End();
@@ -756,13 +721,13 @@ void ModelLoader::OnUpdateUI(bool visible)
 
 		if (ImGui::TreeNode("##ItemTable", "Ground Items"))
 		{
-			PGROUNDITEM pItem = *(PGROUNDITEM*)pItemList;
+			EQGroundItem* pItem = pItemList->Top;
 			while (pItem)
 			{
 				if (ImGui::TreeNode(pItem->Name, "%s (%d)", pItem->Name, pItem->DropID))
 				{
-					ImGui::LabelText("Id", "%d", pItem->ID);
 					ImGui::LabelText("DropId", "%d", pItem->DropID);
+					ImGui::LabelText("SubId", "%d", pItem->DropSubID);
 					ImGui::LabelText("Name", "%s", pItem->Name);
 					ImGui::LabelText("Heading", "%.2f", pItem->Heading);
 					ImGui::DragFloat3("Position", &pItem->Y);
@@ -801,7 +766,7 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
 	{
 		if (ImGui::TreeNode("Door Data"))
 		{
-			DumpDataUI(door, sizeof(_DOOR));
+			DumpDataUI(door, sizeof(DOOR));
 
 			ImGui::TreePop();
 		}
