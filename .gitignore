@@ -25,3 +25,5 @@ Thumbs.db
 *.pb.cc
 *.pb.h
 *.VC.db
+
+.vscode/
