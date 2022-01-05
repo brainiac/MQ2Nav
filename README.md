@@ -3,7 +3,7 @@ MacroQuest Navigation Plugin
 
 This is a navmesh-powered navigation and pathfinding plugin for [MacroQuest](https://gitlab.com/macroquest/next/mqnext) "Next". Navigation is based on the RecastNavigation library.
 
-This project consists of two parts: The MacrQuest Plugin (MQ2Nav.dll), and the Mesh Generator (MeshGenerator.exe)
+This project consists of two parts: The MacroQuest Plugin (MQ2Nav.dll), and the Mesh Generator (MeshGenerator.exe)
 
 The MeshGenerator tool is used for generating and editing the properties of navmeshes
 
