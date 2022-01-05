@@ -1,9 +1,18 @@
-MQ2Nav
+MQ2Nav for MQ2 Legacy (discontinued)
 ======
 
-[![Build Status](https://jenkins.mmobugs.com/buildStatus/icon?job=MQ2Nav-Release)](https://github.com/brainiac/MQ2Nav)
+Deprecation Notice
+---
+_Notice: this branch contains the original version of MQ2Nav for MacroQuest 2. This branch is no longer maintained.
+For the latest version please use the master branch version which is designed and build for MacroQuest "Next"._
 
-NavMesh based navigation and pathfinding plugin for [MacroQuest2](http://www.macroquest2.com). Navigation is based on the RecastNavigation library. The plugin also includes an ingame overlay to display navigation meshes as well as a debugging UI provided by [imgui](https://github.com/ocornut/imgui/).
+_MacroQuest "Next" is free and open source (unlike MacroQuest 2). Go [here](https://gitlab.com/macroquest/next/mqnext) for more information._
+
+
+About
+---
+
+MQ2Nav is a NavMesh based navigation and pathfinding plugin for [MacroQuest2](http://www.macroquest2.com). Navigation is based on the RecastNavigation library. The plugin also includes an ingame overlay to display navigation meshes as well as a debugging UI provided by [imgui](https://github.com/ocornut/imgui/).
 
 This project consists of two parts: The MQ2 Plugin (MQ2Nav.dll), and the Mesh Generator (MeshGenerator.exe)
 
@@ -74,6 +83,4 @@ Some things to do. Eventually move these to issues...
 - Split overlay code out into its own plugin
 - Better path planning
 - Switch to TileCache implementation (for dynamic obstacle support)
-- Render paths with MQ2Map
 - Improved door opening behavior
-- Some tiles generate incorrectly using MeshGenerator (duplicate or missing)
