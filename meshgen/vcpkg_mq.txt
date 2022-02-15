@@ -4,4 +4,4 @@ protobuf
 rapidjson
 spdlog
 sdl2
-directxsdk
+dxsdk-d3dx
