@@ -13,9 +13,9 @@ namespace nav {
 
 //============================================================================
 
-static void DeleteLineSegment(PMAPLINE pLine)
+static void DeleteLineSegment(MapViewLine* pLine)
 {
-	using DeleteLineFunc = void(__cdecl*)(MAPLINE*);
+	using DeleteLineFunc = void(__cdecl*)(MapViewLine*);
 
 	if (DeleteLineFunc deleteLine = (DeleteLineFunc)GetPluginProc("MQ2Map", "MQ2MapDeleteLine"))
 	{
@@ -25,16 +25,16 @@ static void DeleteLineSegment(PMAPLINE pLine)
 
 //============================================================================
 
-std::shared_ptr<MAPLINE> nav::MapItem::CreateSegment()
+std::shared_ptr<MapViewLine> nav::MapItem::CreateSegment()
 {
-	using AddMapLineFunc = PMAPLINE(__cdecl*)();
+	using AddMapLineFunc = MapViewLine*(__cdecl*)();
 
 	if (AddMapLineFunc addMapLine = (AddMapLineFunc)GetPluginProc("MQ2Map", "MQ2MapAddLine"))
 	{
-		if (MAPLINE* mapLine = addMapLine())
+		if (MapViewLine* mapLine = addMapLine())
 		{
-			std::shared_ptr<MAPLINE> ptr = std::shared_ptr<MAPLINE>(
-				mapLine, [](PMAPLINE line) { DeleteLineSegment(line); });
+			std::shared_ptr<MapViewLine> ptr = std::shared_ptr<MapViewLine>(
+				mapLine, [](MapViewLine* line) { DeleteLineSegment(line); });
 			return ptr;
 		}
 	}
@@ -160,7 +160,7 @@ void MapCircle::UpdateCircle()
 
 	for (int i = 0; i < count; ++i, angle += MAPCIRCLE_ANGLE_SIZE)
 	{
-		std::shared_ptr<MAPLINE> segment = m_lineSegments[i];
+		std::shared_ptr<MapViewLine> segment = m_lineSegments[i];
 
 		segment->Color.ARGB = m_color;
 		segment->Layer = m_layer;

@@ -1,0 +1,6 @@
+fmt
+glm
+protobuf
+rapidjson
+spdlog
+sdl2

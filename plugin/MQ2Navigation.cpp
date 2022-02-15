@@ -194,14 +194,14 @@ static void ClickSwitch(CVector3 pos, EQSwitch* pSwitch)
 	pSwitch->UseSwitch(GetCharInfo()->pSpawn->SpawnID, 0xFFFFFFFF, 0, nullptr);
 }
 
-void ClickDoor(PDOOR pDoor)
+void ClickDoor(EQSwitch* pSwitch)
 {
 	CVector3 click;
-	click.Y = pDoor->X;
-	click.X = pDoor->Y;
-	click.Z = pDoor->Z;
+	click.Y = pSwitch->X;
+	click.X = pSwitch->Y;
+	click.Z = pSwitch->Z;
 
-	ClickSwitch(click, (EQSwitch*)pDoor);
+	ClickSwitch(click, pSwitch);
 }
 
 glm::vec3 GetSpawnPosition(PSPAWNINFO pSpawn)
@@ -1041,7 +1041,7 @@ void MQ2NavigationPlugin::BeginNavigation(const std::shared_ptr<DestinationInfo>
 
 	if (destInfo->clickType != ClickType::None)
 	{
-		m_pEndingDoor = destInfo->pDoor;
+		m_pEndingSwitch = destInfo->pSwitch;
 		m_endingGround = destInfo->groundItem;
 	}
 
@@ -1150,9 +1150,9 @@ void MQ2NavigationPlugin::AttemptClick()
 		return;
 	m_lastClick = now;
 
-	if (m_pEndingDoor && GetDistance(m_pEndingDoor->X, m_pEndingDoor->Y) < 25)
+	if (m_pEndingSwitch && GetDistance(m_pEndingSwitch->X, m_pEndingSwitch->Y) < 25)
 	{
-		ClickDoor(m_pEndingDoor);
+		ClickDoor(m_pEndingSwitch);
 	}
 	else if (m_endingGround && m_endingGround.Distance(pControlledPlayer) < 25)
 	{
@@ -1250,7 +1250,7 @@ void MQ2NavigationPlugin::MovementFinished(const glm::vec3& dest, FacingType fac
 {
 	SPDLOG_INFO("Reached destination at: {}", dest.yxz());
 
-	if (m_endingGround || m_pEndingDoor)
+	if (m_endingGround || m_pEndingSwitch)
 	{
 		Look(dest, FacingType::Forward);
 		AttemptClick();
@@ -1355,22 +1355,21 @@ void MQ2NavigationPlugin::AttemptMovement()
 	}
 }
 
-PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
+EQSwitch* ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 {
 	char mutableLine[MAX_STRING] = { 0 };
 	strcpy_s(mutableLine, szLine);
-	PDOOR pDoor = pSwitchTarget;
+	EQSwitch* pSwitch = pSwitchTarget;
 
 	// short circuit if the argument is "click"
 	GetArg(buffer, mutableLine, argIndex);
 
-	int len = strlen(buffer);
+	int len = (int)strlen(buffer);
 	if (len == 0 || !_stricmp(buffer, "click"))
-		return pDoor;
+		return pSwitch;
 
 	// follows similarly to DoorTarget
-	if (!pSwitchMgr) return pDoor;
-	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
+	if (!pSwitchMgr) return pSwitch;
 
 	// look up door by id
 	if (!_stricmp(buffer, "id"))
@@ -1383,13 +1382,8 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 			return nullptr;
 
 		int id = atoi(buffer);
-		for (int i = 0; i < pDoorTable->NumEntries; i++)
-		{
-			if (pDoorTable->pDoor[i]->ID == id)
-				return pDoorTable->pDoor[i];
-		}
 
-		return nullptr;
+		return pSwitchMgr->GetSwitchById(id);
 	}
 
 	// its not id and its not click. Its probably the name of the door!
@@ -1400,28 +1394,29 @@ PDOOR ParseDoorTarget(char* buffer, const char* szLine, int& argIndex)
 	int id = -1;
 	argIndex++;
 
-	PSPAWNINFO pSpawn = GetCharInfo()->pSpawn;
+	PlayerClient* pSpawn = pLocalPlayer;
 
-	for (int i = 0; i < pDoorTable->NumEntries; i++)
+	for (int i = 0; i < pSwitchMgr->NumEntries; i++)
 	{
-		PDOOR door = pDoorTable->pDoor[i];
+		EQSwitch* theSwitch = pSwitchMgr->GetSwitch(i);
+
 		// check if name matches and if it falls within the zfilter
-		if ((searchAny || !_strnicmp(door->Name, buffer, len))
-			&& ((gZFilter >= 10000.0f) || ((pDoor->Z <= pSpawn->Z + gZFilter)
-				&& (pDoor->Z >= pSpawn->Z - gZFilter))))
+		if ((searchAny || !_strnicmp(theSwitch->Name, buffer, len))
+			&& ((gZFilter >= 10000.0f) || ((pSwitch->Z <= pSpawn->Z + gZFilter)
+				&& (pSwitch->Z >= pSpawn->Z - gZFilter))))
 		{
-			id = door->ID;
+			id = theSwitch->ID;
 			float d = Get3DDistance(pSpawn->X, pSpawn->Y, pSpawn->Z,
-				door->X, door->Y, door->Z);
+				theSwitch->X, theSwitch->Y, theSwitch->Z);
 			if (d < distance)
 			{
-				pDoor = door;
+				pSwitch = theSwitch;
 				distance = d;
 			}
 		}
 	}
 
-	return pDoor;
+	return pSwitch;
 }
 
 std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestination(std::string_view line,
@@ -1555,22 +1550,22 @@ std::shared_ptr<DestinationInfo> MQ2NavigationPlugin::ParseDestinationInternal(s
 	// parse /nav door [click [once]]
 	if (!_stricmp(buffer, "door") || !_stricmp(buffer, "item"))
 	{
-		if (!_stricmp(buffer, "door"))
+		if (!_stricmp(buffer, "door") || !_stricmp(buffer, "switch"))
 		{
-			PDOOR theDoor = ParseDoorTarget(buffer, mutableLine, idx);
+			EQSwitch* theSwitch = ParseDoorTarget(buffer, mutableLine, idx);
 
-			if (!theDoor)
+			if (!theSwitch)
 			{
-				SPDLOG_ERROR("No door found or bad door target!");
+				SPDLOG_ERROR("No switch found or bad switch target!");
 				return result;
 			}
 
 			result->type = DestinationType::Door;
-			result->pDoor = theDoor;
-			result->eqDestinationPos = { theDoor->X, theDoor->Y, theDoor->Z };
+			result->pSwitch = theSwitch;
+			result->eqDestinationPos = { theSwitch->X, theSwitch->Y, theSwitch->Z };
 			result->valid = true;
 
-			SPDLOG_INFO("Navigating to door: {}", theDoor->Name);
+			SPDLOG_INFO("Navigating to switch: {}", theSwitch->Name);
 		}
 		else
 		{
@@ -1893,7 +1888,7 @@ void MQ2NavigationPlugin::ResetPath()
 
 	Get<SwitchHandler>()->SetActive(false);
 
-	m_pEndingDoor = nullptr;
+	m_pEndingSwitch = nullptr;
 	m_endingGround.Reset();
 	m_activePath.reset();
 }
@@ -1992,7 +1987,7 @@ void MQ2NavigationPlugin::OnUpdateTab(TabPage tabId)
 
 			case DestinationType::Door:
 				ImGui::Text("Navigating to object:"); ImGui::SameLine();
-				ImGui::TextColored(ImColor(0, 255, 0), info->pDoor->Name);
+				ImGui::TextColored(ImColor(0, 255, 0), info->pSwitch->Name);
 				break;
 
 			case DestinationType::GroundItem:

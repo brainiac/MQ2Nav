@@ -36,7 +36,7 @@ public:
 	void OnUpdateUI(bool visible);
 
 private:
-	void RenderDoorObjectUI(PDOOR door, bool target = false);
+	void RenderDoorObjectUI(EQSwitch* door, bool target = false);
 
 	void UpdateModels();
 	void DumpDoors();

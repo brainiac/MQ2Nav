@@ -446,7 +446,7 @@ void UiController::PerformUpdateTab(TabPage page)
 			}
 
 			ImGui::Separator();
-			ImGui::LabelText("Ending Door", "%s", g_mq2Nav->m_pEndingDoor ? g_mq2Nav->m_pEndingDoor->Name : "<none>");
+			ImGui::LabelText("Ending Door", "%s", g_mq2Nav->m_pEndingSwitch ? g_mq2Nav->m_pEndingSwitch->Name : "<none>");
 			ImGui::LabelText("Ending Item", "%s", g_mq2Nav->m_endingGround ? g_mq2Nav->m_endingGround.Name() : "<none>");
 			ImGui::LabelText("Is Active", "%s", g_mq2Nav->m_isActive ? "true" : "false");
 			ImGui::LabelText("Current Waypoint", "(%.2f, %.2f, %.2f)",

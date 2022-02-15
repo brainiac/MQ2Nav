@@ -116,14 +116,14 @@ void RenderList::AddVertex(float x, float y, float z, unsigned int color, float 
 
 void RenderList::AddPoint()
 {
-	uint32_t index = m_vertices.size() - 1;
+	uint32_t index = (uint32_t)m_vertices.size() - 1;
 	m_currentPrim->indices.push_back(index);
 	m_currentPrim->count++;
 }
 
 void RenderList::AddLine()
 {
-	uint32_t index = m_vertices.size() - 2;
+	uint32_t index = (uint32_t)m_vertices.size() - 2;
 	m_currentPrim->indices.push_back(index);
 	m_currentPrim->indices.push_back(index + 1);
 	m_currentPrim->count++;
@@ -136,7 +136,7 @@ inline float distance(const glm::vec3& a, const glm::vec3& b)
 
 void RenderList::AddTriangle()
 {
-	uint32_t index = m_vertices.size() - 3;
+	uint32_t index = (uint32_t)m_vertices.size() - 3;
 	m_currentPrim->indices.push_back(index);
 	m_currentPrim->indices.push_back(index + 1);
 	m_currentPrim->indices.push_back(index + 2);
@@ -145,7 +145,7 @@ void RenderList::AddTriangle()
 
 void RenderList::AddQuad()
 {
-	uint32_t index = m_vertices.size() - 4;
+	uint32_t index = (uint32_t)m_vertices.size() - 4;
 	m_currentPrim->indices.push_back(index);
 	m_currentPrim->indices.push_back(index + 1);
 	m_currentPrim->indices.push_back(index + 2);
@@ -177,7 +177,7 @@ void RenderList::Render()
 	}
 
 	int start = std::max(0u, m_firstRender);
-	int end = std::min(m_prims.size(), m_lastRender);
+	int end = std::min<int>((int)m_prims.size(), m_lastRender);
 
 	for (auto& p : m_prims)
 	{
@@ -227,9 +227,9 @@ void RenderList::GenerateBuffers()
 	bool rebuildBuffers = false;
 	int vertexSize = 0, indexSize = 0;
 
-	if (!m_pVB && m_vertices.size() > 0)
+	if (!m_pVB && !m_vertices.empty())
 	{
-		vertexSize = m_vertices.size();
+		vertexSize = (int)m_vertices.size();
 		if (m_pDevice->CreateVertexBuffer(vertexSize * sizeof(Vertex),
 			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, VertexType, D3DPOOL_DEFAULT, &m_pVB, nullptr) < 0)
 		{
@@ -243,7 +243,7 @@ void RenderList::GenerateBuffers()
 	{
 		// rebuild the indices and render sets
 		for (auto& p : m_prims)
-			indexSize += p->indices.size();
+			indexSize += (int)p->indices.size();
 
 		if (m_pDevice->CreateIndexBuffer(indexSize * sizeof(uint32_t),
 			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &m_pIB, nullptr) < 0)
@@ -282,10 +282,10 @@ void RenderList::GenerateBuffers()
 			memcpy(dest, source, source_len);
 
 			l->startingIndex = currentIndex;
-			currentIndex += l->indices.size();
+			currentIndex += (int)l->indices.size();
 		}
 
-		m_lastRender = m_prims.size();
+		m_lastRender = (int)m_prims.size();
 		m_pVB->Unlock();
 		m_pIB->Unlock();
 	}

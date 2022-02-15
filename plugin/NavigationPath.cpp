@@ -567,7 +567,7 @@ bool NavigationLine::CreateDeviceObjects()
 	HRESULT hr = D3DXCreateEffect(
 		gpD3D9Device,
 		shaderFile.data(),
-		shaderFile.length(),
+		(uint32_t)shaderFile.length(),
 		nullptr,
 		nullptr,
 		0,
@@ -746,7 +746,7 @@ void NavigationLine::Render()
 void NavigationLine::GenerateBuffers()
 {
 	const std::vector<int>& renderPath = m_path->GetRenderPath();
-	int size = renderPath.size();
+	int size = (int)renderPath.size();
 
 	if (size <= 0)
 		return;

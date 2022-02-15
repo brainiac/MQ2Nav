@@ -62,7 +62,7 @@ public:
 	virtual bool CreateDeviceObjects();
 
 	// The number of primitives in the list
-	int GetPrimitiveCount() const { return m_prims.size(); }
+	int GetPrimitiveCount() const { return (int)m_prims.size(); }
 
 	// Set a range of primitives to draw when rendering. Clamped by the size of the list.
 	void Debug_SetRenderRange(int begin, int end);

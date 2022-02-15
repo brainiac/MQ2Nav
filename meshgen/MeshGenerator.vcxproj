@@ -185,10 +185,4 @@ XCOPY /y "$(ProjectDir)..\plugin\resources\Zones.ini" "$(OutDir)resources"</Comm
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\tools\protoc\protobuf.targets" />
-  </ImportGroup>
-  <ImportGroup Label="ExtensionSettings">
-    <Import Project="..\tools\protoc\protobuf.props" />
-  </ImportGroup>
 </Project>

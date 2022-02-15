@@ -234,7 +234,7 @@ void RenderWaypointsUI()
 	static bool changedForNext = false;
 
 	bool changed = false;
-	int waypoints = nav::g_waypoints.size();
+	int waypoints = (int)nav::g_waypoints.size();
 
 	// initialize current waypoint
 	if (currentWaypoint == -1) {
@@ -267,7 +267,7 @@ void RenderWaypointsUI()
 	// Left Pane
 	{
 		ImGui::BeginChild("WaypointsList", ImVec2(leftPaneSize, ImGui::GetContentRegionAvail().y - 1), true);
-		ImGuiListClipper clipper(g_waypoints.size(), ImGui::GetTextLineHeightWithSpacing());
+		ImGuiListClipper clipper((int)g_waypoints.size(), ImGui::GetTextLineHeightWithSpacing());
 		while (clipper.Step())
 		{
 			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)

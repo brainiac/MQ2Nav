@@ -23,9 +23,9 @@
 #include <filesystem>
 #include <fstream>
 
-float GetDoorScale(PDOOR door)
+float GetDoorScale(EQSwitch* theSwitch)
 {
-	return (float)door->ScaleFactor / 100.0f;
+	return (float)theSwitch->ScaleFactor / 100.0f;
 }
 
 #define RENDER_MODELS  0
@@ -39,7 +39,7 @@ class ModelData : public Renderable
 {
 public:
 	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo, IDirect3DDevice9* device)
-		: m_doorId(doorId)
+		: m_switchID(doorId)
 		, m_modelInfo(modelInfo)
 	{
 		m_grpBB = std::make_unique<RenderGroup>(device);
@@ -170,53 +170,37 @@ public:
 
 	virtual void Render() override
 	{
-		// find the door
-		PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
-		if (!pDoorTable) return;
-		for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
+		// find the switch
+		if (!pSwitchMgr) return;
+
+		if (EQSwitch* pSwitch = pSwitchMgr->GetSwitchById(m_switchID))
 		{
-			PDOOR door = pDoorTable->pDoor[count];
-			if (door && door->ID == m_doorId)
+			if (m_visible && pSwitch->pActor)
 			{
-				if (m_visible && door->pSwitch)
-				{
-					bool zDisabled = m_targetted || m_highlight;
+				bool zDisabled = m_targetted || m_highlight;
 
-					// create a matrix to scale the object by the scale amount
-					float scaleFactor = GetDoorScale(door);
+				// create a matrix to scale the object by the scale amount
+				float scaleFactor = GetDoorScale(pSwitch);
 
-					//D3DXMatrixScaling(&scale, scaleFactor, scaleFactor, scaleFactor);
+				//D3DXMatrixScaling(&scale, scaleFactor, scaleFactor, scaleFactor);
 
-					// multiply the transform matrix by the scale matrix to produce new matrix
-					glm::mat4* mtx = (glm::mat4*)(&door->pSwitch->transformMatrix);
-					glm::mat4 scale = glm::scale(*mtx, glm::vec3(scaleFactor));
-
-					//scale = scale * *mtx;
-
-#if 0
-					// if attachment matrix exists, apply it next
-					if (door->pSwitch->bbHasAttachSRT)
-					{
-						D3DXMATRIX* attach = (D3DXMATRIX*)(&door->pSwitch->attachSRT);
-
-						scale = scale * *attach;
-					}
-#endif
+				// multiply the transform matrix by the scale matrix to produce new matrix
+				glm::mat4* mtx = pSwitch->pActor->GetObjectToWorldMatrix();
+				glm::mat4 scale = glm::scale(*mtx, glm::vec3(scaleFactor));
 
 #if RENDER_MODELS
-					if (m_targetted)
-					{
-						m_grpModel->SetTransform(&scale);
-						m_grpModel->Render();
-					}
+				if (m_targetted)
+				{
+					m_grpModel->SetTransform(&scale);
+					m_grpModel->Render();
+				}
 #endif
 
-					if (m_targetted || m_highlight || s_drawBoundingBoxes)
-					{
-						gpD3D9Device->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
-						m_grpBB->SetTransform(&scale);
-						m_grpBB->Render();
-					}
+				if (m_targetted || m_highlight || s_drawBoundingBoxes)
+				{
+					gpD3D9Device->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
+					m_grpBB->SetTransform(&scale);
+					m_grpBB->Render();
 				}
 			}
 		}
@@ -265,7 +249,7 @@ private:
 	glm::vec3 m_lastAdjust;
 
 	bool m_visible = true;
-	int m_doorId = 0;
+	int m_switchID = 0;
 	bool m_highlight = false;
 	bool m_targetted = false;
 };
@@ -292,14 +276,14 @@ public:
 		m_showDoorsUI = true;
 	}
 
-	float GetDistance(PDOOR door);
+	float GetDistance(EQSwitch* door);
 
 	int m_doorsSortColumn = 0;
 	bool m_sortReverse = false;
 	bool m_showDoorsUI = false;
 	int m_lastDoorTargetId = -1;
 
-	std::map<DWORD, float> m_distanceCache;
+	std::map<int, float> m_distanceCache;
 	glm::vec3 m_lastPos;
 };
 
@@ -439,19 +423,18 @@ void ModelLoader::DumpDoors()
 
 	writer.StartArray();
 
-	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
-	for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
+	for (int count = 0; count < pSwitchMgr->NumEntries; count++)
 	{
-		if (PDOOR door = pDoorTable->pDoor[count])
+		if (EQSwitch* pSwitch = pSwitchMgr->GetSwitch(count))
 		{
 			writer.StartObject();
 
-			writer.String("ID"); writer.Int(door->ID);
-			writer.String("Name"); writer.String(door->Name);
-			writer.String("Type"); writer.Int(door->Type);
-			writer.String("Scale"); writer.Double((float)door->ScaleFactor / 100.0f);
+			writer.String("ID"); writer.Int(pSwitch->ID);
+			writer.String("Name"); writer.String(pSwitch->Name);
+			writer.String("Type"); writer.Int(pSwitch->Type);
+			writer.String("Scale"); writer.Double((float)pSwitch->ScaleFactor / 100.0f);
 
-			if (door->pSwitch)
+			if (pSwitch->pActor)
 			{
 				writer.String("Transform");
 				writer.StartArray();
@@ -460,7 +443,7 @@ void ModelLoader::DumpDoors()
 					writer.StartArray();
 					for (int j = 0; j < 4; j++)
 					{
-						writer.Double(door->pSwitch->transformMatrix.m[i][j]);
+						writer.Double((*pSwitch->pActor->GetObjectToWorldMatrix())[i][j]);
 					}
 					writer.EndArray();
 				}
@@ -486,9 +469,9 @@ void ModelLoader::Reset()
 	m_modelData.clear();
 }
 
-bool IsSwitchStationary(PDOOR door)
+bool IsSwitchStationary(EQSwitch* pSwitch)
 {
-	DWORD type = door->Type;
+	DWORD type = pSwitch->Type;
 
 	return (type != 53 && type >= 50 && type < 59)
 		|| (type >= 153 && type <= 155);
@@ -508,9 +491,7 @@ if (!m_showDoorsUI)
 		return;
 	}
 
-	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
-
-	ImGui::Text("%d door objects", pDoorTable->NumEntries);
+	ImGui::Text("%d door objects", pSwitchMgr->NumEntries);
 
 	ImGui::Columns(6, "doorcolumns");
 	ImGui::Separator();
@@ -532,15 +513,14 @@ if (!m_showDoorsUI)
 
 	ImGui::Separator();
 
-	std::vector<PDOOR> doors(pDoorTable->NumEntries);
-
-	for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
+	std::vector<EQSwitch*> switches(pSwitchMgr->NumEntries);
+	for (int count = 0; count < pSwitchMgr->NumEntries; count++)
 	{
-		doors[count] = pDoorTable->pDoor[count];
+		switches[count] = pSwitchMgr->GetSwitch(count);
 	}
 
-	std::sort(doors.begin(), doors.end(),
-		[this](PDOOR a, PDOOR b) -> bool
+	std::sort(switches.begin(), switches.end(),
+		[this](EQSwitch* a, EQSwitch* b) -> bool
 	{
 		bool less = false;
 		if (m_doorsSortColumn == Sort_ID)
@@ -558,11 +538,11 @@ if (!m_showDoorsUI)
 	});
 
 	if (m_sortReverse)
-		std::reverse(doors.begin(), doors.end());
+		std::reverse(switches.begin(), switches.end());
 
-	for (auto iter = doors.begin(); iter != doors.end(); ++iter)
+	for (auto iter = switches.begin(); iter != switches.end(); ++iter)
 	{
-		PDOOR door = *iter;
+		EQSwitch* door = *iter;
 
 		ImGui::PushID(door->ID);
 
@@ -624,25 +604,24 @@ if (!m_showDoorsUI)
 	ImGui::End();
 }
 
-float DoorsDebugUI::GetDistance(PDOOR door)
+float DoorsDebugUI::GetDistance(EQSwitch* theSwitch)
 {
-	PCHARINFO charInfo = GetCharInfo();
-	if (!charInfo)
+	if (!pLocalPlayer)
 		return 0;
 
-	glm::vec3 myPos(charInfo->pSpawn->X, charInfo->pSpawn->Y, charInfo->pSpawn->Z);
+	glm::vec3 myPos(pLocalPlayer->X, pLocalPlayer->Y, pLocalPlayer->Z);
 	if (myPos != m_lastPos)
 		m_distanceCache.clear();
 	m_lastPos = myPos;
 
-	auto it = m_distanceCache.find(door->ID);
+	auto it = m_distanceCache.find(theSwitch->ID);
 	if (it != m_distanceCache.end())
 		return it->second;
 
-	glm::vec3 doorPos(door->DefaultX, door->DefaultY, door->DefaultZ);
+	glm::vec3 doorPos(theSwitch->DefaultX, theSwitch->DefaultY, theSwitch->DefaultZ);
 	float distance = glm::distance(myPos, doorPos);
 
-	m_distanceCache[door->ID] = distance;
+	m_distanceCache[theSwitch->ID] = distance;
 	return distance;
 }
 
@@ -671,26 +650,17 @@ void ModelLoader::OnUpdateUI(bool visible)
 
 		if (ImGui::TreeNode("##SwitchTable", "Door Objects"))
 		{
-			PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
-
 			if (m_lastDoorTargetId >= 0)
 			{
-				PDOOR door = nullptr;
-				for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
-				{
-					if (pDoorTable->pDoor[count]->ID == m_lastDoorTargetId)
-						door = pDoorTable->pDoor[count];
-				}
-
-				if (door)
+				if (EQSwitch* pSwitch = pSwitchMgr->GetSwitchById(m_lastDoorTargetId))
 				{
 					ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(0, 255, 0));
 
-					if (ImGui::TreeNode("Target Object", "Door Target: %s (%d)", door->Name, door->ID))
+					if (ImGui::TreeNode("Target Object", "Door Target: %s (%d)", pSwitch->Name, pSwitch->ID))
 					{
 						ImGui::PopStyleColor();
 
-						RenderDoorObjectUI(door, true);
+						RenderDoorObjectUI(pSwitch, true);
 
 						ImGui::TreePop();
 					}
@@ -702,14 +672,14 @@ void ModelLoader::OnUpdateUI(bool visible)
 			}
 
 			// temp for now, until we figure out where to put this...
-			for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
+			for (int count = 0; count < pSwitchMgr->NumEntries; count++)
 			{
-				PDOOR door = pDoorTable->pDoor[count];
+				EQSwitch* pSwitch = pSwitchMgr->GetSwitch(count);
 				ImGui::PushID(count);
 
-				if (ImGui::TreeNode(door->Name, "%s (%d)", door->Name, door->ID))
+				if (ImGui::TreeNode(pSwitch->Name, "%s (%d)", pSwitch->Name, pSwitch->ID))
 				{
-					RenderDoorObjectUI(door);
+					RenderDoorObjectUI(pSwitch);
 
 					ImGui::TreePop();
 				}
@@ -743,7 +713,7 @@ void ModelLoader::OnUpdateUI(bool visible)
 	}
 }
 
-void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
+void ModelLoader::RenderDoorObjectUI(EQSwitch* door, bool target)
 {
 	auto model = m_modelData[door->ID];
 
@@ -760,22 +730,6 @@ void ModelLoader::RenderDoorObjectUI(PDOOR door, bool target)
 	else
 	{
 		ImGui::TextColored(ImColor(255, 0, 0), "No Model Data");
-	}
-
-	if (target)
-	{
-		if (ImGui::TreeNode("Door Data"))
-		{
-			DumpDataUI(door, sizeof(DOOR));
-
-			ImGui::TreePop();
-		}
-		if (ImGui::TreeNode("Switch Data"))
-		{
-			DumpDataUI(door->pSwitch, sizeof(EQSWITCH));
-
-			ImGui::TreePop();
-		}
 	}
 
 	ImGui::Separator();

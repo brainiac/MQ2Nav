@@ -94,8 +94,8 @@ struct DestinationInfo
 
 	DestinationType type = DestinationType::None;
 
-	PSPAWNINFO pSpawn = nullptr;
-	PDOOR pDoor = nullptr;
+	PlayerClient* pSpawn = nullptr;
+	EQSwitch* pSwitch = nullptr;
 	MQGroundSpawn groundItem;
 	ClickType clickType = ClickType::None;
 	HeightType heightType = HeightType::Explicit;
@@ -287,7 +287,7 @@ private:
 	int m_zoneId = -1;
 
 	// ending criteria (pick up item / click door)
-	PDOOR m_pEndingDoor = nullptr;
+	EQSwitch* m_pEndingSwitch = nullptr;
 	MQGroundSpawn m_endingGround;
 
 	// whether the current path is active or not
@@ -356,7 +356,7 @@ private:
 
 //----------------------------------------------------------------------------
 
-void ClickDoor(PDOOR pDoor);
+void ClickDoor(EQSwitch* pSwitch);
 
 struct ScopedLogLevel
 {
