@@ -4,4 +4,4 @@ protobuf
 rapidjson
 spdlog
 sdl2
-dxsdk-d3dx
+dxsdk-d3dx:x64-windows
