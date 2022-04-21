@@ -56,13 +56,13 @@ int iJumpKey = 0;
 int iDuckKey = 0;
 int iRunWalk = 0;
 
-unsigned long* pulAutoRun = NULL;
-unsigned long* pulForward = NULL;
-unsigned long* pulBackward = NULL;
-unsigned long* pulTurnLeft = NULL;
-unsigned long* pulTurnRight = NULL;
-unsigned long* pulStrafeLeft = NULL;
-unsigned long* pulStrafeRight = NULL;
+uint8_t* pbAutoRun = NULL;
+uint8_t* pbForward = NULL;
+uint8_t* pbBackward = NULL;
+uint8_t* pbTurnLeft = NULL;
+uint8_t* pbTurnRight = NULL;
+uint8_t* pbStrafeLeft = NULL;
+uint8_t* pbStrafeRight = NULL;
 
 enum MOVEMENT_DIR
 {
@@ -86,13 +86,13 @@ void InitKeys()
 	iDuckKey = FindMappableCommand("duck");
 	iRunWalk = FindMappableCommand("run_walk");
 
-	pulAutoRun = (unsigned long *)FixOffset(__pulAutoRun_x);
-	pulForward = (unsigned long *)FixOffset(__pulForward_x);
-	pulBackward = (unsigned long *)FixOffset(__pulBackward_x);
-	pulTurnRight = (unsigned long *)FixOffset(__pulTurnRight_x);
-	pulTurnLeft = (unsigned long *)FixOffset(__pulTurnLeft_x);
-	pulStrafeLeft = (unsigned long *)FixOffset(__pulStrafeLeft_x);
-	pulStrafeRight = (unsigned long *)FixOffset(__pulStrafeRight_x);
+	pbAutoRun = (uint8_t*)FixOffset(__pulAutoRun_x);
+	pbForward = (uint8_t*)FixOffset(__pulForward_x);
+	pbBackward = (uint8_t*)FixOffset(__pulBackward_x);
+	pbTurnRight = (uint8_t*)FixOffset(__pulTurnRight_x);
+	pbTurnLeft = (uint8_t*)FixOffset(__pulTurnLeft_x);
+	pbStrafeLeft = (uint8_t*)FixOffset(__pulStrafeLeft_x);
+	pbStrafeRight = (uint8_t*)FixOffset(__pulStrafeRight_x);
 }
 
 void TrueMoveOn(MOVEMENT_DIR ucDirection)
@@ -101,35 +101,35 @@ void TrueMoveOn(MOVEMENT_DIR ucDirection)
 	{
 	case GO_FORWARD:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iBackward] = 0;
-		*pulBackward = 0;
+		*pbBackward = 0;
 		pKeypressHandler->CommandState[iForward] = 1;
-		*pulForward = 1;
+		*pbForward = 1;
 		break;
 	case GO_BACKWARD:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iForward] = 0;
-		*pulForward = 0;
+		*pbForward = 0;
 		pKeypressHandler->CommandState[iBackward] = 1;
-		*pulBackward = 1;
+		*pbBackward = 1;
 		break;
 	case GO_LEFT:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iStrafeRight] = 0;
-		*pulStrafeRight = 0;
+		*pbStrafeRight = 0;
 		pKeypressHandler->CommandState[iStrafeLeft] = 1;
-		*pulStrafeLeft = 1;
+		*pbStrafeLeft = 1;
 		break;
 	case GO_RIGHT:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iStrafeLeft] = 0;
-		*pulStrafeLeft = 0;
+		*pbStrafeLeft = 0;
 		pKeypressHandler->CommandState[iStrafeRight] = 1;
-		*pulStrafeRight = 1;
+		*pbStrafeRight = 1;
 		break;
 	}
 };
@@ -140,39 +140,39 @@ void TrueMoveOff(MOVEMENT_DIR ucDirection)
 	{
 	case APPLY_TO_ALL:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iStrafeLeft] = 0;
-		*pulStrafeLeft = 0;
+		*pbStrafeLeft = 0;
 		pKeypressHandler->CommandState[iStrafeRight] = 0;
-		*pulStrafeRight = 0;
+		*pbStrafeRight = 0;
 		pKeypressHandler->CommandState[iForward] = 0;
-		*pulForward = 0;
+		*pbForward = 0;
 		pKeypressHandler->CommandState[iBackward] = 0;
-		*pulBackward = 0;
+		*pbBackward = 0;
 		break;
 	case GO_FORWARD:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iForward] = 0;
-		*pulForward = 0;
+		*pbForward = 0;
 		break;
 	case GO_BACKWARD:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iBackward] = 0;
-		*pulBackward = 0;
+		*pbBackward = 0;
 		break;
 	case GO_LEFT:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iStrafeLeft] = 0;
-		*pulStrafeLeft = 0;
+		*pbStrafeLeft = 0;
 		break;
 	case GO_RIGHT:
 		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pulAutoRun = 0;
+		*pbAutoRun = 0;
 		pKeypressHandler->CommandState[iStrafeRight] = 0;
-		*pulStrafeRight = 0;
+		*pbStrafeRight = 0;
 		break;
 	}
 };
