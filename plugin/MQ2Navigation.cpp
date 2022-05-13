@@ -41,29 +41,6 @@ using namespace std::chrono_literals;
 RenderHandler* g_renderHandler = nullptr;
 ImGuiRenderer* g_imguiRenderer = nullptr;
 
-// ----------------------------------------
-// key IDs & pointers
-// Borrowed from MQ2MoveUtils, pending rewrite using new movement handler
-
-int iAutoRun = 0;
-int iForward = 0;
-int iBackward = 0;
-int iTurnLeft = 0;
-int iTurnRight = 0;
-int iStrafeLeft = 0;
-int iStrafeRight = 0;
-int iJumpKey = 0;
-int iDuckKey = 0;
-int iRunWalk = 0;
-
-uint8_t* pbAutoRun = NULL;
-uint8_t* pbForward = NULL;
-uint8_t* pbBackward = NULL;
-uint8_t* pbTurnLeft = NULL;
-uint8_t* pbTurnRight = NULL;
-uint8_t* pbStrafeLeft = NULL;
-uint8_t* pbStrafeRight = NULL;
-
 enum MOVEMENT_DIR
 {
 	GO_FORWARD = 1,
@@ -73,63 +50,41 @@ enum MOVEMENT_DIR
 	APPLY_TO_ALL,
 };
 
-void InitKeys()
-{
-	iForward = FindMappableCommand("forward");
-	iBackward = FindMappableCommand("back");
-	iAutoRun = FindMappableCommand("autorun");
-	iStrafeLeft = FindMappableCommand("strafe_left");
-	iStrafeRight = FindMappableCommand("strafe_right");
-	iTurnLeft = FindMappableCommand("left");
-	iTurnRight = FindMappableCommand("right");
-	iJumpKey = FindMappableCommand("jump");
-	iDuckKey = FindMappableCommand("duck");
-	iRunWalk = FindMappableCommand("run_walk");
-
-	pbAutoRun = (uint8_t*)FixOffset(__pulAutoRun_x);
-	pbForward = (uint8_t*)FixOffset(__pulForward_x);
-	pbBackward = (uint8_t*)FixOffset(__pulBackward_x);
-	pbTurnRight = (uint8_t*)FixOffset(__pulTurnRight_x);
-	pbTurnLeft = (uint8_t*)FixOffset(__pulTurnLeft_x);
-	pbStrafeLeft = (uint8_t*)FixOffset(__pulStrafeLeft_x);
-	pbStrafeRight = (uint8_t*)FixOffset(__pulStrafeRight_x);
-}
-
 void TrueMoveOn(MOVEMENT_DIR ucDirection)
 {
 	switch (ucDirection)
 	{
 	case GO_FORWARD:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iBackward] = 0;
-		*pbBackward = 0;
-		pKeypressHandler->CommandState[iForward] = 1;
-		*pbForward = 1;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_BACK] = 0;
+		pEverQuestInfo->keyDown[CMD_BACK] = 0;
+		pKeypressHandler->CommandState[CMD_FORWARD] = 1;
+		pEverQuestInfo->keyDown[CMD_FORWARD]= 1;
 		break;
 	case GO_BACKWARD:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iForward] = 0;
-		*pbForward = 0;
-		pKeypressHandler->CommandState[iBackward] = 1;
-		*pbBackward = 1;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_FORWARD] = 0;
+		pEverQuestInfo->keyDown[CMD_FORWARD] = 0;
+		pKeypressHandler->CommandState[CMD_BACK] = 1;
+		pEverQuestInfo->keyDown[CMD_BACK] = 1;
 		break;
 	case GO_LEFT:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iStrafeRight] = 0;
-		*pbStrafeRight = 0;
-		pKeypressHandler->CommandState[iStrafeLeft] = 1;
-		*pbStrafeLeft = 1;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_STRAFE_RIGHT] = 0;
+		pEverQuestInfo->keyDown[CMD_STRAFE_RIGHT] = 0;
+		pKeypressHandler->CommandState[CMD_STRAFE_LEFT] = 1;
+		pEverQuestInfo->keyDown[CMD_STRAFE_LEFT] = 1;
 		break;
 	case GO_RIGHT:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iStrafeLeft] = 0;
-		*pbStrafeLeft = 0;
-		pKeypressHandler->CommandState[iStrafeRight] = 1;
-		*pbStrafeRight = 1;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_STRAFE_LEFT] = 0;
+		pEverQuestInfo->keyDown[CMD_STRAFE_LEFT] = 0;
+		pKeypressHandler->CommandState[CMD_STRAFE_RIGHT] = 1;
+		pEverQuestInfo->keyDown[CMD_STRAFE_RIGHT] = 1;
 		break;
 	}
 };
@@ -139,44 +94,43 @@ void TrueMoveOff(MOVEMENT_DIR ucDirection)
 	switch (ucDirection)
 	{
 	case APPLY_TO_ALL:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iStrafeLeft] = 0;
-		*pbStrafeLeft = 0;
-		pKeypressHandler->CommandState[iStrafeRight] = 0;
-		*pbStrafeRight = 0;
-		pKeypressHandler->CommandState[iForward] = 0;
-		*pbForward = 0;
-		pKeypressHandler->CommandState[iBackward] = 0;
-		*pbBackward = 0;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_STRAFE_LEFT] = 0;
+		pEverQuestInfo->keyDown[CMD_STRAFE_LEFT] = 0;
+		pKeypressHandler->CommandState[CMD_STRAFE_RIGHT] = 0;
+		pEverQuestInfo->keyDown[CMD_STRAFE_RIGHT] = 0;
+		pKeypressHandler->CommandState[CMD_FORWARD] = 0;
+		pEverQuestInfo->keyDown[CMD_FORWARD] = 0;
+		pKeypressHandler->CommandState[CMD_BACK] = 0;
+		pEverQuestInfo->keyDown[CMD_BACK] = 0;
 		break;
 	case GO_FORWARD:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iForward] = 0;
-		*pbForward = 0;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_FORWARD] = 0;
+		pEverQuestInfo->keyDown[CMD_FORWARD] = 0;
 		break;
 	case GO_BACKWARD:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iBackward] = 0;
-		*pbBackward = 0;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_BACK] = 0;
+		pEverQuestInfo->keyDown[CMD_BACK] = 0;
 		break;
 	case GO_LEFT:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iStrafeLeft] = 0;
-		*pbStrafeLeft = 0;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_STRAFE_LEFT] = 0;
+		pEverQuestInfo->keyDown[CMD_STRAFE_LEFT] = 0;
 		break;
 	case GO_RIGHT:
-		pKeypressHandler->CommandState[iAutoRun] = 0;
-		*pbAutoRun = 0;
-		pKeypressHandler->CommandState[iStrafeRight] = 0;
-		*pbStrafeRight = 0;
+		pKeypressHandler->CommandState[CMD_AUTORUN] = 0;
+		pEverQuestInfo->AutoRun = 0;
+		pKeypressHandler->CommandState[CMD_STRAFE_RIGHT] = 0;
+		pEverQuestInfo->keyDown[CMD_STRAFE_RIGHT] = 0;
 		break;
 	}
 };
-
 
 
 //============================================================================
@@ -444,8 +398,6 @@ void UpdateCommandState(nav::NavCommandState* state, const DestinationInfo& dest
 #pragma region MQ2Navigation Plugin Class
 MQ2NavigationPlugin::MQ2NavigationPlugin()
 {
-	InitKeys();
-
 	s_navAPIImpl = new NavAPIImpl(this);
 	m_currentCommandState = std::make_unique<nav::NavCommandState>();
 
@@ -1184,8 +1136,8 @@ void MQ2NavigationPlugin::StuckCheck()
 				&& !GetCharInfo()->Stunned
 				&& m_isActive)
 			{
-				ExecuteCmd(iJumpKey, 1, 0);
-				ExecuteCmd(iJumpKey, 0, 0);
+				ExecuteCmd(CMD_JUMP, 1, 0);
+				ExecuteCmd(CMD_JUMP, 0, 0);
 			}
 
 			m_stuckX = GetCharInfo()->pSpawn->X;
