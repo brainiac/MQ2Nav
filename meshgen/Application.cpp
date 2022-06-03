@@ -136,7 +136,7 @@ Application::~Application()
 bool Application::InitializeWindow()
 {
 	// Init SDL
-	int sdlInitResult = SDL_Init(SDL_INIT_EVERYTHING);
+	int sdlInitResult = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS);
 	if (sdlInitResult != 0)
 	{
 		char szMessage[256];
