@@ -1,7 +1,7 @@
 MacroQuest Navigation Plugin
 ======
 
-This is a navmesh-powered navigation and pathfinding plugin for [MacroQuest](https://gitlab.com/macroquest/next/mqnext) "Next". Navigation is based on the RecastNavigation library.
+This is a navmesh-powered navigation and pathfinding plugin for [MacroQuest](https://github.com/macroquest/macroquest) "Next". Navigation is based on the RecastNavigation library.
 
 This project consists of two parts: The MacroQuest Plugin (MQ2Nav.dll), and the Mesh Generator (MeshGenerator.exe)
 
@@ -20,7 +20,7 @@ Building
 
 * Visual Studio 2019 (16.10+)
 
-* [MacroQuest](https://gitlab.com/macroquest/next/mqnext) (next)
+* [MacroQuest](https://github.com/macroquest/macroquest) (next)
     * _Note: Support for MacroQuest2 legacy is discontinued and will no longer be receiving updates_
 
 MQ2Nav is a unique plugin. The project files have a lot of parts, so unless you know what you are doing, you usually do not want to add it to your solution. Insteada, you can open up the MQ2Nav.sln file and build it on its own. Make sure that you build the core distribution in MacroQuest.sln first.
