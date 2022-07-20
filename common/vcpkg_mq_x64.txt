@@ -1,5 +1,1 @@
-fmt
-glm
-protobuf
-rapidjson
-spdlog
+dxsdk-d3dx:x64-windows
