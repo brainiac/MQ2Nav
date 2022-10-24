@@ -736,6 +736,7 @@ static void DoHelp()
 	WriteChatf(PLUGIN_MSG "Usage:");
 	WriteChatf(PLUGIN_MSG "\ag/nav [save | load]\ax - save/load settings");
 	WriteChatf(PLUGIN_MSG "\ag/nav reload\ax - reload navmesh");
+	WriteChatf(PLUGIN_MSG "\ag/nav ui\ax - show ui");
 	WriteChatf(PLUGIN_MSG "\ag/nav recordwaypoint|rwp \"<waypoint name>\" [\"<waypoint description>\"]\ax - create a waypoint at current location");
 	WriteChatf(PLUGIN_MSG "\ag/nav listwp\ax - list waypoints");
 
