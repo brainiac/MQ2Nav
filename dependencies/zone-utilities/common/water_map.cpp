@@ -13,7 +13,7 @@ WaterMap* WaterMap::LoadWaterMapfile(std::string zone_name) {
 	std::transform(zone_name.begin(), zone_name.end(), zone_name.begin(), ::tolower);
 		
 	std::string file_path = "maps" + std::string("/") + zone_name + std::string(".wtr");
-	FILE *f = fopen(file_path.c_str(), "rb");
+	FILE *f = _fsopen(file_path.c_str(), "rb", _SH_DENYNO);
 	if(f) {
 		char magic[10];
 		uint32_t version;

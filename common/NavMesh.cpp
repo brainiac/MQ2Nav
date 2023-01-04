@@ -583,12 +583,14 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 	// cache the filename of the file we tried to load
 	m_dataFile = filename;
 
-	FILE* file = nullptr;
-	errno_t err = fopen_s(&file, filename, "rb");
-	if (err == ENOENT)
-		return LoadResult::MissingFile;
-	else if (!file)
+	FILE* file = _fsopen(filename, "rb", _SH_DENYNO);
+	if (!file)
+	{
+		if (errno == ENOENT)
+			return LoadResult::MissingFile;
+
 		return LoadResult::Corrupt;
+	}
 
 	scope_guard g = [file]() { fclose(file); };
 

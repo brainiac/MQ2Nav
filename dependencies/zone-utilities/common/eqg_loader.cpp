@@ -58,7 +58,7 @@ bool EQEmu::EQGLoader::Load(std::string file, std::vector<std::shared_ptr<EQG::G
 
 bool EQEmu::EQGLoader::GetZon(std::string file, std::vector<char> &buffer) {
 	buffer.clear();
-	FILE *f = fopen(file.c_str(), "rb");
+	FILE *f = _fsopen(file.c_str(), "rb", _SH_DENYNO);
 	if(f) {
 		fseek(f, 0, SEEK_END);
 		size_t sz = ftell(f);

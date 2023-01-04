@@ -203,7 +203,7 @@ ZoneMap *ZoneMap::LoadMapFromData(const std::vector<glm::vec3> &positions, const
 }
 
 bool ZoneMap::Load(std::string filename) {
-	FILE *f = fopen(filename.c_str(), "rb");
+	FILE *f = _fsopen(filename.c_str(), "rb", _SH_DENYNO);
 	if(f) {
 		uint32_t version;
 		if(fread(&version, sizeof(version), 1, f) != 1) {
