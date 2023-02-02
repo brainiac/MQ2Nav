@@ -243,7 +243,7 @@ bool MapGeometryLoader::load()
 
 	auto isVisible = [](int flags)
 	{
-		return !(flags == 0x01 || flags == 0x10 || flags == 0x11);
+		return !((flags & 0x01) || (flags & 0x10));
 	};
 
 	// Load models
