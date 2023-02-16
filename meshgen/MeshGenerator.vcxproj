@@ -91,13 +91,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
@@ -142,14 +142,9 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>fmtd.lib;zlibd.lib;libprotobufd.lib;SDL2d.lib;SDL2maind.lib;imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>fmtd.lib;zlibd.lib;libprotobufd.lib;SDL2-staticd.lib;SDL2maind.lib;imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
-    <PostBuildEvent>
-      <Command>if not exist "$(OutDir)resources" mkdir "$(OutDir)resources"
-
-XCOPY /y "$(ProjectDir)..\plugin\resources\Zones.ini" "$(OutDir)resources"</Command>
-    </PostBuildEvent>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
@@ -173,12 +168,9 @@ XCOPY /y "$(ProjectDir)..\plugin\resources\Zones.ini" "$(OutDir)resources"</Comm
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>fmt.lib;zlib.lib;libprotobuf.lib;SDL2.lib;SDL2main.lib;imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>fmt.lib;zlib.lib;libprotobuf.lib;SDL2-static.lib;SDL2main.lib;imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
-    <PostBuildEvent>
-      <Command>(if not exist "$(OutDir)resources" mkdir "$(OutDir)resources") &amp;&amp; XCOPY /y "$(ProjectDir)..\plugin\resources\Zones.ini" "$(OutDir)resources"</Command>
-    </PostBuildEvent>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
