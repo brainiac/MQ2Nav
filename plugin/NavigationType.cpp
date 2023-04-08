@@ -61,7 +61,7 @@ bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Ind
 		break;
 	case Setting:
 		Dest.Type = mq::datatypes::pStringType;
-		if (nav::ReadIniSetting(Index, &DataTypeTemp[0], MAX_STRING))
+		if (nav::ReadIniSetting(Index, &DataTypeTemp[0], DataTypeTemp.size()))
 		{
 			Dest.Ptr = &DataTypeTemp[0];
 			return true;
