@@ -116,19 +116,19 @@ NAV_API bool IsNavInitialized()
 // Used to check if mesh is loaded
 NAV_API bool IsNavMeshLoaded()
 {
-	return g_mq2Nav && g_mq2Nav->IsMeshLoaded();
+	return g_mq2Nav && g_mq2Nav->IsInitialized() && g_mq2Nav->IsMeshLoaded();
 }
 
 // Used to check if a path is active
 NAV_API bool IsNavPathActive()
 {
-	return g_mq2Nav && g_mq2Nav->IsActive();
+	return g_mq2Nav && g_mq2Nav->IsInitialized() && g_mq2Nav->IsActive();
 }
 
  // Used to check if path is paused
 NAV_API bool IsNavPathPaused()
 {
-	return g_mq2Nav && g_mq2Nav->IsPaused();
+	return g_mq2Nav && g_mq2Nav->IsInitialized() && g_mq2Nav->IsPaused();
 }
 
 // Check if path is possible to the specified target
@@ -163,71 +163,6 @@ NAV_API bool ExecuteNavCommand(const char* szLine)
 	}
 
 	return false;
-}
-
-//============================================================================
-// These are old, unofficial exports. These are deprecated.
-// They will be removed in a future version.
-
-inline void DeprecatedCheck(const char* exportName)
-{
-	static bool once = false;
-	if (!once)
-	{
-		WriteChatf(PLUGIN_MSG "Deprecated export '%s' was used. Please make sure "
-			"to use the documented exports, as deprecated names will be removed in "
-			"a future update.", exportName);
-		once = true;
-	}
-}
-
-PLUGIN_API bool NavInitialized()
-{
-	DeprecatedCheck("NavInitialized");
-	return IsNavInitialized();
-}
-
-
-// Used to check if mesh is loaded
-PLUGIN_API bool NavMeshLoaded()
-{
-	DeprecatedCheck("NavMeshLoaded");
-	return IsNavMeshLoaded();
-}
-
-// Used to check if a path is active
-PLUGIN_API bool NavPathActive()
-{
-	DeprecatedCheck("NavPathActive");
-	return IsNavPathActive();
-}
-
-// Used to check if path is paused
-PLUGIN_API bool NavPathPaused()
-{
-	DeprecatedCheck("NavPathPaused");
-	return IsNavPathPaused();
-}
-
-// Check if path is possible to the specified target
-PLUGIN_API bool NavPossible(PCHAR szLine)
-{
-	DeprecatedCheck("NavPossible");
-	return IsNavPossible(szLine);
-}
-
-// Check path length
-PLUGIN_API float NavPathLength(PCHAR szLine)
-{
-	DeprecatedCheck("NavPathLength");
-	return GetNavPathLength(szLine);
-}
-
-// used to pass mq2nav commands
-PLUGIN_API void NavCommand(PSPAWNINFO pChar, PCHAR szLine)
-{
-	DeprecatedCheck("NavCommand");
-	ExecuteNavCommand(szLine);
 }
 
 PLUGIN_API nav::NavAPI* GetPluginInterface()

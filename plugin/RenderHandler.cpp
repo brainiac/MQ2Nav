@@ -18,11 +18,6 @@
 
 RenderHandler::RenderHandler()
 {
-	// TODO: Fixme, i shouldn't need to be here
-	if (gbDeviceAcquired)
-	{
-		CreateDeviceObjects();
-	}
 }
 
 RenderHandler::~RenderHandler()

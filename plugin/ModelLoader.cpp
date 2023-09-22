@@ -369,34 +369,36 @@ void ModelLoader::UpdateModels()
 {
 	m_modelData.clear();
 
-	const char* zoneName = GetShortZone(m_zoneId);
-	const std::string pathEQ = std::filesystem::absolute(".").string();
-
-	// this uses a lot of cpu, spin it off into its own thread so it
-	// doesn't block themain thread.
-	auto zoneData = std::make_unique<ZoneData>(pathEQ, zoneName);
-
-	if (!zoneData->IsLoaded())
+	if (gbDeviceAcquired)
 	{
-		return;
-	}
+		const char* zoneName = GetShortZone(m_zoneId);
+		const std::string pathEQ = std::filesystem::absolute(".").string();
 
-	PDOORTABLE pDoorTable = (PDOORTABLE)pSwitchMgr;
-	for (DWORD count = 0; count < pDoorTable->NumEntries; count++)
-	{
-		PDOOR door = pDoorTable->pDoor[count];
-		std::shared_ptr<ModelInfo> modelInfo;
+		// this uses a lot of cpu, spin it off into its own thread so it
+		// doesn't block themain thread.
+		auto zoneData = std::make_unique<ZoneData>(pathEQ, zoneName);
 
-		// might end up moving the renderable generating into m_zoneData
-		if (modelInfo = zoneData->GetModelInfo(door->Name))
+		if (!zoneData->IsLoaded())
 		{
-			// Create new model object
-			std::shared_ptr<ModelData> md = std::make_shared<ModelData>(door->ID, modelInfo, gpD3D9Device);
-			m_modelData[door->ID] = md;
+			return;
+		}
+
+		for (int index = 0; index < pSwitchMgr->GetCount(); index++)
+		{
+			EQSwitch* pSwitch = pSwitchMgr->GetSwitch(index);
+			std::shared_ptr<ModelInfo> modelInfo;
+
+			// might end up moving the renderable generating into m_zoneData
+			if (modelInfo = zoneData->GetModelInfo(pSwitch->Name))
+			{
+				// Create new model object
+				std::shared_ptr<ModelData> md = std::make_shared<ModelData>(pSwitch->ID, modelInfo, gpD3D9Device);
+				m_modelData[pSwitch->ID] = md;
+			}
 		}
 	}
 
-	m_loadedDoorCount = pDoorTable->NumEntries;
+	m_loadedDoorCount = pSwitchMgr->GetCount();
 
 	// dump the doors out to a config file
 	DumpDoors();
@@ -481,7 +483,7 @@ bool IsSwitchStationary(EQSwitch* pSwitch)
 
 void DoorsDebugUI::Render()
 {
-if (!m_showDoorsUI)
+	if (!m_showDoorsUI)
 		return;
 
 	ImGui::SetNextWindowSize(ImVec2(500, 120), ImGuiCond_FirstUseEver);

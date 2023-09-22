@@ -427,16 +427,6 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 {
 	if (!m_initialized)
 	{
-		// don't try to initialize until we get into the game
-		if (GetGameState() != GAMESTATE_INGAME)
-			return;
-
-		if (m_retryInit)
-		{
-			m_retryInit = false;
-			Plugin_Initialize();
-		}
-
 		return;
 	}
 
@@ -445,7 +435,7 @@ void MQ2NavigationPlugin::Plugin_OnPulse()
 		m.second->OnPulse();
 	}
 
-	if (m_initialized && nav::ValidIngame(TRUE))
+	if (m_initialized && nav::ValidIngame(true))
 	{
 		AttemptMovement();
 		StuckCheck();
@@ -486,12 +476,6 @@ void MQ2NavigationPlugin::Plugin_SetGameState(DWORD GameState)
 {
 	if (!m_initialized)
 	{
-		if (m_retryInit)
-		{
-			m_retryInit = false;
-			Plugin_Initialize();
-		}
-
 		return;
 	}
 
@@ -565,22 +549,10 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	if (m_initialized)
 		return;
 
-	if (!gpD3D9Device)
-	{
-		m_retryInit = true;
-		return;
-	}
-
-	MQRenderCallbacks callbacks;
-	callbacks.CreateDeviceObjects = MQCallback_CreateDeviceObjects;
-	callbacks.InvalidateDeviceObjects = MQCallback_InvalidateDeviceObjects;
-	callbacks.GraphicsSceneRender = MQCallback_GraphicsSceneRender;
-
-	m_renderCallbacks = AddRenderCallbacks(callbacks);
-
 	nav::LoadSettings();
 
-	InitializeRenderer();
+	g_renderHandler = new RenderHandler();
+	g_renderHandler->AddRenderable(m_gameLine.get());
 
 	AddModule<KeybindHandler>();
 
@@ -622,7 +594,12 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	m_mapLine = std::make_shared<NavigationMapLine>();
 	m_gameLine = std::make_shared<NavigationLine>();
 
-	g_renderHandler->AddRenderable(m_gameLine.get());
+
+	MQRenderCallbacks callbacks;
+	callbacks.CreateDeviceObjects = MQCallback_CreateDeviceObjects;
+	callbacks.InvalidateDeviceObjects = MQCallback_InvalidateDeviceObjects;
+	callbacks.GraphicsSceneRender = MQCallback_GraphicsSceneRender;
+	m_renderCallbacks = AddRenderCallbacks(callbacks);
 }
 
 void MQ2NavigationPlugin::MQCallback_CreateDeviceObjects()
@@ -689,7 +666,9 @@ void MQ2NavigationPlugin::Plugin_Shutdown()
 	// delete all of the modules
 	m_modules.clear();
 
-	ShutdownRenderer();
+	g_renderHandler->Shutdown();
+	delete g_renderHandler;
+	g_renderHandler = nullptr;
 
 	m_initialized = false;
 	spdlog::shutdown();
@@ -709,24 +688,6 @@ void MQ2NavigationPlugin::SetLogLevel(spdlog::level::level_enum level)
 spdlog::level::level_enum MQ2NavigationPlugin::GetLogLevel() const
 {
 	return m_chatSink->level();
-}
-
-//----------------------------------------------------------------------------
-
-void MQ2NavigationPlugin::InitializeRenderer()
-{
-	g_renderHandler = new RenderHandler();
-}
-
-void MQ2NavigationPlugin::ShutdownRenderer()
-{
-	if (g_renderHandler)
-	{
-		g_renderHandler->Shutdown();
-
-		delete g_renderHandler;
-		g_renderHandler = nullptr;
-	}
 }
 
 //----------------------------------------------------------------------------

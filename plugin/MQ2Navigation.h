@@ -233,9 +233,6 @@ public:
 	nav::NavCommandState* GetCurrentCommandState() { return m_isActive ? m_currentCommandState.get() : nullptr; }
 
 private:
-	void InitializeRenderer();
-	void ShutdownRenderer();
-
 	void UpdateCurrentZone();
 	void SetCurrentZone(int zoneId);
 
@@ -283,7 +280,6 @@ private:
 	mq::Signal<>::ScopedConnection m_uiConn;
 
 	bool m_initialized = false;
-	bool m_retryInit = false;
 	int m_zoneId = -1;
 
 	// ending criteria (pick up item / click door)
