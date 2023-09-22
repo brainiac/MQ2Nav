@@ -552,7 +552,6 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	nav::LoadSettings();
 
 	g_renderHandler = new RenderHandler();
-	g_renderHandler->AddRenderable(m_gameLine.get());
 
 	AddModule<KeybindHandler>();
 
@@ -593,7 +592,7 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 
 	m_mapLine = std::make_shared<NavigationMapLine>();
 	m_gameLine = std::make_shared<NavigationLine>();
-
+	g_renderHandler->AddRenderable(m_gameLine.get());
 
 	MQRenderCallbacks callbacks;
 	callbacks.CreateDeviceObjects = MQCallback_CreateDeviceObjects;
