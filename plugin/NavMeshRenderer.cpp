@@ -133,7 +133,8 @@ void NavMeshRenderer::Render()
 	if (!m_loaded || m_loading || !m_primGroup || !gpD3D9Device)
 		return;
 
-	IDirect3DDevice9* pDevice = gpD3D9Device;
+#if HAS_DIRECTX_9
+	eqlib::Direct3DDevice9* pDevice = gpD3D9Device;
 	if (!pDevice) return;
 
 	pDevice->SetPixelShader(nullptr);
@@ -176,6 +177,7 @@ void NavMeshRenderer::Render()
 	}
 
 	m_primGroup->Render();
+#endif
 }
 
 //----------------------------------------------------------------------------

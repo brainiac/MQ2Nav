@@ -558,6 +558,7 @@ bool NavigationLine::CreateDeviceObjects()
 	if (m_loaded)
 		return true;
 
+#if HAS_DIRECTX_9
 	auto shaderFile = LoadResource(IDR_VOLUMELINES_FX);
 	if (shaderFile.empty())
 		return false;
@@ -607,6 +608,7 @@ bool NavigationLine::CreateDeviceObjects()
 		InvalidateDeviceObjects();
 		return false;
 	}
+#endif
 
 	m_loaded = true;
 	return true;
@@ -614,6 +616,7 @@ bool NavigationLine::CreateDeviceObjects()
 
 void NavigationLine::InvalidateDeviceObjects()
 {
+#if HAS_DIRECTX_9
 	if (m_effect)
 	{
 		m_effect->Release();
@@ -627,21 +630,25 @@ void NavigationLine::InvalidateDeviceObjects()
 		m_vDeclaration->Release();
 		m_vDeclaration = nullptr;
 	}
+#endif
 
 	m_loaded = false;
 }
 
 void NavigationLine::ReleasePath()
 {
+#if HAS_DIRECTX_9
 	if (m_vertexBuffer)
 	{
 		m_vertexBuffer->Release();
 		m_vertexBuffer = nullptr;
 	}
+#endif
 }
 
 void NavigationLine::Render()
 {
+#if HAS_DIRECTX_9
 	if (!m_loaded)
 		return;
 	if (m_needsUpdate && m_path)
@@ -741,10 +748,12 @@ void NavigationLine::Render()
 
 	gpD3D9Device->SetRenderState(D3DRS_ZENABLE, depthTest);
 	gpD3D9Device->SetRenderState(D3DRS_ZFUNC, depthFunc);
+#endif
 }
 
 void NavigationLine::GenerateBuffers()
 {
+#if HAS_DIRECTX_9
 	const std::vector<int>& renderPath = m_path->GetRenderPath();
 	int size = (int)renderPath.size();
 
@@ -867,6 +876,7 @@ void NavigationLine::GenerateBuffers()
 	}
 
 	m_vertexBuffer->Unlock();
+#endif
 	m_needsUpdate = false;
 }
 

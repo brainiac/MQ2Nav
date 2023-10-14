@@ -28,7 +28,7 @@ static inline int PrimVertexCount(RenderList::PrimitiveType type)
 	return 0;
 }
 
-RenderList::RenderList(IDirect3DDevice9* pDevice, PrimitiveType type)
+RenderList::RenderList(eqlib::Direct3DDevice9* pDevice, PrimitiveType type)
 	: m_pDevice(pDevice)
 	, m_type(type)
 	, m_tempMax(PrimVertexCount(type))
@@ -161,6 +161,7 @@ void RenderList::End()
 
 void RenderList::Render()
 {
+#if HAS_DIRECTX_9
 	GenerateBuffers();
 
 	if (!m_pVB || !m_pIB)
@@ -220,10 +221,12 @@ void RenderList::Render()
 			break;
 		}
 	}
+#endif
 }
 
 void RenderList::GenerateBuffers()
 {
+#if HAS_DIRECTX_9
 	bool rebuildBuffers = false;
 	int vertexSize = 0, indexSize = 0;
 
@@ -289,10 +292,12 @@ void RenderList::GenerateBuffers()
 		m_pVB->Unlock();
 		m_pIB->Unlock();
 	}
+#endif
 }
 
 void RenderList::InvalidateDeviceObjects()
 {
+#if HAS_DIRECTX_9
 	if (m_pVB)
 	{
 		m_pVB->Release();
@@ -304,6 +309,7 @@ void RenderList::InvalidateDeviceObjects()
 		m_pIB->Release();
 		m_pIB = nullptr;
 	}
+#endif
 }
 
 bool RenderList::CreateDeviceObjects()
