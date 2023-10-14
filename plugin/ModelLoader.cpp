@@ -38,7 +38,7 @@ bool s_drawBoundingBoxes = false;
 class ModelData : public Renderable
 {
 public:
-	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo, IDirect3DDevice9* device)
+	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo, eqlib::Direct3DDevice9* device)
 		: m_switchID(doorId)
 		, m_modelInfo(modelInfo)
 	{
@@ -196,12 +196,14 @@ public:
 				}
 #endif
 
+#if HAS_DIRECTX_9
 				if (m_targetted || m_highlight || s_drawBoundingBoxes)
 				{
 					gpD3D9Device->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
 					m_grpBB->SetTransform(&scale);
 					m_grpBB->Render();
 				}
+#endif
 			}
 		}
 	}

@@ -132,8 +132,8 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
       <OptimizeReferences Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</OptimizeReferences>
       <OptimizeReferences Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OptimizeReferences>
-      <AdditionalDependencies Condition="'$(Configuration)'=='Debug'">d3d9.lib;d3dx9d.lib;libprotobufd.lib;zlibd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies Condition="'$(Configuration)'=='Release'">d3d9.lib;d3dx9.lib;libprotobuf.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)'=='Debug'">libprotobufd.lib;zlibd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)'=='Release'">libprotobuf.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

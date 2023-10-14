@@ -6,8 +6,7 @@
 #pragma once
 
 #include "plugin/Renderable.h"
-
-#include <d3d9.h>
+#include "eqlib/EQDX9.h"
 #include <glm/glm.hpp>
 
 #include <map>
@@ -29,7 +28,7 @@ public:
 		Prim_Count
 	};
 
-	RenderList(IDirect3DDevice9* d3dDevice, PrimitiveType type);
+	RenderList(eqlib::Direct3DDevice9* d3dDevice, PrimitiveType type);
 	~RenderList();
 
 	void Reset();
@@ -112,9 +111,9 @@ private:
 	bool m_eqCoords = false;
 
 private:
-	IDirect3DDevice9* m_pDevice = nullptr;
-	IDirect3DVertexBuffer9* m_pVB = nullptr;
-	IDirect3DIndexBuffer9* m_pIB = nullptr;
+	eqlib::Direct3DDevice9* m_pDevice = nullptr;
+	eqlib::Direct3DVertexBuffer9* m_pVB = nullptr;
+	eqlib::Direct3DIndexBuffer9* m_pIB = nullptr;
 
 	std::vector<Vertex> m_vertices;
 
@@ -128,7 +127,7 @@ private:
 class RenderGroup : public Renderable
 {
 public:
-	RenderGroup(IDirect3DDevice9* device)
+	RenderGroup(eqlib::Direct3DDevice9* device)
 	{
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
 		{

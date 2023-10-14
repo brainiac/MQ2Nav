@@ -14,6 +14,15 @@
 
 #include <glm/glm.hpp>
 
+#if HAS_DIRECTX_9
+#pragma comment(lib, "d3d9")
+#ifdef _DEBUG
+#pragma comment(lib, "d3dx9d")
+#else
+#pragma comment(lib, "d3dx9")
+#endif
+#endif
+
 //============================================================================
 
 RenderHandler::RenderHandler()
@@ -87,18 +96,23 @@ void RenderHandler::PerformRender()
 {
 	ResetDeviceState();
 
+#if HAS_DIRECTX_9
 	D3DPERF_BeginEvent(D3DCOLOR_XRGB(255, 0, 0), L"RenderHandler::PerformRender");
+#endif
 
 	for (auto& r : m_renderables)
 	{
 		r->Render();
 	}
 
+#if HAS_DIRECTX_9
 	D3DPERF_EndEvent();
+#endif
 }
 
 void ResetDeviceState()
 {
+#if HAS_DIRECTX_9
 	gpD3D9Device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
 	gpD3D9Device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
 	gpD3D9Device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
@@ -174,4 +188,5 @@ void ResetDeviceState()
 	glm::mat4 matrix = glm::identity<glm::mat4>();
 
 	gpD3D9Device->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&matrix);
+#endif
 }
