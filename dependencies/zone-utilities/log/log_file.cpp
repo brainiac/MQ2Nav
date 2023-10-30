@@ -20,7 +20,7 @@ void EQEmu::Log::LogFile::OnRegister(int enabled_logs) {
 		fp = nullptr;
 	}
 	
-	fp = fopen(file_name.c_str(), "w+b");
+	fp = _fsopen(file_name.c_str(), "w+b", _SH_DENYWR);
 }
 
 void EQEmu::Log::LogFile::OnUnregister() {

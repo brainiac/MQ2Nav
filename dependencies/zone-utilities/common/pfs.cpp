@@ -30,7 +30,7 @@ bool EQEmu::PFS::Archive::Open(std::string filename) {
 	Close();
 
 	std::vector<char> buffer;
-	FILE *f = fopen(filename.c_str(), "rb");
+	FILE *f = _fsopen(filename.c_str(), "rb", _SH_DENYNO);
 	if (f) {
 		fseek(f, 0, SEEK_END);
 		size_t sz = ftell(f);
@@ -216,7 +216,7 @@ bool EQEmu::PFS::Archive::Save(std::string filename) {
 		WriteToBuffer(uint32_t, footer_date, buffer, cur_dir_entry_offset + 5);
 	}
 	
-	FILE *f = fopen(filename.c_str(), "wb");
+	FILE *f = _fsopen(filename.c_str(), "wb", _SH_DENYWR);
 	if(f) {
 		size_t sz = fwrite(&buffer[0], buffer.size(), 1, f);
 		if(sz != 1) {

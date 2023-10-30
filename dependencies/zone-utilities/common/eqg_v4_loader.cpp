@@ -691,7 +691,7 @@ bool EQEmu::EQG4Loader::ParseInvwDat(EQEmu::PFS::Archive &archive, std::shared_p
 
 bool EQEmu::EQG4Loader::GetZon(std::string file, std::vector<char> &buffer) {
 	buffer.clear();
-	FILE *f = fopen(file.c_str(), "rb");
+	FILE *f = _fsopen(file.c_str(), "rb", _SH_DENYNO);
 	if (f) {
 		fseek(f, 0, SEEK_END);
 		size_t sz = ftell(f);
