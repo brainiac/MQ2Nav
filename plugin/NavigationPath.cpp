@@ -21,7 +21,7 @@
 #include <DetourNode.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
-#include <d3dx9.h>
+#include <dxsdk-d3dx/d3dx9.h>
 
 
 //----------------------------------------------------------------------------
