@@ -469,7 +469,7 @@ void NavMeshTool::handleRender()
 			if (m_drawMode == DrawMode::NAVMESH_NODES)
 				duDebugDrawNavMeshNodes(&dd, *navQuery);
 
-			duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(0, 0, 0, 128));
+			duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(192, 48, 0, 128));
 		}
 	}
 
