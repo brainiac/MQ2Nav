@@ -267,7 +267,8 @@ void RenderWaypointsUI()
 	// Left Pane
 	{
 		ImGui::BeginChild("WaypointsList", ImVec2(leftPaneSize, ImGui::GetContentRegionAvail().y - 1), true);
-		ImGuiListClipper clipper((int)g_waypoints.size(), ImGui::GetTextLineHeightWithSpacing());
+		ImGuiListClipper clipper;
+		clipper.Begin((int)g_waypoints.size(), ImGui::GetTextLineHeightWithSpacing());
 		while (clipper.Step())
 		{
 			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
