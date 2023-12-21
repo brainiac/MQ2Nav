@@ -6,3 +6,4 @@ spdlog
 sdl2
 dxsdk-d3dx:x64-windows
 directxtk
+wil

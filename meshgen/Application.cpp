@@ -92,15 +92,11 @@ private:
 Application::Application(const std::string& defaultZone)
 	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath(), defaultZone))
 	, m_meshTool(new NavMeshTool(m_navMesh))
-	, m_resetCamera(true)
-	, m_width(1600), m_height(900)
-	, m_progress(0.0)
-	, m_showLog(false)
 	, m_nextZoneToLoad(defaultZone)
 	, m_loadMeshOnZone(!defaultZone.empty())
 {
 	// Construct the path to the ini file
-	CHAR fullPath[MAX_PATH] = { 0 };
+	char fullPath[MAX_PATH] = { 0 };
 	GetModuleFileNameA(nullptr, fullPath, MAX_PATH);
 	PathRemoveFileSpecA(fullPath);
 
@@ -221,7 +217,7 @@ bool Application::InitializeWindow()
 	}
 
 	ImGui_ImplSDL2_InitForD3D(m_window);
-	ImGui_ImplDX11_Init(m_pd3dDevice, m_pd3dDeviceContext);
+	ImGui_ImplDX11_Init(m_pd3dDevice.get(), m_pd3dDeviceContext.get());
 	m_initImGui = true;
 
 	mq::imgui::ConfigureFonts(io.Fonts);
@@ -310,9 +306,10 @@ bool Application::CreateDeviceD3D()
 void Application::CleanupDeviceD3D()
 {
 	CleanupRenderTarget();
-	if (m_pSwapChain) { m_pSwapChain->Release(); m_pSwapChain = nullptr; }
-	if (m_pd3dDeviceContext) { m_pd3dDeviceContext->Release(); m_pd3dDeviceContext = nullptr; }
-	if (m_pd3dDevice) { m_pd3dDevice->Release(); m_pd3dDevice = nullptr; }
+
+	m_pSwapChain.reset();
+	m_pd3dDeviceContext.reset();
+	m_pd3dDevice.reset();
 	
 }
 
@@ -326,7 +323,7 @@ void Application::CreateRenderTarget()
 
 void Application::CleanupRenderTarget()
 {
-	if (m_mainRenderTargetView) { m_mainRenderTargetView->Release(); m_mainRenderTargetView = nullptr; }
+	m_mainRenderTargetView.reset();
 }
 
 int Application::RunMainLoop()
@@ -422,8 +419,8 @@ int Application::RunMainLoop()
 		// Rendering
 		ImGui::Render();
 		const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
-		m_pd3dDeviceContext->OMSetRenderTargets(1, &m_mainRenderTargetView, nullptr);
-		m_pd3dDeviceContext->ClearRenderTargetView(m_mainRenderTargetView, clear_color_with_alpha);
+		m_pd3dDeviceContext->OMSetRenderTargets(1, m_mainRenderTargetView.addressof(), nullptr);
+		m_pd3dDeviceContext->ClearRenderTargetView(m_mainRenderTargetView.get(), clear_color_with_alpha);
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 		// Update and Render additional Platform Windows

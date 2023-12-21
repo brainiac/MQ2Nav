@@ -17,6 +17,7 @@
 #include <imgui/imgui.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/base_sink.h>
+#include <wil/com.h>
 
 #include <d3d11.h>
 #include <cstdio>
@@ -172,11 +173,12 @@ private:
 	bool m_initWindow : 1 = false;
 	bool m_initImGui : 1 = false;
 	bool m_tearingSupport : 1 = false;
+	bool m_resetCamera : 1 = true;
 
-	ID3D11Device* m_pd3dDevice = nullptr;
-	ID3D11DeviceContext* m_pd3dDeviceContext = nullptr;
-	IDXGISwapChain* m_pSwapChain = nullptr;
-	ID3D11RenderTargetView* m_mainRenderTargetView = nullptr;
+	wil::com_ptr<ID3D11Device> m_pd3dDevice;
+	wil::com_ptr<ID3D11DeviceContext> m_pd3dDeviceContext;
+	wil::com_ptr<IDXGISwapChain> m_pSwapChain;
+	wil::com_ptr<ID3D11RenderTargetView> m_mainRenderTargetView;
 	HWND m_hWnd;
 
 	// The build context. Everything passes this around. We own it.
@@ -202,12 +204,17 @@ private:
 	std::unique_ptr<InputGeom> m_geom;
 
 	// rendering properties
-	bool m_resetCamera;
-	int m_width, m_height;
-	float m_progress;
+	int m_width = 1600;
+	int m_height = 900;
+
+	float m_progress = 0.0f;
 	std::string m_activityMessage;
-	bool m_showLog;
+
+	bool m_showLog = false;
 	bool m_showFailedToOpenDialog = false;
+
+	glm::vec3 m_cam;
+	float m_camr = 10;
 
 	glm::mat4 m_proj;
 	glm::mat4 m_model;
@@ -222,9 +229,6 @@ private:
 	float m_moveA = 0, m_moveD = 0;
 	float m_moveUp = 0, m_moveDown = 0;
 	float m_moveSpeed = 0.0f;
-
-	glm::vec3 m_cam;
-	float m_camr = 10;
 
 	uint32_t m_lastTime = 0;
 	float m_time = 0;
