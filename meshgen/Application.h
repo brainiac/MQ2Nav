@@ -18,6 +18,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/base_sink.h>
 
+#include <d3d11.h>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -115,6 +116,8 @@ public:
 	// Return code is the result to exit with
 	int RunMainLoop();
 
+	bool InitializeWindow();
+
 	//------------------------------------------------------------------------
 
 	void ShowZonePickerDialog();
@@ -128,8 +131,12 @@ public:
 	}
 
 private:
-	bool InitializeWindow();
 	void DestroyWindow();
+
+	bool CreateDeviceD3D();
+	void CleanupDeviceD3D();
+	void CreateRenderTarget();
+	void CleanupRenderTarget();
 
 	void RenderInterface();
 
@@ -161,6 +168,16 @@ private:
 
 private:
 	EQConfig m_eqConfig;
+
+	bool m_initWindow : 1 = false;
+	bool m_initImGui : 1 = false;
+	bool m_tearingSupport : 1 = false;
+
+	ID3D11Device* m_pd3dDevice = nullptr;
+	ID3D11DeviceContext* m_pd3dDeviceContext = nullptr;
+	IDXGISwapChain* m_pSwapChain = nullptr;
+	ID3D11RenderTargetView* m_mainRenderTargetView = nullptr;
+	HWND m_hWnd;
 
 	// The build context. Everything passes this around. We own it.
 	std::unique_ptr<RecastContext> m_rcContext;
@@ -278,7 +295,7 @@ protected:
 	void sink_it_(const spdlog::details::log_msg& msg) override
 	{
 		spdlog::memory_buf_t formatted;
-		formatter_->format(msg, formatted);
+		this->formatter_->format(msg, formatted);
 
 		m_application->AddLog(fmt::to_string(formatted).c_str());
 	}

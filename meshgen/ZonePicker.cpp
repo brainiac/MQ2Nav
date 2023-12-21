@@ -7,7 +7,7 @@
 #include <mq/base/String.h>
 #include <glm/glm.hpp>
 
-#include <SDL2/SDL_opengl.h>
+//#include <SDL2/SDL_opengl.h>
 
 #pragma warning (push)
 #pragma warning (disable : 4312 4244)
@@ -65,33 +65,33 @@ ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
 	, m_batchMode(batchMode)
 {
 #if EXPANSION_BUTTONS
-	for (const auto& expansionFile : ExpansionLogoFiles)
-	{
-		std::string path = m_eqDirectory + "\\" + expansionFile;
+	//for (const auto& expansionFile : ExpansionLogoFiles)
+	//{
+	//	std::string path = m_eqDirectory + "\\" + expansionFile;
 
-		IMAGEDATA image;
-		image.data = stbi_load(path.c_str(), &image.width, &image.height, &image.bits, 4);
-		if (image.data)
-		{
-			glGenTextures(1, &image.textureId);
-			glBindTexture(GL_TEXTURE_2D, image.textureId);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
+	//	IMAGEDATA image;
+	//	image.data = stbi_load(path.c_str(), &image.width, &image.height, &image.bits, 4);
+	//	if (image.data)
+	//	{
+	//		glGenTextures(1, &image.textureId);
+	//		glBindTexture(GL_TEXTURE_2D, image.textureId);
+	//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
 
-			m_tgaData.push_back(image);
-		}
-	}
+	//		m_tgaData.push_back(image);
+	//	}
+	//}
 #endif
 }
 
 ZonePicker::~ZonePicker()
 {
-	for (const auto& image : m_tgaData)
-	{
-		glDeleteTextures(1, &image.textureId);
-		free(image.data);
-	}
+	//for (const auto& image : m_tgaData)
+	//{
+	//	glDeleteTextures(1, &image.textureId);
+	//	free(image.data);
+	//}
 }
 
 #if EXPANSION_BUTTONS
@@ -146,31 +146,31 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 		std::string text(m_filterText);
 
 #if EXPANSION_BUTTONS
-		ImGui::PushItemWidth(130);
-		static int selectedIndex = 0;
+		//ImGui::PushItemWidth(130);
+		//static int selectedIndex = 0;
 
-		ImGui::PushID("ExpansionButtons");
+		//ImGui::PushID("ExpansionButtons");
 
-		for (int i = 0; i < m_mapList.size(); i++)
-		{
-			ImGui::PushID(i);
-			auto data = FindExpansionImage(i, selectedIndex == i);
-			if (data.first < m_tgaData.size())
-			{
-				int fileId = data.first;
-				glm::ivec2 pos = data.second;
+		//for (int i = 0; i < m_mapList.size(); i++)
+		//{
+		//	ImGui::PushID(i);
+		//	auto data = FindExpansionImage(i, selectedIndex == i);
+		//	if (data.first < m_tgaData.size())
+		//	{
+		//		int fileId = data.first;
+		//		glm::ivec2 pos = data.second;
 
-				if (ExpansionButton(m_tgaData[fileId], pos))
-				{
-					selectedIndex = i;
-				}
-			}
-			ImGui::PopID();
-		}
+		//		if (ExpansionButton(m_tgaData[fileId], pos))
+		//		{
+		//			selectedIndex = i;
+		//		}
+		//	}
+		//	ImGui::PopID();
+		//}
 
-		ImGui::PopID();
+		//ImGui::PopID();
 
-		ImGui::PopItemWidth();
+		//ImGui::PopItemWidth();
 #endif
 
 		ImGui::BeginChild("##ZoneList", ImVec2(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x,

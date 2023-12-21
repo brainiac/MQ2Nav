@@ -17,8 +17,8 @@
     <ClCompile Include="DebugDraw.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
-    <ClCompile Include="imgui\imgui_impl_opengl2.cpp" />
-    <ClCompile Include="imgui\imgui_impl_sdl.cpp" />
+    <ClCompile Include="imgui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="imgui\imgui_impl_sdl2.cpp" />
     <ClCompile Include="InputGeom.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
@@ -41,8 +41,8 @@
     <ClInclude Include="DebugDraw.h" />
     <ClInclude Include="EQConfig.h" />
     <ClInclude Include="ImGuiWidgets.h" />
-    <ClInclude Include="imgui\imgui_impl_opengl2.h" />
-    <ClInclude Include="imgui\imgui_impl_sdl.h" />
+    <ClInclude Include="imgui\imgui_impl_dx11.h" />
+    <ClInclude Include="imgui\imgui_impl_sdl2.h" />
     <ClInclude Include="InputGeom.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="MapGeometryLoader.h" />
@@ -79,6 +79,9 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MeshGenerator.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="vcpkg_mq.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0F4E974D-3E48-44F0-945E-90C97E1E254D}</ProjectGuid>
@@ -137,12 +140,13 @@
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>fmtd.lib;zlibd.lib;libprotobufd.lib;SDL2-staticd.lib;SDL2maind.lib;imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>fmtd.lib;zlibd.lib;libprotobufd.lib;SDL2-staticd.lib;SDL2maind.lib;d3d11.lib;dxgi.lib;dxguid.lib;imm32.lib;setupapi.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <Manifest>
@@ -161,14 +165,15 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>fmt.lib;zlib.lib;libprotobuf.lib;SDL2-static.lib;SDL2main.lib;imm32.lib;setupapi.lib;openGL32.lib;glu32.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>fmt.lib;zlib.lib;libprotobuf.lib;SDL2-static.lib;SDL2main.lib;d3d11.lib;dxgi.lib;dxguid.lib;imm32.lib;setupapi.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <Manifest>

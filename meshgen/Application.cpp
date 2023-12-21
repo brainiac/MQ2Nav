@@ -10,8 +10,8 @@
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/ZonePicker.h"
 #include "meshgen/resource.h"
-#include "meshgen/imgui/imgui_impl_opengl2.h"
-#include "meshgen/imgui/imgui_impl_sdl.h"
+#include "meshgen/imgui/imgui_impl_dx11.h"
+#include "meshgen/imgui/imgui_impl_sdl2.h"
 #include "common/Utilities.h"
 
 #include "imgui/ImGuiUtils.h"
@@ -22,12 +22,14 @@
 #include <fmt/format.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <gl/GLU.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <zone-utilities/log/log_base.h>
 #include <zone-utilities/log/log_macros.h>
+
+#include <d3d11.h>
+#include <dxgi1_5.h>
 
 #include <filesystem>
 #include <sstream>
@@ -124,8 +126,6 @@ Application::Application(const std::string& defaultZone)
 
 	m_meshTool->setContext(m_rcContext.get());
 	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
-
-	InitializeWindow();
 }
 
 Application::~Application()
@@ -136,22 +136,17 @@ Application::~Application()
 bool Application::InitializeWindow()
 {
 	// Init SDL
-	int sdlInitResult = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS);
+	int sdlInitResult = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER);
 	if (sdlInitResult != 0)
 	{
 		char szMessage[256];
-		sprintf_s(szMessage, "Could not initialize SDL: %d", sdlInitResult);
+		sprintf_s(szMessage, "Could not initialize SDL: %s", SDL_GetError());
 
 		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
 		return false;
 	}
 
-	// Init OpenGL
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
 
 	// scale default window size by monitor dpi
 	float dpi = 0;
@@ -165,73 +160,173 @@ bool Application::InitializeWindow()
 		}
 	}
 
-	int wx = 200, wy = 200;
-	SDL_Rect displayBounds;
-	if (SDL_GetDisplayBounds(0, &displayBounds) == 0)
+	// Setup window
+	SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+	m_window = SDL_CreateWindow("MacroQuest NavMesh Generator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height, window_flags);
+	if (m_window == nullptr)
 	{
-		wx = (displayBounds.w - m_width) / 2;
-		wy = (displayBounds.h - m_height) / 2;
+		char szMessage[256];
+		sprintf_s(szMessage, "Error: SDL_CreateWindow(): %s", SDL_GetError());
+
+		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
+		return false;
 	}
 
-	m_window = SDL_CreateWindow("MQ2Nav Mesh Generator", wx, wy, m_width, m_height,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-	m_glContext = SDL_GL_CreateContext(m_window);
+	SDL_SysWMinfo wmInfo;
+	SDL_VERSION(&wmInfo.version);
+	SDL_GetWindowWMInfo(m_window, &wmInfo);
+	m_hWnd = (HWND)wmInfo.info.win.window;
+	m_initWindow = true;
+
+	if (!CreateDeviceD3D())
+	{
+		CleanupDeviceD3D();
+		char szMessage[256];
+		sprintf_s(szMessage, "Failed to create D3D11");
+
+		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
+		return false;
+	}
 
 	// set window icon
 	HINSTANCE handle = ::GetModuleHandle(nullptr);
 	HICON icon = ::LoadIcon(handle, MAKEINTRESOURCE(IDI_ICON1));
-	if (icon != nullptr) {
-		SDL_SysWMinfo wminfo;
-		SDL_VERSION(&wminfo.version);
-		if (SDL_GetWindowWMInfo(m_window, &wminfo) == 1) {
-			HWND hwnd = wminfo.info.win.window;
-
-			::SetClassLongPtrA(hwnd, GCLP_HICON, reinterpret_cast<LONG_PTR>(icon));
-		}
+	if (icon != nullptr)
+	{
+		::SetClassLongPtrA(m_hWnd, GCLP_HICON, reinterpret_cast<LONG_PTR>(icon));
 	}
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
-	ImGuiIO& io = ImGui::GetIO();
-	io.IniFilename = m_iniFile.c_str();
-	//io.ConfigFlags |= /*ImGuiConfigFlags_ViewportsEnable | */ImGuiConfigFlags_DockingEnable/* | ImGuiConfigFlags_DpiEnableScaleViewports | ImGuiConfigFlags_DpiEnableScaleFonts*/;
-	//io.ConfigDockingWithShift = true;
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+	//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	//io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports | ImGuiConfigFlags_DpiEnableScaleFonts;
 
+	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
 
-	ImGui_ImplSDL2_InitForOpenGL(m_window, m_glContext);
-	ImGui_ImplOpenGL2_Init();
+	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+	ImGuiStyle& style = ImGui::GetStyle();
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		style.WindowRounding = 0.0f;
+		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+	}
+
+	ImGui_ImplSDL2_InitForD3D(m_window);
+	ImGui_ImplDX11_Init(m_pd3dDevice, m_pd3dDeviceContext);
+	m_initImGui = true;
 
 	mq::imgui::ConfigureFonts(io.Fonts);
 	mq::imgui::ConfigureStyle();
-
-	glEnable(GL_CULL_FACE);
-
-	float fogCol[4] = { 0.32f, 0.25f, 0.25f, 1 };
-	glEnable(GL_FOG);
-	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogf(GL_FOG_START, 0);
-	glFogf(GL_FOG_END, 10);
-	glFogfv(GL_FOG_COLOR, fogCol);
-
-	glDepthFunc(GL_LEQUAL);
-
-	glEnable(GL_POINT_SMOOTH);
-	glEnable(GL_LINE_SMOOTH);
 
 	return true;
 }
 
 void Application::DestroyWindow()
 {
-	ImGui_ImplOpenGL2_Shutdown();
-	ImGui_ImplSDL2_Shutdown();
-	ImGui::DestroyContext();
+	if (m_initImGui)
+	{
+		ImGui_ImplDX11_Shutdown();
+		ImGui_ImplSDL2_Shutdown();
+		ImGui::DestroyContext();
+	}
 
-	SDL_GL_DeleteContext(m_glContext);
-	SDL_DestroyWindow(m_window);
-	SDL_Quit();
+	CleanupDeviceD3D();
+
+	if (m_initWindow)
+	{
+		SDL_DestroyWindow(m_window);
+		SDL_Quit();
+	}
+}
+
+bool CheckTearingSupport()
+{
+	// Rather than create the 1.5 factory interface directly, we create the 1.4
+	// interface and query for the 1.5 interface. This will enable the graphics
+	// debugging tools which might not support the 1.5 factory interface.
+
+	IDXGIFactory4* factory4 = nullptr;
+	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory4));
+	BOOL allowTearing = FALSE;
+	if (SUCCEEDED(hr))
+	{
+		IDXGIFactory5* factory5 = nullptr;
+		hr = factory4->QueryInterface(__uuidof(IDXGIFactory5), (void**)&factory5);
+		if (SUCCEEDED(hr))
+		{
+			hr = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
+			factory5->Release();
+		}
+
+		factory4->Release();
+	}
+	return SUCCEEDED(hr) && allowTearing;
+}
+
+bool Application::CreateDeviceD3D()
+{
+	//m_tearingSupport = CheckTearingSupport();
+	m_tearingSupport = false;
+
+	// Setup swap chain
+	DXGI_SWAP_CHAIN_DESC sd;
+	ZeroMemory(&sd, sizeof(sd));
+	sd.BufferCount = 2;
+	sd.BufferDesc.Width = 0;
+	sd.BufferDesc.Height = 0;
+	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	sd.BufferDesc.RefreshRate.Numerator = 60;
+	sd.BufferDesc.RefreshRate.Denominator = 1;
+	sd.Flags = m_tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	sd.OutputWindow = m_hWnd;
+	sd.SampleDesc.Count = 1;
+	sd.SampleDesc.Quality = 0;
+	sd.Windowed = TRUE;
+	sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+
+	UINT createDeviceFlags = 0;
+#if defined(_DEBUG)
+	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+	D3D_FEATURE_LEVEL featureLevel;
+	const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
+	if (D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &m_pSwapChain, &m_pd3dDevice, &featureLevel, &m_pd3dDeviceContext) != S_OK)
+		return false;
+
+	CreateRenderTarget();
+	return true;
+}
+
+void Application::CleanupDeviceD3D()
+{
+	CleanupRenderTarget();
+	if (m_pSwapChain) { m_pSwapChain->Release(); m_pSwapChain = nullptr; }
+	if (m_pd3dDeviceContext) { m_pd3dDeviceContext->Release(); m_pd3dDeviceContext = nullptr; }
+	if (m_pd3dDevice) { m_pd3dDevice->Release(); m_pd3dDevice = nullptr; }
+	
+}
+
+void Application::CreateRenderTarget()
+{
+	ID3D11Texture2D* pBackBuffer;
+	m_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
+	m_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &m_mainRenderTargetView);
+	pBackBuffer->Release();
+}
+
+void Application::CleanupRenderTarget()
+{
+	if (m_mainRenderTargetView) { m_mainRenderTargetView->Release(); m_mainRenderTargetView = nullptr; }
 }
 
 int Application::RunMainLoop()
@@ -240,6 +335,7 @@ int Application::RunMainLoop()
 	m_lastTime = SDL_GetTicks();
 
 	float timeAcc = 0.0f;
+	auto& io = ImGui::GetIO();
 
 	while (!m_done)
 	{
@@ -253,7 +349,8 @@ int Application::RunMainLoop()
 		const float DELTA_TIME = 1.0f / SIM_RATE;
 		timeAcc = rcClamp(timeAcc + m_timeDelta, -1.0f, 1.0f);
 		int simIter = 0;
-		while (timeAcc > DELTA_TIME) {
+		while (timeAcc > DELTA_TIME)
+		{
 			timeAcc -= DELTA_TIME;
 			if (simIter < 5 && m_meshTool)
 				m_meshTool->handleUpdate(DELTA_TIME);
@@ -262,26 +359,26 @@ int Application::RunMainLoop()
 
 		ImVec4 clear_color = ImVec4(0.3f, 0.3f, 0.32f, 1.00f);
 
-		glViewport(0, 0, m_width, m_height);
-		glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glDisable(GL_TEXTURE_2D);
+		//glViewport(0, 0, m_width, m_height);
+		//glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+		//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		//glEnable(GL_BLEND);
+		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		//glDisable(GL_TEXTURE_2D);
 
-		// Render 3d
-		glEnable(GL_DEPTH_TEST);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		gluPerspective(50.0f, (float)m_width / (float)m_height, 1.0f, m_camr);
+		//// Render 3d
+		//glEnable(GL_DEPTH_TEST);
+		//glMatrixMode(GL_PROJECTION);
+		//glLoadIdentity();
+		//gluPerspective(50.0f, (float)m_width / (float)m_height, 1.0f, m_camr);
 
-		// set up modelview matrix
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-		glRotatef(m_r.x, 1, 0, 0);
-		glRotatef(m_r.y, 0, 1, 0);
-		glTranslatef(-m_cam.x, -m_cam.y, -m_cam.z);
-		glGetFloatv(GL_MODELVIEW_MATRIX, glm::value_ptr(m_model));
+		//// set up modelview matrix
+		//glMatrixMode(GL_MODELVIEW);
+		//glLoadIdentity();
+		//glRotatef(m_r.x, 1, 0, 0);
+		//glRotatef(m_r.y, 0, 1, 0);
+		//glTranslatef(-m_cam.x, -m_cam.y, -m_cam.z);
+		//glGetFloatv(GL_MODELVIEW_MATRIX, glm::value_ptr(m_model));
 
 		//glm::mat4 m2 = glm::mat4x4{ 1.0f };
 		//m2 = glm::rotate(m2, glm::radians(m_r.x), glm::vec3{ 1.0f, 0.0f, 0.0f });
@@ -289,41 +386,45 @@ int Application::RunMainLoop()
 		//m_model = glm::translate(m2, -m_cam);
 
 		// Get hit ray position and direction.
-		glGetFloatv(GL_PROJECTION_MATRIX, glm::value_ptr(m_proj));
-		glGetIntegerv(GL_VIEWPORT, glm::value_ptr(m_view));
+		//glGetFloatv(GL_PROJECTION_MATRIX, glm::value_ptr(m_proj));
+		//glGetIntegerv(GL_VIEWPORT, glm::value_ptr(m_view));
 
-		m_rays = glm::unProject(glm::vec3{ m_m.x, m_m.y, 0.0f }, m_model, m_proj, m_view);
-		m_raye = glm::unProject(glm::vec3{ m_m.x, m_m.y, 1.0f }, m_model, m_proj, m_view);
+		//m_rays = glm::unProject(glm::vec3{ m_m.x, m_m.y, 0.0f }, m_model, m_proj, m_view);
+		//m_raye = glm::unProject(glm::vec3{ m_m.x, m_m.y, 1.0f }, m_model, m_proj, m_view);
 
 		DispatchCallbacks();
 
 		// Handle input events.
 		HandleEvents();
 
-		// Start the ImGui Frame
-		ImGui_ImplOpenGL2_NewFrame();
-		ImGui_ImplSDL2_NewFrame(m_window);
+		// Start the Dear ImGui frame
+		ImGui_ImplDX11_NewFrame();
+		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
 
 		RenderInterface();
+
+		static bool show_demo_window = true;
+		ImGui::ShowDemoWindow(&show_demo_window);
 
 		{
 			std::lock_guard<std::mutex> lock(m_renderMutex);
 
 			UpdateCamera();
 
-			glEnable(GL_FOG);
-			m_meshTool->handleRender();
-			glDisable(GL_FOG);
+			//glEnable(GL_FOG);
+			//m_meshTool->handleRender();
+			//glDisable(GL_FOG);
 
-			glEnable(GL_DEPTH_TEST);
+			//glEnable(GL_DEPTH_TEST);
 		}
 
+		// Rendering
 		ImGui::Render();
-		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
-		SDL_GL_SwapWindow(m_window);
-
-		ImGuiIO& io = ImGui::GetIO();
+		const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
+		m_pd3dDeviceContext->OMSetRenderTargets(1, &m_mainRenderTargetView, nullptr);
+		m_pd3dDeviceContext->ClearRenderTargetView(m_mainRenderTargetView, clear_color_with_alpha);
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 		// Update and Render additional Platform Windows
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
@@ -331,6 +432,9 @@ int Application::RunMainLoop()
 			ImGui::UpdatePlatformWindows();
 			ImGui::RenderPlatformWindowsDefault();
 		}
+
+		//m_pSwapChain->Present(1, 0); // Present with vsync
+		m_pSwapChain->Present(0, m_tearingSupport ? DXGI_PRESENT_ALLOW_TEARING : 0); // Present without vsync
 
 		// Do additional work here after rendering
 
@@ -530,6 +634,19 @@ void Application::HandleEvents()
 
 		default:
 			break;
+		}
+
+		if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
+		{
+			Halt();
+			m_done = true;
+		}
+		if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED && event.window.windowID == SDL_GetWindowID(m_window))
+		{
+			// Release all outstanding references to the swap chain's buffers before resizing.
+			CleanupRenderTarget();
+			m_pSwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, m_tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
+			CreateRenderTarget();
 		}
 	}
 }
@@ -798,7 +915,7 @@ void Application::RenderInterface()
 			if (m_navMesh->IsNavMeshLoaded())
 			{
 				ImGui::Separator();
-				if (ImGui::Button(ICON_FA_FLOPPY_O " Save"))
+				if (ImGui::Button((const char*)ICON_FA_FLOPPY_O " Save"))
 					SaveMesh();
 			}
 		}
@@ -837,7 +954,7 @@ void Application::RenderInterface()
 
 				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
 
-				if (ImGui::Button(ICON_MD_CANCEL " Stop"))
+				if (ImGui::Button((const char*)ICON_MD_CANCEL " Stop"))
 					m_meshTool->CancelBuildAllTiles();
 			}
 			else
@@ -1171,8 +1288,8 @@ void Application::ResetCamera()
 		m_r.x = 45;
 		m_r.y = -45;
 
-		glFogf(GL_FOG_START, m_camr * 0.2f);
-		glFogf(GL_FOG_END, m_camr * 1.25f);
+		//glFogf(GL_FOG_START, m_camr * 0.2f);
+		//glFogf(GL_FOG_END, m_camr * 1.25f);
 	}
 }
 
@@ -1392,7 +1509,7 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 			}
 			if (m_fileMissing)
 			{
-				ImGui::TextColored(ImColor(255, 0, 0), ICON_FA_EXCLAMATION_TRIANGLE " File is missing");
+				ImGui::TextColored(ImColor(255, 0, 0), (const char*)(ICON_FA_EXCLAMATION_TRIANGLE " File is missing"));
 			}
 
 			ImGui::PopItemWidth();

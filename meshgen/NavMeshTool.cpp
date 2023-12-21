@@ -203,6 +203,11 @@ bool ToolButton(const char* text, const char* tooltip, bool active)
 	return result;
 }
 
+bool ToolButton(const char8_t* icon, const char* tooltip, bool active)
+{
+	return ToolButton(reinterpret_cast<const char*>(icon), tooltip, active);
+}
+
 void NavMeshTool::handleTools()
 {
 	ToolType type = !m_tool ? ToolType::NONE : m_tool->type();
@@ -1139,14 +1144,14 @@ unsigned char* NavMeshTool::buildTileMesh(
 		if (!rcBuildDistanceField(m_ctx, *chf))
 		{
 			SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build distance field.");
-			return false;
+			return 0;
 		}
 
 		// Partition the walkable surface into simple regions without holes.
 		if (!rcBuildRegions(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea))
 		{
 			SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build watershed regions.");
-			return false;
+			return 0;
 		}
 	}
 	else if (m_config.partitionType == PartitionType::MONOTONE)
@@ -1156,7 +1161,7 @@ unsigned char* NavMeshTool::buildTileMesh(
 		if (!rcBuildRegionsMonotone(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea))
 		{
 			SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build monotone regions.");
-			return false;
+			return 0;
 		}
 	}
 	else // PartitionType::LAYERS
@@ -1165,7 +1170,7 @@ unsigned char* NavMeshTool::buildTileMesh(
 		if (!rcBuildLayerRegions(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea))
 		{
 			SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build layer regions.");
-			return false;
+			return 0;
 		}
 	}
 

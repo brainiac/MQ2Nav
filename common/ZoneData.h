@@ -29,7 +29,7 @@ public:
 
 	bool IsLoaded();
 
-	std::shared_ptr<ModelInfo> ZoneData::GetModelInfo(const std::string& modelName);
+	std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName);
 
 	std::string GetZoneName() const { return m_zoneName; }
 	std::string GetEQPath() const { return m_eqPath; }

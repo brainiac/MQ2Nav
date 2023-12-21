@@ -26,4 +26,6 @@ Thumbs.db
 *.pb.h
 *.VC.db
 
+meshgen/imgui.ini
+
 .vscode/

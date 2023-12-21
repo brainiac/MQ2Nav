@@ -11,5 +11,10 @@ int main(int argc, char* argv[])
 		startingZone = argv[1];
 
 	Application window(startingZone);
-	return window.RunMainLoop();
+	if (window.InitializeWindow())
+	{
+		return window.RunMainLoop();
+	}
+
+	return 1;
 }
