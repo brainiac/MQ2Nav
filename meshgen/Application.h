@@ -17,9 +17,7 @@
 #include <imgui/imgui.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/base_sink.h>
-#include <wil/com.h>
 
-#include <d3d11.h>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -108,16 +106,15 @@ struct ImGuiConsoleLog
 class Application
 {
 public:
-	Application(const std::string& defaultZone = std::string());
-	~Application();
+	Application();
+	virtual ~Application();
+
+	bool Initialize(int argc, const char* const* argv);
+	int shutdown();
+
+	bool update();
 
 	RecastContext& GetContext() { return *m_rcContext; }
-
-	// run the main event loop. This doesn't return until the program is ready to exit.
-	// Return code is the result to exit with
-	int RunMainLoop();
-
-	bool InitializeWindow();
 
 	//------------------------------------------------------------------------
 
@@ -132,16 +129,10 @@ public:
 	}
 
 private:
-	void DestroyWindow();
-
-	bool CreateDeviceD3D();
-	void CleanupDeviceD3D();
-	void CreateRenderTarget();
-	void CleanupRenderTarget();
+	bool InitSystem();
 
 	void RenderInterface();
 
-	void DispatchCallbacks();
 
 	// Load a zone's geometry given its shortname.
 	void LoadGeometry(const std::string& zoneShortName, bool loadMesh);
@@ -158,7 +149,9 @@ private:
 	void SaveMesh();
 
 	// input event handling
-	void HandleEvents();
+	bool HandleEvents();
+	bool HandleCallbacks();
+
 
 	void UpdateMovementState(bool keydown);
 	void UpdateCamera();
@@ -170,16 +163,9 @@ private:
 private:
 	EQConfig m_eqConfig;
 
-	bool m_initWindow : 1 = false;
-	bool m_initImGui : 1 = false;
-	bool m_tearingSupport : 1 = false;
-	bool m_resetCamera : 1 = true;
+	HWND           m_hWnd = nullptr;
+	SDL_Window*    m_window = nullptr;
 
-	wil::com_ptr<ID3D11Device> m_pd3dDevice;
-	wil::com_ptr<ID3D11DeviceContext> m_pd3dDeviceContext;
-	wil::com_ptr<IDXGISwapChain> m_pSwapChain;
-	wil::com_ptr<ID3D11RenderTargetView> m_mainRenderTargetView;
-	HWND m_hWnd;
 
 	// The build context. Everything passes this around. We own it.
 	std::unique_ptr<RecastContext> m_rcContext;
@@ -204,8 +190,11 @@ private:
 	std::unique_ptr<InputGeom> m_geom;
 
 	// rendering properties
-	int m_width = 1600;
-	int m_height = 900;
+	uint32_t m_width;
+	uint32_t m_height;
+	uint32_t m_debug;
+	uint32_t m_reset;
+	bool m_resetCamera = true;
 
 	float m_progress = 0.0f;
 	std::string m_activityMessage;
@@ -231,7 +220,7 @@ private:
 	float m_moveSpeed = 0.0f;
 
 	uint32_t m_lastTime = 0;
-	float m_time = 0;
+	float m_time = 0.0f;
 	float m_timeDelta = 0;
 
 	// mesh hittest
@@ -266,9 +255,6 @@ private:
 	std::string m_nextZoneToLoad;
 	bool m_loadMeshOnZone = false;
 
-	// The main window surface
-	SDL_Window* m_window = nullptr;
-	SDL_GLContext m_glContext = nullptr;
 	std::string m_iniFile;
 	std::string m_logFile;
 

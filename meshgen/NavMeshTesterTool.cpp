@@ -13,8 +13,7 @@
 #include <DetourDebugDraw.h>
 #include <DetourCommon.h>
 
-#include <imgui.h>
-#include <imgui_internal.h>
+#include <imgui/imgui.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -323,7 +322,7 @@ void NavMeshTesterTool::handleMenu()
 
 	ImGui::BeginDisabled(!m_sposSet);
 
-	if (ImGui::ButtonEx("Set Random End", ImVec2(0, 0)))
+	if (ImGui::Button("Set Random End", ImVec2(0, 0)))
 	{
 		if (m_sposSet)
 		{
@@ -360,7 +359,7 @@ void NavMeshTesterTool::handleMenu()
 
 	ImGui::BeginDisabled(!m_sposSet);
 
-	if (ImGui::ButtonEx("Make Random Points Around", ImVec2(0, 0)))
+	if (ImGui::Button("Make Random Points Around", ImVec2(0, 0)))
 	{
 		if (m_sposSet)
 		{

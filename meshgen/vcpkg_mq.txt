@@ -7,3 +7,5 @@ sdl2
 dxsdk-d3dx:x64-windows
 directxtk
 wil
+bgfx[platform-default-features]
+bgfx[tools]:x64-windows

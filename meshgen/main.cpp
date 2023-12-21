@@ -6,15 +6,18 @@
 
 int main(int argc, char* argv[])
 {
-	std::string startingZone;
-	if (argc > 1)
-		startingZone = argv[1];
+	Application app;
 
-	Application window(startingZone);
-	if (window.InitializeWindow())
+	if (!app.Initialize(argc, argv))
 	{
-		return window.RunMainLoop();
+		return 1;
 	}
 
-	return 1;
+	while (true)
+	{
+		if (!app.update())
+			break;
+	}
+
+	return app.shutdown();
 }

@@ -18,11 +18,38 @@
     <Filter Include="Header Files\tools">
       <UniqueIdentifier>{62139e4e-bb4f-4a57-854f-cdaa0242f277}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\imgui">
-      <UniqueIdentifier>{d3998524-c1fc-49fa-a2b7-d338aacdb9af}</UniqueIdentifier>
+    <Filter Include="Source Files\engine">
+      <UniqueIdentifier>{770c3172-8e5c-47ed-b0ed-f14a39530381}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\engine\debugdraw">
+      <UniqueIdentifier>{da8b3d14-202f-485b-b969-e2e8900ed24f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\engine">
+      <UniqueIdentifier>{6ab7d524-d9d6-4638-b9b4-a2006f19b9eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\engine\debugdraw">
+      <UniqueIdentifier>{eecdf7b3-cedd-488d-a9b1-887aa8cc226f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\engine">
+      <UniqueIdentifier>{66217644-198f-4383-988e-cd4d4c4ff525}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\engine\debugdraw">
+      <UniqueIdentifier>{0ba75b6f-dcc0-4e8a-bd68-1eb04fc90fce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\engine\imgui">
+      <UniqueIdentifier>{3aa5e8f3-e718-4a39-ad21-33387e1d68a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\dependencies">
+      <UniqueIdentifier>{49c3732e-edff-40f0-bfd6-9af5d42aa05c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\dependencies\meshoptimizer">
+      <UniqueIdentifier>{b4f8de48-61cb-45a6-9d87-462721afb721}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\imgui">
-      <UniqueIdentifier>{8835327a-ca9d-417f-ae22-64628f46e865}</UniqueIdentifier>
+      <UniqueIdentifier>{d9404a80-c59f-4597-9ae1-7b5536629b16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\imgui">
+      <UniqueIdentifier>{40fdafbd-1cca-46f5-a4da-ed0bf65c0638}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -50,7 +77,7 @@
     <ClCompile Include="ZonePicker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DebugDraw.cpp">
+    <ClCompile Include="GLDebugDraw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ConvexVolumeTool.cpp">
@@ -80,10 +107,67 @@
     <ClCompile Include="NavMeshInfoTool.cpp">
       <Filter>Source Files\tools</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_impl_dx11.cpp">
+    <ClCompile Include="engine\bgfx_utils.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\debugdraw\debugdraw.cpp">
+      <Filter>Source Files\engine\debugdraw</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\indexgenerator.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\overdrawanalyzer.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\overdrawoptimizer.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\quantization.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\simplifier.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\spatialorder.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\stripifier.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\vcacheanalyzer.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\vcacheoptimizer.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\vertexcodec.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\vertexfilter.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\vfetchanalyzer.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\vfetchoptimizer.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\allocator.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\clusterizer.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\meshoptimizer\indexcodec.cpp">
+      <Filter>Source Files\dependencies\meshoptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui\imgui_impl_bgfx.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
     <ClCompile Include="imgui\imgui_impl_sdl2.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui\imgui_impl.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
   </ItemGroup>
@@ -142,10 +226,73 @@
     <ClInclude Include="NavMeshInfoTool.h">
       <Filter>Header Files\tools</Filter>
     </ClInclude>
-    <ClInclude Include="imgui\imgui_impl_dx11.h">
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill_lit.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill_texture.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_lines.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_lines_stipple.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\debugdraw.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_lit.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_lit_mesh.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_mesh.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_texture.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_lines.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_lines_stipple.bin.h">
+      <Filter>Header Files\engine\debugdraw</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\bgfx_utils.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\packrect.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\embedded_shader.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\imgui_impl_bgfx.h">
       <Filter>Header Files\imgui</Filter>
     </ClInclude>
     <ClInclude Include="imgui\imgui_impl_sdl2.h">
+      <Filter>Header Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\imgui_impl.h">
+      <Filter>Header Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\fs_imgui_image.bin.h">
+      <Filter>Header Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\vs_imgui.bin.h">
+      <Filter>Header Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\vs_imgui_image.bin.h">
+      <Filter>Header Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\fs_imgui.bin.h">
       <Filter>Header Files\imgui</Filter>
     </ClInclude>
   </ItemGroup>
@@ -168,5 +315,64 @@
     <Text Include="vcpkg_mq.txt">
       <Filter>Resource Files</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="engine\common.sh">
+      <Filter>Resource Files\engine</Filter>
+    </None>
+    <None Include="engine\shaderlib.sh">
+      <Filter>Resource Files\engine</Filter>
+    </None>
+    <None Include="engine\debugdraw\vs_debugdraw_lines.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\vs_debugdraw_lines_stipple.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\fs_debugdraw_fill.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\fs_debugdraw_fill_lit.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\fs_debugdraw_fill_texture.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\fs_debugdraw_lines.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\fs_debugdraw_lines_stipple.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\varying.def.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\vs_debugdraw_fill.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\vs_debugdraw_fill_lit.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\vs_debugdraw_fill_lit_mesh.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\vs_debugdraw_fill_mesh.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="engine\debugdraw\vs_debugdraw_fill_texture.sc">
+      <Filter>Resource Files\engine\debugdraw</Filter>
+    </None>
+    <None Include="imgui\vs_imgui_image.sc">
+      <Filter>Resource Files\engine\imgui</Filter>
+    </None>
+    <None Include="imgui\fs_imgui.sc">
+      <Filter>Resource Files\engine\imgui</Filter>
+    </None>
+    <None Include="imgui\fs_imgui_image.sc">
+      <Filter>Resource Files\engine\imgui</Filter>
+    </None>
+    <None Include="imgui\vs_imgui.sc">
+      <Filter>Resource Files\engine\imgui</Filter>
+    </None>
   </ItemGroup>
 </Project>

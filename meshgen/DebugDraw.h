@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <DebugDraw.h>
-#include <Recast.h>
-#include <RecastDump.h>
+#include "recast/Recast/Include/Recast.h"
+#include "recast/DebugUtils/Include/DebugDraw.h"
+#include "recast/DebugUtils/Include/RecastDump.h"
 
 // OpenGL debug draw implementation.
 class DebugDrawGL : public duDebugDraw

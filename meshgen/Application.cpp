@@ -10,15 +10,9 @@
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/ZonePicker.h"
 #include "meshgen/resource.h"
-#include "meshgen/imgui/imgui_impl_dx11.h"
-#include "meshgen/imgui/imgui_impl_sdl2.h"
 #include "common/Utilities.h"
 
-#include "imgui/ImGuiUtils.h"
-
 #include <RecastDebugDraw.h>
-#include <imgui.h>
-#include <imgui_internal.h>
 #include <fmt/format.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -28,11 +22,21 @@
 #include <zone-utilities/log/log_base.h>
 #include <zone-utilities/log/log_macros.h>
 
-#include <d3d11.h>
-#include <dxgi1_5.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
+
+#include "imgui/imgui_impl.h"
+#include "imgui/ImGuiUtils.h"
+#include "imgui/imgui_impl_sdl2.h"
+#include <imgui.h>
 
 #include <filesystem>
 #include <sstream>
+
+#include "mq/base/Color.h"
+#include "engine/bgfx_utils.h"
+#include "engine/debugdraw/debugdraw.h"
+#include <bgfx/bgfx.h>
 
 #pragma warning(push)
 #pragma warning(disable: 4244)
@@ -43,8 +47,21 @@ namespace fs = std::filesystem;
 
 static const int32_t MAX_LOG_MESSAGES = 1000;
 
-static bool IsKeyboardBlocked() {
+static bool IsKeyboardBlocked()
+{
 	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
+}
+
+static HWND sdlNativeWindowHandle(SDL_Window* window)
+{
+	SDL_SysWMinfo wmi;
+	SDL_VERSION(&wmi.version);
+	if (!SDL_GetWindowWMInfo(window, &wmi))
+	{
+		return nullptr;
+	}
+
+	return wmi.info.win.window;
 }
 
 class EQEmuLogSink : public EQEmu::Log::LogBase
@@ -89,11 +106,7 @@ private:
 
 //============================================================================
 
-Application::Application(const std::string& defaultZone)
-	: m_navMesh(new NavMesh(m_eqConfig.GetOutputPath(), defaultZone))
-	, m_meshTool(new NavMeshTool(m_navMesh))
-	, m_nextZoneToLoad(defaultZone)
-	, m_loadMeshOnZone(!defaultZone.empty())
+Application::Application()
 {
 	// Construct the path to the ini file
 	char fullPath[MAX_PATH] = { 0 };
@@ -118,31 +131,46 @@ Application::Application(const std::string& defaultZone)
 
 	eqLogInit(-1);
 	eqLogRegister(std::make_shared<EQEmuLogSink>());
-	m_rcContext = std::make_unique<RecastContext>();
-
-	m_meshTool->setContext(m_rcContext.get());
-	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
 }
 
 Application::~Application()
 {
-	DestroyWindow();
 }
 
-bool Application::InitializeWindow()
+bool Application::Initialize(int32_t argc, const char* const* argv)
 {
-	// Init SDL
-	int sdlInitResult = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER);
-	if (sdlInitResult != 0)
-	{
-		char szMessage[256];
-		sprintf_s(szMessage, "Could not initialize SDL: %s", SDL_GetError());
-
-		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
+	if (!InitSystem())
 		return false;
+
+	std::string startingZone;
+	if (argc > 1)
+		startingZone = argv[1];
+
+	if (!startingZone.empty())
+	{
+		m_loadMeshOnZone = true;
+		m_nextZoneToLoad = startingZone;
 	}
 
-	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
+	m_navMesh = std::make_shared<NavMesh>(m_eqConfig.GetOutputPath(), startingZone);
+	m_meshTool = std::make_unique<NavMeshTool>(m_navMesh);
+
+	m_rcContext = std::make_unique<RecastContext>();
+
+	m_meshTool->setContext(m_rcContext.get());
+	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
+
+	m_lastTime = GetTickCount64();
+
+	return true;
+}
+
+bool Application::InitSystem()
+{
+	SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS | SDL_INIT_TIMER);
+
+	m_width = 1600;
+	m_height = 900;
 
 	// scale default window size by monitor dpi
 	float dpi = 0;
@@ -156,6 +184,9 @@ bool Application::InitializeWindow()
 		}
 	}
 
+	m_debug = BGFX_DEBUG_TEXT;
+	m_reset = BGFX_RESET_NONE;
+
 	// Setup window
 	SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	m_window = SDL_CreateWindow("MacroQuest NavMesh Generator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height, window_flags);
@@ -168,44 +199,50 @@ bool Application::InitializeWindow()
 		return false;
 	}
 
-	SDL_SysWMinfo wmInfo;
-	SDL_VERSION(&wmInfo.version);
-	SDL_GetWindowWMInfo(m_window, &wmInfo);
-	m_hWnd = (HWND)wmInfo.info.win.window;
-	m_initWindow = true;
-
-	if (!CreateDeviceD3D())
+	bgfx::Init init;
+	init.type = bgfx::RendererType::Direct3D11;
+	init.vendorId = BGFX_PCI_ID_NONE;
+	init.platformData.nwh = sdlNativeWindowHandle(m_window);
+	init.platformData.ndt = nullptr;
+	init.platformData.type = bgfx::NativeWindowHandleType::Default;
+	init.resolution.width = m_width;
+	init.resolution.height = m_height;
+	init.resolution.reset = m_reset;
+	if (!bgfx::init(init))
 	{
-		CleanupDeviceD3D();
 		char szMessage[256];
-		sprintf_s(szMessage, "Failed to create D3D11");
+		sprintf_s(szMessage, "Error: bgfx::init() failed");
 
 		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
 		return false;
 	}
 
-	// set window icon
-	HINSTANCE handle = ::GetModuleHandle(nullptr);
-	HICON icon = ::LoadIcon(handle, MAKEINTRESOURCE(IDI_ICON1));
-	if (icon != nullptr)
-	{
-		::SetClassLongPtrA(m_hWnd, GCLP_HICON, reinterpret_cast<LONG_PTR>(icon));
-	}
+	utilsInit();
+	ddInit();
+
+	// Enable debug text.
+	bgfx::setDebug(m_debug);
+
+	// Set view 0 clear state.
+	ImVec4 clear_color = ImVec4(0.3f, 0.3f, 0.32f, 1.00f);
+
+	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, mq::MQColor(clear_color).ToRGBA(), 1.0f, 0);
+
+	//
+	// Initialize ImGui
+	//
 
 	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
+	ImGuiContext* context = ImGui::CreateContext();
 
-	// Setup Dear ImGui context
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGuiIO& io = ImGui::GetIO();
+	io.IniFilename = m_iniFile.c_str();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	//io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports | ImGuiConfigFlags_DpiEnableScaleFonts;
 
-	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
 
 	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
@@ -216,116 +253,105 @@ bool Application::InitializeWindow()
 		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 	}
 
-	ImGui_ImplSDL2_InitForD3D(m_window);
-	ImGui_ImplDX11_Init(m_pd3dDevice.get(), m_pd3dDeviceContext.get());
-	m_initImGui = true;
+	ImGui_Impl_Init(m_window, context);
 
 	mq::imgui::ConfigureFonts(io.Fonts);
 	mq::imgui::ConfigureStyle();
 
+	//
+	//
+
+	bgfx::frame();
 	return true;
 }
 
-void Application::DestroyWindow()
+int Application::shutdown()
 {
-	if (m_initImGui)
-	{
-		ImGui_ImplDX11_Shutdown();
-		ImGui_ImplSDL2_Shutdown();
-		ImGui::DestroyContext();
-	}
+	// shutdown ImGui
+	ImGui_Impl_Shutdown();
 
-	CleanupDeviceD3D();
+	ddShutdown();
 
-	if (m_initWindow)
-	{
-		SDL_DestroyWindow(m_window);
-		SDL_Quit();
-	}
+	// Shutdown bgfx.
+	bgfx::shutdown();
+
+
+	utilsShutdown();
+
+	return 0;
 }
 
-bool CheckTearingSupport()
+bool Application::update()
 {
-	// Rather than create the 1.5 factory interface directly, we create the 1.4
-	// interface and query for the 1.5 interface. This will enable the graphics
-	// debugging tools which might not support the 1.5 factory interface.
-
-	IDXGIFactory4* factory4 = nullptr;
-	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory4));
-	BOOL allowTearing = FALSE;
-	if (SUCCEEDED(hr))
-	{
-		IDXGIFactory5* factory5 = nullptr;
-		hr = factory4->QueryInterface(__uuidof(IDXGIFactory5), (void**)&factory5);
-		if (SUCCEEDED(hr))
-		{
-			hr = factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allowTearing, sizeof(allowTearing));
-			factory5->Release();
-		}
-
-		factory4->Release();
-	}
-	return SUCCEEDED(hr) && allowTearing;
-}
-
-bool Application::CreateDeviceD3D()
-{
-	//m_tearingSupport = CheckTearingSupport();
-	m_tearingSupport = false;
-
-	// Setup swap chain
-	DXGI_SWAP_CHAIN_DESC sd;
-	ZeroMemory(&sd, sizeof(sd));
-	sd.BufferCount = 2;
-	sd.BufferDesc.Width = 0;
-	sd.BufferDesc.Height = 0;
-	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	sd.BufferDesc.RefreshRate.Numerator = 60;
-	sd.BufferDesc.RefreshRate.Denominator = 1;
-	sd.Flags = m_tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.OutputWindow = m_hWnd;
-	sd.SampleDesc.Count = 1;
-	sd.SampleDesc.Quality = 0;
-	sd.Windowed = TRUE;
-	sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-
-	UINT createDeviceFlags = 0;
-#if defined(_DEBUG)
-	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-	D3D_FEATURE_LEVEL featureLevel;
-	const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
-	if (D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &m_pSwapChain, &m_pd3dDevice, &featureLevel, &m_pd3dDeviceContext) != S_OK)
+	if (m_done)
 		return false;
 
-	CreateRenderTarget();
+	// fractional time since last update
+	Uint32 time = GetTickCount64();
+	m_timeDelta = (time - m_lastTime) / 1000.0f;
+	m_lastTime = time;
+	m_time += m_timeDelta;
+
+	if (!HandleCallbacks())
+		return false;
+
+	if (!HandleEvents())
+		return false;
+
+	static float timeAcc = 0.0f;
+
+	const float SIM_RATE = 20;
+	const float DELTA_TIME = 1.0f / SIM_RATE;
+	timeAcc = rcClamp(timeAcc + m_timeDelta, -1.0f, 1.0f);
+	int simIter = 0;
+	while (timeAcc > DELTA_TIME)
+	{
+		timeAcc -= DELTA_TIME;
+		if (simIter < 5 && m_meshTool)
+			m_meshTool->handleUpdate(DELTA_TIME);
+		simIter++;
+	}
+
+	ImGui_Impl_NewFrame();
+
+	RenderInterface();
+
+	static bool show_demo_window = true;
+	ImGui::ShowDemoWindow(&show_demo_window);
+
+	{
+		std::lock_guard<std::mutex> lock(m_renderMutex);
+
+		UpdateCamera();
+
+		//glEnable(GL_FOG);
+		m_meshTool->handleRender();
+		//glDisable(GL_FOG);
+
+		//glEnable(GL_DEPTH_TEST);
+	}
+
+	//showExampleDialog(this);
+
+	// Set view 0 default viewport.
+	bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height));
+
+	// This dummy draw call is here to make sure that view 0 is cleared
+	// if no other draw calls are submitted to view 0.
+	bgfx::touch(0);
+
+	// Use debug font to print information about this example.
+	bgfx::dbgTextClear();
+
+	ImGui_Impl_Render();
+
+	// Advance to next frame. Rendering thread will be kicked to process submitted rendering primitives.
+	bgfx::frame();
+
 	return true;
 }
 
-void Application::CleanupDeviceD3D()
-{
-	CleanupRenderTarget();
-
-	m_pSwapChain.reset();
-	m_pd3dDeviceContext.reset();
-	m_pd3dDevice.reset();
-	
-}
-
-void Application::CreateRenderTarget()
-{
-	ID3D11Texture2D* pBackBuffer;
-	m_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
-	m_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &m_mainRenderTargetView);
-	pBackBuffer->Release();
-}
-
-void Application::CleanupRenderTarget()
-{
-	m_mainRenderTargetView.reset();
-}
-
+#if 0
 int Application::RunMainLoop()
 {
 	m_time = 0.0f;
@@ -353,8 +379,6 @@ int Application::RunMainLoop()
 				m_meshTool->handleUpdate(DELTA_TIME);
 			simIter++;
 		}
-
-		ImVec4 clear_color = ImVec4(0.3f, 0.3f, 0.32f, 1.00f);
 
 		//glViewport(0, 0, m_width, m_height);
 		//glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
@@ -453,8 +477,9 @@ int Application::RunMainLoop()
 	m_geom.reset();
 	return 0;
 }
+#endif
 
-void Application::HandleEvents()
+bool Application::HandleEvents()
 {
 	SDL_Event event;
 	while (SDL_PollEvent(&event))
@@ -632,20 +657,9 @@ void Application::HandleEvents()
 		default:
 			break;
 		}
-
-		if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
-		{
-			Halt();
-			m_done = true;
-		}
-		if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED && event.window.windowID == SDL_GetWindowID(m_window))
-		{
-			// Release all outstanding references to the swap chain's buffers before resizing.
-			CleanupRenderTarget();
-			m_pSwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, m_tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
-			CreateRenderTarget();
-		}
 	}
+
+	return !m_done;
 }
 
 void Application::UpdateMovementState(bool keydown)
@@ -665,35 +679,35 @@ void Application::UpdateCamera()
 	if (ImGui::GetIO().WantCaptureKeyboard)
 		return;
 
-	const Uint8* keystate = SDL_GetKeyboardState(NULL);
-	m_moveW = rcClamp(m_moveW + m_timeDelta * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
-	m_moveS = rcClamp(m_moveS + m_timeDelta * 4 * (keystate[SDL_SCANCODE_S] ? 1 : -1), 0.0f, 1.0f);
-	m_moveA = rcClamp(m_moveA + m_timeDelta * 4 * (keystate[SDL_SCANCODE_A] ? 1 : -1), 0.0f, 1.0f);
-	m_moveD = rcClamp(m_moveD + m_timeDelta * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
-	m_moveUp = rcClamp(m_moveUp + m_timeDelta * 4 * (keystate[SDL_SCANCODE_SPACE] ? 1 : -1), 0.0f, 1.0f);
-	m_moveDown = rcClamp(m_moveDown + m_timeDelta * 4 * (keystate[SDL_SCANCODE_C] ? 1 : -1), 0.0f, 1.0f);
-	
-	float keybSpeed = m_camMoveSpeed;
-	if (SDL_GetModState() & KMOD_SHIFT)
-		keybSpeed *= 10.0f;
+	//const Uint8* keystate = SDL_GetKeyboardState(NULL);
+	//m_moveW = rcClamp(m_moveW + m_timeDelta * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
+	//m_moveS = rcClamp(m_moveS + m_timeDelta * 4 * (keystate[SDL_SCANCODE_S] ? 1 : -1), 0.0f, 1.0f);
+	//m_moveA = rcClamp(m_moveA + m_timeDelta * 4 * (keystate[SDL_SCANCODE_A] ? 1 : -1), 0.0f, 1.0f);
+	//m_moveD = rcClamp(m_moveD + m_timeDelta * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
+	//m_moveUp = rcClamp(m_moveUp + m_timeDelta * 4 * (keystate[SDL_SCANCODE_SPACE] ? 1 : -1), 0.0f, 1.0f);
+	//m_moveDown = rcClamp(m_moveDown + m_timeDelta * 4 * (keystate[SDL_SCANCODE_C] ? 1 : -1), 0.0f, 1.0f);
+	//
+	//float keybSpeed = m_camMoveSpeed;
+	//if (SDL_GetModState() & KMOD_SHIFT)
+	//	keybSpeed *= 10.0f;
 
-	glm::vec3 dp{ m_moveD - m_moveA, m_moveS - m_moveW, m_moveUp - m_moveDown };
-	dp *= m_timeDelta * keybSpeed;
+	//glm::vec3 dp{ m_moveD - m_moveA, m_moveS - m_moveW, m_moveUp - m_moveDown };
+	//dp *= m_timeDelta * keybSpeed;
 
 	//  0  1  2  3
 	//  4  5  6  7
 	//  8  9 10 11
 	// 12 13 14 15
 
-	m_cam.x += dp.x * m_model[0][0];
-	m_cam.x += dp.y * m_model[0][2];
+	//m_cam.x += dp.x * m_model[0][0];
+	//m_cam.x += dp.y * m_model[0][2];
 
-	m_cam.y += dp.x * m_model[1][0];
-	m_cam.y += dp.y * m_model[1][2];
-	m_cam.y += dp.z;
+	//m_cam.y += dp.x * m_model[1][0];
+	//m_cam.y += dp.y * m_model[1][2];
+	//m_cam.y += dp.z;
 
-	m_cam.z += dp.x * m_model[2][0];
-	m_cam.z += dp.y * m_model[2][2];
+	//m_cam.z += dp.x * m_model[2][0];
+	//m_cam.z += dp.y * m_model[2][2];
 }
 
 void Application::RenderInterface()
@@ -1125,16 +1139,10 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	ImGui::NextColumn();
 	ImGui::SetColumnOffset(1, 35);
 
-	ImGuiWindow* window = ImGui::GetCurrentWindow();
-	float offset = window->DC.CurrLineTextBaseOffset;
-	window->DC.CurrLineTextBaseOffset += 2.0f;
-
 	if (builtIn)
 		ImGui::Text("Built-in %d", areaId);
 	else
 		ImGui::Text("User %d", userIndex != -1 ? userIndex : areaId);
-
-	window->DC.CurrLineTextBaseOffset = offset;
 
 	ImGui::NextColumn();
 	ImGui::SetColumnOffset(2, 120);
@@ -1356,7 +1364,7 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 	std::stringstream ss2;
 	ss2 << "MQ2Nav Mesh Generator - " << m_zoneDisplayName;
 	std::string windowTitle = ss2.str();
-	SDL_SetWindowTitle(m_window, windowTitle.c_str());
+	//SDL_SetWindowTitle(m_window, windowTitle.c_str());
 
 	m_meshTool->handleGeometryChanged(m_geom.get());
 	m_navMesh->SetZoneName(m_zoneShortname);
@@ -1375,7 +1383,7 @@ void Application::PushEvent(const std::function<void()>& cb)
 	m_callbackQueue.push_back(cb);
 }
 
-void Application::DispatchCallbacks()
+bool Application::HandleCallbacks()
 {
 	std::vector<std::function<void()>> callbacks;
 
@@ -1388,6 +1396,8 @@ void Application::DispatchCallbacks()
 	{
 		cb();
 	}
+
+	return !m_done;
 }
 
 //============================================================================
@@ -1506,7 +1516,7 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 			}
 			if (m_fileMissing)
 			{
-				ImGui::TextColored(ImColor(255, 0, 0), (const char*)(ICON_FA_EXCLAMATION_TRIANGLE " File is missing"));
+				ImGui::TextColored(ImColor(255, 0, 0), (const char*) ICON_FA_EXCLAMATION_TRIANGLE " File is missing");
 			}
 
 			ImGui::PopItemWidth();

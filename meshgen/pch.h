@@ -33,5 +33,7 @@
 #include <shlobj.h>
 #include <Shlwapi.h>
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
+//#include <SDL2/SDL.h>
+//#include <SDL2/SDL_syswm.h>
+
+#include <bgfx/bgfx.h>

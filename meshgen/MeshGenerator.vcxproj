@@ -11,13 +11,32 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\dependencies\meshoptimizer\allocator.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\clusterizer.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\indexcodec.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\indexgenerator.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\overdrawanalyzer.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\overdrawoptimizer.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\quantization.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\simplifier.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\spatialorder.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\stripifier.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\vcacheanalyzer.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\vcacheoptimizer.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\vertexcodec.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\vertexfilter.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\vfetchanalyzer.cpp" />
+    <ClCompile Include="..\dependencies\meshoptimizer\vfetchoptimizer.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
+    <ClCompile Include="engine\bgfx_utils.cpp" />
+    <ClCompile Include="engine\debugdraw\debugdraw.cpp" />
     <ClCompile Include="EQConfig.cpp" />
-    <ClCompile Include="DebugDraw.cpp" />
+    <ClCompile Include="GLDebugDraw.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
-    <ClCompile Include="imgui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="imgui\imgui_impl.cpp" />
+    <ClCompile Include="imgui\imgui_impl_bgfx.cpp" />
     <ClCompile Include="imgui\imgui_impl_sdl2.cpp" />
     <ClCompile Include="InputGeom.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -39,10 +58,31 @@
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="DebugDraw.h" />
+    <ClInclude Include="engine\bgfx_utils.h" />
+    <ClInclude Include="engine\debugdraw\debugdraw.h" />
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill.bin.h" />
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill_lit.bin.h" />
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill_texture.bin.h" />
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_lines.bin.h" />
+    <ClInclude Include="engine\debugdraw\fs_debugdraw_lines_stipple.bin.h" />
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill.bin.h" />
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_lit.bin.h" />
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_lit_mesh.bin.h" />
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_mesh.bin.h" />
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_texture.bin.h" />
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_lines.bin.h" />
+    <ClInclude Include="engine\debugdraw\vs_debugdraw_lines_stipple.bin.h" />
+    <ClInclude Include="engine\embedded_shader.h" />
+    <ClInclude Include="engine\packrect.h" />
     <ClInclude Include="EQConfig.h" />
     <ClInclude Include="ImGuiWidgets.h" />
-    <ClInclude Include="imgui\imgui_impl_dx11.h" />
+    <ClInclude Include="imgui\fs_imgui.bin.h" />
+    <ClInclude Include="imgui\fs_imgui_image.bin.h" />
+    <ClInclude Include="imgui\imgui_impl.h" />
+    <ClInclude Include="imgui\imgui_impl_bgfx.h" />
     <ClInclude Include="imgui\imgui_impl_sdl2.h" />
+    <ClInclude Include="imgui\vs_imgui.bin.h" />
+    <ClInclude Include="imgui\vs_imgui_image.bin.h" />
     <ClInclude Include="InputGeom.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="MapGeometryLoader.h" />
@@ -82,6 +122,27 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="vcpkg_mq.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="engine\common.sh" />
+    <None Include="engine\debugdraw\fs_debugdraw_fill.sc" />
+    <None Include="engine\debugdraw\fs_debugdraw_fill_lit.sc" />
+    <None Include="engine\debugdraw\fs_debugdraw_fill_texture.sc" />
+    <None Include="engine\debugdraw\fs_debugdraw_lines.sc" />
+    <None Include="engine\debugdraw\fs_debugdraw_lines_stipple.sc" />
+    <None Include="engine\debugdraw\varying.def.sc" />
+    <None Include="engine\debugdraw\vs_debugdraw_fill.sc" />
+    <None Include="engine\debugdraw\vs_debugdraw_fill_lit.sc" />
+    <None Include="engine\debugdraw\vs_debugdraw_fill_lit_mesh.sc" />
+    <None Include="engine\debugdraw\vs_debugdraw_fill_mesh.sc" />
+    <None Include="engine\debugdraw\vs_debugdraw_fill_texture.sc" />
+    <None Include="engine\debugdraw\vs_debugdraw_lines.sc" />
+    <None Include="engine\debugdraw\vs_debugdraw_lines_stipple.sc" />
+    <None Include="engine\shaderlib.sh" />
+    <None Include="imgui\fs_imgui.sc" />
+    <None Include="imgui\fs_imgui_image.sc" />
+    <None Include="imgui\vs_imgui.sc" />
+    <None Include="imgui\vs_imgui_image.sc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0F4E974D-3E48-44F0-945E-90C97E1E254D}</ProjectGuid>
@@ -130,7 +191,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)compat\msvc;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\meshoptimizer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -141,12 +202,13 @@
       <StringPooling>false</StringPooling>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>BX_CONFIG_DEBUG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>fmtd.lib;zlibd.lib;libprotobufd.lib;SDL2-staticd.lib;SDL2maind.lib;d3d11.lib;dxgi.lib;dxguid.lib;imm32.lib;setupapi.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>bgfx.lib;bx.lib;bimg.lib;bimg_decode.lib;miniz.lib;fmtd.lib;zlibd.lib;libprotobufd.lib;SDL2-staticd.lib;SDL2maind.lib;d3d11.lib;dxgi.lib;dxguid.lib;imm32.lib;setupapi.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <Manifest>
@@ -160,20 +222,21 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)compat\msvc;$(ProjectDir)..\dependencies;$(ProjectDir)..\dependencies\zone-utilities\common;$(ProjectDir)..\dependencies\zone-utilities\log;$(ProjectDir)..\dependencies\recast\DetourTileCache\Include;$(ProjectDir)..\dependencies\recast\Detour\Include;$(ProjectDir)..\dependencies\recast\DetourCrowd\Include;$(ProjectDir)..\dependencies\recast\DebugUtils\Include;$(ProjectDir)..\dependencies\recast\Recast\Include;$(ProjectDir)..\dependencies\meshoptimizer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>BX_CONFIG_DEBUG=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>fmt.lib;zlib.lib;libprotobuf.lib;SDL2-static.lib;SDL2main.lib;d3d11.lib;dxgi.lib;dxguid.lib;imm32.lib;setupapi.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>bgfx.lib;bx.lib;bimg.lib;bimg_decode.lib;miniz.lib;fmt.lib;zlib.lib;libprotobuf.lib;d3d11.lib;dxgi.lib;dxguid.lib;imm32.lib;setupapi.lib;winmm.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <Manifest>
