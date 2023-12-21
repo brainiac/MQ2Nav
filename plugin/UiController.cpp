@@ -295,7 +295,7 @@ void UiController::DrawSettingsUI(bool fromSettingsPanel)
 		ARGBCOLOR mapLineColor;
 		mapLineColor.ARGB = g_mq2Nav->GetMapLine()->GetColor();
 		float mapLineRGB[3] = { mapLineColor.R / 255.f, mapLineColor.G / 255.f, mapLineColor.B / 255.f };
-		if (ImGui::ColorEdit3("Map line color", mapLineRGB, ImGuiColorEditFlags_RGB))
+		if (ImGui::ColorEdit3("Map line color", mapLineRGB, ImGuiColorEditFlags_DisplayRGB))
 		{
 			mapLineColor.R = mapLineRGB[0] * 255;
 			mapLineColor.G = mapLineRGB[1] * 255;

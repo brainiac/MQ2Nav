@@ -136,8 +136,8 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 		ImGui::Text("Select a zone or type to filter by name");
 
 		bool selectSingle = false;
-		ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth());
-		if (ImGui::InputText("", m_filterText, 64, ImGuiInputTextFlags_EnterReturnsTrue))
+		ImGui::PushItemWidth(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x);
+		if (ImGui::InputText("##ZonePicker", m_filterText, 64, ImGuiInputTextFlags_EnterReturnsTrue))
 			selectSingle = true;
 		if (focus) ImGui::SetKeyboardFocusHere(-1);
 
@@ -173,7 +173,7 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 		ImGui::PopItemWidth();
 #endif
 
-		ImGui::BeginChild("##ZoneList", ImVec2(ImGui::GetWindowContentRegionWidth(),
+		ImGui::BeginChild("##ZoneList", ImVec2(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x,
 			ImGui::GetWindowHeight() - 115), false);
 
 		if (text.empty())
