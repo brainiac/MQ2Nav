@@ -30,14 +30,12 @@ public:
 	void SetUseMaxExtents(bool use) { m_useMaxExtents = use; SaveConfigToIni(); }
 
 	// loaded maps, keyed by their expansion group. Data is loaded from Zones.ini
-	typedef std::pair<std::string /*shortName*/, std::string /*longName*/> ZoneNamePair;
-
-	typedef std::set<ZoneNamePair> ZoneList;
+	using ZoneNamePair = std::pair<std::string /*shortName*/, std::string /*longName*/>;
+	using ZoneList = std::set<ZoneNamePair>;
 
 	// map expansion, and its maps
-	typedef std::pair<std::string, ZoneList> Expansion;
-
-	typedef std::vector<Expansion> MapList;
+	using Expansion = std::pair<std::string, ZoneList>;
+	using MapList =std::vector<Expansion>;
 
 	const MapList& GetMapList() const { return m_loadedMaps; }
 

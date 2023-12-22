@@ -130,7 +130,6 @@ public:
 
 private:
 	bool InitSystem();
-
 	void RenderInterface();
 
 

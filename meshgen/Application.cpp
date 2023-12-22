@@ -267,6 +267,8 @@ bool Application::InitSystem()
 
 int Application::shutdown()
 {
+	m_zonePicker.reset();
+
 	// shutdown ImGui
 	ImGui_Impl_Shutdown();
 
@@ -315,9 +317,6 @@ bool Application::update()
 	ImGui_Impl_NewFrame();
 
 	RenderInterface();
-
-	static bool show_demo_window = true;
-	ImGui::ShowDemoWindow(&show_demo_window);
 
 	{
 		std::lock_guard<std::mutex> lock(m_renderMutex);
@@ -1090,13 +1089,17 @@ void Application::ShowZonePickerDialog()
 
 	if (m_showZonePickerDialog) {
 		bool focus = false;
-		if (!m_zonePicker) {
+		if (!m_zonePicker)
+		{
 			m_zonePicker = std::make_unique<ZonePicker>(m_eqConfig);
 			focus = true;
 			ImGui::SetNextWindowFocus();
 		}
-		if (m_zonePicker->Show(focus, &m_nextZoneToLoad)) {
+
+		if (m_zonePicker->Show(focus))
+		{
 			m_loadMeshOnZone = m_zonePicker->ShouldLoadNavMesh();
+			m_nextZoneToLoad = m_zonePicker->GetSelectedZone();
 			m_showZonePickerDialog = false;
 		}
 	}

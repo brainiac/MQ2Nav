@@ -3,59 +3,98 @@
 //
 
 #include "meshgen/ZonePicker.h"
+#include "engine/bgfx_utils.h"
+#include "imgui/imgui_impl_bgfx.h"
+#include "eqlib/Constants.h"
 
 #include <mq/base/String.h>
 #include <glm/glm.hpp>
-
-//#include <SDL2/SDL_opengl.h>
-
-#pragma warning (push)
-#pragma warning (disable : 4312 4244)
-
 #include <imgui.h>
-#include <stb/stb_image.h>
 
-#pragma warning (pop)
-
-#define EXPANSION_BUTTONS 0
+#define EXPANSION_BUTTONS 1
 
 //----------------------------------------------------------------------------
 
-std::vector<std::string> ExpansionLogoFiles = {
-	"uifiles\\default\\EQ_expansion_logos.tga",
-	"uifiles\\default\\EQ_expansion_logos2.tga"
-};
-
-
-std::vector<int> ExpansionSlots = {
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25,
-};
-const int EmptyExpansion = 26;
-
-// each image can hold 5 sets vertically, and four across.
-const int ExpansionsPerRow = 4;
-const int ExpansionsPerColumn = 5;
-
-const glm::ivec2 ExpansionLogoSize = { 128, 32 };
-
-std::pair<int, glm::ivec2> FindExpansionImage(int expansion, bool active)
+struct ExpansionLogoFile
 {
-	// get the image index
-	int imageIndex = (expansion < ExpansionSlots.size()) ? ExpansionSlots[expansion] : EmptyExpansion;
+	const char* filename;
+	int expansionsPerRow;
+	int expansionsPerColumn;
+	std::vector<int> skipIndices;
+};
 
-	const int ExpansionsPerFile = ExpansionsPerRow * ExpansionsPerColumn;
+std::vector<ExpansionLogoFile> ExpansionLogoFiles = {
+	{
+		"uifiles\\default\\EQ_expansion_logos.tga",
+		4, 5,
+		{ 19 },
+	},
+	{
+		"uifiles\\default\\EQ_expansion_logos2.tga",
+		5, 5,
+		{}
+	}
+};
 
-	// figure out which image file we're in
-	int imageFile = imageIndex / ExpansionsPerFile;
-	imageIndex = imageIndex % ExpansionsPerFile;
+struct ExpansionLogoImageInfo
+{
+	int expansionId;
+	int fileIndex;
+	ImVec2 imagePos;
+};
+std::vector<ExpansionLogoImageInfo> ExpansionLogoImages;
 
-	int imageRow = imageIndex % ExpansionsPerColumn;
-	int imageCol = imageIndex / ExpansionsPerColumn;
+const ImVec2 ExpansionLogoSize = { 128, 32 };
+
+void PopulateExpansionLogoImages()
+{
+	if (!ExpansionLogoImages.empty())
+		return;
+
+	int index = 0;
+	int currentExpansion = 0;
+	int fileIndex = 0;
+
+	for (const auto& fileInfo : ExpansionLogoFiles)
+	{
+		int localIndex = 0;
+
+		ExpansionLogoImageInfo imageInfo;
+		imageInfo.fileIndex = fileIndex++;
+
+		for (int col = 0; col < fileInfo.expansionsPerColumn; ++col)
+		{
+			for (int row = 0; row < fileInfo.expansionsPerRow; ++row, ++localIndex)
+			{
+				// Check if we should skip
+				if (std::find(begin(fileInfo.skipIndices), end(fileInfo.skipIndices), localIndex) != end(fileInfo.skipIndices))
+					continue;
+
+				imageInfo.expansionId = currentExpansion;
+				imageInfo.imagePos = ImVec2(ExpansionLogoSize.x * col, ExpansionLogoSize.y * row * 3);
+				ExpansionLogoImages.push_back(imageInfo);
+
+				currentExpansion++;
+			}
+		}
+	}
+}
+
+std::pair<int, ImVec2> FindExpansionImage(int expansion, bool active)
+{
+	// get the image index by searching for the expansion number
+	auto iter = std::find_if(
+		begin(ExpansionLogoImages), end(ExpansionLogoImages),
+		[&](const ExpansionLogoImageInfo& info) { return info.expansionId == expansion; });
+	if (iter == end(ExpansionLogoImages))
+		return { -1, ImVec2() };
+
+	const auto& info = *iter;
 
 	int yOffset = active ? 2 : 1;
+	ImVec2 pos = ImVec2(info.imagePos.x, info.imagePos.y + yOffset * ExpansionLogoSize.y);
 
-	glm::ivec2 pos{ ExpansionLogoSize.x * imageCol, ExpansionLogoSize.y * (imageRow * 3 + yOffset) };
-	return{ imageFile, pos };
+	return { info.fileIndex, pos };
 }
 
 ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
@@ -65,54 +104,79 @@ ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
 	, m_batchMode(batchMode)
 {
 #if EXPANSION_BUTTONS
-	//for (const auto& expansionFile : ExpansionLogoFiles)
-	//{
-	//	std::string path = m_eqDirectory + "\\" + expansionFile;
+	for (const auto& expansionFile : ExpansionLogoFiles)
+	{
+		std::string path = m_eqDirectory + "\\" + expansionFile.filename;
 
-	//	IMAGEDATA image;
-	//	image.data = stbi_load(path.c_str(), &image.width, &image.height, &image.bits, 4);
-	//	if (image.data)
-	//	{
-	//		glGenTextures(1, &image.textureId);
-	//		glBindTexture(GL_TEXTURE_2D, image.textureId);
-	//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
+		bgfx::TextureHandle texture = loadTexture(path.c_str());
+		m_textures.push_back(texture);
+	}
 
-	//		m_tgaData.push_back(image);
-	//	}
-	//}
+	PopulateExpansionLogoImages();
 #endif
 }
 
 ZonePicker::~ZonePicker()
 {
-	//for (const auto& image : m_tgaData)
-	//{
-	//	glDeleteTextures(1, &image.textureId);
-	//	free(image.data);
-	//}
+	for (const auto& texture : m_textures)
+	{
+		if (!isValid(texture))
+			bgfx::destroy(texture);
+	}
 }
 
 #if EXPANSION_BUTTONS
-static bool ExpansionButton(const IMAGEDATA& tgaData, const glm::ivec2& pos)
+static bool ExpansionButton(bgfx::TextureHandle texture, const ImVec2& pos)
 {
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
 
-	bool result = ImGui::ImageButton((ImTextureID)tgaData.textureId,
-		ImVec2((float)ExpansionLogoSize.x,(float)ExpansionLogoSize.y),
-		ImVec2((float)pos.x / (float)tgaData.width, (float)pos.y / (float)tgaData.height),
-		ImVec2((float)(pos.x + ExpansionLogoSize.x) / (float)tgaData.width, (float)(pos.y + ExpansionLogoSize.y) / (float)tgaData.height),
-		0);
+	bool result = ImGui::ImageButton("##ExpansionButton", texture,
+		ExpansionLogoSize,
+		ImVec2(pos.x / 512.0f, pos.y / 512.0f),
+		ImVec2((pos.x + ExpansionLogoSize.x) / 512.0f, (pos.y + ExpansionLogoSize.y) / 512.0f));
 
 	ImGui::PopStyleColor(3);
 	return result;
 }
 #endif
 
-bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
+bool ZonePicker::DrawExpansionGroup(const EQConfig::Expansion& expansion)
+{
+	bool result = false;
+	ImGui::Columns(2);
+
+	for (const auto& zonePair : expansion.second)
+	{
+		const std::string& longName = zonePair.first;
+		const std::string& shortName = zonePair.second;
+
+		ImGui::PushID(shortName.c_str());
+
+		bool selected = false;
+		if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns/* | ImGuiSelectableFlags_MenuItem*/))
+			selected = true;
+		ImGui::NextColumn();
+		ImGui::SetColumnOffset(-1, 300);
+		ImGui::Text(shortName.c_str());
+		ImGui::NextColumn();
+
+		ImGui::PopID();
+
+		if (selected)
+		{
+			m_selectedZone = zonePair.second;
+			result = true;
+			break;
+		}
+	}
+	ImGui::Columns(1);
+
+	return result;
+}
+
+bool ZonePicker::Show(bool focus)
 {
 	bool result = false;
 
@@ -146,31 +210,26 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 		std::string text(m_filterText);
 
 #if EXPANSION_BUTTONS
-		//ImGui::PushItemWidth(130);
-		//static int selectedIndex = 0;
+		ImGui::BeginChild("##ExpansionList", ImVec2(148, ImGui::GetWindowHeight() - 115));
 
-		//ImGui::PushID("ExpansionButtons");
+		for (int i = (int)m_mapList.size() - 1; i >= 0; --i)
+		{
+			ImGui::PushID(i);
+			auto data = FindExpansionImage(i, m_selectedExpansion == i);
+			if (data.first < m_textures.size())
+			{
+				auto [fileId, pos] = data;
 
-		//for (int i = 0; i < m_mapList.size(); i++)
-		//{
-		//	ImGui::PushID(i);
-		//	auto data = FindExpansionImage(i, selectedIndex == i);
-		//	if (data.first < m_tgaData.size())
-		//	{
-		//		int fileId = data.first;
-		//		glm::ivec2 pos = data.second;
+				if (ExpansionButton(m_textures[fileId], pos))
+				{
+					m_selectedExpansion = (m_selectedExpansion == i ? -1 : i);
+				}
+			}
+			ImGui::PopID();
+		}
 
-		//		if (ExpansionButton(m_tgaData[fileId], pos))
-		//		{
-		//			selectedIndex = i;
-		//		}
-		//	}
-		//	ImGui::PopID();
-		//}
-
-		//ImGui::PopID();
-
-		//ImGui::PopItemWidth();
+		ImGui::EndChild();
+		ImGui::SameLine();
 #endif
 
 		ImGui::BeginChild("##ZoneList", ImVec2(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x,
@@ -180,42 +239,28 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 		{
 			ImGui::PushID("ZonesByExpansion");
 
-			// if there is no filter we will display the tree of zones
-			for (const auto& mapIter : m_mapList)
+			if (m_selectedExpansion == -1)
 			{
-				const std::string& expansionName = mapIter.first;
-
-				if (ImGui::TreeNode(expansionName.c_str()))
+				// if there is no filter we will display the tree of zones
+				for (const auto& expansionInfo : m_mapList)
 				{
-					ImGui::Columns(2);
+					const std::string& expansionName = expansionInfo.first;
 
-					for (const auto& zonePair : mapIter.second)
+					if (ImGui::TreeNode(expansionName.c_str()))
 					{
-						const std::string& longName = zonePair.first;
-						const std::string& shortName = zonePair.second;
-
-						ImGui::PushID(shortName.c_str());
-
-						bool selected = false;
-						if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns/* | ImGuiSelectableFlags_MenuItem*/))
-							selected = true;
-						ImGui::NextColumn();
-						ImGui::SetColumnOffset(-1, 300);
-						ImGui::Text(shortName.c_str());
-						ImGui::NextColumn();
-
-						ImGui::PopID();
-
-						if (selected) {
-							*selected_zone = zonePair.second;
+						if (DrawExpansionGroup(expansionInfo))
 							result = true;
-							break;
-						}
-					}
-					ImGui::Columns(1);
 
-					ImGui::TreePop();
+						ImGui::TreePop();
+					}
 				}
+			}
+			else
+			{
+				const EQConfig::Expansion& expansion = m_mapList[m_selectedExpansion];
+
+				if (DrawExpansionGroup(expansion))
+					result = true;
 			}
 
 			ImGui::PopID();
@@ -250,8 +295,9 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 					ImGui::NextColumn();
 
 					ImGui::PopID();
-					if (selected) {
-						*selected_zone = shortName;
+					if (selected)
+					{
+						m_selectedZone = shortName;
 						result = true;
 						break;
 					}
@@ -262,8 +308,9 @@ bool ZonePicker::Show(bool focus, std::string* selected_zone /* = nullptr */)
 			ImGui::Columns(1);
 
 
-			if (count == 1 && selectSingle) {
-				*selected_zone = lastZone;
+			if (count == 1 && selectSingle)
+			{
+				m_selectedZone = lastZone;
 				result = true;
 			}
 
