@@ -185,7 +185,7 @@ bool Application::InitSystem()
 	}
 
 	m_debug = BGFX_DEBUG_TEXT;
-	m_reset = BGFX_RESET_NONE;
+	m_reset = BGFX_RESET_MSAA_X16;
 
 	// Setup window
 	SDL_WindowFlags window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
@@ -274,6 +274,9 @@ bool Application::InitSystem()
 int Application::shutdown()
 {
 	Halt();
+
+	if (m_meshTool)
+		m_meshTool->DestroyInputGeometry();
 
 	m_zonePicker.reset();
 	m_geom.reset();
@@ -393,6 +396,7 @@ bool Application::HandleEvents()
 			{
 				m_width = event.window.data1;
 				m_height = event.window.data2;
+				bgfx::reset(m_width, m_height, m_reset);
 			}
 			break;
 

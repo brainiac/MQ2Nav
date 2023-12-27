@@ -186,7 +186,8 @@
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>MeshGenerator</TargetName>
+    <TargetName>MeshGenerator2</TargetName>
+    <IntDir>$(MQ2BuildDirectory)obj\$(Platform)\$(MQ2BinaryDirName)\$(ProjectName)-2\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include "meshgen/ChunkyTriMesh.h"
 #include "meshgen/DebugDrawImpl.h"
-
-#include "common/Enum.h"
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
@@ -15,11 +12,10 @@
 #include <DebugDraw.h>
 #include <DetourNavMesh.h>
 #include <Recast.h>
-#include <RecastDump.h>
 
+#include <bgfx/bgfx.h>
 #include <glm/glm.hpp>
 #include <atomic>
-#include <functional>
 #include <map>
 #include <memory>
 #include <thread>
@@ -145,6 +141,7 @@ public:
 	unsigned int GetColorForPoly(const dtPoly* poly);
 
 	duDebugDraw& getDebugDraw() { return m_dd; }
+	void DestroyInputGeometry();
 
 private:
 	deleting_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
@@ -171,6 +168,16 @@ private:
 	void NavMeshUpdated();
 
 	void drawConvexVolumes(duDebugDraw* dd);
+
+	void BuildInputGeometry();
+	void RenderInputGeometry();
+
+	bgfx::ProgramHandle m_program = BGFX_INVALID_HANDLE;
+	bgfx::VertexBufferHandle m_vbh = BGFX_INVALID_HANDLE;
+	bgfx::IndexBufferHandle m_ibh = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_texColor = BGFX_INVALID_HANDLE; // our 2d texture sampler
+	bgfx::TextureHandle m_gridTexture = BGFX_INVALID_HANDLE;
+	int                 m_miplevels = 0;
 
 private:
 	InputGeom* m_geom = nullptr;

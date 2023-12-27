@@ -195,6 +195,7 @@ private:
 	uint32_t m_height;
 	uint32_t m_debug;
 	uint32_t m_reset;
+	bool m_needResetViewport = false;
 	bool m_resetCamera = true;
 	float m_nearPlane = 1.0f;
 	float m_farPlane = -1000.0f;
