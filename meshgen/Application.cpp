@@ -276,7 +276,7 @@ int Application::shutdown()
 	Halt();
 
 	if (m_meshTool)
-		m_meshTool->DestroyInputGeometry();
+		m_meshTool->GetRenderManager()->DestroyObjects();
 
 	m_zonePicker.reset();
 	m_geom.reset();

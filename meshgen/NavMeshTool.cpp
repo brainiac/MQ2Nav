@@ -29,54 +29,21 @@
 #include <ppl.h>
 #include <agents.h>
 
-#include "imgui/imgui_impl_bgfx.h"
-#include "engine/embedded_shader.h"
-#include "shaders/navmesh/fs_inputgeom.bin.h"
-#include "shaders/navmesh/vs_inputgeom.bin.h"
-
-static const bgfx::EmbeddedShader s_embeddedShaders[] = {
-	BGFX_EMBEDDED_SHADER(fs_inputgeom),
-	BGFX_EMBEDDED_SHADER(vs_inputgeom),
-
-	BGFX_EMBEDDED_SHADER_END()
-};
-
-//----------------------------------------------------------------------------
-
-struct InputGeometryVertex
-{
-	glm::vec3 pos;
-	glm::vec2 uv;
-	uint32_t  color;
-
-	static void init()
-	{
-		ms_layout
-			.begin()
-				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
-			.end();
-	}
-
-	static bgfx::VertexLayout ms_layout;
-};
-
-bgfx::VertexLayout InputGeometryVertex::ms_layout;
-
 //----------------------------------------------------------------------------
 
 NavMeshTool::NavMeshTool(const std::shared_ptr<NavMesh>& navMesh)
 	: m_navMesh(navMesh)
 {
-	InputGeometryVertex::init();
-
 	resetCommonSettings();
 
 	m_outputPath = new char[MAX_PATH];
 	setTool(new NavMeshTileTool);
 
 	m_logger = spdlog::default_logger()->clone("NavMeshTool");
+
+	m_renderManager = std::make_unique<ZoneRenderManager>();
+	m_renderManager->init();
+	m_renderManager->SetNavMeshConfig(&m_config);
 
 	UpdateTileSizes();
 
@@ -164,46 +131,15 @@ void NavMeshTool::UpdateTileSizes()
 
 void NavMeshTool::handleDebug()
 {
-	// Check which modes are valid.
-	bool valid[DrawMode::MAX];
-	for (int i = 0; i < DrawMode::MAX; ++i)
-		valid[i] = false;
-
 	if (m_geom)
 	{
 		ImGui::Checkbox("Draw Input Geometry", &m_drawInputGeometry);
-
-		bool isValid = m_navMesh->IsNavMeshLoaded();
-
-		valid[DrawMode::NAVMESH] = isValid;
-		valid[DrawMode::NAVMESH_TRANS] = isValid;
-		valid[DrawMode::NAVMESH_BVTREE] = isValid;
-		valid[DrawMode::NAVMESH_NODES] = isValid;
-		valid[DrawMode::NAVMESH_PORTALS] = isValid;
-		valid[DrawMode::NAVMESH_INVIS] = isValid;
-		valid[DrawMode::MESH] = true;
-	}
-
-	int unavail = 0;
-	for (int i = 0; i < DrawMode::MAX; ++i)
-	{
-		if (!valid[i]) unavail++;
-	}
-
-	if (unavail != DrawMode::MAX)
-	{
-		ImGui::Text("Draw");
-
-		if (valid[DrawMode::NAVMESH] && ImGui::RadioButton("Navmesh", m_drawMode == DrawMode::NAVMESH))
-			m_drawMode = DrawMode::NAVMESH;
-		if (valid[DrawMode::NAVMESH_INVIS] && ImGui::RadioButton("Navmesh Invis", m_drawMode == DrawMode::NAVMESH_INVIS))
-			m_drawMode = DrawMode::NAVMESH_INVIS;
-		if (valid[DrawMode::NAVMESH_BVTREE] && ImGui::RadioButton("Navmesh BVTree", m_drawMode == DrawMode::NAVMESH_BVTREE))
-			m_drawMode = DrawMode::NAVMESH_BVTREE;
-		if (valid[DrawMode::NAVMESH_NODES] && ImGui::RadioButton("Navmesh Nodes", m_drawMode == DrawMode::NAVMESH_NODES))
-			m_drawMode = DrawMode::NAVMESH_NODES;
-		if (valid[DrawMode::NAVMESH_PORTALS] && ImGui::RadioButton("Navmesh Portals", m_drawMode == DrawMode::NAVMESH_PORTALS))
-			m_drawMode = DrawMode::NAVMESH_PORTALS;
+	
+		ImGui::Checkbox("Draw Tiles", &m_drawNavMeshTiles);
+		ImGui::Checkbox("Draw Disabled Tiles", &m_drawNavMeshDisabledTiles);
+		ImGui::Checkbox("Draw BV Tree", &m_drawNavMeshBVTree);
+		ImGui::Checkbox("Draw Nodes", &m_drawNavMeshNodes);
+		ImGui::Checkbox("Draw Portals", &m_drawNavMeshPortals);
 	}
 }
 
@@ -356,12 +292,6 @@ void NavMeshTool::handleTools()
 
 		if (mq::imgui::CollapsingSubHeader("Advanced Options"))
 		{
-			if (isValid(m_gridTexture))
-			{
-				ImGui::Text("Grid Texture");
-				ImGui::Image(m_gridTexture, 0, 0, ImVec2(64, 64));
-			}
-
 			// Region
 			ImGui::Text("Region");
 			ImGui::SameLine();
@@ -459,7 +389,7 @@ void NavMeshTool::handleRender()
 
 	if (m_drawInputGeometry)
 	{
-		RenderInputGeometry();
+		m_renderManager->Render();
 	}
 
 	dd.depthMask(false);
@@ -478,178 +408,31 @@ void NavMeshTool::handleRender()
 	const float s = m_config.tileSize * m_config.cellSize;
 	duDebugDrawGridXZ(&dd, bmin[0], bmin[1], bmin[2], tw, th, s, duRGBA(0, 0, 0, 64), 1.0f);
 
-	//if (m_navMesh->IsNavMeshLoaded()
-	//	&& (m_drawMode == DrawMode::NAVMESH
-	//		|| m_drawMode == DrawMode::NAVMESH_TRANS
-	//		|| m_drawMode == DrawMode::NAVMESH_BVTREE
-	//		|| m_drawMode == DrawMode::NAVMESH_NODES
-	//		|| m_drawMode == DrawMode::NAVMESH_PORTALS
-	//		|| m_drawMode == DrawMode::NAVMESH_INVIS))
-	//{
-	//	auto navMesh = m_navMesh->GetNavMesh();
-	//	auto navQuery = m_navMesh->GetNavMeshQuery();
+	if (m_navMesh->IsNavMeshLoaded())
+	{
+		auto navMesh = m_navMesh->GetNavMesh();
+		auto navQuery = m_navMesh->GetNavMeshQuery();
 
-	//	if (navMesh && navQuery)
-	//	{
-	//		if (m_drawMode != DrawMode::NAVMESH_INVIS)
-	//			duDebugDrawNavMeshWithClosedList(&dd, *navMesh, *navQuery, m_navMeshDrawFlags);
-	//		if (m_drawMode == DrawMode::NAVMESH_BVTREE)
-	//			duDebugDrawNavMeshBVTree(&dd, *navMesh);
-	//		if (m_drawMode == DrawMode::NAVMESH_PORTALS)
-	//			duDebugDrawNavMeshPortals(&dd, *navMesh);
-	//		if (m_drawMode == DrawMode::NAVMESH_NODES)
-	//			duDebugDrawNavMeshNodes(&dd, *navQuery);
-
-	//		duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(192, 48, 0, 128));
-	//	}
-	//}
+		if (navMesh && navQuery)
+		{
+			if (m_drawNavMeshTiles)
+				duDebugDrawNavMeshWithClosedList(&dd, *navMesh, *navQuery, m_navMeshDrawFlags);
+			if (m_drawNavMeshBVTree)
+				duDebugDrawNavMeshBVTree(&dd, *navMesh);
+			if (m_drawNavMeshPortals)
+				duDebugDrawNavMeshPortals(&dd, *navMesh);
+			if (m_drawNavMeshNodes)
+				duDebugDrawNavMeshNodes(&dd, *navQuery);
+			if (m_drawNavMeshDisabledTiles)
+				duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(192, 48, 0, 128));
+		}
+	}
 
 	drawConvexVolumes(&dd);
 
 	if (m_tool)
 		m_tool->handleRender();
 	renderToolStates();
-}
-
-void NavMeshTool::BuildInputGeometry()
-{
-	// Clean up any previously created buffers.
-	DestroyInputGeometry();
-
-	auto loader = m_geom->getMeshLoader();
-	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(loader->getVerts());
-	const int numVerts = loader->getVertCount();
-	const int* tris = loader->getTris();
-	const float* normals = loader->getNormals();
-	const int ntris = loader->getTriCount();
-	const float texScale = 1.0f / (m_config.cellSize * 10.0f);
-	const float walkableThr = cosf(m_config.agentMaxSlope / 180.0f * DU_PI);
-	const uint32_t unwalkable = duRGBA(192, 128, 0, 255);
-
-	duDebugDraw& dd = getDebugDraw();
-
-	// Create buffer to hold list of triangles
-	const bgfx::Memory* vb = bgfx::alloc(ntris * 3 * InputGeometryVertex::ms_layout.getStride());
-	const bgfx::Memory* ib = bgfx::alloc(ntris * 3 * sizeof(uint32_t));
-
-	InputGeometryVertex* pVertex = reinterpret_cast<InputGeometryVertex*>(vb->data);
-	uint32_t* pIndex = reinterpret_cast<uint32_t*>(ib->data);
-
-	for (int index = 0; index < ntris * 3; index += 3)
-	{
-		const float* norm = &normals[index];
-		uint32_t color;
-
-		uint8_t a = (uint8_t)(220 * (2 + norm[0] + norm[1]) / 4);
-		if (norm[1] < walkableThr)
-			color = duLerpCol(duRGBA(a, a, a, 255), unwalkable, 64);
-		else
-			color = duRGBA(a, a, a, 255);
-
-		int ax = 0, ay = 0;
-		if (rcAbs(norm[1]) > rcAbs(norm[ax]))
-			ax = 1;
-		if (rcAbs(norm[2]) > rcAbs(norm[ax]))
-			ax = 2;
-		ax = (1 << ax) & 3; // +1 mod 3
-		ay = (1 << ax) & 3; // +1 mod 3
-
-		const glm::vec3& v1 = verts[tris[index + 0]];
-		pVertex[index + 0].pos = v1;
-		pVertex[index + 0].uv = glm::vec2(v1[ax] * texScale, v1[ay] * texScale);
-		pVertex[index + 0].color = color;
-		pIndex[index + 0] = index;
-
-		const glm::vec3& v2 = verts[tris[index + 1]];
-		pVertex[index + 1].pos = v2;
-		pVertex[index + 1].uv = glm::vec2(v2[ax] * texScale, v2[ay] * texScale);
-		pVertex[index + 1].color = color;
-		pIndex[index + 1] = index + 1;
-
-		const glm::vec3& v3 = verts[tris[index + 2]];
-		pVertex[index + 2].pos = v3;
-		pVertex[index + 2].uv = glm::vec2(v3[ax] * texScale, v3[ay] * texScale);
-		pVertex[index + 2].color = color;
-		pIndex[index + 2] = index + 2;
-	}
-
-	m_vbh = bgfx::createVertexBuffer(vb, InputGeometryVertex::ms_layout);
-	m_ibh = bgfx::createIndexBuffer(ib, BGFX_BUFFER_INDEX32);
-
-	bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
-	m_program = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_inputgeom"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_inputgeom"), true);
-
-	m_texColor = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
-
-	static constexpr int TEXTURE_SIZE = 64;
-
-	// Create the grid texture
-	uint32_t data[TEXTURE_SIZE * TEXTURE_SIZE];
-	int size = TEXTURE_SIZE;
-	int mipLevel = 0;
-
-	m_gridTexture = bgfx::createTexture2D(size, size, true, 1, bgfx::TextureFormat::RGBA8, 0, nullptr);
-	while (size > 0)
-	{
-		for (int y = 0; y < size; ++y)
-		{
-			for (int x = 0; x < size; ++x)
-				data[x + y * size] = (x == 0 || y == 0) ? 0xffd7d7d7 : 0xffffffff;
-		}
-		bgfx::updateTexture2D(m_gridTexture, 0, mipLevel++, 0, 0, size, size, bgfx::copy(data, sizeof(uint32_t) * size * size));
-
-		size /= 2;
-	}
-}
-
-void NavMeshTool::DestroyInputGeometry()
-{
-	if (isValid(m_vbh))
-	{
-		bgfx::destroy(m_vbh);
-		m_vbh = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(m_ibh))
-	{
-		bgfx::destroy(m_ibh);
-		m_ibh = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(m_program))
-	{
-		bgfx::destroy(m_program);
-		m_program = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(m_texColor))
-	{
-		bgfx::destroy(m_texColor);
-		m_texColor = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(m_gridTexture))
-	{
-		bgfx::destroy(m_gridTexture);
-		m_gridTexture = BGFX_INVALID_HANDLE;
-	}
-}
-
-void NavMeshTool::RenderInputGeometry()
-{
-	if (isValid(m_ibh) && isValid(m_vbh))
-	{
-		bgfx::Encoder* encoder = bgfx::begin();
-
-		encoder->setVertexBuffer(0, m_vbh);
-		encoder->setIndexBuffer(m_ibh);
-		encoder->setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
-		encoder->setTexture(0, m_texColor, m_gridTexture);
-
-		encoder->submit(0, m_program);
-	}
 }
 
 void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
@@ -735,7 +518,7 @@ void NavMeshTool::handleRenderOverlay(const glm::mat4& proj,
 	renderOverlayToolStates(proj, model, view);
 }
 
-void NavMeshTool::handleGeometryChanged(class InputGeom* geom)
+void NavMeshTool::handleGeometryChanged(InputGeom* geom)
 {
 	m_geom = geom;
 
@@ -745,7 +528,7 @@ void NavMeshTool::handleGeometryChanged(class InputGeom* geom)
 	}
 	resetToolStates();
 
-	BuildInputGeometry();
+	m_renderManager->SetInputGeometry(geom);
 	NavMeshUpdated();
 }
 
@@ -1134,7 +917,6 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshTool::rasterizeGeometry(rcConfi
 
 	const float* verts = m_geom->getMeshLoader()->getVerts();
 	const int nverts = m_geom->getMeshLoader()->getVertCount();
-	const int ntris = m_geom->getMeshLoader()->getTriCount();
 	const rcChunkyTriMesh* chunkyMesh = m_geom->getChunkyMesh();
 
 	// Allocate array that can hold triangle flags.

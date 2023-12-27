@@ -5,6 +5,7 @@
 #pragma once
 
 #include "meshgen/DebugDrawImpl.h"
+#include "meshgen/ZoneRenderManager.h"
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
@@ -13,7 +14,6 @@
 #include <DetourNavMesh.h>
 #include <Recast.h>
 
-#include <bgfx/bgfx.h>
 #include <glm/glm.hpp>
 #include <atomic>
 #include <map>
@@ -141,7 +141,8 @@ public:
 	unsigned int GetColorForPoly(const dtPoly* poly);
 
 	duDebugDraw& getDebugDraw() { return m_dd; }
-	void DestroyInputGeometry();
+	
+	ZoneRenderManager* GetRenderManager() { return m_renderManager.get(); }
 
 private:
 	deleting_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
@@ -169,18 +170,9 @@ private:
 
 	void drawConvexVolumes(duDebugDraw* dd);
 
-	void BuildInputGeometry();
-	void RenderInputGeometry();
-
-	bgfx::ProgramHandle m_program = BGFX_INVALID_HANDLE;
-	bgfx::VertexBufferHandle m_vbh = BGFX_INVALID_HANDLE;
-	bgfx::IndexBufferHandle m_ibh = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_texColor = BGFX_INVALID_HANDLE; // our 2d texture sampler
-	bgfx::TextureHandle m_gridTexture = BGFX_INVALID_HANDLE;
-	int                 m_miplevels = 0;
-
 private:
 	InputGeom* m_geom = nullptr;
+	std::unique_ptr<ZoneRenderManager> m_renderManager;
 
 	std::shared_ptr<NavMesh> m_navMesh;
 	mq::Signal<>::ScopedConnection m_navMeshConn;
@@ -211,29 +203,11 @@ private:
 	NavMeshConfig m_config;
 
 	bool m_drawInputGeometry = true;
-
-	struct DrawMode { enum Enum {
-		NAVMESH,
-		NAVMESH_TRANS,
-		NAVMESH_BVTREE,
-		NAVMESH_NODES,
-		NAVMESH_PORTALS,
-		NAVMESH_INVIS,
-		MESH,
-		VOXELS,
-		VOXELS_WALKABLE,
-		COMPACT,
-		COMPACT_DISTANCE,
-		COMPACT_REGIONS,
-		REGION_CONNECTIONS,
-		RAW_CONTOURS,
-		BOTH_CONTOURS,
-		CONTOURS,
-		POLYMESH,
-		POLYMESH_DETAIL,
-		MAX
-	};};
-	DrawMode::Enum m_drawMode = DrawMode::NAVMESH;
+	bool m_drawNavMeshTiles = true;
+	bool m_drawNavMeshDisabledTiles = true;
+	bool m_drawNavMeshBVTree = false;
+	bool m_drawNavMeshNodes = false;
+	bool m_drawNavMeshPortals = false;
 
 	NavMeshDebugDraw m_dd{ this };
 };

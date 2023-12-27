@@ -54,6 +54,7 @@
     </ClCompile>
     <ClCompile Include="WaypointsTool.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
+    <ClCompile Include="ZoneRenderManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
@@ -98,6 +99,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="WaypointsTool.h" />
     <ClInclude Include="ZonePicker.h" />
+    <ClInclude Include="ZoneRenderManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\imgui\imgui.vcxproj">
