@@ -5,7 +5,7 @@
 #pragma once
 
 #include "meshgen/ChunkyTriMesh.h"
-#include "meshgen/DebugDraw.h"
+#include "meshgen/DebugDrawImpl.h"
 
 #include "common/Enum.h"
 #include "common/NavMesh.h"
@@ -79,7 +79,7 @@ struct ToolState
 	virtual void handleUpdate(const float dt) = 0;
 };
 
-class NavMeshDebugDraw : public DebugDrawGL
+class NavMeshDebugDraw : public DebugDrawImpl
 {
 public:
 	NavMeshDebugDraw(NavMeshTool* tool) : m_tool(tool) {}
@@ -202,6 +202,8 @@ private:
 
 	uint8_t m_navMeshDrawFlags = 0;
 	NavMeshConfig m_config;
+
+	bool m_drawInputGeometry = true;
 
 	struct DrawMode { enum Enum {
 		NAVMESH,

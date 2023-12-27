@@ -238,7 +238,7 @@ void NavMeshPruneTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, b
 
 void NavMeshPruneTool::handleRender()
 {
-	DebugDrawGL dd;
+	DebugDrawImpl dd;
 
 	if (m_hitPosSet)
 	{

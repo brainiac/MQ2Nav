@@ -805,7 +805,7 @@ static void getPolyCenter(dtNavMesh* navMesh, dtPolyRef ref, glm::vec3& center)
 
 void NavMeshTesterTool::handleRender()
 {
-	DebugDrawGL dd;
+	DebugDrawImpl dd;
 
 	static const unsigned int startCol = duRGBA(128, 25, 0, 192);
 	static const unsigned int endCol = duRGBA(51, 102, 0, 129);
@@ -1161,7 +1161,7 @@ void NavMeshTesterTool::handleRenderOverlay(const glm::mat4& proj,
 
 void NavMeshTesterTool::drawAgent(const glm::vec3& pos, float r, float h, float c, uint32_t col)
 {
-	DebugDrawGL dd;
+	DebugDrawImpl dd;
 
 	dd.depthMask(false);
 

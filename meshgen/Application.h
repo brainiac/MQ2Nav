@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "meshgen/Camera.h"
 #include "meshgen/EQConfig.h"
 #include "common/NavMesh.h"
 #include "common/Utilities.h"
@@ -160,11 +161,12 @@ private:
 
 
 private:
-	EQConfig m_eqConfig;
+	EQConfig          m_eqConfig;
 
-	HWND           m_hWnd = nullptr;
-	SDL_Window*    m_window = nullptr;
-
+	HWND              m_hWnd = nullptr;
+	SDL_Window*       m_window = nullptr;
+	Camera*           m_camera = nullptr;
+	const bgfx::Caps* m_caps = nullptr;
 
 	// The build context. Everything passes this around. We own it.
 	std::unique_ptr<RecastContext> m_rcContext;
@@ -194,6 +196,8 @@ private:
 	uint32_t m_debug;
 	uint32_t m_reset;
 	bool m_resetCamera = true;
+	float m_nearPlane = 1.0f;
+	float m_farPlane = -1000.0f;
 
 	float m_progress = 0.0f;
 	std::string m_activityMessage;
@@ -201,7 +205,6 @@ private:
 	bool m_showLog = false;
 	bool m_showFailedToOpenDialog = false;
 
-	glm::vec3 m_cam;
 	float m_camr = 10;
 
 	glm::mat4 m_proj;
@@ -209,14 +212,6 @@ private:
 	glm::ivec4 m_view;
 	glm::vec3 m_rays; // ray start
 	glm::vec3 m_raye; // ray end
-	glm::vec2 m_origr;
-	glm::ivec2 m_orig;
-	glm::vec2 m_r;
-
-	float m_moveW = 0, m_moveS = 0;
-	float m_moveA = 0, m_moveD = 0;
-	float m_moveUp = 0, m_moveDown = 0;
-	float m_moveSpeed = 0.0f;
 
 	uint32_t m_lastTime = 0;
 	float m_time = 0.0f;
@@ -227,7 +222,8 @@ private:
 	glm::vec3 m_mpos;
 
 	// events
-	glm::vec2 m_m;
+	glm::ivec2 m_mousePos;
+	glm::ivec2 m_lastMouseLook;
 	bool m_rotate = false;
 	bool m_done = false;
 

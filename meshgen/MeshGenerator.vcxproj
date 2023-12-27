@@ -27,12 +27,13 @@
     <ClCompile Include="..\dependencies\meshoptimizer\vertexfilter.cpp" />
     <ClCompile Include="..\dependencies\meshoptimizer\vfetchanalyzer.cpp" />
     <ClCompile Include="..\dependencies\meshoptimizer\vfetchoptimizer.cpp" />
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="engine\bgfx_utils.cpp" />
     <ClCompile Include="engine\debugdraw\debugdraw.cpp" />
     <ClCompile Include="EQConfig.cpp" />
-    <ClCompile Include="GLDebugDraw.cpp" />
+    <ClCompile Include="DebugDrawImpl.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
     <ClCompile Include="imgui\imgui_impl.cpp" />
@@ -55,9 +56,10 @@
     <ClCompile Include="ZonePicker.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
-    <ClInclude Include="DebugDraw.h" />
+    <ClInclude Include="DebugDrawImpl.h" />
     <ClInclude Include="engine\bgfx_utils.h" />
     <ClInclude Include="engine\debugdraw\debugdraw.h" />
     <ClInclude Include="engine\debugdraw\fs_debugdraw_fill.bin.h" />

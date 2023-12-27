@@ -189,10 +189,10 @@ bool ImGui_ImplBgfx_CreateFontsTexture()
 	return true;
 }
 
-#include "fs_imgui.bin.h"
-#include "vs_imgui.bin.h"
-#include "fs_imgui_image.bin.h"
-#include "vs_imgui_image.bin.h"
+#include "shaders/imgui/fs_imgui.bin.h"
+#include "shaders/imgui/vs_imgui.bin.h"
+#include "shaders/imgui/fs_imgui_image.bin.h"
+#include "shaders/imgui/vs_imgui_image.bin.h"
 
 static const bgfx::EmbeddedShader s_embeddedShaders[] = {
 	BGFX_EMBEDDED_SHADER(vs_imgui),

@@ -2,9 +2,8 @@
 // Application.cpp
 //
 
-// Implementation of main GUI interface for EQNavigation
-
 #include "meshgen/Application.h"
+#include "meshgen/DebugDrawImpl.h"
 #include "meshgen/InputGeom.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshTool.h"
@@ -154,6 +153,7 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 
 	m_navMesh = std::make_shared<NavMesh>(m_eqConfig.GetOutputPath(), startingZone);
 	m_meshTool = std::make_unique<NavMeshTool>(m_navMesh);
+	m_camera = new Camera();
 
 	m_rcContext = std::make_unique<RecastContext>();
 
@@ -174,7 +174,7 @@ bool Application::InitSystem()
 
 	// scale default window size by monitor dpi
 	float dpi = 0;
-	if (SDL_GetDisplayDPI(0, &dpi, 0, 0) == 0)
+	if (SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0)
 	{
 		if (dpi > 0)
 		{
@@ -188,14 +188,14 @@ bool Application::InitSystem()
 	m_reset = BGFX_RESET_NONE;
 
 	// Setup window
-	SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+	SDL_WindowFlags window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	m_window = SDL_CreateWindow("MacroQuest NavMesh Generator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height, window_flags);
 	if (m_window == nullptr)
 	{
 		char szMessage[256];
 		sprintf_s(szMessage, "Error: SDL_CreateWindow(): %s", SDL_GetError());
 
-		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
+		::MessageBoxA(nullptr, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
 		return false;
 	}
 
@@ -213,12 +213,14 @@ bool Application::InitSystem()
 		char szMessage[256];
 		sprintf_s(szMessage, "Error: bgfx::init() failed");
 
-		::MessageBoxA(NULL, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
+		::MessageBoxA(nullptr, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
 		return false;
 	}
 
 	utilsInit();
 	ddInit();
+	
+	DebugDrawImpl::init();
 
 	// Enable debug text.
 	bgfx::setDebug(m_debug);
@@ -227,6 +229,7 @@ bool Application::InitSystem()
 	ImVec4 clear_color = ImVec4(0.3f, 0.3f, 0.32f, 1.00f);
 
 	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, mq::MQColor(clear_color).ToRGBA(), 1.0f, 0);
+	m_caps = bgfx::getCaps();
 
 	//
 	// Initialize ImGui
@@ -261,24 +264,33 @@ bool Application::InitSystem()
 	//
 	//
 
+	m_lastTime = SDL_GetTicks();
+	m_time = 0.0f;
+
 	bgfx::frame();
 	return true;
 }
 
 int Application::shutdown()
 {
+	Halt();
+
 	m_zonePicker.reset();
+	m_geom.reset();
 
 	// shutdown ImGui
 	ImGui_Impl_Shutdown();
 
+	DebugDrawImpl::shutdown();
 	ddShutdown();
 
 	// Shutdown bgfx.
 	bgfx::shutdown();
 
-
 	utilsShutdown();
+
+	delete m_camera;
+	m_camera = nullptr;
 
 	return 0;
 }
@@ -294,13 +306,13 @@ bool Application::update()
 	m_lastTime = time;
 	m_time += m_timeDelta;
 
+	static float timeAcc = 0.0f;
+
 	if (!HandleCallbacks())
 		return false;
 
 	if (!HandleEvents())
 		return false;
-
-	static float timeAcc = 0.0f;
 
 	const float SIM_RATE = 20;
 	const float DELTA_TIME = 1.0f / SIM_RATE;
@@ -318,29 +330,44 @@ bool Application::update()
 
 	RenderInterface();
 
-	{
-		std::lock_guard<std::mutex> lock(m_renderMutex);
+	UpdateCamera();
 
-		UpdateCamera();
+	float view[16];
+	m_camera->GetViewMatrix(view);
 
-		//glEnable(GL_FOG);
-		m_meshTool->handleRender();
-		//glDisable(GL_FOG);
-
-		//glEnable(GL_DEPTH_TEST);
-	}
-
-	//showExampleDialog(this);
+	float proj[16];
+	bx::mtxProj(proj, 50.0f, float(m_width) / float(m_height), m_nearPlane, m_farPlane, m_caps->homogeneousDepth,
+		bx::Handedness::Right);
 
 	// Set view 0 default viewport.
 	bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height));
+	bgfx::setViewTransform(0, view, proj);
+
+	// Use debug font to print information about this example.
+	bgfx::dbgTextClear();
 
 	// This dummy draw call is here to make sure that view 0 is cleared
 	// if no other draw calls are submitted to view 0.
 	bgfx::touch(0);
 
-	// Use debug font to print information about this example.
-	bgfx::dbgTextClear();
+	{
+		//std::lock_guard<std::mutex> lock(m_renderMutex);
+
+
+		m_meshTool->handleRender();
+	}
+
+	// Load a zone if a zone load was requested
+	if (!m_nextZoneToLoad.empty())
+	{
+		PushEvent([zone = m_nextZoneToLoad, loadMesh = m_loadMeshOnZone, this]()
+			{
+				LoadGeometry(zone, loadMesh);
+			});
+
+		m_loadMeshOnZone = false;
+		m_nextZoneToLoad.clear();
+	}
 
 	ImGui_Impl_Render();
 
@@ -349,134 +376,6 @@ bool Application::update()
 
 	return true;
 }
-
-#if 0
-int Application::RunMainLoop()
-{
-	m_time = 0.0f;
-	m_lastTime = SDL_GetTicks();
-
-	float timeAcc = 0.0f;
-	auto& io = ImGui::GetIO();
-
-	while (!m_done)
-	{
-		// fractional time since last update
-		Uint32 time = SDL_GetTicks();
-		m_timeDelta = (time - m_lastTime) / 1000.0f;
-		m_lastTime = time;
-		m_time += m_timeDelta;
-
-		const float SIM_RATE = 20;
-		const float DELTA_TIME = 1.0f / SIM_RATE;
-		timeAcc = rcClamp(timeAcc + m_timeDelta, -1.0f, 1.0f);
-		int simIter = 0;
-		while (timeAcc > DELTA_TIME)
-		{
-			timeAcc -= DELTA_TIME;
-			if (simIter < 5 && m_meshTool)
-				m_meshTool->handleUpdate(DELTA_TIME);
-			simIter++;
-		}
-
-		//glViewport(0, 0, m_width, m_height);
-		//glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-		//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		//glEnable(GL_BLEND);
-		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		//glDisable(GL_TEXTURE_2D);
-
-		//// Render 3d
-		//glEnable(GL_DEPTH_TEST);
-		//glMatrixMode(GL_PROJECTION);
-		//glLoadIdentity();
-		//gluPerspective(50.0f, (float)m_width / (float)m_height, 1.0f, m_camr);
-
-		//// set up modelview matrix
-		//glMatrixMode(GL_MODELVIEW);
-		//glLoadIdentity();
-		//glRotatef(m_r.x, 1, 0, 0);
-		//glRotatef(m_r.y, 0, 1, 0);
-		//glTranslatef(-m_cam.x, -m_cam.y, -m_cam.z);
-		//glGetFloatv(GL_MODELVIEW_MATRIX, glm::value_ptr(m_model));
-
-		//glm::mat4 m2 = glm::mat4x4{ 1.0f };
-		//m2 = glm::rotate(m2, glm::radians(m_r.x), glm::vec3{ 1.0f, 0.0f, 0.0f });
-		//m2 = glm::rotate(m2, glm::radians(m_r.y), glm::vec3{ 0.0f, 1.0f, 0.0f });
-		//m_model = glm::translate(m2, -m_cam);
-
-		// Get hit ray position and direction.
-		//glGetFloatv(GL_PROJECTION_MATRIX, glm::value_ptr(m_proj));
-		//glGetIntegerv(GL_VIEWPORT, glm::value_ptr(m_view));
-
-		//m_rays = glm::unProject(glm::vec3{ m_m.x, m_m.y, 0.0f }, m_model, m_proj, m_view);
-		//m_raye = glm::unProject(glm::vec3{ m_m.x, m_m.y, 1.0f }, m_model, m_proj, m_view);
-
-		DispatchCallbacks();
-
-		// Handle input events.
-		HandleEvents();
-
-		// Start the Dear ImGui frame
-		ImGui_ImplDX11_NewFrame();
-		ImGui_ImplSDL2_NewFrame();
-		ImGui::NewFrame();
-
-		RenderInterface();
-
-		static bool show_demo_window = true;
-		ImGui::ShowDemoWindow(&show_demo_window);
-
-		{
-			std::lock_guard<std::mutex> lock(m_renderMutex);
-
-			UpdateCamera();
-
-			//glEnable(GL_FOG);
-			//m_meshTool->handleRender();
-			//glDisable(GL_FOG);
-
-			//glEnable(GL_DEPTH_TEST);
-		}
-
-		// Rendering
-		ImGui::Render();
-		const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
-		m_pd3dDeviceContext->OMSetRenderTargets(1, m_mainRenderTargetView.addressof(), nullptr);
-		m_pd3dDeviceContext->ClearRenderTargetView(m_mainRenderTargetView.get(), clear_color_with_alpha);
-		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-		// Update and Render additional Platform Windows
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-		}
-
-		//m_pSwapChain->Present(1, 0); // Present with vsync
-		m_pSwapChain->Present(0, m_tearingSupport ? DXGI_PRESENT_ALLOW_TEARING : 0); // Present without vsync
-
-		// Do additional work here after rendering
-
-		// Load a zone if a zone load was requested
-		if (!m_nextZoneToLoad.empty())
-		{
-			PushEvent([zone = m_nextZoneToLoad, loadMesh = m_loadMeshOnZone, this]()
-			{
-				LoadGeometry(zone, loadMesh);
-			});
-
-			m_loadMeshOnZone = false;
-			m_nextZoneToLoad.clear();
-		}
-	}
-
-	Halt();
-
-	m_geom.reset();
-	return 0;
-}
-#endif
 
 bool Application::HandleEvents()
 {
@@ -578,10 +477,8 @@ bool Application::HandleEvents()
 
 				// Rotate view
 				m_rotate = true;
-				m_orig.x = m_m.x;
-				m_orig.y = m_m.y;
-				m_origr.x = m_r.x;
-				m_origr.y = m_r.y;
+				m_lastMouseLook.x = m_mousePos.x;
+				m_lastMouseLook.y = m_mousePos.y;
 			}
 			else if (event.button.button == SDL_BUTTON_LEFT)
 			{
@@ -637,14 +534,16 @@ bool Application::HandleEvents()
 			if (io.WantCaptureMouse)
 				break;
 
-			m_m.x = event.motion.x;
-			m_m.y = m_height - 1 - event.motion.y;
+			m_mousePos.x = event.motion.x;
+			m_mousePos.y = m_height - 1 - event.motion.y;
 			if (m_rotate)
 			{
-				int dx = m_m.x - m_orig.x;
-				int dy = m_m.y - m_orig.y;
-				m_r.x = m_origr.x - dy * 0.25f;
-				m_r.y = m_origr.y + dx * 0.25f;
+				int dx = m_mousePos.x - m_lastMouseLook.x;
+				int dy = m_mousePos.y - m_lastMouseLook.y;
+				m_lastMouseLook = m_mousePos;
+				m_lastMouseLook.y = m_mousePos.y;
+
+				m_camera->UpdateMouseLook(dx, dy);
 			}
 			break;
 
@@ -676,37 +575,23 @@ void Application::UpdateCamera()
 	}
 
 	if (ImGui::GetIO().WantCaptureKeyboard)
-		return;
+	{
+		m_camera->ClearKeyState();
+	}
+	else
+	{
+		const Uint8* keyState = SDL_GetKeyboardState(nullptr);
 
-	//const Uint8* keystate = SDL_GetKeyboardState(NULL);
-	//m_moveW = rcClamp(m_moveW + m_timeDelta * 4 * (keystate[SDL_SCANCODE_W] ? 1 : -1), 0.0f, 1.0f);
-	//m_moveS = rcClamp(m_moveS + m_timeDelta * 4 * (keystate[SDL_SCANCODE_S] ? 1 : -1), 0.0f, 1.0f);
-	//m_moveA = rcClamp(m_moveA + m_timeDelta * 4 * (keystate[SDL_SCANCODE_A] ? 1 : -1), 0.0f, 1.0f);
-	//m_moveD = rcClamp(m_moveD + m_timeDelta * 4 * (keystate[SDL_SCANCODE_D] ? 1 : -1), 0.0f, 1.0f);
-	//m_moveUp = rcClamp(m_moveUp + m_timeDelta * 4 * (keystate[SDL_SCANCODE_SPACE] ? 1 : -1), 0.0f, 1.0f);
-	//m_moveDown = rcClamp(m_moveDown + m_timeDelta * 4 * (keystate[SDL_SCANCODE_C] ? 1 : -1), 0.0f, 1.0f);
-	//
-	//float keybSpeed = m_camMoveSpeed;
-	//if (SDL_GetModState() & KMOD_SHIFT)
-	//	keybSpeed *= 10.0f;
+		m_camera->SetKeyState(CameraKey_Forward, keyState[SDL_SCANCODE_W] != 0);
+		m_camera->SetKeyState(CameraKey_Backward, keyState[SDL_SCANCODE_S] != 0);
+		m_camera->SetKeyState(CameraKey_Left, keyState[SDL_SCANCODE_A] != 0);
+		m_camera->SetKeyState(CameraKey_Right, keyState[SDL_SCANCODE_D] != 0);
+		m_camera->SetKeyState(CameraKey_Up, keyState[SDL_SCANCODE_SPACE] != 0);
+		m_camera->SetKeyState(CameraKey_Down, keyState[SDL_SCANCODE_C] != 0);
+		m_camera->SetKeyState(CameraKey_SpeedUp, (SDL_GetModState() & KMOD_SHIFT) != 0);
+	}
 
-	//glm::vec3 dp{ m_moveD - m_moveA, m_moveS - m_moveW, m_moveUp - m_moveDown };
-	//dp *= m_timeDelta * keybSpeed;
-
-	//  0  1  2  3
-	//  4  5  6  7
-	//  8  9 10 11
-	// 12 13 14 15
-
-	//m_cam.x += dp.x * m_model[0][0];
-	//m_cam.x += dp.y * m_model[0][2];
-
-	//m_cam.y += dp.x * m_model[1][0];
-	//m_cam.y += dp.y * m_model[1][2];
-	//m_cam.y += dp.z;
-
-	//m_cam.z += dp.x * m_model[2][0];
-	//m_cam.z += dp.y * m_model[2][2];
+	m_camera->Update(m_timeDelta);
 }
 
 void Application::RenderInterface()
@@ -892,12 +777,24 @@ void Application::RenderInterface()
 
 		ImGui::Separator();
 
-		float camPos[3] = { m_cam.z, m_cam.x, m_cam.y };
-		if (ImGui::InputFloat3("Position", camPos, "%.2f"))
+		glm::vec3 cameraPos = m_camera->GetPosition();
+		if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
 		{
-			m_cam.x = camPos[1];
-			m_cam.y = camPos[2];
-			m_cam.z = camPos[0];
+			m_camera->SetPosition(cameraPos);
+		}
+
+		float angle[2] = { m_camera->GetHorizontalAngle(), m_camera->GetVerticalAngle() };
+		if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
+		{
+			m_camera->SetHorizontalAngle(angle[0]);
+			m_camera->SetVerticalAngle(angle[1]);
+		}
+
+		float planes[2] = { m_nearPlane, m_farPlane };
+		if (ImGui::DragFloat2("Near/Far Plane", planes))
+		{
+			m_nearPlane = planes[0];
+			m_farPlane = planes[1];
 		}
 
 		if (m_geom)
@@ -1278,26 +1175,23 @@ void Application::DrawAreaTypesEditor()
 
 void Application::ResetCamera()
 {
-	// Camera Reset
 	if (m_geom)
 	{
 		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
 		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 
 		// Reset camera and fog to match the mesh bounds.
-		m_camr = sqrtf(rcSqr(bmax[0] - bmin[0]) +
-			rcSqr(bmax[1] - bmin[1]) +
-			rcSqr(bmax[2] - bmin[2])) / 2;
-		m_cam.x = (bmax[0] + bmin[0]) / 2 + m_camr;
-		m_cam.y = (bmax[1] + bmin[1]) / 2 + m_camr;
-		m_cam.z = (bmax[2] + bmin[2]) / 2 + m_camr;
+		float camr = sqrtf(rcSqr(bmax[0] - bmin[0]) + rcSqr(bmax[1] - bmin[1]) + rcSqr(bmax[2] - bmin[2])) / 2;
 
-		m_camr *= 3;
-		m_r.x = 45;
-		m_r.y = -45;
+		glm::vec3 cam = {
+			(bmax[0] + bmin[0]) / 2 + camr,
+			(bmax[1] + bmin[1]) / 2 + camr,
+			(bmax[2] + bmin[2]) / 2 + camr
+		};
 
-		//glFogf(GL_FOG_START, m_camr * 0.2f);
-		//glFogf(GL_FOG_END, m_camr * 1.25f);
+		m_camera->SetPosition(cam);
+		m_camera->SetHorizontalAngle(-45);
+		m_camera->SetVerticalAngle(45);
 	}
 }
 

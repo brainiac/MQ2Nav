@@ -137,6 +137,8 @@ void NavMeshTool::handleDebug()
 
 	if (m_geom)
 	{
+		ImGui::Checkbox("Draw Input Geometry", &m_drawInputGeometry);
+
 		bool isValid = m_navMesh->IsNavMeshLoaded();
 
 		valid[DrawMode::NAVMESH] = isValid;
@@ -158,14 +160,10 @@ void NavMeshTool::handleDebug()
 	{
 		ImGui::Text("Draw");
 
-		if (valid[DrawMode::MESH] && ImGui::RadioButton("Input Mesh", m_drawMode == DrawMode::MESH))
-			m_drawMode = DrawMode::MESH;
 		if (valid[DrawMode::NAVMESH] && ImGui::RadioButton("Navmesh", m_drawMode == DrawMode::NAVMESH))
 			m_drawMode = DrawMode::NAVMESH;
 		if (valid[DrawMode::NAVMESH_INVIS] && ImGui::RadioButton("Navmesh Invis", m_drawMode == DrawMode::NAVMESH_INVIS))
 			m_drawMode = DrawMode::NAVMESH_INVIS;
-		if (valid[DrawMode::NAVMESH_TRANS] && ImGui::RadioButton("Navmesh Trans", m_drawMode == DrawMode::NAVMESH_TRANS))
-			m_drawMode = DrawMode::NAVMESH_TRANS;
 		if (valid[DrawMode::NAVMESH_BVTREE] && ImGui::RadioButton("Navmesh BVTree", m_drawMode == DrawMode::NAVMESH_BVTREE))
 			m_drawMode = DrawMode::NAVMESH_BVTREE;
 		if (valid[DrawMode::NAVMESH_NODES] && ImGui::RadioButton("Navmesh Nodes", m_drawMode == DrawMode::NAVMESH_NODES))
@@ -421,8 +419,7 @@ void NavMeshTool::handleRender()
 
 	const float texScale = 1.0f / (m_config.cellSize * 10.0f);
 
-	// Draw mesh
-	if (m_drawMode != DrawMode::NAVMESH_TRANS)
+	if (m_drawInputGeometry)
 	{
 		// Draw mesh
 		duDebugDrawTriMeshSlope(&dd,
@@ -434,6 +431,7 @@ void NavMeshTool::handleRender()
 			m_config.agentMaxSlope,
 			texScale);
 		//m_geom->drawOffMeshConnections(&dd);
+
 	}
 
 	dd.depthMask(false);

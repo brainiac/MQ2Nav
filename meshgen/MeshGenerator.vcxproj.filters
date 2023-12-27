@@ -77,7 +77,7 @@
     <ClCompile Include="ZonePicker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GLDebugDraw.cpp">
+    <ClCompile Include="DebugDrawImpl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ConvexVolumeTool.cpp">
@@ -170,6 +170,9 @@
     <ClCompile Include="imgui\imgui_impl.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapGeometryLoader.h">
@@ -193,7 +196,7 @@
     <ClInclude Include="ZonePicker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DebugDraw.h">
+    <ClInclude Include="DebugDrawImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="pch.h">
@@ -294,6 +297,9 @@
     </ClInclude>
     <ClInclude Include="imgui\fs_imgui.bin.h">
       <Filter>Header Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

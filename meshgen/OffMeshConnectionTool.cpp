@@ -283,7 +283,7 @@ void OffMeshConnectionToolState::handleRender()
 	auto navMesh = m_meshTool->GetNavMesh();
 	const auto& connections = navMesh->GetConnections();
 
-	DebugDrawGL dd;
+	DebugDrawImpl dd;
 	const float s = navMesh->GetNavMeshConfig().agentRadius;
 
 	if (m_hitPosSet)
