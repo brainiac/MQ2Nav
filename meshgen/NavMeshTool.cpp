@@ -81,6 +81,10 @@ void NavMeshTool::NavMeshUpdated()
 	{
 		m_tool->init(this);
 	}
+
+	m_renderManager->GetNavMeshRender()->SetNavMesh(m_navMesh);
+	m_renderManager->GetNavMeshRender()->Build();
+
 	initToolStates();
 }
 
@@ -416,15 +420,17 @@ void NavMeshTool::handleRender()
 		if (navMesh && navQuery)
 		{
 			if (m_drawNavMeshTiles)
-				duDebugDrawNavMeshWithClosedList(&dd, *navMesh, *navQuery, m_navMeshDrawFlags);
-			if (m_drawNavMeshBVTree)
-				duDebugDrawNavMeshBVTree(&dd, *navMesh);
-			if (m_drawNavMeshPortals)
-				duDebugDrawNavMeshPortals(&dd, *navMesh);
-			if (m_drawNavMeshNodes)
-				duDebugDrawNavMeshNodes(&dd, *navQuery);
-			if (m_drawNavMeshDisabledTiles)
-				duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(192, 48, 0, 128));
+				m_renderManager->GetNavMeshRender()->Render();
+			//if (m_drawNavMeshTiles)
+			//	duDebugDrawNavMeshWithClosedList(&dd, *navMesh, *navQuery, DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST);
+			//if (m_drawNavMeshBVTree)
+			//	duDebugDrawNavMeshBVTree(&dd, *navMesh);
+			//if (m_drawNavMeshPortals)
+			//	duDebugDrawNavMeshPortals(&dd, *navMesh);
+			//if (m_drawNavMeshNodes)
+			//	duDebugDrawNavMeshNodes(&dd, *navQuery);
+			//if (m_drawNavMeshDisabledTiles)
+			//	duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(192, 48, 0, 128));
 		}
 	}
 
@@ -638,7 +644,6 @@ void NavMeshTool::setOutputPath(const char* output_path)
 void NavMeshTool::resetCommonSettings()
 {
 	m_config = NavMeshConfig{};
-	m_navMeshDrawFlags = DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST;
 }
 
 //----------------------------------------------------------------------------

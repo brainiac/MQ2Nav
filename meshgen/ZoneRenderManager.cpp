@@ -2,84 +2,33 @@
 
 #include "InputGeom.h"
 #include "common/NavMeshData.h"
+#include "common/NavMesh.h"
 #include "engine/embedded_shader.h"
 #include "shaders/navmesh/fs_inputgeom.bin.h"
 #include "shaders/navmesh/vs_inputgeom.bin.h"
+#include "shaders/navmesh/fs_meshtile.bin.h"
+#include "shaders/navmesh/vs_meshtile.bin.h"
 
 #include <glm/glm.hpp>
 #include <recast/DebugUtils/Include/DebugDraw.h>
+#include <recast/Detour/Include/DetourNavMeshQuery.h>
+#include <recast/Detour/Include/DetourNode.h>
 
+#include "DetourDebugDraw.h"
+
+
+ZoneRenderManager* g_zoneRenderManager = nullptr;
 
 static const bgfx::EmbeddedShader s_embeddedShaders[] = {
 	BGFX_EMBEDDED_SHADER(fs_inputgeom),
 	BGFX_EMBEDDED_SHADER(vs_inputgeom),
+	BGFX_EMBEDDED_SHADER(fs_meshtile),
+	BGFX_EMBEDDED_SHADER(vs_meshtile),
 
 	BGFX_EMBEDDED_SHADER_END()
 };
 
-ZoneRenderManager::ZoneRenderManager()
-{
-	m_zoneInputGeometry = new ZoneInputGeometryRender(this);
-}
-
-ZoneRenderManager::~ZoneRenderManager()
-{
-	delete m_zoneInputGeometry;
-	m_zoneInputGeometry = nullptr;
-}
-
-void ZoneRenderManager::init()
-{
-	ZoneInputGeometryRender::init();
-
-	// Create the grid texture
-	static constexpr int TEXTURE_SIZE = 64;
-	uint32_t data[TEXTURE_SIZE * TEXTURE_SIZE];
-	int size = TEXTURE_SIZE;
-	int mipLevel = 0;
-
-	m_gridTexture = bgfx::createTexture2D(size, size, true, 1, bgfx::TextureFormat::RGBA8, 0, nullptr);
-	while (size > 0)
-	{
-		for (int y = 0; y < size; ++y)
-		{
-			for (int x = 0; x < size; ++x)
-				data[x + y * size] = (x == 0 || y == 0) ? 0xffd7d7d7 : 0xffffffff;
-		}
-		bgfx::updateTexture2D(m_gridTexture, 0, mipLevel++, 0, 0, size, size, bgfx::copy(data, sizeof(uint32_t) * size * size));
-
-		size /= 2;
-	}
-}
-
-void ZoneRenderManager::Render()
-{
-	m_zoneInputGeometry->Render();
-}
-
-void ZoneRenderManager::DestroyObjects()
-{
-	m_zoneInputGeometry->DestroyObjects();
-
-	if (isValid(m_gridTexture))
-	{
-		bgfx::destroy(m_gridTexture);
-		m_gridTexture = BGFX_INVALID_HANDLE;
-	}
-}
-
-void ZoneRenderManager::SetInputGeometry(InputGeom* geom)
-{
-	m_zoneInputGeometry->SetInputGeometry(geom);
-}
-
-void ZoneRenderManager::SetNavMeshConfig(const NavMeshConfig* config)
-{
-	m_meshConfig = config;
-}
-
-//----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
+//============================================================================
 
 struct InputGeometryVertex
 {
@@ -99,16 +48,147 @@ struct InputGeometryVertex
 
 	static bgfx::VertexLayout ms_layout;
 };
-
 bgfx::VertexLayout InputGeometryVertex::ms_layout;
 
-//----------------------------------------------------------------------------
+struct NavMeshTileVertex
+{
+	glm::vec3 pos;
+	uint32_t  color;
 
-/* static */
-void ZoneInputGeometryRender::init()
+	static void init()
+	{
+		ms_layout
+			.begin()
+				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+			.end();
+	}
+
+	static bgfx::VertexLayout ms_layout;
+};
+bgfx::VertexLayout NavMeshTileVertex::ms_layout;
+
+
+struct ZoneRenderShared
+{
+	bgfx::TextureHandle m_gridTexture = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_texSampler = BGFX_INVALID_HANDLE;
+
+	bgfx::ProgramHandle m_inputGeoProgram = BGFX_INVALID_HANDLE;
+	bgfx::ProgramHandle m_meshTileProgram = BGFX_INVALID_HANDLE;
+};
+
+static ZoneRenderShared s_shared;
+
+//============================================================================
+
+ZoneRenderManager::ZoneRenderManager()
+{
+	m_zoneInputGeometry = new ZoneInputGeometryRender(this);
+	m_navMeshRender = new ZoneNavMeshRender(this);
+
+	// TEMP
+	g_zoneRenderManager = this;
+}
+
+ZoneRenderManager::~ZoneRenderManager()
+{
+	delete m_zoneInputGeometry;
+	m_zoneInputGeometry = nullptr;
+
+	delete m_navMeshRender;
+	m_navMeshRender = nullptr;
+
+	// TEMP
+	g_zoneRenderManager = nullptr;
+}
+
+void ZoneRenderManager::init()
 {
 	InputGeometryVertex::init();
+	NavMeshTileVertex::init();
+
+	// Create the grid texture
+	static constexpr int TEXTURE_SIZE = 64;
+	uint32_t data[TEXTURE_SIZE * TEXTURE_SIZE];
+	int size = TEXTURE_SIZE;
+	int mipLevel = 0;
+
+	s_shared.m_gridTexture = bgfx::createTexture2D(size, size, true, 1, bgfx::TextureFormat::RGBA8, 0, nullptr);
+	while (size > 0)
+	{
+		for (int y = 0; y < size; ++y)
+		{
+			for (int x = 0; x < size; ++x)
+				data[x + y * size] = (x == 0 || y == 0) ? 0xffd7d7d7 : 0xffffffff;
+		}
+		bgfx::updateTexture2D(s_shared.m_gridTexture, 0, mipLevel++, 0, 0, size, size, bgfx::copy(data, sizeof(uint32_t) * size * size));
+
+		size /= 2;
+	}
+
+	s_shared.m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
+
+	bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
+
+	s_shared.m_inputGeoProgram = bgfx::createProgram(
+		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_inputgeom"),
+		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_inputgeom"), true);
+	s_shared.m_meshTileProgram = bgfx::createProgram(
+		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_meshtile"),
+		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_meshtile"), true);
 }
+
+void ZoneRenderManager::shutdown()
+{
+	if (isValid(s_shared.m_gridTexture))
+	{
+		bgfx::destroy(s_shared.m_gridTexture);
+		s_shared.m_gridTexture = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(s_shared.m_texSampler))
+	{
+		bgfx::destroy(s_shared.m_texSampler);
+		s_shared.m_texSampler = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(s_shared.m_inputGeoProgram))
+	{
+		bgfx::destroy(s_shared.m_inputGeoProgram);
+		s_shared.m_inputGeoProgram = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(s_shared.m_meshTileProgram))
+	{
+		bgfx::destroy(s_shared.m_meshTileProgram);
+		s_shared.m_meshTileProgram = BGFX_INVALID_HANDLE;
+	}
+}
+
+void ZoneRenderManager::Render()
+{
+	m_zoneInputGeometry->Render();
+	m_navMeshRender->Render();
+}
+
+void ZoneRenderManager::DestroyObjects()
+{
+	m_zoneInputGeometry->DestroyObjects();
+	m_navMeshRender->DestroyObjects();
+}
+
+void ZoneRenderManager::SetInputGeometry(InputGeom* geom)
+{
+	m_zoneInputGeometry->SetInputGeometry(geom);
+}
+
+void ZoneRenderManager::SetNavMeshConfig(const NavMeshConfig* config)
+{
+	m_meshConfig = config;
+}
+
+//----------------------------------------------------------------------------
 
 ZoneInputGeometryRender::ZoneInputGeometryRender(ZoneRenderManager* manager)
 	: m_mgr(manager)
@@ -155,7 +235,8 @@ void ZoneInputGeometryRender::CreateObjects()
 	InputGeometryVertex* pVertex = reinterpret_cast<InputGeometryVertex*>(vb->data);
 	uint32_t* pIndex = reinterpret_cast<uint32_t*>(ib->data);
 
-	for (int index = 0; index < ntris * 3; index += 3)
+	int index;
+	for (index = 0; index < ntris * 3; index += 3)
 	{
 		const float* norm = &normals[index];
 		uint32_t color;
@@ -193,15 +274,9 @@ void ZoneInputGeometryRender::CreateObjects()
 		pIndex[index + 2] = index + 2;
 	}
 
+	m_numIndices = index;
 	m_vbh = bgfx::createVertexBuffer(vb, InputGeometryVertex::ms_layout);
 	m_ibh = bgfx::createIndexBuffer(ib, BGFX_BUFFER_INDEX32);
-
-	bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
-	m_program = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_inputgeom"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_inputgeom"), true);
-
-	m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
 }
 
 void ZoneInputGeometryRender::DestroyObjects()
@@ -217,18 +292,6 @@ void ZoneInputGeometryRender::DestroyObjects()
 		bgfx::destroy(m_ibh);
 		m_ibh = BGFX_INVALID_HANDLE;
 	}
-
-	if (isValid(m_program))
-	{
-		bgfx::destroy(m_program);
-		m_program = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(m_texSampler))
-	{
-		bgfx::destroy(m_texSampler);
-		m_texSampler = BGFX_INVALID_HANDLE;
-	}
 }
 
 void ZoneInputGeometryRender::Render()
@@ -238,10 +301,540 @@ void ZoneInputGeometryRender::Render()
 		bgfx::Encoder* encoder = bgfx::begin();
 
 		encoder->setVertexBuffer(0, m_vbh);
-		encoder->setIndexBuffer(m_ibh);
+		encoder->setIndexBuffer(m_ibh, 0, m_numIndices);
 		encoder->setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
-		encoder->setTexture(0, m_texSampler, m_mgr->GetGridTexture());
+		encoder->setTexture(0, s_shared.m_texSampler, s_shared.m_gridTexture);
 
-		encoder->submit(0, m_program);
+		encoder->submit(0, s_shared.m_inputGeoProgram);
 	}
+}
+
+//----------------------------------------------------------------------------
+//============================================================================
+
+
+ZoneNavMeshRender::ZoneNavMeshRender(ZoneRenderManager* manager)
+	: m_mgr(manager)
+{
+}
+
+ZoneNavMeshRender::~ZoneNavMeshRender()
+{
+}
+
+void ZoneNavMeshRender::SetNavMesh(const std::shared_ptr<NavMesh>& navMesh)
+{
+	if (m_navMesh == navMesh)
+		return;
+
+	m_navMesh = navMesh;
+	m_dirty = true;
+}
+
+void ZoneNavMeshRender::SetNavMeshQuery(const dtNavMeshQuery* query)
+{
+	if (m_query == query)
+		return;
+
+	m_query = query;
+	m_dirty = true;
+}
+
+void ZoneNavMeshRender::SetFlags(uint32_t flags)
+{
+	if (m_flags == flags)
+		return;
+
+	m_flags = flags;
+	m_dirty = true;
+}
+
+void ZoneNavMeshRender::Render()
+{
+	if (m_dirty)
+	{
+		Build();
+	}
+
+	for (const auto& tile : m_tiles)
+	{
+		if (tile)
+		{
+			tile->Render(m_flags);
+		}
+	}
+
+	m_dirty = false;
+}
+
+void ZoneNavMeshRender::DestroyObjects()
+{
+	m_tiles.clear();
+}
+
+void ZoneNavMeshRender::Build()
+{
+	std::shared_ptr<dtNavMesh> navMesh = m_navMesh->GetNavMesh();
+	if (!navMesh)
+	{
+		return;
+	}
+
+	m_tiles.clear();
+	m_tiles.resize(navMesh->getMaxTiles());
+
+	const dtNavMeshQuery* q = m_flags & DRAW_CLOSED_LIST ? m_query : nullptr;
+	const dtNavMesh& mesh = *m_navMesh->GetNavMesh();
+
+	for (int i = 0; i < mesh.getMaxTiles(); ++i)
+	{
+		const dtMeshTile* tile = mesh.getTile(i);
+		if (!tile->header) continue;
+
+		auto& ptr = m_tiles[i];
+		if (ptr == nullptr) ptr = std::make_unique<ZoneNavMeshTileRender>(this);
+
+		ptr->Build(mesh, q, tile, m_flags);
+	}
+}
+
+void ZoneNavMeshRender::UpdateQuery()
+{
+	// Do the work to update the existing mesh with updated closed list indicators...
+}
+
+void ZoneNavMeshRender::BuildNodes()
+{
+	if (!m_query) return;
+
+	const dtNavMeshQuery& query = *m_query;
+
+	if (const dtNodePool* pool = query.getNodePool())
+	{
+		constexpr float off = 0.5f;
+	
+		//dd->begin(DU_DRAW_POINTS, 4.0f);
+		for (int i = 0; i < pool->getHashSize(); ++i)
+		{
+			for (dtNodeIndex j = pool->getFirst(i); j != DT_NULL_IDX; j = pool->getNext(j))
+			{
+				if (const dtNode* node = pool->getNodeAtIdx(j + 1))
+				{
+					//dd->vertex(node->pos[0], node->pos[1] + off, node->pos[2], duRGBA(255, 192, 0, 255));
+				}
+			}
+		}
+		//dd->end();
+
+		//dd->begin(DU_DRAW_LINES, 2.0f);
+		for (int i = 0; i < pool->getHashSize(); ++i)
+		{
+			for (dtNodeIndex j = pool->getFirst(i); j != DT_NULL_IDX; j = pool->getNext(j))
+			{
+				const dtNode* node = pool->getNodeAtIdx(j + 1);
+				if (!node) continue;
+				if (!node->pidx) continue;
+				if (const dtNode* parent = pool->getNodeAtIdx(node->pidx))
+				{
+					//dd->vertex(node->pos[0], node->pos[1] + off, node->pos[2], duRGBA(255, 192, 0, 128));
+					//dd->vertex(parent->pos[0], parent->pos[1] + off, parent->pos[2], duRGBA(255, 192, 0, 128));
+				}
+			}
+		}
+		//dd->end();
+	}
+}
+
+
+//============================================================================
+//============================================================================
+
+ZoneNavMeshTileRender::ZoneNavMeshTileRender(ZoneNavMeshRender* parent)
+	: m_parent(parent)
+{
+}
+
+ZoneNavMeshTileRender::~ZoneNavMeshTileRender()
+{
+	if (isValid(m_ibh))
+	{
+		bgfx::destroy(m_ibh);
+		m_ibh = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(m_vbh))
+	{
+		bgfx::destroy(m_vbh);
+		m_vbh = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(m_polyIbh))
+	{
+		bgfx::destroy(m_polyIbh);
+		m_polyIbh = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(m_polyVbh))
+	{
+		bgfx::destroy(m_polyVbh);
+		m_polyVbh = BGFX_INVALID_HANDLE;
+	}
+}
+
+void ZoneNavMeshTileRender::Render(uint32_t flags)
+{
+	if (isValid(m_ibh) && isValid(m_vbh))
+	{
+		bgfx::Encoder* encoder = bgfx::begin();
+
+		encoder->setVertexBuffer(0, m_vbh);
+		encoder->setIndexBuffer(m_ibh, 0, m_numIndices);
+		encoder->setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
+
+		encoder->submit(0, s_shared.m_meshTileProgram);
+	}
+
+	if (isValid(m_polyIbh) && isValid(m_polyVbh))
+	{
+		bgfx::Encoder* encoder = bgfx::begin();
+
+		encoder->setVertexBuffer(0, m_polyVbh);
+		encoder->setIndexBuffer(m_polyIbh, 0, m_polyNumIndices);
+		encoder->setState(BGFX_STATE_PT_LINES | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
+
+		encoder->submit(0, s_shared.m_meshTileProgram);
+	}
+}
+
+void ZoneNavMeshTileRender::Build(const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags)
+{
+	// Based on drawMeshTile from DetourDebugDraw
+	dtPolyRef base = mesh.getPolyRefBase(tile);
+
+	BuildMeshTile(base, mesh, query, tile, flags);
+
+	BuildPolyBoundaries(tile);
+
+	if (flags & ZoneNavMeshRender::DRAW_OFFMESH_CONNS)
+	{
+		// Draw offmesh connections
+		BuildOffmeshConnections(base, tile, query);
+	}
+
+	// Build points
+	const uint32_t vcol = duRGBA(0, 0, 0, 196);
+	//dd->begin(DU_DRAW_POINTS, 3.0f);
+	for (int i = 0; i < tile->header->vertCount; ++i)
+	{
+		const float* v = &tile->verts[i * 3];
+		//dd->vertex(v[0], v[1], v[2], vcol);
+	}
+	//dd->end();
+}
+
+void ZoneNavMeshTileRender::BuildMeshTile(dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags)
+{
+	// Calculate number of vertices that we will need to store.
+	int numVertices = 0;
+	for (int i = 0; i < tile->header->polyCount; ++i)
+	{
+		const dtPoly* p = &tile->polys[i];
+		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+			continue;
+
+		// Three vertices for each triangle in the detail mesh.
+		const dtPolyDetail* pd = &tile->detailMeshes[i];
+		numVertices += pd->triCount * 3;
+	}
+
+	// Create buffer to hold list of triangles
+	const bgfx::Memory* vb = bgfx::alloc(numVertices * NavMeshTileVertex::ms_layout.getStride());
+	const bgfx::Memory* ib = bgfx::alloc(numVertices * sizeof(uint16_t));
+
+	NavMeshTileVertex* pVertex = reinterpret_cast<NavMeshTileVertex*>(vb->data);
+	uint16_t* pIndex = reinterpret_cast<uint16_t*>(ib->data);
+
+	int tileNum = mesh.decodePolyIdTile(base);
+	const uint32_t tileColor = duIntToCol(tileNum, 128);
+
+	int currIndex = 0;
+
+	for (int i = 0; i < tile->header->polyCount; ++i)
+	{
+		const dtPoly* p = &tile->polys[i];
+		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+			continue;
+
+		const dtPolyDetail* pd = &tile->detailMeshes[i];
+
+		// select color for the polygon.
+		uint32_t col;
+		if (flags & ZoneNavMeshRender::DRAW_COLORED_TILES)
+			col = tileColor;
+		else
+			col = duTransCol(PolyToCol(p), 64);
+
+		if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
+		{
+			col = duLerpCol(col, duRGBA(255, 196, 0, 64), 127);
+		}
+
+		// Iterate triangles
+		for (int j = 0; j < pd->triCount; ++j)
+		{
+			const uint8_t* t = &tile->detailTris[(pd->triBase + j) * 4];
+
+			for (int k = 0; k < 3; ++k)
+			{
+				if (t[k] < p->vertCount)
+				{
+					NavMeshTileVertex& vtx = pVertex[currIndex];
+					vtx.pos = *reinterpret_cast<glm::vec3*>(&tile->verts[p->verts[t[k]] * 3]);
+					vtx.pos.y += 0.1f;
+					vtx.color = col;
+				}
+				else
+				{
+					NavMeshTileVertex& vtx = pVertex[currIndex];
+					vtx.pos = *reinterpret_cast<glm::vec3*>(&tile->detailVerts[(pd->vertBase + t[k] - p->vertCount) * 3]);
+					vtx.pos.y += 0.1f;
+					vtx.color = col;
+				}
+
+				pIndex[currIndex] = currIndex;
+				currIndex++;
+			}
+		}
+	}
+
+	m_vbh = bgfx::createVertexBuffer(vb, NavMeshTileVertex::ms_layout);
+	m_ibh = bgfx::createIndexBuffer(ib, 0);
+	m_numIndices = currIndex;
+}
+
+void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile)
+{
+	int numVertices = 0;
+	for (int i = 0; i < tile->header->polyCount; ++i)
+	{
+		const dtPoly* p = &tile->polys[i];
+		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+			continue;
+
+		// Three vertices for each triangle in the detail mesh.
+		const dtPolyDetail* pd = &tile->detailMeshes[i];
+		numVertices += pd->triCount * 3 * 2;
+	}
+
+	// Create buffer to hold list of triangles
+	const bgfx::Memory* vb = bgfx::alloc(numVertices * NavMeshTileVertex::ms_layout.getStride());
+	const bgfx::Memory* ib = bgfx::alloc(numVertices * sizeof(uint16_t));
+
+	NavMeshTileVertex* pVertex = reinterpret_cast<NavMeshTileVertex*>(vb->data);
+	uint16_t* pIndex = reinterpret_cast<uint16_t*>(ib->data);
+	int currIndex = 0;
+
+	// Draw inner poly boundaries
+	BuildPolyBoundaries(tile, pVertex, pIndex, currIndex, duRGBA(0, 48, 64, 32), 1.0f, true);
+
+	// Draw outer poly boundaries
+	BuildPolyBoundaries(tile, pVertex, pIndex, currIndex, duRGBA(0, 48, 64, 220), 2.5f, false);
+
+	m_polyVbh = bgfx::createVertexBuffer(vb, NavMeshTileVertex::ms_layout);
+	m_polyIbh = bgfx::createIndexBuffer(ib, 0);
+	m_polyNumIndices = currIndex;
+}
+
+static float distancePtLine2d(const float* pt, const float* p, const float* q)
+{
+	float pqx = q[0] - p[0];
+	float pqz = q[2] - p[2];
+	float dx = pt[0] - p[0];
+	float dz = pt[2] - p[2];
+	float d = pqx * pqx + pqz * pqz;
+	float t = pqx * dx + pqz * dz;
+	if (d != 0) t /= d;
+	dx = p[0] + t * pqx - pt[0];
+	dz = p[2] + t * pqz - pt[2];
+	return dx * dx + dz * dz;
+}
+
+void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, NavMeshTileVertex* pOutVertex, uint16_t* pOutIndices, int& currIndex, uint32_t color, float width, bool inner)
+{
+	static constexpr float threshold = 0.01f * 0.01f;
+
+	// Draw Lines:
+	for (int i = 0; i < tile->header->polyCount; ++i)
+	{
+		const dtPoly* p = &tile->polys[i];
+		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+			continue;
+
+		const dtPolyDetail* pd = &tile->detailMeshes[i];
+
+		// Iterate triangles
+		for (int j = 0, nj = (int)p->vertCount; j < nj; ++j)
+		{
+			// Determine color of the triangle
+			uint32_t c = color;
+
+			if (inner)
+			{
+				if (p->neis[j] == 0)
+					continue;
+
+				// If poly links to external poly, check for external poly.
+				if (p->neis[j] & DT_EXT_LINK)
+				{
+					bool con = false;
+
+					for (uint32_t k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
+					{
+						if (tile->links[k].edge == j)
+						{
+							con = true;
+							break;
+						}
+					}
+
+					if (con)
+						c = duRGBA(255, 255, 255, 48);
+					else
+						c = duRGBA(0, 0, 0, 48);
+				}
+				else
+				{
+					c = duRGBA(0, 48, 64, 32);
+				}
+			}
+			else
+			{
+				if (p->neis[j] != 0)
+					continue;
+			}
+
+			const float* v0 = &tile->verts[p->verts[j] * 3];
+			const float* v1 = &tile->verts[p->verts[(j + 1) % nj] * 3];
+
+			// Draw detail mesh edges which align with the actual poly edge.
+			// This is really slow.
+			for (int k = 0; k < pd->triCount; ++k)
+			{
+				const uint8_t* t = &tile->detailTris[(pd->triBase + k) * 4];
+				const float* tv[3];
+
+				for (int m = 0; m < 3; ++m)
+				{
+					if (t[m] < p->vertCount)
+						tv[m] = &tile->verts[p->verts[t[m]] * 3];
+					else
+						tv[m] = &tile->detailVerts[(pd->vertBase + (t[m] - p->vertCount)) * 3];
+				}
+
+				for (int m = 0, n = 2; m < 3; n = m++)
+				{
+					if (((t[3] >> (n * 2)) & 0x3) == 0)
+						continue; // Skip inner detail edges.
+
+					if (distancePtLine2d(tv[n], v0, v1) < threshold
+						&& distancePtLine2d(tv[m], v0, v1) < threshold)
+					{
+						pOutVertex[currIndex + 0] = NavMeshTileVertex{ *reinterpret_cast<const glm::vec3*>(tv[n]), c };
+						pOutIndices[currIndex + 0] = currIndex + 0;
+						pOutVertex[currIndex + 1] = NavMeshTileVertex{ *reinterpret_cast<const glm::vec3*>(tv[m]), c };
+						pOutIndices[currIndex + 1] = currIndex + 1;
+						currIndex += 2;
+					}
+				}
+			}
+		}
+	}
+}
+
+void ZoneNavMeshTileRender::BuildOffmeshConnections(dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query)
+{
+	//dd->begin(DU_DRAW_LINES, 2.0f);
+	for (int i = 0; i < tile->header->polyCount; ++i)
+	{
+		const dtPoly* p = &tile->polys[i];
+		if (p->getType() != DT_POLYTYPE_OFFMESH_CONNECTION)	// Skip regular polys.
+			continue;
+
+		unsigned int col, col2;
+		if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
+			col = duRGBA(255, 196, 0, 220);
+		else
+			col = duDarkenCol(duTransCol(PolyToCol(p), 220));
+
+		const dtOffMeshConnection* con = &tile->offMeshCons[i - tile->header->offMeshBase];
+		const float* va = &tile->verts[p->verts[0] * 3];
+		const float* vb = &tile->verts[p->verts[1] * 3];
+
+		// Check to see if start and end end-points have links.
+		bool startSet = false;
+		bool endSet = false;
+		for (unsigned int k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
+		{
+			if (tile->links[k].edge == 0)
+				startSet = true;
+			if (tile->links[k].edge == 1)
+				endSet = true;
+		}
+
+		// End points and their on-mesh locations.
+		//dd->vertex(va[0], va[1], va[2], col);
+		//dd->vertex(con->pos[0], con->pos[1], con->pos[2], col);
+		col2 = startSet ? col : duRGBA(220, 32, 16, 196);
+		//duAppendCircle(dd, con->pos[0], con->pos[1] + 0.1f, con->pos[2], con->rad, col2);
+
+		//dd->vertex(vb[0], vb[1], vb[2], col);
+		//dd->vertex(con->pos[3], con->pos[4], con->pos[5], col);
+		col2 = endSet ? col : duRGBA(220, 32, 16, 196);
+		//duAppendCircle(dd, con->pos[3], con->pos[4] + 0.1f, con->pos[5], con->rad, col2);
+
+		// End point vertices.
+		//dd->vertex(con->pos[0], con->pos[1], con->pos[2], duRGBA(0, 48, 64, 196));
+		//dd->vertex(con->pos[0], con->pos[1] + 0.2f, con->pos[2], duRGBA(0, 48, 64, 196));
+
+		//dd->vertex(con->pos[3], con->pos[4], con->pos[5], duRGBA(0, 48, 64, 196));
+		//dd->vertex(con->pos[3], con->pos[4] + 0.2f, con->pos[5], duRGBA(0, 48, 64, 196));
+
+		// Connection arc.
+		//duAppendArc(dd, con->pos[0], con->pos[1], con->pos[2], con->pos[3], con->pos[4], con->pos[5], 0.25f,
+		//	(con->flags & 1) ? 0.6f : 0, 0.6f, col);
+	}
+	//dd->end();
+}
+
+void ZoneNavMeshTileRender::BuildBVTree(const dtMeshTile* tile)
+{
+	// Draw BV nodes.
+	const float cs = 1.0f / tile->header->bvQuantFactor;
+
+	//dd->begin(DU_DRAW_LINES, 1.0f);
+	for (int i = 0; i < tile->header->bvNodeCount; ++i)
+	{
+		const dtBVNode* n = &tile->bvTree[i];
+		if (n->i < 0) // Leaf indices are positive.
+			continue;
+
+		//duAppendBoxWire(dd, tile->header->bmin[0] + n->bmin[0] * cs,
+		//	tile->header->bmin[1] + n->bmin[1] * cs,
+		//	tile->header->bmin[2] + n->bmin[2] * cs,
+		//	tile->header->bmin[0] + n->bmax[0] * cs,
+		//	tile->header->bmin[1] + n->bmax[1] * cs,
+		//	tile->header->bmin[2] + n->bmax[2] * cs,
+		//	duRGBA(255, 255, 255, 128));
+	}
+	//dd->end();
+}
+
+uint32_t ZoneNavMeshTileRender::PolyToCol(const dtPoly* poly)
+{
+	if (poly)
+	{
+		return m_parent->GetNavMesh()->GetPolyArea(poly->getArea()).color;
+	}
+
+	return 0;
 }

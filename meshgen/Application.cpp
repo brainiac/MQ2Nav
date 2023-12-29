@@ -48,7 +48,7 @@ static const int32_t MAX_LOG_MESSAGES = 1000;
 
 static bool IsKeyboardBlocked()
 {
-	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
+	return ImGui::GetIO().WantTextInput;
 }
 
 static HWND sdlNativeWindowHandle(SDL_Window* window)
@@ -217,10 +217,13 @@ bool Application::InitSystem()
 		return false;
 	}
 
+	bgfx::setViewMode(0, bgfx::ViewMode::Sequential);
+
 	utilsInit();
 	ddInit();
 	
 	DebugDrawImpl::init();
+	ZoneRenderManager::init();
 
 	// Enable debug text.
 	bgfx::setDebug(m_debug);
@@ -280,6 +283,8 @@ int Application::shutdown()
 
 	m_zonePicker.reset();
 	m_geom.reset();
+
+	ZoneRenderManager::shutdown();
 
 	// shutdown ImGui
 	ImGui_Impl_Shutdown();
@@ -477,7 +482,8 @@ bool Application::HandleEvents()
 			// Handle mouse clicks here.
 			if (event.button.button == SDL_BUTTON_RIGHT)
 			{
-				//SDL_SetRelativeMouseMode(SDL_TRUE);
+				// Clear keyboard focus
+				ImGui::SetWindowFocus(nullptr);
 
 				// Rotate view
 				m_rotate = true;
@@ -781,10 +787,10 @@ void Application::RenderInterface()
 
 		ImGui::Separator();
 
-		glm::vec3 cameraPos = m_camera->GetPosition();
+		glm::vec3 cameraPos = m_camera->GetPosition().zxy();
 		if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
 		{
-			m_camera->SetPosition(cameraPos);
+			m_camera->SetPosition(cameraPos.yzx());
 		}
 
 		float angle[2] = { m_camera->GetHorizontalAngle(), m_camera->GetVerticalAngle() };

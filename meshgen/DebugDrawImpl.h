@@ -49,7 +49,6 @@ class DebugDrawImpl : public duDebugDraw
 	};
 	PrimitiveType m_type = PrimitiveType::Count;
 	uint64_t m_state = 0;
-	float m_lineThickness = 1.0f;
 
 	static const uint32_t kCacheSize = 1024;
 	static const uint32_t kCacheQuadSize = 1024;

@@ -628,23 +628,6 @@ void duDebugDrawTileCacheLayerRegions(struct duDebugDraw* dd, const dtTileCacheL
 	debugDrawTileCachePortals(dd, layer, cs, ch);
 }
 
-
-
-
-/*struct dtTileCacheContour
-{
-	int nverts;
-	unsigned char* verts;
-	unsigned char reg;
-	unsigned char area;
-};
-
-struct dtTileCacheContourSet
-{
-	int nconts;
-	dtTileCacheContour* conts;
-};*/
-
 void duDebugDrawTileCacheContours(duDebugDraw* dd, const struct dtTileCacheContourSet& lcset,
 								  const float* orig, const float cs, const float ch)
 {

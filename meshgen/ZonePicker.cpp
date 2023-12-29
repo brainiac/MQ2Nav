@@ -98,8 +98,8 @@ std::pair<int, ImVec2> FindExpansionImage(int expansion, bool active)
 }
 
 ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
-	: m_mapList(eqConfig.GetMapList())
-	, m_allMaps(eqConfig.GetAllMaps())
+	: m_allMaps(eqConfig.GetAllMaps())
+	, m_mapList(eqConfig.GetMapList())
 	, m_eqDirectory(eqConfig.GetEverquestPath())
 	, m_batchMode(batchMode)
 {
@@ -118,11 +118,13 @@ ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
 
 ZonePicker::~ZonePicker()
 {
+#if EXPANSION_BUTTONS
 	for (const auto& texture : m_textures)
 	{
-		if (!isValid(texture))
+		if (isValid(texture))
 			bgfx::destroy(texture);
 	}
+#endif
 }
 
 #if EXPANSION_BUTTONS

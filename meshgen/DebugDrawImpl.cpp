@@ -10,6 +10,8 @@
 #include <bx/string.h>
 #include <glm/glm.hpp>
 
+#include "ZoneRenderManager.h"
+
 bgfx::VertexLayout DebugDrawVertex::ms_layout;
 
 #include "shaders/debugdraw/fs_debugdraw_primitive.bin.h"
@@ -24,54 +26,20 @@ static const bgfx::EmbeddedShader s_embeddedShaders[] = {
 
 struct DebugDrawSharedData
 {
-	static const int TEXTURE_SIZE = 64;
-
-	bgfx::TextureHandle m_gridTexture     = BGFX_INVALID_HANDLE;
-	int                 m_miplevels       = 0;
-	bgfx::UniformHandle m_texColor        = BGFX_INVALID_HANDLE; // our 2d texture sampler
-	bgfx::UniformHandle m_lineThickness   = BGFX_INVALID_HANDLE; // line thickness uniform
-
 	bgfx::ProgramHandle m_program;
-	bgfx::ProgramHandle m_textureProgram  = BGFX_INVALID_HANDLE;
 
 	void init()
 	{
 		DebugDrawVertex::init();
 
-		m_texColor = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
-		m_lineThickness = bgfx::createUniform("s_lineThickness", bgfx::UniformType::Vec4);
-
 		bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
 		m_program = bgfx::createProgram(
 			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_debugdraw_primitive"),
 			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_debugdraw_primitive"), true);
-
-		// Create the grid texture
-		const unsigned int col0 = duRGBA(215, 215, 215, 255);
-		const unsigned int col1 = duRGBA(255, 255, 255, 255);
-		uint8_t data[TEXTURE_SIZE * TEXTURE_SIZE];
-		int size = TEXTURE_SIZE;
-
-		m_gridTexture = bgfx::createTexture2D(size, size, true, 1, bgfx::TextureFormat::RGB8, 0, nullptr);
-		while (size > 0)
-		{
-			for (int y = 0; y < size; ++y)
-			{
-				for (int x = 0; x < size; ++x)
-					data[x + y * size] = (x == 0 || y == 0) ? col0 : col1;
-			}
-			bgfx::updateTexture2D(m_gridTexture, 0, m_miplevels, 0, 0, size, size, bgfx::copy(data, size * size));
-
-			size /= 2;
-			m_miplevels++;
-		}
 	}
 
 	void shutdown()
 	{
-		bgfx::destroy(m_gridTexture);
-		bgfx::destroy(m_texColor);
-		bgfx::destroy(m_lineThickness);
 		bgfx::destroy(m_program);
 	}
 };
@@ -122,7 +90,6 @@ void DebugDrawImpl::begin(duDebugDrawPrimitives prim, float size)
 	case DU_DRAW_QUADS: m_type = Quads; m_vtxMax = 4; m_state |= BGFX_STATE_PT_TRISTRIP; break;
 	}
 
-	m_lineThickness = size;
 }
 
 void DebugDrawImpl::end()
@@ -150,11 +117,7 @@ void DebugDrawImpl::flush()
 			m_encoder->setIndexBuffer(&tib);
 			m_encoder->setState(m_state);
 
-			float thickness[4] = { m_lineThickness, 0.f, 0.f, 0.f };
-			m_encoder->setUniform(s_dds.m_lineThickness, thickness);
-
-			bgfx::ProgramHandle program = s_dds.m_program;
-			m_encoder->submit(m_viewId, program);
+			m_encoder->submit(m_viewId, s_dds.m_program);
 		}
 		else
 		{

@@ -50,8 +50,9 @@ enum struct ToolType : uint32_t
 	MAX_TOOLS
 };
 
-struct Tool
+class Tool
 {
+public:
 	virtual ~Tool() {}
 	virtual ToolType type() const = 0;
 	virtual void init(class NavMeshTool* meshTool) = 0;
@@ -126,9 +127,6 @@ public:
 	float getTotalBuildTimeMS() const { return m_totalBuildTimeMs; }
 
 	void setOutputPath(const char* output_path);
-
-	uint8_t getNavMeshDrawFlags() const { return m_navMeshDrawFlags; }
-	void setNavMeshDrawFlags(uint8_t flags) { m_navMeshDrawFlags = flags; }
 
 	InputGeom* getInputGeom() { return m_geom; }
 
