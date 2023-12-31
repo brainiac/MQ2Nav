@@ -23,7 +23,6 @@ public:
 	static void init();
 	static void shutdown();
 
-	void Render();
 	void DestroyObjects();
 
 	void SetInputGeometry(InputGeom* geom);
@@ -32,6 +31,7 @@ public:
 	const NavMeshConfig* GetNavMeshConfig() const { return m_meshConfig; }
 
 	ZoneNavMeshRender* GetNavMeshRender() { return m_navMeshRender; }
+	ZoneInputGeometryRender* GetInputGeoRender() { return m_zoneInputGeometry; }
 
 private:
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
@@ -75,6 +75,8 @@ public:
 		DRAW_OFFMESH_CONNS    = 0x0002,
 		DRAW_CLOSED_LIST      = 0x0004,
 		DRAW_COLORED_TILES    = 0x0008,
+		DRAW_POLY_BOUNDARIES  = 0x0010,
+		DRAW_TILES            = 0x0020,
 	};
 
 	void SetNavMesh(const std::shared_ptr<NavMesh>& navMesh);
@@ -84,6 +86,9 @@ public:
 
 	void SetFlags(uint32_t flags);
 	uint32_t GetFlags() const { return m_flags; }
+
+	void SetLineAARadius(float radius) { m_lineAARadius = radius; }
+	float GetLineAARadius() const { return m_lineAARadius; }
 
 	void Build();
 	void UpdateQuery();
@@ -102,11 +107,12 @@ private:
 	const dtNavMeshQuery* m_query = nullptr;
 	uint32_t m_flags = 0;
 	bool m_dirty = false;
+	float m_lineAARadius = 2.0f;
 
 	std::vector<std::unique_ptr<ZoneNavMeshTileRender>> m_tiles;
 };
 
-struct NavMeshTileVertex;
+struct NavMeshLineInstanceVertex;
 
 class ZoneNavMeshTileRender
 {
@@ -121,7 +127,7 @@ public:
 private:
 	void BuildMeshTile(dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
 	void BuildPolyBoundaries(const dtMeshTile* tile);
-	void BuildPolyBoundaries(const dtMeshTile* tile, NavMeshTileVertex* pOutVertex, uint16_t* pOutIndices, int& currIndex, uint32_t color, float width, bool inner);
+	void BuildPolyBoundaries(const dtMeshTile* tile, NavMeshLineInstanceVertex* pOutVertex, int& currIndex, uint32_t color, float width, bool inner);
 	void BuildOffmeshConnections(dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query);
 	void BuildBVTree(const dtMeshTile* tile);
 	//void BuildPortals();
@@ -136,7 +142,6 @@ private:
 	int m_numIndices = 0;
 
 	// Poly Boundary lines
-	bgfx::VertexBufferHandle m_polyVbh = BGFX_INVALID_HANDLE;
-	bgfx::IndexBufferHandle m_polyIbh = BGFX_INVALID_HANDLE;
-	int m_polyNumIndices = 0;
+	bgfx::VertexBufferHandle m_lineInstances = BGFX_INVALID_HANDLE;
+	int m_polyNumInstances = 0;
 };

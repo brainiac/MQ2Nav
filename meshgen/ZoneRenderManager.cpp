@@ -8,11 +8,14 @@
 #include "shaders/navmesh/vs_inputgeom.bin.h"
 #include "shaders/navmesh/fs_meshtile.bin.h"
 #include "shaders/navmesh/vs_meshtile.bin.h"
+#include "shaders/lines/fs_lines.bin.h"
+#include "shaders/lines/vs_lines.bin.h"
 
 #include <glm/glm.hpp>
 #include <recast/DebugUtils/Include/DebugDraw.h>
 #include <recast/Detour/Include/DetourNavMeshQuery.h>
 #include <recast/Detour/Include/DetourNode.h>
+#include <imgui/imgui.h>
 
 #include "DetourDebugDraw.h"
 
@@ -24,6 +27,8 @@ static const bgfx::EmbeddedShader s_embeddedShaders[] = {
 	BGFX_EMBEDDED_SHADER(vs_inputgeom),
 	BGFX_EMBEDDED_SHADER(fs_meshtile),
 	BGFX_EMBEDDED_SHADER(vs_meshtile),
+	BGFX_EMBEDDED_SHADER(fs_lines),
+	BGFX_EMBEDDED_SHADER(vs_lines),
 
 	BGFX_EMBEDDED_SHADER_END()
 };
@@ -46,9 +51,8 @@ struct InputGeometryVertex
 			.end();
 	}
 
-	static bgfx::VertexLayout ms_layout;
+	inline static bgfx::VertexLayout ms_layout;
 };
-bgfx::VertexLayout InputGeometryVertex::ms_layout;
 
 struct NavMeshTileVertex
 {
@@ -64,18 +68,68 @@ struct NavMeshTileVertex
 			.end();
 	}
 
-	static bgfx::VertexLayout ms_layout;
+	inline static bgfx::VertexLayout ms_layout;
 };
-bgfx::VertexLayout NavMeshTileVertex::ms_layout;
 
+struct NavMeshLineVertex
+{
+	glm::vec3 pos;
+
+	static void init()
+	{
+		ms_layout
+			.begin()
+			.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+		.end();
+	}
+
+	inline static bgfx::VertexLayout ms_layout;
+};
+
+struct NavMeshLineInstanceVertex
+{
+	glm::vec4 linePosWidthA;
+	glm::vec4 lineColA;
+	glm::vec4 linePosWidthB;
+	glm::vec4 lineColB;
+
+	NavMeshLineInstanceVertex(glm::vec3 posA, float widthA, ImColor colA, glm::vec3 posB, float widthB, ImColor colB)
+		: linePosWidthA(posA.x, posA.y, posA.z, widthA)
+		, lineColA(colA.Value.x, colA.Value.y, colA.Value.z, colA.Value.w)
+		, linePosWidthB(posB.x, posB.y, posB.z, widthB)
+		, lineColB(colB.Value.x, colB.Value.y, colB.Value.z, colB.Value.w)
+	{
+	}
+
+	static void init()
+	{
+		ms_layout
+			.begin()
+				.add(bgfx::Attrib::TexCoord7, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord6, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord5, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord4, 4, bgfx::AttribType::Float)
+			.end();
+	}
+
+	inline static bgfx::VertexLayout ms_layout;
+};
 
 struct ZoneRenderShared
 {
+	bool m_initialized = false;
+
 	bgfx::TextureHandle m_gridTexture = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_texSampler = BGFX_INVALID_HANDLE;
 
 	bgfx::ProgramHandle m_inputGeoProgram = BGFX_INVALID_HANDLE;
 	bgfx::ProgramHandle m_meshTileProgram = BGFX_INVALID_HANDLE;
+
+	// Lines implementation
+	bgfx::ProgramHandle m_linesProgram = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_aaRadius = BGFX_INVALID_HANDLE;
+	bgfx::VertexBufferHandle m_linesVBH = BGFX_INVALID_HANDLE;
+	bgfx::IndexBufferHandle m_linesIBH = BGFX_INVALID_HANDLE;
 };
 
 static ZoneRenderShared s_shared;
@@ -107,6 +161,8 @@ void ZoneRenderManager::init()
 {
 	InputGeometryVertex::init();
 	NavMeshTileVertex::init();
+	NavMeshLineVertex::init();
+	NavMeshLineInstanceVertex::init();
 
 	// Create the grid texture
 	static constexpr int TEXTURE_SIZE = 64;
@@ -130,46 +186,47 @@ void ZoneRenderManager::init()
 	s_shared.m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
 
 	bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
-
 	s_shared.m_inputGeoProgram = bgfx::createProgram(
 		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_inputgeom"),
 		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_inputgeom"), true);
 	s_shared.m_meshTileProgram = bgfx::createProgram(
 		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_meshtile"),
 		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_meshtile"), true);
+
+	s_shared.m_aaRadius = bgfx::createUniform("u_aa_radius", bgfx::UniformType::Vec4);
+	s_shared.m_linesProgram = bgfx::createProgram(
+		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_lines"),
+		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_lines"), true);
+
+	glm::vec3 linesQuad[] = {
+		{ 0.0, -1.0, 0.0 },
+		{ 0.0,  1.0, 0.0 },
+		{ 1.0,  1.0, 0.0 },
+		{ 1.0, -1.0, 0.0 }
+	};
+	s_shared.m_linesVBH = bgfx::createVertexBuffer(bgfx::copy(linesQuad, sizeof(linesQuad)), NavMeshLineVertex::ms_layout, 0);
+
+	uint16_t linesIndices[] = {
+		0, 1, 2, 0, 2, 3
+	};
+	s_shared.m_linesIBH = bgfx::createIndexBuffer(bgfx::copy(linesIndices, sizeof(linesIndices)), 0);
+
+	s_shared.m_initialized = true;
 }
 
 void ZoneRenderManager::shutdown()
 {
-	if (isValid(s_shared.m_gridTexture))
+	if (s_shared.m_initialized)
 	{
 		bgfx::destroy(s_shared.m_gridTexture);
-		s_shared.m_gridTexture = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(s_shared.m_texSampler))
-	{
 		bgfx::destroy(s_shared.m_texSampler);
-		s_shared.m_texSampler = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(s_shared.m_inputGeoProgram))
-	{
 		bgfx::destroy(s_shared.m_inputGeoProgram);
-		s_shared.m_inputGeoProgram = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(s_shared.m_meshTileProgram))
-	{
 		bgfx::destroy(s_shared.m_meshTileProgram);
-		s_shared.m_meshTileProgram = BGFX_INVALID_HANDLE;
+		bgfx::destroy(s_shared.m_linesProgram);
+		bgfx::destroy(s_shared.m_aaRadius);
+		bgfx::destroy(s_shared.m_linesVBH);
+		bgfx::destroy(s_shared.m_linesIBH);
 	}
-}
-
-void ZoneRenderManager::Render()
-{
-	m_zoneInputGeometry->Render();
-	m_navMeshRender->Render();
 }
 
 void ZoneRenderManager::DestroyObjects()
@@ -356,6 +413,9 @@ void ZoneNavMeshRender::Render()
 		Build();
 	}
 
+	float aaRadiusData[4] = { m_lineAARadius, m_lineAARadius, 0.0f, 0.0f };
+	bgfx::setUniform(s_shared.m_aaRadius, aaRadiusData);
+
 	for (const auto& tile : m_tiles)
 	{
 		if (tile)
@@ -468,22 +528,16 @@ ZoneNavMeshTileRender::~ZoneNavMeshTileRender()
 		m_vbh = BGFX_INVALID_HANDLE;
 	}
 
-	if (isValid(m_polyIbh))
+	if (isValid(m_lineInstances))
 	{
-		bgfx::destroy(m_polyIbh);
-		m_polyIbh = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(m_polyVbh))
-	{
-		bgfx::destroy(m_polyVbh);
-		m_polyVbh = BGFX_INVALID_HANDLE;
+		bgfx::destroy(m_lineInstances);
+		m_lineInstances = BGFX_INVALID_HANDLE;
 	}
 }
 
 void ZoneNavMeshTileRender::Render(uint32_t flags)
 {
-	if (isValid(m_ibh) && isValid(m_vbh))
+	if ((flags & ZoneNavMeshRender::DRAW_TILES) && isValid(m_ibh) && isValid(m_vbh))
 	{
 		bgfx::Encoder* encoder = bgfx::begin();
 
@@ -494,15 +548,16 @@ void ZoneNavMeshTileRender::Render(uint32_t flags)
 		encoder->submit(0, s_shared.m_meshTileProgram);
 	}
 
-	if (isValid(m_polyIbh) && isValid(m_polyVbh))
+	if ((flags & ZoneNavMeshRender::DRAW_POLY_BOUNDARIES) && isValid(m_lineInstances))
 	{
 		bgfx::Encoder* encoder = bgfx::begin();
 
-		encoder->setVertexBuffer(0, m_polyVbh);
-		encoder->setIndexBuffer(m_polyIbh, 0, m_polyNumIndices);
-		encoder->setState(BGFX_STATE_PT_LINES | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
+		encoder->setVertexBuffer(0, s_shared.m_linesVBH);
+		encoder->setIndexBuffer(s_shared.m_linesIBH);
+		encoder->setInstanceDataBuffer(m_lineInstances, 0, m_polyNumInstances);
+		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW | BGFX_STATE_BLEND_ALPHA);
 
-		encoder->submit(0, s_shared.m_meshTileProgram);
+		encoder->submit(0, s_shared.m_linesProgram);
 	}
 }
 
@@ -627,22 +682,19 @@ void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile)
 	}
 
 	// Create buffer to hold list of triangles
-	const bgfx::Memory* vb = bgfx::alloc(numVertices * NavMeshTileVertex::ms_layout.getStride());
-	const bgfx::Memory* ib = bgfx::alloc(numVertices * sizeof(uint16_t));
-
-	NavMeshTileVertex* pVertex = reinterpret_cast<NavMeshTileVertex*>(vb->data);
-	uint16_t* pIndex = reinterpret_cast<uint16_t*>(ib->data);
+	uint8_t* pData = new uint8_t[numVertices * sizeof(NavMeshLineInstanceVertex)];
+	NavMeshLineInstanceVertex* pVertex = reinterpret_cast<NavMeshLineInstanceVertex*>(pData);
 	int currIndex = 0;
 
 	// Draw inner poly boundaries
-	BuildPolyBoundaries(tile, pVertex, pIndex, currIndex, duRGBA(0, 48, 64, 32), 1.0f, true);
+	BuildPolyBoundaries(tile, pVertex, currIndex, duRGBA(0, 48, 64, 32), 1.5, true);
 
 	// Draw outer poly boundaries
-	BuildPolyBoundaries(tile, pVertex, pIndex, currIndex, duRGBA(0, 48, 64, 220), 2.5f, false);
+	BuildPolyBoundaries(tile, pVertex, currIndex, duRGBA(0, 48, 64, 220), 2.5f, false);
 
-	m_polyVbh = bgfx::createVertexBuffer(vb, NavMeshTileVertex::ms_layout);
-	m_polyIbh = bgfx::createIndexBuffer(ib, 0);
-	m_polyNumIndices = currIndex;
+	m_lineInstances = bgfx::createVertexBuffer(bgfx::copy(pVertex, currIndex * NavMeshLineInstanceVertex::ms_layout.getStride()), NavMeshLineInstanceVertex::ms_layout);
+	delete[] pVertex;
+	m_polyNumInstances = currIndex;
 }
 
 static float distancePtLine2d(const float* pt, const float* p, const float* q)
@@ -659,7 +711,7 @@ static float distancePtLine2d(const float* pt, const float* p, const float* q)
 	return dx * dx + dz * dz;
 }
 
-void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, NavMeshTileVertex* pOutVertex, uint16_t* pOutIndices, int& currIndex, uint32_t color, float width, bool inner)
+void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, NavMeshLineInstanceVertex* pOutVertex, int& currIndex, uint32_t color, float width, bool inner)
 {
 	static constexpr float threshold = 0.01f * 0.01f;
 
@@ -739,11 +791,9 @@ void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, NavMeshT
 					if (distancePtLine2d(tv[n], v0, v1) < threshold
 						&& distancePtLine2d(tv[m], v0, v1) < threshold)
 					{
-						pOutVertex[currIndex + 0] = NavMeshTileVertex{ *reinterpret_cast<const glm::vec3*>(tv[n]), c };
-						pOutIndices[currIndex + 0] = currIndex + 0;
-						pOutVertex[currIndex + 1] = NavMeshTileVertex{ *reinterpret_cast<const glm::vec3*>(tv[m]), c };
-						pOutIndices[currIndex + 1] = currIndex + 1;
-						currIndex += 2;
+						pOutVertex[currIndex++] = NavMeshLineInstanceVertex(
+							*reinterpret_cast<const glm::vec3*>(tv[n]), width, c,
+							*reinterpret_cast<const glm::vec3*>(tv[m]), width, c);
 					}
 				}
 			}

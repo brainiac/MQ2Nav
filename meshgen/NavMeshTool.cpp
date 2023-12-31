@@ -44,6 +44,8 @@ NavMeshTool::NavMeshTool(const std::shared_ptr<NavMesh>& navMesh)
 	m_renderManager = std::make_unique<ZoneRenderManager>();
 	m_renderManager->init();
 	m_renderManager->SetNavMeshConfig(&m_config);
+	m_renderManager->GetNavMeshRender()->SetFlags(ZoneNavMeshRender::DRAW_TILES | ZoneNavMeshRender::DRAW_POLY_BOUNDARIES);
+
 
 	UpdateTileSizes();
 
@@ -138,12 +140,21 @@ void NavMeshTool::handleDebug()
 	if (m_geom)
 	{
 		ImGui::Checkbox("Draw Input Geometry", &m_drawInputGeometry);
-	
-		ImGui::Checkbox("Draw Tiles", &m_drawNavMeshTiles);
-		ImGui::Checkbox("Draw Disabled Tiles", &m_drawNavMeshDisabledTiles);
-		ImGui::Checkbox("Draw BV Tree", &m_drawNavMeshBVTree);
-		ImGui::Checkbox("Draw Nodes", &m_drawNavMeshNodes);
-		ImGui::Checkbox("Draw Portals", &m_drawNavMeshPortals);
+
+		uint32_t flags = m_renderManager->GetNavMeshRender()->GetFlags();
+		if (ImGui::CheckboxFlags("Draw Tiles", &flags, ZoneNavMeshRender::DRAW_TILES))
+			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+		if (ImGui::CheckboxFlags("Draw Polygon Boundaries", &flags, ZoneNavMeshRender::DRAW_POLY_BOUNDARIES))
+			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+
+		float lineAA = m_renderManager->GetNavMeshRender()->GetLineAARadius();
+		if (ImGui::DragFloat("Line AA Radius", &lineAA, 0.01f, 0, 10, "%.2f"))
+			m_renderManager->GetNavMeshRender()->SetLineAARadius(lineAA);
+
+		//ImGui::Checkbox("Draw Disabled Tiles", &m_drawNavMeshDisabledTiles);
+		//ImGui::Checkbox("Draw BV Tree", &m_drawNavMeshBVTree);
+		//ImGui::Checkbox("Draw Nodes", &m_drawNavMeshNodes);
+		//ImGui::Checkbox("Draw Portals", &m_drawNavMeshPortals);
 	}
 }
 
@@ -393,7 +404,7 @@ void NavMeshTool::handleRender()
 
 	if (m_drawInputGeometry)
 	{
-		m_renderManager->Render();
+		m_renderManager->GetInputGeoRender()->Render();
 	}
 
 	dd.depthMask(false);
@@ -419,8 +430,7 @@ void NavMeshTool::handleRender()
 
 		if (navMesh && navQuery)
 		{
-			if (m_drawNavMeshTiles)
-				m_renderManager->GetNavMeshRender()->Render();
+			m_renderManager->GetNavMeshRender()->Render();
 			//if (m_drawNavMeshTiles)
 			//	duDebugDrawNavMeshWithClosedList(&dd, *navMesh, *navQuery, DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST);
 			//if (m_drawNavMeshBVTree)
