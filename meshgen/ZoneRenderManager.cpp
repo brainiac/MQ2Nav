@@ -10,8 +10,6 @@
 #include "shaders/navmesh/vs_meshtile.bin.h"
 #include "shaders/lines/fs_lines.bin.h"
 #include "shaders/lines/vs_lines.bin.h"
-#include "shaders/points/fs_points.bin.h"
-#include "shaders/points/vs_points.bin.h"
 
 #include <glm/glm.hpp>
 #include <recast/DebugUtils/Include/DebugDraw.h>
@@ -31,8 +29,6 @@ static const bgfx::EmbeddedShader s_embeddedShaders[] = {
 	BGFX_EMBEDDED_SHADER(vs_meshtile),
 	BGFX_EMBEDDED_SHADER(fs_lines),
 	BGFX_EMBEDDED_SHADER(vs_lines),
-	BGFX_EMBEDDED_SHADER(fs_points),
-	BGFX_EMBEDDED_SHADER(vs_points),
 
 	BGFX_EMBEDDED_SHADER_END()
 };
@@ -140,7 +136,6 @@ struct ZoneRenderShared
 	bgfx::UniformHandle m_aaRadius = BGFX_INVALID_HANDLE;
 	bgfx::VertexBufferHandle m_linesVBH = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_linesIBH = BGFX_INVALID_HANDLE;
-	bgfx::ProgramHandle m_pointsProgram = BGFX_INVALID_HANDLE;
 };
 
 static ZoneRenderShared s_shared;
@@ -208,9 +203,6 @@ void ZoneRenderManager::init()
 	s_shared.m_linesProgram = bgfx::createProgram(
 		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_lines"),
 		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_lines"), true);
-	s_shared.m_pointsProgram = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_points"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_points"), true);
 
 	glm::vec3 linesQuad[] = {
 		{ 0.0, -1.0, 0.0 },
@@ -240,7 +232,6 @@ void ZoneRenderManager::shutdown()
 		bgfx::destroy(s_shared.m_aaRadius);
 		bgfx::destroy(s_shared.m_linesVBH);
 		bgfx::destroy(s_shared.m_linesIBH);
-		bgfx::destroy(s_shared.m_pointsProgram);
 	}
 }
 
@@ -573,14 +564,6 @@ void ZoneNavMeshTileRender::Render(uint32_t flags)
 		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW | BGFX_STATE_BLEND_ALPHA);
 
 		encoder->submit(0, s_shared.m_linesProgram);
-
-		encoder = bgfx::begin();
-		encoder->setVertexBuffer(0, s_shared.m_linesVBH);
-		encoder->setIndexBuffer(s_shared.m_linesIBH);
-		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW | BGFX_STATE_BLEND_ALPHA);
-		encoder->setInstanceDataBuffer(m_lineInstances, m_pointIndices.first, m_pointIndices.second - m_pointIndices.first);
-		encoder->submit(0, s_shared.m_pointsProgram);
-
 	}
 }
 
