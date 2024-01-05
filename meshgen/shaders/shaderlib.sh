@@ -428,4 +428,10 @@ vec3 clipToWorld(mat4 _invViewProj, vec3 _clipPos)
 	return wpos.xyz / wpos.w;
 }
 
+float distSquared(vec2 A, vec2 B)
+{
+	vec2 C = A - B;
+	return dot(C, C);
+}
+
 #endif // __SHADERLIB_SH__

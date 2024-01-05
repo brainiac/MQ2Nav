@@ -10,6 +10,8 @@
 #include "shaders/navmesh/vs_meshtile.bin.h"
 #include "shaders/lines/fs_lines.bin.h"
 #include "shaders/lines/vs_lines.bin.h"
+#include "shaders/points/fs_points.bin.h"
+#include "shaders/points/vs_points.bin.h"
 
 #include <glm/glm.hpp>
 #include <recast/DebugUtils/Include/DebugDraw.h>
@@ -29,6 +31,8 @@ static const bgfx::EmbeddedShader s_embeddedShaders[] = {
 	BGFX_EMBEDDED_SHADER(vs_meshtile),
 	BGFX_EMBEDDED_SHADER(fs_lines),
 	BGFX_EMBEDDED_SHADER(vs_lines),
+	BGFX_EMBEDDED_SHADER(fs_points),
+	BGFX_EMBEDDED_SHADER(vs_points),
 
 	BGFX_EMBEDDED_SHADER_END()
 };
@@ -86,18 +90,24 @@ struct NavMeshLineVertex
 	inline static bgfx::VertexLayout ms_layout;
 };
 
-struct NavMeshLineInstanceVertex
+struct LineInstanceVertex
 {
 	glm::vec4 linePosWidthA;
 	glm::vec4 lineColA;
 	glm::vec4 linePosWidthB;
 	glm::vec4 lineColB;
 
-	NavMeshLineInstanceVertex(glm::vec3 posA, float widthA, ImColor colA, glm::vec3 posB, float widthB, ImColor colB)
+	LineInstanceVertex(glm::vec3 posA, float widthA, ImColor colA, glm::vec3 posB, float widthB, ImColor colB)
 		: linePosWidthA(posA.x, posA.y, posA.z, widthA)
 		, lineColA(colA.Value.x, colA.Value.y, colA.Value.z, colA.Value.w)
 		, linePosWidthB(posB.x, posB.y, posB.z, widthB)
 		, lineColB(colB.Value.x, colB.Value.y, colB.Value.z, colB.Value.w)
+	{
+	}
+
+	LineInstanceVertex(glm::vec3 posA, float widthA, ImColor colA)
+		: linePosWidthA(posA.x, posA.y, posA.z, widthA)
+		, lineColA(colA.Value.x, colA.Value.y, colA.Value.z, colA.Value.w)
 	{
 	}
 
@@ -130,6 +140,7 @@ struct ZoneRenderShared
 	bgfx::UniformHandle m_aaRadius = BGFX_INVALID_HANDLE;
 	bgfx::VertexBufferHandle m_linesVBH = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_linesIBH = BGFX_INVALID_HANDLE;
+	bgfx::ProgramHandle m_pointsProgram = BGFX_INVALID_HANDLE;
 };
 
 static ZoneRenderShared s_shared;
@@ -162,7 +173,7 @@ void ZoneRenderManager::init()
 	InputGeometryVertex::init();
 	NavMeshTileVertex::init();
 	NavMeshLineVertex::init();
-	NavMeshLineInstanceVertex::init();
+	LineInstanceVertex::init();
 
 	// Create the grid texture
 	static constexpr int TEXTURE_SIZE = 64;
@@ -197,6 +208,9 @@ void ZoneRenderManager::init()
 	s_shared.m_linesProgram = bgfx::createProgram(
 		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_lines"),
 		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_lines"), true);
+	s_shared.m_pointsProgram = bgfx::createProgram(
+		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_points"),
+		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_points"), true);
 
 	glm::vec3 linesQuad[] = {
 		{ 0.0, -1.0, 0.0 },
@@ -226,6 +240,7 @@ void ZoneRenderManager::shutdown()
 		bgfx::destroy(s_shared.m_aaRadius);
 		bgfx::destroy(s_shared.m_linesVBH);
 		bgfx::destroy(s_shared.m_linesIBH);
+		bgfx::destroy(s_shared.m_pointsProgram);
 	}
 }
 
@@ -554,10 +569,18 @@ void ZoneNavMeshTileRender::Render(uint32_t flags)
 
 		encoder->setVertexBuffer(0, s_shared.m_linesVBH);
 		encoder->setIndexBuffer(s_shared.m_linesIBH);
-		encoder->setInstanceDataBuffer(m_lineInstances, 0, m_polyNumInstances);
+		encoder->setInstanceDataBuffer(m_lineInstances, m_lineIndices.first, m_lineIndices.second - m_lineIndices.first);
 		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW | BGFX_STATE_BLEND_ALPHA);
 
 		encoder->submit(0, s_shared.m_linesProgram);
+
+		encoder = bgfx::begin();
+		encoder->setVertexBuffer(0, s_shared.m_linesVBH);
+		encoder->setIndexBuffer(s_shared.m_linesIBH);
+		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW | BGFX_STATE_BLEND_ALPHA);
+		encoder->setInstanceDataBuffer(m_lineInstances, m_pointIndices.first, m_pointIndices.second - m_pointIndices.first);
+		encoder->submit(0, s_shared.m_pointsProgram);
+
 	}
 }
 
@@ -566,25 +589,53 @@ void ZoneNavMeshTileRender::Build(const dtNavMesh& mesh, const dtNavMeshQuery* q
 	// Based on drawMeshTile from DetourDebugDraw
 	dtPolyRef base = mesh.getPolyRefBase(tile);
 
+	int numVertices = 0;
+	for (int i = 0; i < tile->header->polyCount; ++i)
+	{
+		const dtPoly* p = &tile->polys[i];
+		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+			continue;
+
+		// Three vertices for each triangle in the detail mesh.
+		const dtPolyDetail* pd = &tile->detailMeshes[i];
+		numVertices += pd->triCount * 3 * 2;
+	}
+	numVertices += tile->header->vertCount;
+
+	// Create buffer to hold list of triangles
+	uint8_t* pData = new uint8_t[numVertices * sizeof(LineInstanceVertex)];
+	LineInstanceVertex* pVertex = reinterpret_cast<LineInstanceVertex*>(pData);
+	int lineIndex = 0;
+
 	BuildMeshTile(base, mesh, query, tile, flags);
 
-	BuildPolyBoundaries(tile);
+	// Draw inner poly boundaries
+	BuildPolyBoundaries(tile, pVertex, lineIndex, duRGBA(0, 48, 64, 32), 1.5, true);
+
+	// Draw outer poly boundaries
+	BuildPolyBoundaries(tile, pVertex, lineIndex, duRGBA(0, 48, 64, 220), 2.5f, false);
+
+	m_lineIndices = { 0, lineIndex };
+	int pointIndex = lineIndex;
+
+	// Build points. Points will be treated as a special version of lines, with only the first vertex populated, but we'll use a different shader
+	const uint32_t vcol = duRGBA(0, 0, 0, 196);
+	for (int i = 0; i < tile->header->vertCount; ++i)
+	{
+		const float* v = &tile->verts[i * 3];
+		pVertex[pointIndex++] = LineInstanceVertex(*reinterpret_cast<const glm::vec3*>(v), 5.0f, vcol);
+	}
+
+	m_pointIndices = { lineIndex, pointIndex };
+
+	m_lineInstances = bgfx::createVertexBuffer(bgfx::copy(pVertex, pointIndex * LineInstanceVertex::ms_layout.getStride()), LineInstanceVertex::ms_layout);
+	delete[] pVertex;
 
 	if (flags & ZoneNavMeshRender::DRAW_OFFMESH_CONNS)
 	{
 		// Draw offmesh connections
 		BuildOffmeshConnections(base, tile, query);
 	}
-
-	// Build points
-	const uint32_t vcol = duRGBA(0, 0, 0, 196);
-	//dd->begin(DU_DRAW_POINTS, 3.0f);
-	for (int i = 0; i < tile->header->vertCount; ++i)
-	{
-		const float* v = &tile->verts[i * 3];
-		//dd->vertex(v[0], v[1], v[2], vcol);
-	}
-	//dd->end();
 }
 
 void ZoneNavMeshTileRender::BuildMeshTile(dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags)
@@ -669,32 +720,9 @@ void ZoneNavMeshTileRender::BuildMeshTile(dtPolyRef base, const dtNavMesh& mesh,
 
 void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile)
 {
-	int numVertices = 0;
-	for (int i = 0; i < tile->header->polyCount; ++i)
-	{
-		const dtPoly* p = &tile->polys[i];
-		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
-			continue;
 
-		// Three vertices for each triangle in the detail mesh.
-		const dtPolyDetail* pd = &tile->detailMeshes[i];
-		numVertices += pd->triCount * 3 * 2;
-	}
 
-	// Create buffer to hold list of triangles
-	uint8_t* pData = new uint8_t[numVertices * sizeof(NavMeshLineInstanceVertex)];
-	NavMeshLineInstanceVertex* pVertex = reinterpret_cast<NavMeshLineInstanceVertex*>(pData);
-	int currIndex = 0;
 
-	// Draw inner poly boundaries
-	BuildPolyBoundaries(tile, pVertex, currIndex, duRGBA(0, 48, 64, 32), 1.5, true);
-
-	// Draw outer poly boundaries
-	BuildPolyBoundaries(tile, pVertex, currIndex, duRGBA(0, 48, 64, 220), 2.5f, false);
-
-	m_lineInstances = bgfx::createVertexBuffer(bgfx::copy(pVertex, currIndex * NavMeshLineInstanceVertex::ms_layout.getStride()), NavMeshLineInstanceVertex::ms_layout);
-	delete[] pVertex;
-	m_polyNumInstances = currIndex;
 }
 
 static float distancePtLine2d(const float* pt, const float* p, const float* q)
@@ -711,7 +739,7 @@ static float distancePtLine2d(const float* pt, const float* p, const float* q)
 	return dx * dx + dz * dz;
 }
 
-void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, NavMeshLineInstanceVertex* pOutVertex, int& currIndex, uint32_t color, float width, bool inner)
+void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, LineInstanceVertex* pOutVertex, int& currIndex, uint32_t color, float width, bool inner)
 {
 	static constexpr float threshold = 0.01f * 0.01f;
 
@@ -791,7 +819,7 @@ void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, NavMeshL
 					if (distancePtLine2d(tv[n], v0, v1) < threshold
 						&& distancePtLine2d(tv[m], v0, v1) < threshold)
 					{
-						pOutVertex[currIndex++] = NavMeshLineInstanceVertex(
+						pOutVertex[currIndex++] = LineInstanceVertex(
 							*reinterpret_cast<const glm::vec3*>(tv[n]), width, c,
 							*reinterpret_cast<const glm::vec3*>(tv[m]), width, c);
 					}

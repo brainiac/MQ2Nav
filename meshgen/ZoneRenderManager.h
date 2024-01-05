@@ -112,7 +112,7 @@ private:
 	std::vector<std::unique_ptr<ZoneNavMeshTileRender>> m_tiles;
 };
 
-struct NavMeshLineInstanceVertex;
+struct LineInstanceVertex;
 
 class ZoneNavMeshTileRender
 {
@@ -127,7 +127,7 @@ public:
 private:
 	void BuildMeshTile(dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
 	void BuildPolyBoundaries(const dtMeshTile* tile);
-	void BuildPolyBoundaries(const dtMeshTile* tile, NavMeshLineInstanceVertex* pOutVertex, int& currIndex, uint32_t color, float width, bool inner);
+	void BuildPolyBoundaries(const dtMeshTile* tile, LineInstanceVertex* pOutVertex, int& currIndex, uint32_t color, float width, bool inner);
 	void BuildOffmeshConnections(dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query);
 	void BuildBVTree(const dtMeshTile* tile);
 	//void BuildPortals();
@@ -143,5 +143,6 @@ private:
 
 	// Poly Boundary lines
 	bgfx::VertexBufferHandle m_lineInstances = BGFX_INVALID_HANDLE;
-	int m_polyNumInstances = 0;
+	std::pair<int, int> m_lineIndices;
+	std::pair<int, int> m_pointIndices;
 };
