@@ -107,7 +107,7 @@ private:
 	const dtNavMeshQuery* m_query = nullptr;
 	uint32_t m_flags = 0;
 	bool m_dirty = false;
-	float m_lineAARadius = 2.0f;
+	float m_lineAARadius = 0.0f;
 
 	std::vector<std::unique_ptr<ZoneNavMeshTileRender>> m_tiles;
 };
