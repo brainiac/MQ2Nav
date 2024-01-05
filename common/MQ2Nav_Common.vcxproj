@@ -145,6 +145,7 @@
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NavMeshData.h" />
     <ClInclude Include="NavModule.h" />
+    <ClInclude Include="proto\NavMeshClient.pb.h" />
     <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="ZoneData.h" />
@@ -154,6 +155,7 @@
     <ClCompile Include="JsonProto.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NavMeshData.cpp" />
+    <ClCompile Include="proto\NavMeshClient.pb.cc" />
     <ClCompile Include="proto\NavMeshFile.pb.cc">
       <DisableSpecificWarnings>4244;4256</DisableSpecificWarnings>
     </ClCompile>
@@ -161,6 +163,7 @@
     <ClCompile Include="ZoneData.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProtocolBuffer Include="proto\NavMeshClient.proto" />
     <ProtocolBuffer Include="proto\NavMeshFile.proto">
       <FileType>Document</FileType>
     </ProtocolBuffer>

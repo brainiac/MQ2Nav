@@ -16,6 +16,7 @@
 #include "plugin/NavMeshRenderer.h"
 #include "plugin/RenderHandler.h"
 #include "plugin/SwitchHandler.h"
+#include "plugin/MeshgenHandler.h"
 #include "plugin/UiController.h"
 #include "plugin/Utilities.h"
 #include "plugin/Waypoints.h"
@@ -562,6 +563,7 @@ void MQ2NavigationPlugin::Plugin_Initialize()
 	AddModule<NavMeshRenderer>();
 	AddModule<UiController>();
 	AddModule<SwitchHandler>();
+	AddModule<MeshgenHandler>();
 
 	for (const auto& m : m_modules)
 	{

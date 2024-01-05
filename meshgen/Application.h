@@ -332,3 +332,28 @@ private:
 	PersistedDataFields m_fields = PersistedDataFields::All
 		& ~PersistedDataFields::MeshTiles;
 };
+
+//----------------------------------------------------------------------------
+
+namespace nav::client {
+class UpdateTransform;
+}
+
+class ClientInformation
+{
+	friend class Application;
+
+public:
+	ClientInformation();
+	~ClientInformation();
+
+	static void UpdateTransform(const nav::client::UpdateTransform& transform);
+	static void DropCharacter(const std::string& characterInfo);
+
+private:
+	std::unordered_map<std::string, nav::client::UpdateTransform> m_transforms;
+};
+
+void StopPipeClient();
+void StartPipeClient();
+void ProcessPipeClient();
