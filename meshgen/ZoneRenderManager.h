@@ -63,6 +63,9 @@ private:
 	int m_numIndices = 0;
 };
 
+struct LineInstanceVertex;
+struct NavMeshTileVertex;
+
 class ZoneNavMeshRender
 {
 public:
@@ -99,7 +102,18 @@ public:
 	// Note: Need to do equivalent behavior to duDebugDrawNavMeshPoly
 
 private:
-	void BuildNodes();
+	void BuildMeshTile(std::vector<NavMeshTileVertex>& vertices, std::vector<uint32_t>& indices,
+		dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
+
+	//void BuildNodes();
+	void BuildPolyBoundaries(std::vector<LineInstanceVertex>& vertices,
+		const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
+	void BuildPolyBoundaries(std::vector<LineInstanceVertex>& vertices,
+		const dtMeshTile* tile, uint32_t color, float width, bool inner);
+	void BuildOffmeshConnections(dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query);
+	void BuildBVTree(const dtMeshTile* tile);
+
+	uint32_t PolyToCol(const dtPoly* poly);
 
 	ZoneRenderManager* m_mgr;
 
@@ -109,40 +123,9 @@ private:
 	bool m_dirty = false;
 	float m_lineAARadius = 0.0f;
 
-	std::vector<std::unique_ptr<ZoneNavMeshTileRender>> m_tiles;
-};
-
-struct LineInstanceVertex;
-
-class ZoneNavMeshTileRender
-{
-public:
-	explicit ZoneNavMeshTileRender(ZoneNavMeshRender* parent);
-	~ZoneNavMeshTileRender();
-
-	void Render(uint32_t flags);
-
-	void Build(const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
-
-private:
-	void BuildMeshTile(dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
-	void BuildPolyBoundaries(const dtMeshTile* tile);
-	void BuildPolyBoundaries(const dtMeshTile* tile, LineInstanceVertex* pOutVertex, int& currIndex, uint32_t color, float width, bool inner);
-	void BuildOffmeshConnections(dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query);
-	void BuildBVTree(const dtMeshTile* tile);
-	//void BuildPortals();
-
-	uint32_t PolyToCol(const dtPoly* poly);
-
-	ZoneNavMeshRender* m_parent;
-
-	// NavMesh Tile Polys
-	bgfx::VertexBufferHandle m_vbh = BGFX_INVALID_HANDLE;
-	bgfx::IndexBufferHandle m_ibh = BGFX_INVALID_HANDLE;
-	int m_numIndices = 0;
-
-	// Poly Boundary lines
-	bgfx::VertexBufferHandle m_lineInstances = BGFX_INVALID_HANDLE;
+	bgfx::VertexBufferHandle m_tilePolysVB = BGFX_INVALID_HANDLE;
+	bgfx::VertexBufferHandle m_linesVB = BGFX_INVALID_HANDLE;
+	bgfx::IndexBufferHandle m_indexBuffer = BGFX_INVALID_HANDLE;
+	std::pair<int, int> m_tileIndices;
 	std::pair<int, int> m_lineIndices;
-	std::pair<int, int> m_pointIndices;
 };

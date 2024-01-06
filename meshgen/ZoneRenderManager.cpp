@@ -68,6 +68,8 @@ struct NavMeshTileVertex
 			.end();
 	}
 
+	NavMeshTileVertex(glm::vec3 pos, uint32_t color) : pos(pos), color(color) {}
+
 	inline static bgfx::VertexLayout ms_layout;
 };
 
@@ -422,12 +424,27 @@ void ZoneNavMeshRender::Render()
 	float aaRadiusData[4] = { m_lineAARadius, m_lineAARadius, 0.0f, 0.0f };
 	bgfx::setUniform(s_shared.m_aaRadius, aaRadiusData);
 
-	for (const auto& tile : m_tiles)
+	if ((m_flags & ZoneNavMeshRender::DRAW_TILES) && isValid(m_indexBuffer) && isValid(m_tilePolysVB))
 	{
-		if (tile)
-		{
-			tile->Render(m_flags);
-		}
+		bgfx::Encoder* encoder = bgfx::begin();
+
+		encoder->setVertexBuffer(0, m_tilePolysVB);
+		encoder->setIndexBuffer(m_indexBuffer, m_tileIndices.first, m_tileIndices.second - m_tileIndices.first);
+		encoder->setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
+
+		encoder->submit(0, s_shared.m_meshTileProgram);
+	}
+
+	if ((m_flags & ZoneNavMeshRender::DRAW_POLY_BOUNDARIES) && isValid(m_linesVB))
+	{
+		bgfx::Encoder* encoder = bgfx::begin();
+
+		encoder->setVertexBuffer(0, s_shared.m_linesVBH);
+		encoder->setIndexBuffer(s_shared.m_linesIBH);
+		encoder->setInstanceDataBuffer(m_linesVB, m_lineIndices.first, m_lineIndices.second - m_lineIndices.first + 1);
+		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW | BGFX_STATE_BLEND_ALPHA);
+
+		encoder->submit(0, s_shared.m_linesProgram);
 	}
 
 	m_dirty = false;
@@ -435,7 +452,26 @@ void ZoneNavMeshRender::Render()
 
 void ZoneNavMeshRender::DestroyObjects()
 {
-	m_tiles.clear();
+	if (isValid(m_indexBuffer))
+	{
+		bgfx::destroy(m_indexBuffer);
+		m_indexBuffer = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(m_tilePolysVB))
+	{
+		bgfx::destroy(m_tilePolysVB);
+		m_tilePolysVB = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(m_linesVB))
+	{
+		bgfx::destroy(m_linesVB);
+		m_linesVB = BGFX_INVALID_HANDLE;
+	}
+
+	m_tileIndices = { 0, 0 };
+	m_lineIndices = { 0, 0 };
 }
 
 void ZoneNavMeshRender::Build()
@@ -446,22 +482,83 @@ void ZoneNavMeshRender::Build()
 		return;
 	}
 
-	m_tiles.clear();
-	m_tiles.resize(navMesh->getMaxTiles());
+	DestroyObjects();
 
 	const dtNavMeshQuery* q = m_flags & DRAW_CLOSED_LIST ? m_query : nullptr;
 	const dtNavMesh& mesh = *m_navMesh->GetNavMesh();
 
+	// Build navmesh tiles
+	std::vector<NavMeshTileVertex> navMeshTileVertices;
+	std::vector<uint32_t> navMeshTileIndices;
+	std::vector<LineInstanceVertex> polyBoundaryVertices;
+
+	size_t numMeshTileVertices = 0;
+	size_t numPolyBoundaryVertices = 0;
+
+	// Pre-calculate the number of vertices we will need
 	for (int i = 0; i < mesh.getMaxTiles(); ++i)
 	{
 		const dtMeshTile* tile = mesh.getTile(i);
 		if (!tile->header) continue;
 
-		auto& ptr = m_tiles[i];
-		if (ptr == nullptr) ptr = std::make_unique<ZoneNavMeshTileRender>(this);
+		// Calculate number of vertices that we will need to store.
+		for (int i = 0; i < tile->header->polyCount; ++i)
+		{
+			const dtPoly* p = &tile->polys[i];
+			if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+				continue;
 
-		ptr->Build(mesh, q, tile, m_flags);
+			// Three vertices for each triangle in the detail mesh.
+			const dtPolyDetail* pd = &tile->detailMeshes[i];
+			numMeshTileVertices += pd->triCount * 3;
+		}
+
+		for (int i = 0; i < tile->header->polyCount; ++i)
+		{
+			const dtPoly* p = &tile->polys[i];
+			if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
+				continue;
+
+			// Three vertices for each triangle in the detail mesh.
+			const dtPolyDetail* pd = &tile->detailMeshes[i];
+			numPolyBoundaryVertices += pd->triCount * 3 * 2;
+		}
+		numPolyBoundaryVertices += tile->header->vertCount;
 	}
+
+	navMeshTileIndices.reserve(numMeshTileVertices);
+	navMeshTileIndices.reserve(numMeshTileVertices);
+	polyBoundaryVertices.reserve(numPolyBoundaryVertices);
+
+	// Build tile polygons
+	for (int i = 0; i < mesh.getMaxTiles(); ++i)
+	{
+		const dtMeshTile* tile = mesh.getTile(i);
+		if (!tile->header) continue;
+
+		dtPolyRef base = mesh.getPolyRefBase(tile);
+
+		BuildMeshTile(navMeshTileVertices, navMeshTileIndices, base, mesh, q, tile, m_flags);
+
+		BuildPolyBoundaries(polyBoundaryVertices, mesh, q, tile, m_flags);
+
+		if (m_flags & ZoneNavMeshRender::DRAW_OFFMESH_CONNS)
+		{
+			// Draw offmesh connections
+			BuildOffmeshConnections(base, tile, q);
+		}
+	}
+
+	// Create vertex buffer from gathered data.
+	m_tilePolysVB = bgfx::createVertexBuffer(bgfx::copy(navMeshTileVertices.data(), (uint32_t)navMeshTileVertices.size() * NavMeshTileVertex::ms_layout.getStride()),
+		NavMeshTileVertex::ms_layout);
+	m_linesVB = bgfx::createVertexBuffer(bgfx::copy(polyBoundaryVertices.data(), (uint32_t)polyBoundaryVertices.size() * LineInstanceVertex::ms_layout.getStride()),
+		LineInstanceVertex::ms_layout);
+
+	// Copy poly boundary indices into tile indices
+	m_tileIndices = { 0, (uint32_t)navMeshTileIndices.size() };
+	m_lineIndices = { 0, (uint32_t)polyBoundaryVertices.size()};
+	m_indexBuffer = bgfx::createIndexBuffer(bgfx::copy(navMeshTileIndices.data(), (uint32_t)(navMeshTileIndices.size() * sizeof(uint32_t))), BGFX_BUFFER_INDEX32);
 }
 
 void ZoneNavMeshRender::UpdateQuery()
@@ -469,6 +566,7 @@ void ZoneNavMeshRender::UpdateQuery()
 	// Do the work to update the existing mesh with updated closed list indicators...
 }
 
+#if 0
 void ZoneNavMeshRender::BuildNodes()
 {
 	if (!m_query) return;
@@ -510,143 +608,19 @@ void ZoneNavMeshRender::BuildNodes()
 		//dd->end();
 	}
 }
+#endif
 
 
 //============================================================================
 //============================================================================
 
-ZoneNavMeshTileRender::ZoneNavMeshTileRender(ZoneNavMeshRender* parent)
-	: m_parent(parent)
+void ZoneNavMeshRender::BuildMeshTile(std::vector<NavMeshTileVertex>& vertices, std::vector<uint32_t>& indices,
+	dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags)
 {
-}
-
-ZoneNavMeshTileRender::~ZoneNavMeshTileRender()
-{
-	if (isValid(m_ibh))
-	{
-		bgfx::destroy(m_ibh);
-		m_ibh = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(m_vbh))
-	{
-		bgfx::destroy(m_vbh);
-		m_vbh = BGFX_INVALID_HANDLE;
-	}
-
-	if (isValid(m_lineInstances))
-	{
-		bgfx::destroy(m_lineInstances);
-		m_lineInstances = BGFX_INVALID_HANDLE;
-	}
-}
-
-void ZoneNavMeshTileRender::Render(uint32_t flags)
-{
-	if ((flags & ZoneNavMeshRender::DRAW_TILES) && isValid(m_ibh) && isValid(m_vbh))
-	{
-		bgfx::Encoder* encoder = bgfx::begin();
-
-		encoder->setVertexBuffer(0, m_vbh);
-		encoder->setIndexBuffer(m_ibh, 0, m_numIndices);
-		encoder->setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
-
-		encoder->submit(0, s_shared.m_meshTileProgram);
-	}
-
-	if ((flags & ZoneNavMeshRender::DRAW_POLY_BOUNDARIES) && isValid(m_lineInstances))
-	{
-		bgfx::Encoder* encoder = bgfx::begin();
-
-		encoder->setVertexBuffer(0, s_shared.m_linesVBH);
-		encoder->setIndexBuffer(s_shared.m_linesIBH);
-		encoder->setInstanceDataBuffer(m_lineInstances, m_lineIndices.first, m_lineIndices.second - m_lineIndices.first);
-		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW | BGFX_STATE_BLEND_ALPHA);
-
-		encoder->submit(0, s_shared.m_linesProgram);
-	}
-}
-
-void ZoneNavMeshTileRender::Build(const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags)
-{
-	// Based on drawMeshTile from DetourDebugDraw
-	dtPolyRef base = mesh.getPolyRefBase(tile);
-
-	int numVertices = 0;
-	for (int i = 0; i < tile->header->polyCount; ++i)
-	{
-		const dtPoly* p = &tile->polys[i];
-		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
-			continue;
-
-		// Three vertices for each triangle in the detail mesh.
-		const dtPolyDetail* pd = &tile->detailMeshes[i];
-		numVertices += pd->triCount * 3 * 2;
-	}
-	numVertices += tile->header->vertCount;
-
-	// Create buffer to hold list of triangles
-	uint8_t* pData = new uint8_t[numVertices * sizeof(LineInstanceVertex)];
-	LineInstanceVertex* pVertex = reinterpret_cast<LineInstanceVertex*>(pData);
-	int lineIndex = 0;
-
-	BuildMeshTile(base, mesh, query, tile, flags);
-
-	// Draw inner poly boundaries
-	BuildPolyBoundaries(tile, pVertex, lineIndex, duRGBA(0, 48, 64, 32), 1.5, true);
-
-	// Draw outer poly boundaries
-	BuildPolyBoundaries(tile, pVertex, lineIndex, duRGBA(0, 48, 64, 220), 2.5f, false);
-
-	m_lineIndices = { 0, lineIndex };
-	int pointIndex = lineIndex;
-
-	// Build points. Points will be treated as a special version of lines, with only the first vertex populated, but we'll use a different shader
-	const uint32_t vcol = duRGBA(0, 0, 0, 196);
-	for (int i = 0; i < tile->header->vertCount; ++i)
-	{
-		const float* v = &tile->verts[i * 3];
-		pVertex[pointIndex++] = LineInstanceVertex(*reinterpret_cast<const glm::vec3*>(v), 5.0f, vcol);
-	}
-
-	m_pointIndices = { lineIndex, pointIndex };
-
-	m_lineInstances = bgfx::createVertexBuffer(bgfx::copy(pVertex, pointIndex * LineInstanceVertex::ms_layout.getStride()), LineInstanceVertex::ms_layout);
-	delete[] pVertex;
-
-	if (flags & ZoneNavMeshRender::DRAW_OFFMESH_CONNS)
-	{
-		// Draw offmesh connections
-		BuildOffmeshConnections(base, tile, query);
-	}
-}
-
-void ZoneNavMeshTileRender::BuildMeshTile(dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags)
-{
-	// Calculate number of vertices that we will need to store.
-	int numVertices = 0;
-	for (int i = 0; i < tile->header->polyCount; ++i)
-	{
-		const dtPoly* p = &tile->polys[i];
-		if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
-			continue;
-
-		// Three vertices for each triangle in the detail mesh.
-		const dtPolyDetail* pd = &tile->detailMeshes[i];
-		numVertices += pd->triCount * 3;
-	}
-
-	// Create buffer to hold list of triangles
-	const bgfx::Memory* vb = bgfx::alloc(numVertices * NavMeshTileVertex::ms_layout.getStride());
-	const bgfx::Memory* ib = bgfx::alloc(numVertices * sizeof(uint16_t));
-
-	NavMeshTileVertex* pVertex = reinterpret_cast<NavMeshTileVertex*>(vb->data);
-	uint16_t* pIndex = reinterpret_cast<uint16_t*>(ib->data);
+	int currIndex = (int)vertices.size();
 
 	int tileNum = mesh.decodePolyIdTile(base);
 	const uint32_t tileColor = duIntToCol(tileNum, 128);
-
-	int currIndex = 0;
 
 	for (int i = 0; i < tile->header->polyCount; ++i)
 	{
@@ -677,35 +651,44 @@ void ZoneNavMeshTileRender::BuildMeshTile(dtPolyRef base, const dtNavMesh& mesh,
 			{
 				if (t[k] < p->vertCount)
 				{
-					NavMeshTileVertex& vtx = pVertex[currIndex];
-					vtx.pos = *reinterpret_cast<glm::vec3*>(&tile->verts[p->verts[t[k]] * 3]);
-					vtx.pos.y += 0.1f;
-					vtx.color = col;
+					glm::vec3 pos = *reinterpret_cast<glm::vec3*>(&tile->verts[p->verts[t[k]] * 3]);
+					pos.y += 0.1f;
+
+					vertices.emplace_back(pos, col);
 				}
 				else
 				{
-					NavMeshTileVertex& vtx = pVertex[currIndex];
-					vtx.pos = *reinterpret_cast<glm::vec3*>(&tile->detailVerts[(pd->vertBase + t[k] - p->vertCount) * 3]);
-					vtx.pos.y += 0.1f;
-					vtx.color = col;
+					glm::vec3 pos = *reinterpret_cast<glm::vec3*>(&tile->detailVerts[(pd->vertBase + t[k] - p->vertCount) * 3]);
+					pos.y += 0.1f;
+
+					vertices.emplace_back(pos, col);
 				}
 
-				pIndex[currIndex] = currIndex;
+				indices.push_back(currIndex);
 				currIndex++;
 			}
 		}
 	}
-
-	m_vbh = bgfx::createVertexBuffer(vb, NavMeshTileVertex::ms_layout);
-	m_ibh = bgfx::createIndexBuffer(ib, 0);
-	m_numIndices = currIndex;
 }
 
-void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile)
+void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<LineInstanceVertex>& vertices,
+	const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags)
 {
+	// Based on drawMeshTile from DetourDebugDraw
 
+	// Draw inner poly boundaries
+	BuildPolyBoundaries(vertices, tile, duRGBA(0, 48, 64, 32), 1.5, true);
 
+	// Draw outer poly boundaries
+	BuildPolyBoundaries(vertices, tile, duRGBA(0, 48, 64, 220), 2.5f, false);
 
+	// Build points. Points will be treated as a special version of lines, with only the first vertex populated, but we'll use a different shader
+	//const uint32_t vcol = duRGBA(0, 0, 0, 196);
+	//for (int i = 0; i < tile->header->vertCount; ++i)
+	//{
+	//	const float* v = &tile->verts[i * 3];
+	//	pVertex[pointIndex++] = LineInstanceVertex(*reinterpret_cast<const glm::vec3*>(v), 5.0f, vcol);
+	//}
 }
 
 static float distancePtLine2d(const float* pt, const float* p, const float* q)
@@ -722,7 +705,8 @@ static float distancePtLine2d(const float* pt, const float* p, const float* q)
 	return dx * dx + dz * dz;
 }
 
-void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, LineInstanceVertex* pOutVertex, int& currIndex, uint32_t color, float width, bool inner)
+void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<LineInstanceVertex>& vertices,
+	const dtMeshTile* tile, uint32_t color, float width, bool inner)
 {
 	static constexpr float threshold = 0.01f * 0.01f;
 
@@ -802,7 +786,7 @@ void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, LineInst
 					if (distancePtLine2d(tv[n], v0, v1) < threshold
 						&& distancePtLine2d(tv[m], v0, v1) < threshold)
 					{
-						pOutVertex[currIndex++] = LineInstanceVertex(
+						vertices.emplace_back(
 							*reinterpret_cast<const glm::vec3*>(tv[n]), width, c,
 							*reinterpret_cast<const glm::vec3*>(tv[m]), width, c);
 					}
@@ -812,7 +796,7 @@ void ZoneNavMeshTileRender::BuildPolyBoundaries(const dtMeshTile* tile, LineInst
 	}
 }
 
-void ZoneNavMeshTileRender::BuildOffmeshConnections(dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query)
+void ZoneNavMeshRender::BuildOffmeshConnections(dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query)
 {
 	//dd->begin(DU_DRAW_LINES, 2.0f);
 	for (int i = 0; i < tile->header->polyCount; ++i)
@@ -867,7 +851,7 @@ void ZoneNavMeshTileRender::BuildOffmeshConnections(dtPolyRef base, const dtMesh
 	//dd->end();
 }
 
-void ZoneNavMeshTileRender::BuildBVTree(const dtMeshTile* tile)
+void ZoneNavMeshRender::BuildBVTree(const dtMeshTile* tile)
 {
 	// Draw BV nodes.
 	const float cs = 1.0f / tile->header->bvQuantFactor;
@@ -890,11 +874,11 @@ void ZoneNavMeshTileRender::BuildBVTree(const dtMeshTile* tile)
 	//dd->end();
 }
 
-uint32_t ZoneNavMeshTileRender::PolyToCol(const dtPoly* poly)
+uint32_t ZoneNavMeshRender::PolyToCol(const dtPoly* poly)
 {
 	if (poly)
 	{
-		return m_parent->GetNavMesh()->GetPolyArea(poly->getArea()).color;
+		return m_navMesh->GetPolyArea(poly->getArea()).color;
 	}
 
 	return 0;
