@@ -77,9 +77,6 @@
     <ClCompile Include="ZonePicker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DebugDrawImpl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ConvexVolumeTool.cpp">
       <Filter>Source Files\tools</Filter>
     </ClCompile>
@@ -197,9 +194,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ZonePicker.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugDrawImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="pch.h">

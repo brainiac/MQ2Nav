@@ -33,7 +33,6 @@
     <ClCompile Include="engine\bgfx_utils.cpp" />
     <ClCompile Include="engine\debugdraw\debugdraw.cpp" />
     <ClCompile Include="EQConfig.cpp" />
-    <ClCompile Include="DebugDrawImpl.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
     <ClCompile Include="imgui\imgui_impl.cpp" />
@@ -60,7 +59,6 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
-    <ClInclude Include="DebugDrawImpl.h" />
     <ClInclude Include="engine\bgfx_utils.h" />
     <ClInclude Include="engine\debugdraw\debugdraw.h" />
     <ClInclude Include="engine\debugdraw\fs_debugdraw_fill.bin.h" />

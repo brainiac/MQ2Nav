@@ -400,7 +400,7 @@ void NavMeshTool::handleRender()
 	if (!m_geom || !m_geom->getMeshLoader())
 		return;
 
-	duDebugDraw& dd = getDebugDraw();
+	ZoneRenderDebugDraw dd(m_renderManager.get());
 
 	if (m_drawInputGeometry)
 	{
@@ -449,6 +449,8 @@ void NavMeshTool::handleRender()
 	if (m_tool)
 		m_tool->handleRender();
 	renderToolStates();
+
+	m_renderManager->Render();
 }
 
 void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
@@ -1338,9 +1340,4 @@ void NavMeshTool::renderOverlayToolStates(const glm::mat4& proj,
 			p.second->handleRenderOverlay(proj, model, view);
 		}
 	}
-}
-
-unsigned int NavMeshDebugDraw::polyToCol(const dtPoly* poly)
-{
-	return m_tool->GetColorForPoly(poly);
 }

@@ -3,7 +3,6 @@
 //
 
 #include "meshgen/Application.h"
-#include "meshgen/DebugDrawImpl.h"
 #include "meshgen/InputGeom.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshTool.h"
@@ -222,7 +221,6 @@ bool Application::InitSystem()
 	utilsInit();
 	ddInit();
 	
-	DebugDrawImpl::init();
 	ZoneRenderManager::init();
 
 	// Enable debug text.
@@ -289,7 +287,6 @@ int Application::shutdown()
 	// shutdown ImGui
 	ImGui_Impl_Shutdown();
 
-	DebugDrawImpl::shutdown();
 	ddShutdown();
 
 	// Shutdown bgfx.

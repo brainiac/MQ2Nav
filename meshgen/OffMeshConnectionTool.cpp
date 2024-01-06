@@ -8,10 +8,9 @@
 #include "meshgen/InputGeom.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/ImGuiWidgets.h"
+#include "meshgen/ZoneRenderManager.h"
 #include "imgui/ImGuiUtils.h"
 
-#include <Recast.h>
-#include <RecastDebugDraw.h>
 #include <DetourDebugDraw.h>
 
 #include <fmt/format.h>
@@ -283,7 +282,7 @@ void OffMeshConnectionToolState::handleRender()
 	auto navMesh = m_meshTool->GetNavMesh();
 	const auto& connections = navMesh->GetConnections();
 
-	DebugDrawImpl dd;
+	ZoneRenderDebugDraw dd(g_zoneRenderManager);
 	const float s = navMesh->GetNavMeshConfig().agentRadius;
 
 	if (m_hitPosSet)
@@ -295,7 +294,7 @@ void OffMeshConnectionToolState::handleRender()
 	unsigned int baseColor = duRGBA(0, 0, 0, 64);
 	dd.depthMask(false);
 
-	dd.begin(DU_DRAW_LINES, 2.0f);
+	dd.begin(DU_DRAW_LINES, 3.5f);
 
 	for (const auto& connection : connections)
 	{

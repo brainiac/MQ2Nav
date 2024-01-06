@@ -409,7 +409,7 @@ void ConvexVolumeToolState::reset()
 
 void ConvexVolumeToolState::handleRender()
 {
-	DebugDrawImpl dd;
+	ZoneRenderDebugDraw dd(g_zoneRenderManager);
 
 	// Find height extents of the shape.
 	float minh = FLT_MAX, maxh = 0;

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "meshgen/DebugDrawImpl.h"
 #include "meshgen/ZoneRenderManager.h"
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
@@ -76,17 +75,6 @@ struct ToolState
 	virtual void handleUpdate(const float dt) = 0;
 };
 
-class NavMeshDebugDraw : public DebugDrawImpl
-{
-public:
-	NavMeshDebugDraw(NavMeshTool* tool) : m_tool(tool) {}
-
-	virtual unsigned int polyToCol(const dtPoly* poly) override;
-
-private:
-	NavMeshTool* m_tool;
-};
-
 //----------------------------------------------------------------------------
 
 class NavMeshTool
@@ -138,8 +126,6 @@ public:
 
 	unsigned int GetColorForPoly(const dtPoly* poly);
 
-	duDebugDraw& getDebugDraw() { return m_dd; }
-	
 	ZoneRenderManager* GetRenderManager() { return m_renderManager.get(); }
 
 private:
@@ -206,6 +192,4 @@ private:
 	bool m_drawNavMeshBVTree = false;
 	bool m_drawNavMeshNodes = false;
 	bool m_drawNavMeshPortals = false;
-
-	NavMeshDebugDraw m_dd{ this };
 };

@@ -197,7 +197,7 @@ private:
 	uint32_t m_reset;
 	bool m_needResetViewport = false;
 	bool m_resetCamera = true;
-	float m_nearPlane = 1.0f;
+	float m_nearPlane = 10.0f;
 	float m_farPlane = -1000.0f;
 
 	float m_progress = 0.0f;

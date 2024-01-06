@@ -64,7 +64,7 @@ void NavMeshTileTool::handleRender()
 	{
 		const float s = m_meshTool->GetNavMesh()->GetNavMeshConfig().agentRadius;
 
-		DebugDrawImpl dd;
+		ZoneRenderDebugDraw dd(g_zoneRenderManager);
 
 		duDebugDrawCross(&dd, m_hitPos.x, m_hitPos.y, m_hitPos.z, s, duRGBA(0, 0, 0, 128), 2.0f);
 	}

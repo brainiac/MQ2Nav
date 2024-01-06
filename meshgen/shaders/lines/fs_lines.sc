@@ -15,5 +15,5 @@ void main()
 	float av = 1.0 - smoothstep(1.0 - ((2.0 * u_aa_radius.y) / v_line_length), 1.0, abs(v_v / v_line_length));
 
 	gl_FragColor = v_color0;
-	gl_FragColor.a *= min(av, au);
+	//gl_FragColor.a *= min(av, au);
 }
