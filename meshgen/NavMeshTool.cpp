@@ -44,8 +44,9 @@ NavMeshTool::NavMeshTool(const std::shared_ptr<NavMesh>& navMesh)
 	m_renderManager = std::make_unique<ZoneRenderManager>();
 	m_renderManager->init();
 	m_renderManager->SetNavMeshConfig(&m_config);
-	m_renderManager->GetNavMeshRender()->SetFlags(ZoneNavMeshRender::DRAW_TILES | ZoneNavMeshRender::DRAW_POLY_BOUNDARIES);
-
+	m_renderManager->GetNavMeshRender()->SetFlags(
+		ZoneNavMeshRender::DRAW_TILES | ZoneNavMeshRender::DRAW_TILE_BOUNDARIES
+	);
 
 	UpdateTileSizes();
 
@@ -144,7 +145,11 @@ void NavMeshTool::handleDebug()
 		uint32_t flags = m_renderManager->GetNavMeshRender()->GetFlags();
 		if (ImGui::CheckboxFlags("Draw Tiles", &flags, ZoneNavMeshRender::DRAW_TILES))
 			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+		if (ImGui::CheckboxFlags("Draw Tile Boundaries", &flags, ZoneNavMeshRender::DRAW_TILE_BOUNDARIES))
+			m_renderManager->GetNavMeshRender()->SetFlags(flags);
 		if (ImGui::CheckboxFlags("Draw Polygon Boundaries", &flags, ZoneNavMeshRender::DRAW_POLY_BOUNDARIES))
+			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+		if (ImGui::CheckboxFlags("Draw Polygon Vertices", &flags, ZoneNavMeshRender::DRAW_POLY_VERTICES))
 			m_renderManager->GetNavMeshRender()->SetFlags(flags);
 
 		float pointSize = m_renderManager->GetNavMeshRender()->GetPointSize();

@@ -18,8 +18,6 @@
 #include <recast/Detour/Include/DetourNavMeshQuery.h>
 #include <imgui/imgui.h>
 
-#include "Camera.h"
-
 ZoneRenderManager* g_zoneRenderManager = nullptr;
 
 static const bgfx::EmbeddedShader s_embeddedShaders[] = {
@@ -62,9 +60,6 @@ struct ZoneRenderShared
 	bgfx::ProgramHandle m_inputGeoProgram = BGFX_INVALID_HANDLE;
 	bgfx::ProgramHandle m_meshTileProgram = BGFX_INVALID_HANDLE;
 
-	bgfx::UniformHandle m_cameraRight = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_cameraUp = BGFX_INVALID_HANDLE;
-
 	// Primitives implementation
 	bgfx::ProgramHandle m_pointsProgram = BGFX_INVALID_HANDLE;
 	bgfx::ProgramHandle m_linesProgram = BGFX_INVALID_HANDLE;
@@ -100,8 +95,6 @@ struct ZoneRenderShared
 		}
 
 		m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
-		m_cameraRight = bgfx::createUniform("CameraRight_worldspace", bgfx::UniformType::Vec4);
-		m_cameraUp = bgfx::createUniform("CameraUp_worldspace", bgfx::UniformType::Vec4);
 
 		bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
 		m_inputGeoProgram = bgfx::createProgram(
@@ -148,8 +141,6 @@ struct ZoneRenderShared
 		{
 			bgfx::destroy(m_gridTexture);
 			bgfx::destroy(m_texSampler);
-			bgfx::destroy(m_cameraRight);
-			bgfx::destroy(m_cameraUp);
 			bgfx::destroy(m_inputGeoProgram);
 			bgfx::destroy(m_meshTileProgram);
 			bgfx::destroy(m_linesProgram);
@@ -380,19 +371,6 @@ void ZoneRenderManager::SetNavMeshConfig(const NavMeshConfig* config)
 
 void ZoneRenderManager::Render()
 {
-	glm::mat4 view;
-	m_camera->GetViewMatrix(glm::value_ptr(view));
-
-	glm::vec4 cameraRight(view[0][0], view[1][0], view[2][0], 1.0f);
-	glm::vec3 cameraRight2 = m_camera->GetRight();
-
-	bgfx::setUniform(s_shared.m_cameraRight, glm::value_ptr(cameraRight2));
-
-	glm::vec4 cameraUp(view[0][1], view[1][1], view[2][1], 1.0f);
-	glm::vec3 cameraUp2 = m_camera->GetUp();
-
-	bgfx::setUniform(s_shared.m_cameraUp, glm::value_ptr(cameraUp2));
-
 	if (!m_points.empty())
 	{
 		if (isValid(m_ddPointsVB) && m_points.size() == m_lastPointsSize)
@@ -673,7 +651,7 @@ void ZoneNavMeshRender::Render()
 		encoder->submit(0, s_shared.m_meshTileProgram);
 	}
 
-	if ((m_flags & ZoneNavMeshRender::DRAW_POLY_BOUNDARIES) && isValid(m_lineInstances))
+	if ((m_flags & ZoneNavMeshRender::DRAW_BOUNDARIES) && isValid(m_lineInstances))
 	{
 		bgfx::Encoder* encoder = bgfx::begin();
 
@@ -685,7 +663,7 @@ void ZoneNavMeshRender::Render()
 		encoder->submit(0, s_shared.m_linesProgram);
 	}
 
-	if ((m_flags & ZoneNavMeshRender::DRAW_POLY_BOUNDARIES) && isValid(m_pointsInstances))
+	if ((m_flags & ZoneNavMeshRender::DRAW_POLY_VERTICES) && isValid(m_pointsInstances))
 	{
 		bgfx::Encoder* encoder = bgfx::begin();
 
@@ -776,7 +754,11 @@ void ZoneNavMeshRender::Build()
 	}
 
 	navMeshTileIndices.reserve(numMeshTileVertices);
-	navMeshTileIndices.reserve(numMeshTileVertices);
+	if (m_flags & DRAW_BOUNDARIES)
+	{
+		polyBoundaryVertices.reserve(numPolyBoundaryVertices);
+		polyPointVertices.reserve(numPolyPointVertices);
+	}
 
 	// Build tile polygons
 	for (int i = 0; i < mesh.getMaxTiles(); ++i)
@@ -789,42 +771,57 @@ void ZoneNavMeshRender::Build()
 		// Draw the tile polygons
 		BuildMeshTile(navMeshTileVertices, navMeshTileIndices, base, mesh, q, tile, m_flags);
 
-		// Draw inner poly boundaries
-		BuildPolyBoundaries(polyBoundaryVertices, tile, duRGBA(0, 48, 64, 32), 1.5, true);
-
-		// Draw outer poly boundaries
-		BuildPolyBoundaries(polyBoundaryVertices, tile, duRGBA(0, 48, 64, 220), 2.5f, false);
-
-		// Build points.
-		const uint32_t vcol = duRGBA(0, 0, 0, 196);
-		for (int j = 0; j < tile->header->vertCount; ++j)
+		if (m_flags & DRAW_BOUNDARIES)
 		{
-			const float* v = &tile->verts[j * 3];
+			// Draw inner poly boundaries
+			BuildPolyBoundaries(polyBoundaryVertices, tile, duRGBA(0, 48, 64, 32), 1.5, true, m_flags);
 
-			polyPointVertices.emplace_back(*reinterpret_cast<const glm::vec3*>(v), m_pointSize * 3.0f, vcol);
+			// Draw outer poly boundaries
+			BuildPolyBoundaries(polyBoundaryVertices, tile, duRGBA(0, 48, 64, 220), 2.5f, false, m_flags);
+		}
+
+		if (m_flags & DRAW_POLY_VERTICES)
+		{
+			// Build points.
+			const uint32_t vcol = duRGBA(0, 0, 0, 196);
+			for (int j = 0; j < tile->header->vertCount; ++j)
+			{
+				const float* v = &tile->verts[j * 3];
+
+				polyPointVertices.emplace_back(*reinterpret_cast<const glm::vec3*>(v), m_pointSize * 3.0f, vcol);
+			}
 		}
 	}
 
-	// Create vertex buffer from gathered data.
-	m_tilePolysVB = bgfx::createVertexBuffer(bgfx::copy(navMeshTileVertices.data(),
-		static_cast<uint32_t>(navMeshTileVertices.size()) * DebugDrawPolyVertex::ms_layout.getStride()),
-		DebugDrawPolyVertex::ms_layout);
-	m_tileIndices = { 0, static_cast<uint32_t>(navMeshTileIndices.size()) };
-	m_indexBuffer = bgfx::createIndexBuffer(
-		bgfx::copy(navMeshTileIndices.data(), static_cast<uint32_t>(navMeshTileIndices.size()) * sizeof(uint32_t)),
-		BGFX_BUFFER_INDEX32);
+	if (!navMeshTileVertices.empty())
+	{
+		// Create vertex buffer from gathered data.
+		m_tilePolysVB = bgfx::createVertexBuffer(bgfx::copy(navMeshTileVertices.data(),
+			static_cast<uint32_t>(navMeshTileVertices.size()) * DebugDrawPolyVertex::ms_layout.getStride()),
+			DebugDrawPolyVertex::ms_layout);
+		m_tileIndices = { 0, static_cast<uint32_t>(navMeshTileIndices.size()) };
+		m_indexBuffer = bgfx::createIndexBuffer(
+			bgfx::copy(navMeshTileIndices.data(), static_cast<uint32_t>(navMeshTileIndices.size()) * sizeof(uint32_t)),
+			BGFX_BUFFER_INDEX32);
+	}
 
-	// Lines buffer
-	m_lineInstances = bgfx::createVertexBuffer(bgfx::copy(polyBoundaryVertices.data(),
-		static_cast<uint32_t>(polyBoundaryVertices.size()) * DebugDrawLineVertex::ms_layout.getStride()),
-		DebugDrawLineVertex::ms_layout);
-	m_lineIndices = static_cast<int>(polyBoundaryVertices.size());
+	if (!polyBoundaryVertices.empty())
+	{
+		// Lines buffer
+		m_lineInstances = bgfx::createVertexBuffer(bgfx::copy(polyBoundaryVertices.data(),
+			static_cast<uint32_t>(polyBoundaryVertices.size()) * DebugDrawLineVertex::ms_layout.getStride()),
+			DebugDrawLineVertex::ms_layout);
+		m_lineIndices = static_cast<int>(polyBoundaryVertices.size());
+	}
 
-	// Points buffer
-	m_pointsInstances = bgfx::createVertexBuffer(bgfx::copy(polyPointVertices.data(),
-		static_cast<uint32_t>(polyPointVertices.size()) * DebugDrawPointVertex::ms_layout.getStride()),
-		DebugDrawPointVertex::ms_layout);
-	m_pointsIndices = static_cast<int>(polyPointVertices.size());
+	if (!polyPointVertices.empty())
+	{
+		// Points buffer
+		m_pointsInstances = bgfx::createVertexBuffer(bgfx::copy(polyPointVertices.data(),
+			static_cast<uint32_t>(polyPointVertices.size()) * DebugDrawPointVertex::ms_layout.getStride()),
+			DebugDrawPointVertex::ms_layout);
+		m_pointsIndices = static_cast<int>(polyPointVertices.size());
+	}
 }
 
 void ZoneNavMeshRender::UpdateQuery()
@@ -953,7 +950,7 @@ static float distancePtLine2d(const float* pt, const float* p, const float* q)
 
 /* static */
 void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& vertices,
-	const dtMeshTile* tile, uint32_t color, float width, bool inner)
+	const dtMeshTile* tile, uint32_t color, float width, bool inner, int flags)
 {
 	static constexpr float threshold = 0.01f * 0.01f;
 
@@ -980,6 +977,9 @@ void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& ve
 				// If poly links to external poly, check for external poly.
 				if (p->neis[j] & DT_EXT_LINK)
 				{
+					if ((flags & DRAW_TILE_BOUNDARIES) == 0)
+						continue;
+
 					bool con = false;
 
 					for (uint32_t k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
@@ -998,6 +998,9 @@ void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& ve
 				}
 				else
 				{
+					if ((flags & DRAW_POLY_BOUNDARIES) == 0)
+						continue;
+
 					c = duRGBA(0, 48, 64, 32);
 				}
 			}

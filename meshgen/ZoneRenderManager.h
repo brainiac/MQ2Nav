@@ -17,7 +17,6 @@ class NavMesh;
 class dtNavMeshQuery;
 class dtNavMesh;
 struct dtMeshTile;
-class Camera;
 
 struct DebugDrawGridTexturedVertex
 {
@@ -134,7 +133,6 @@ public:
 	void Render();
 
 	void SetInputGeometry(InputGeom* geom);
-	void SetCamera(Camera* camera) { m_camera = camera; }
 
 	void SetNavMeshConfig(const NavMeshConfig* config);
 	const NavMeshConfig* GetNavMeshConfig() const { return m_meshConfig; }
@@ -154,7 +152,6 @@ private:
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
 	const NavMeshConfig* m_meshConfig = nullptr;
 	float m_pointSize = 0.5f;
-	Camera* m_camera;
 
 	std::vector<DebugDrawPointVertex> m_points;
 	size_t m_lastPointsSize = 0;
@@ -245,6 +242,17 @@ public:
 
 		DRAW_CLOSED_LIST      = 0x0008,
 		DRAW_COLORED_TILES    = 0x0010,
+		DRAW_POLY_VERTICES    = 0x0020,
+
+		DRAW_BOUNDARIES       = DRAW_TILE_BOUNDARIES | DRAW_POLY_BOUNDARIES
+	};
+
+	enum PolyColor
+	{
+		OuterBoundary = 1,
+		InnerBoundary = 2,
+		Border = 3,
+		TileGrid = 4,
 	};
 
 	void SetNavMesh(const std::shared_ptr<NavMesh>& navMesh);
@@ -266,6 +274,7 @@ public:
 	}
 	void SetPointSize(float pointSize) {
 		m_pointSize = pointSize;
+		m_dirty = true;
 	}
 
 	// Note: Need to do equivalent behavior to duDebugDrawNavMeshPoly
@@ -276,7 +285,7 @@ private:
 		dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
 	
 	static void BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& vertices,
-		const dtMeshTile* tile, uint32_t color, float width, bool inner);
+		const dtMeshTile* tile, uint32_t color, float width, bool inner, int flags);
 	void BuildOffmeshConnections(std::vector<DebugDrawLineVertex>& vertices, dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query);
 	void BuildBVTree(const dtMeshTile* tile);
 
