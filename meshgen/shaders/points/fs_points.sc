@@ -1,23 +1,24 @@
-$input v_color0, v_pointPos, v_pointSize, v_debugPos
+$input v_color0, v_pointPos, v_pointData
 
 #include "../common.sh"
 
 void main()
 {
-	float radius = v_pointSize.x;
-	vec2 viewSize = v_pointSize.yz;
-
-	//vec2 ndc = -1 + 2.0 * (gl_FragCoord.xy / viewSize);
-	vec2 screenCoord = gl_FragCoord.xy;
-
-	float dist = distance(v_pointPos.xy, screenCoord);
+#if 1
+	float radius = v_pointData.x;
+	float cameraDist = v_pointData.y;
+	float dist = distance(v_pointPos, gl_FragCoord.xy);
 	if (dist > radius)
 		discard;
 
-	float threshold = 0.3;
+	float near = 500;
+	float far = 2000 + near;
 
-	float d = dist / radius;
-	float alpha = mix(v_color0.w, 0, step(1.0 - threshold, d));
-	
-	gl_FragColor = vec4(v_color0.xyz, alpha);
+	float scaleVal = max(0, (cameraDist - near) / far);
+	float alpha = max(0.0, min(1.0, 1.0 - scaleVal));
+
+	gl_FragColor = vec4(v_color0.xyz, alpha * v_color0.w);
+#else
+	gl_FragColor = v_color0;
+#endif
 }

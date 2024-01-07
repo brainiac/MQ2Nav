@@ -13,9 +13,12 @@
 #include "shaders/points/fs_points.bin.h"
 #include "shaders/points/vs_points.bin.h"
 
+#include <glm/gtc/type_ptr.hpp>
 #include <recast/DebugUtils/Include/DebugDraw.h>
 #include <recast/Detour/Include/DetourNavMeshQuery.h>
 #include <imgui/imgui.h>
+
+#include "Camera.h"
 
 ZoneRenderManager* g_zoneRenderManager = nullptr;
 
@@ -59,15 +62,103 @@ struct ZoneRenderShared
 	bgfx::ProgramHandle m_inputGeoProgram = BGFX_INVALID_HANDLE;
 	bgfx::ProgramHandle m_meshTileProgram = BGFX_INVALID_HANDLE;
 
-	// Lines implementation
-	bgfx::ProgramHandle m_linesProgram = BGFX_INVALID_HANDLE;
-	bgfx::VertexBufferHandle m_linesVBH = BGFX_INVALID_HANDLE;
-	bgfx::IndexBufferHandle m_linesIBH = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_cameraRight = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_cameraUp = BGFX_INVALID_HANDLE;
 
-	// Point implementation
+	// Primitives implementation
 	bgfx::ProgramHandle m_pointsProgram = BGFX_INVALID_HANDLE;
-	bgfx::VertexBufferHandle m_pointsVBH = BGFX_INVALID_HANDLE;
-	bgfx::IndexBufferHandle m_pointsIBH = BGFX_INVALID_HANDLE;
+	bgfx::ProgramHandle m_linesProgram = BGFX_INVALID_HANDLE;
+	bgfx::VertexBufferHandle m_quad1VB = BGFX_INVALID_HANDLE;
+	bgfx::VertexBufferHandle m_quad2VB = BGFX_INVALID_HANDLE;
+	bgfx::IndexBufferHandle m_quadIB = BGFX_INVALID_HANDLE;
+
+	void init()
+	{
+		DebugDrawGridTexturedVertex::init();
+		DebugDrawPolyVertex::init();
+		DebugDrawQuadTemplateVertex::init();
+		DebugDrawLineVertex::init();
+		DebugDrawPointVertex::init();
+
+		// Create the grid texture
+		static constexpr int TEXTURE_SIZE = 64;
+		uint32_t data[TEXTURE_SIZE * TEXTURE_SIZE];
+		int size = TEXTURE_SIZE;
+		int mipLevel = 0;
+
+		m_gridTexture = bgfx::createTexture2D(size, size, true, 1, bgfx::TextureFormat::RGBA8, 0, nullptr);
+		while (size > 0)
+		{
+			for (int y = 0; y < size; ++y)
+			{
+				for (int x = 0; x < size; ++x)
+					data[x + y * size] = (x == 0 || y == 0) ? 0xffd7d7d7 : 0xffffffff;
+			}
+			bgfx::updateTexture2D(m_gridTexture, 0, mipLevel++, 0, 0, size, size, bgfx::copy(data, sizeof(uint32_t) * size * size));
+
+			size /= 2;
+		}
+
+		m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
+		m_cameraRight = bgfx::createUniform("CameraRight_worldspace", bgfx::UniformType::Vec4);
+		m_cameraUp = bgfx::createUniform("CameraUp_worldspace", bgfx::UniformType::Vec4);
+
+		bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
+		m_inputGeoProgram = bgfx::createProgram(
+			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_inputgeom"),
+			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_inputgeom"), true);
+		m_meshTileProgram = bgfx::createProgram(
+			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_meshtile"),
+			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_meshtile"), true);
+
+		m_linesProgram = bgfx::createProgram(
+			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_lines"),
+			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_lines"), true);
+		m_pointsProgram = bgfx::createProgram(
+			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_points"),
+			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_points"), true);
+
+		glm::vec3 linesQuad[] = {
+			{ 0.0, -1.0, 0.0 },
+			{ 0.0,  1.0, 0.0 },
+			{ 1.0,  1.0, 0.0 },
+			{ 1.0, -1.0, 0.0 }
+		};
+		m_quad1VB = bgfx::createVertexBuffer(bgfx::copy(linesQuad, sizeof(linesQuad)), DebugDrawQuadTemplateVertex::ms_layout, 0);
+
+		glm::vec3 pointQuad[] = {
+			{ -0.5f, -0.5f, 0.0f },
+			{ -0.5f,  0.5f, 0.0f },
+			{  0.5f,  0.5f, 0.0f },
+			{  0.5f, -0.5f, 0.0f }
+		};
+		m_quad2VB = bgfx::createVertexBuffer(bgfx::copy(pointQuad, sizeof(pointQuad)), DebugDrawQuadTemplateVertex::ms_layout, 0);
+
+		uint16_t linesIndices[] = {
+			0, 1, 2, 0, 2, 3
+		};
+		m_quadIB = bgfx::createIndexBuffer(bgfx::copy(linesIndices, sizeof(linesIndices)), 0);
+
+		m_initialized = true;
+	}
+
+	void shutdown()
+	{
+		if (m_initialized)
+		{
+			bgfx::destroy(m_gridTexture);
+			bgfx::destroy(m_texSampler);
+			bgfx::destroy(m_cameraRight);
+			bgfx::destroy(m_cameraUp);
+			bgfx::destroy(m_inputGeoProgram);
+			bgfx::destroy(m_meshTileProgram);
+			bgfx::destroy(m_linesProgram);
+			bgfx::destroy(m_quad1VB);
+			bgfx::destroy(m_quad2VB);
+			bgfx::destroy(m_quadIB);
+			bgfx::destroy(m_pointsProgram);
+		}
+	}
 };
 
 static ZoneRenderShared s_shared;
@@ -99,6 +190,11 @@ void ZoneRenderDebugDraw::vertex(const float* pos_, unsigned int color)
 {
 	switch (m_type)
 	{
+	case DU_DRAW_POINTS:
+		m_render->m_points.emplace_back(*reinterpret_cast<const glm::vec3*>(pos_),
+			m_width * m_render->m_pointSize, ImColor(color));
+		break;
+
 	case DU_DRAW_LINES: {
 		if (m_first)
 		{
@@ -141,7 +237,6 @@ void ZoneRenderDebugDraw::vertex(const float* pos_, unsigned int color)
 			m_numVertices = 0;
 		}
 		break;
-	case DU_DRAW_POINTS: break;
 	default: break;
 	}
 }
@@ -150,6 +245,10 @@ void ZoneRenderDebugDraw::vertex(const float x, const float y, const float z, un
 {
 	switch (m_type)
 	{
+	case DU_DRAW_POINTS:
+		m_render->m_points.emplace_back(glm::vec3(x, y, z), m_width * m_render->m_pointSize, ImColor(color));
+		break;
+
 	case DU_DRAW_LINES: {
 		if (m_first)
 		{
@@ -192,7 +291,7 @@ void ZoneRenderDebugDraw::vertex(const float x, const float y, const float z, un
 			m_numVertices = 0;
 		}
 		break;
-	case DU_DRAW_POINTS: break;
+
 	default: break;
 	}
 }
@@ -227,108 +326,12 @@ ZoneRenderManager::~ZoneRenderManager()
 
 void ZoneRenderManager::init()
 {
-	DebugDrawGridTexturedVertex::init();
-	DebugDrawPolyVertex::init();
-	DebugDrawQuadTemplateVertex::init();
-	DebugDrawLineVertex::init();
-	DebugDrawPointVertex::init();
-
-	// Create the grid texture
-	static constexpr int TEXTURE_SIZE = 64;
-	uint32_t data[TEXTURE_SIZE * TEXTURE_SIZE];
-	int size = TEXTURE_SIZE;
-	int mipLevel = 0;
-
-	s_shared.m_gridTexture = bgfx::createTexture2D(size, size, true, 1, bgfx::TextureFormat::RGBA8, 0, nullptr);
-	while (size > 0)
-	{
-		for (int y = 0; y < size; ++y)
-		{
-			for (int x = 0; x < size; ++x)
-				data[x + y * size] = (x == 0 || y == 0) ? 0xffd7d7d7 : 0xffffffff;
-		}
-		bgfx::updateTexture2D(s_shared.m_gridTexture, 0, mipLevel++, 0, 0, size, size, bgfx::copy(data, sizeof(uint32_t) * size * size));
-
-		size /= 2;
-	}
-
-	s_shared.m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
-
-	bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
-	s_shared.m_inputGeoProgram = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_inputgeom"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_inputgeom"), true);
-	s_shared.m_meshTileProgram = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_meshtile"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_meshtile"), true);
-
-	s_shared.m_linesProgram = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_lines"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_lines"), true);
-	s_shared.m_pointsProgram = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_points"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_points"), true);
-
-	glm::vec3 linesQuad[] = {
-		{ 0.0, -1.0, 0.0 },
-		{ 0.0,  1.0, 0.0 },
-		{ 1.0,  1.0, 0.0 },
-		{ 1.0, -1.0, 0.0 }
-	};
-	s_shared.m_linesVBH = bgfx::createVertexBuffer(bgfx::copy(linesQuad, sizeof(linesQuad)), DebugDrawQuadTemplateVertex::ms_layout, 0);
-
-	uint16_t linesIndices[] = {
-		0, 1, 2, 0, 2, 3
-	};
-	s_shared.m_linesIBH = bgfx::createIndexBuffer(bgfx::copy(linesIndices, sizeof(linesIndices)), 0);
-
-	glm::vec3 pointCube[] = {
-		{-1.0f,  1.0f,  1.0f },
-		{ 1.0f,  1.0f,  1.0f },
-		{-1.0f, -1.0f,  1.0f },
-		{ 1.0f, -1.0f,  1.0f },
-		{-1.0f,  1.0f, -1.0f },
-		{ 1.0f,  1.0f, -1.0f },
-		{-1.0f, -1.0f, -1.0f },
-		{ 1.0f, -1.0f, -1.0f },
-	};
-	s_shared.m_pointsVBH = bgfx::createVertexBuffer(bgfx::copy(pointCube, sizeof(pointCube)), DebugDrawQuadTemplateVertex::ms_layout, 0);
-
-	uint16_t pointsIndices[] = {
-		0, 1, 2, // 0
-		1, 3, 2,
-		4, 6, 5, // 2
-		5, 6, 7,
-		0, 2, 4, // 4
-		4, 2, 6,
-		1, 5, 3, // 6
-		5, 7, 3,
-		0, 4, 1, // 8
-		4, 5, 1,
-		2, 3, 6, // 10
-		6, 3, 7,
-	};
-	s_shared.m_pointsIBH = bgfx::createIndexBuffer(bgfx::copy(pointsIndices, sizeof(pointsIndices)), 0);
-
-
-	s_shared.m_initialized = true;
+	s_shared.init();
 }
 
 void ZoneRenderManager::shutdown()
 {
-	if (s_shared.m_initialized)
-	{
-		bgfx::destroy(s_shared.m_gridTexture);
-		bgfx::destroy(s_shared.m_texSampler);
-		bgfx::destroy(s_shared.m_inputGeoProgram);
-		bgfx::destroy(s_shared.m_meshTileProgram);
-		bgfx::destroy(s_shared.m_linesProgram);
-		bgfx::destroy(s_shared.m_linesVBH);
-		bgfx::destroy(s_shared.m_linesIBH);
-		bgfx::destroy(s_shared.m_pointsProgram);
-		bgfx::destroy(s_shared.m_pointsVBH);
-		bgfx::destroy(s_shared.m_pointsIBH);
-	}
+	s_shared.shutdown();
 }
 
 void ZoneRenderManager::DestroyObjects()
@@ -340,6 +343,12 @@ void ZoneRenderManager::DestroyObjects()
 	{
 		bgfx::destroy(m_ddLinesVB);
 		m_ddLinesVB = BGFX_INVALID_HANDLE;
+	}
+
+	if (isValid(m_ddPointsVB))
+	{
+		bgfx::destroy(m_ddPointsVB);
+		m_ddPointsVB = BGFX_INVALID_HANDLE;
 	}
 
 	if (isValid(m_ddTrisVB))
@@ -371,6 +380,49 @@ void ZoneRenderManager::SetNavMeshConfig(const NavMeshConfig* config)
 
 void ZoneRenderManager::Render()
 {
+	glm::mat4 view;
+	m_camera->GetViewMatrix(glm::value_ptr(view));
+
+	glm::vec4 cameraRight(view[0][0], view[1][0], view[2][0], 1.0f);
+	glm::vec3 cameraRight2 = m_camera->GetRight();
+
+	bgfx::setUniform(s_shared.m_cameraRight, glm::value_ptr(cameraRight2));
+
+	glm::vec4 cameraUp(view[0][1], view[1][1], view[2][1], 1.0f);
+	glm::vec3 cameraUp2 = m_camera->GetUp();
+
+	bgfx::setUniform(s_shared.m_cameraUp, glm::value_ptr(cameraUp2));
+
+	if (!m_points.empty())
+	{
+		if (isValid(m_ddPointsVB) && m_points.size() == m_lastPointsSize)
+		{
+			bgfx::update(m_ddPointsVB, 0, bgfx::copy(m_points.data(), static_cast<uint32_t>(m_points.size()) * DebugDrawPointVertex::ms_layout.getStride()));
+		}
+		else
+		{
+			if (isValid(m_ddPointsVB))
+			{
+				bgfx::destroy(m_ddPointsVB);
+			}
+
+			m_ddPointsVB = bgfx::createDynamicVertexBuffer(
+				bgfx::copy(m_points.data(), static_cast<uint32_t>(m_points.size()) * DebugDrawPointVertex::ms_layout.getStride()),
+				DebugDrawPointVertex::ms_layout);
+		}
+
+		m_lastPointsSize = m_points.size();
+
+		bgfx::Encoder* encoder = bgfx::begin();
+		encoder->setVertexBuffer(0, s_shared.m_quad2VB);
+		encoder->setIndexBuffer(s_shared.m_quadIB);
+		encoder->setInstanceDataBuffer(m_ddPointsVB, 0, static_cast<uint32_t>(m_points.size()));
+		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_BLEND_ALPHA);
+		encoder->submit(0, s_shared.m_pointsProgram);
+
+		m_points.clear();
+	}
+
 	if (!m_lines.empty())
 	{
 		if (isValid(m_ddLinesVB) && m_lines.size() == m_lastLinesSize)
@@ -392,12 +444,10 @@ void ZoneRenderManager::Render()
 		m_lastLinesSize = m_lines.size();
 
 		bgfx::Encoder* encoder = bgfx::begin();
-
-		encoder->setVertexBuffer(0, s_shared.m_linesVBH);
-		encoder->setIndexBuffer(s_shared.m_linesIBH);
+		encoder->setVertexBuffer(0, s_shared.m_quad1VB);
+		encoder->setIndexBuffer(s_shared.m_quadIB);
 		encoder->setInstanceDataBuffer(m_ddLinesVB, 0, static_cast<uint32_t>(m_lines.size()));
 		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_BLEND_ALPHA);
-
 		encoder->submit(0, s_shared.m_linesProgram);
 
 		m_lines.clear();
@@ -433,11 +483,9 @@ void ZoneRenderManager::Render()
 		m_lastTrisIndicesSize = m_triIndices.size();
 
 		bgfx::Encoder* encoder = bgfx::begin();
-
 		encoder->setVertexBuffer(0, m_ddTrisVB);
 		encoder->setIndexBuffer(m_ddIndexBuffer, 0, static_cast<uint32_t>(m_triIndices.size()));
 		encoder->setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
-
 		encoder->submit(0, s_shared.m_meshTileProgram);
 
 		m_tris.clear();
@@ -629,8 +677,8 @@ void ZoneNavMeshRender::Render()
 	{
 		bgfx::Encoder* encoder = bgfx::begin();
 
-		encoder->setVertexBuffer(0, s_shared.m_linesVBH);
-		encoder->setIndexBuffer(s_shared.m_linesIBH);
+		encoder->setVertexBuffer(0, s_shared.m_quad1VB);
+		encoder->setIndexBuffer(s_shared.m_quadIB);
 		encoder->setInstanceDataBuffer(m_lineInstances, 0, m_lineIndices);
 		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_BLEND_ALPHA);
 
@@ -641,10 +689,10 @@ void ZoneNavMeshRender::Render()
 	{
 		bgfx::Encoder* encoder = bgfx::begin();
 
-		encoder->setVertexBuffer(0, s_shared.m_pointsVBH);
-		encoder->setIndexBuffer(s_shared.m_pointsIBH);
+		encoder->setVertexBuffer(0, s_shared.m_quad2VB);
+		encoder->setIndexBuffer(s_shared.m_quadIB);
 		encoder->setInstanceDataBuffer(m_pointsInstances, 0, m_pointsIndices);
-		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS);
+		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_BLEND_ALPHA);
 
 		encoder->submit(0, s_shared.m_pointsProgram);
 	}

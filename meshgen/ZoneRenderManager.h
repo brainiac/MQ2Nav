@@ -17,6 +17,7 @@ class NavMesh;
 class dtNavMeshQuery;
 class dtNavMesh;
 struct dtMeshTile;
+class Camera;
 
 struct DebugDrawGridTexturedVertex
 {
@@ -133,6 +134,7 @@ public:
 	void Render();
 
 	void SetInputGeometry(InputGeom* geom);
+	void SetCamera(Camera* camera) { m_camera = camera; }
 
 	void SetNavMeshConfig(const NavMeshConfig* config);
 	const NavMeshConfig* GetNavMeshConfig() const { return m_meshConfig; }
@@ -140,11 +142,22 @@ public:
 	ZoneNavMeshRender* GetNavMeshRender() { return m_navMeshRender; }
 	ZoneInputGeometryRender* GetInputGeoRender() { return m_zoneInputGeometry; }
 
+	float GetPointSize() const {
+		return m_pointSize;
+	}
+	void SetPointSize(float pointSize) {
+		m_pointSize = pointSize;
+	}
+
 private:
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
 	const NavMeshConfig* m_meshConfig = nullptr;
+	float m_pointSize = 0.5f;
+	Camera* m_camera;
 
+	std::vector<DebugDrawPointVertex> m_points;
+	size_t m_lastPointsSize = 0;
 	std::vector<DebugDrawLineVertex> m_lines;
 	size_t m_lastLinesSize = 0;
 	std::vector<DebugDrawPolyVertex> m_tris;
@@ -152,6 +165,7 @@ private:
 	std::vector<uint16_t> m_triIndices;
 	size_t m_lastTrisIndicesSize = 0;
 
+	bgfx::DynamicVertexBufferHandle m_ddPointsVB = BGFX_INVALID_HANDLE;
 	bgfx::DynamicVertexBufferHandle m_ddLinesVB = BGFX_INVALID_HANDLE;
 	bgfx::DynamicVertexBufferHandle m_ddTrisVB = BGFX_INVALID_HANDLE;
 	bgfx::DynamicIndexBufferHandle m_ddIndexBuffer = BGFX_INVALID_HANDLE;
@@ -225,12 +239,12 @@ public:
 
 	enum Flags
 	{
-		DRAW_BV_TREE          = 0x0001,
-		DRAW_OFFMESH_CONNS    = 0x0002,
-		DRAW_CLOSED_LIST      = 0x0004,
-		DRAW_COLORED_TILES    = 0x0008,
-		DRAW_POLY_BOUNDARIES  = 0x0010,
-		DRAW_TILES            = 0x0020,
+		DRAW_TILES            = 0x0001,
+		DRAW_TILE_BOUNDARIES  = 0x0002,
+		DRAW_POLY_BOUNDARIES  = 0x0004,
+
+		DRAW_CLOSED_LIST      = 0x0008,
+		DRAW_COLORED_TILES    = 0x0010,
 	};
 
 	void SetNavMesh(const std::shared_ptr<NavMesh>& navMesh);
@@ -241,19 +255,18 @@ public:
 	void SetFlags(uint32_t flags);
 	uint32_t GetFlags() const { return m_flags; }
 
-	float GetPointSize() const {
-		return m_pointSize;
-	}
-	void SetPointSize(float pointsize) {
-		m_pointSize = pointsize;
-		m_dirty = true;
-	}
-
 	void Build();
 	void UpdateQuery();
 
 	void Render();
 	void DestroyObjects();
+
+	float GetPointSize() const {
+		return m_pointSize;
+	}
+	void SetPointSize(float pointSize) {
+		m_pointSize = pointSize;
+	}
 
 	// Note: Need to do equivalent behavior to duDebugDrawNavMeshPoly
 	uint32_t PolyToCol(const dtPoly* poly);
@@ -273,7 +286,7 @@ private:
 	const dtNavMeshQuery* m_query = nullptr;
 	uint32_t m_flags = 0;
 	bool m_dirty = false;
-	float m_pointSize = 5.0f;
+	float m_pointSize = 0.5f;
 
 	bgfx::VertexBufferHandle m_tilePolysVB = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_indexBuffer = BGFX_INVALID_HANDLE;

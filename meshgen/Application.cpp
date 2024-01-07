@@ -153,6 +153,7 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 	m_navMesh = std::make_shared<NavMesh>(m_eqConfig.GetOutputPath(), startingZone);
 	m_meshTool = std::make_unique<NavMeshTool>(m_navMesh);
 	m_camera = new Camera();
+	g_zoneRenderManager->SetCamera(m_camera);
 
 	m_rcContext = std::make_unique<RecastContext>();
 

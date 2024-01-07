@@ -149,7 +149,10 @@ void NavMeshTool::handleDebug()
 
 		float pointSize = m_renderManager->GetNavMeshRender()->GetPointSize();
 		if (ImGui::DragFloat("PointSize", &pointSize, 0.01f, 0, 10, "%.2f"))
+		{
+			m_renderManager->SetPointSize(pointSize);
 			m_renderManager->GetNavMeshRender()->SetPointSize(pointSize);
+		}
 
 		//ImGui::Checkbox("Draw Disabled Tiles", &m_drawNavMeshDisabledTiles);
 		//ImGui::Checkbox("Draw BV Tree", &m_drawNavMeshBVTree);

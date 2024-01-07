@@ -54,6 +54,9 @@ public:
 
 	void Update(float deltaTime = 0.0f);
 
+	const glm::vec3& GetUp() const { return m_up; }
+	const glm::vec3& GetRight() const { return m_right; }
+
 private:
 	glm::vec3 m_direction;
 	glm::vec3 m_right;
