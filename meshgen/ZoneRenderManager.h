@@ -284,10 +284,8 @@ private:
 	void BuildMeshTile(std::vector<DebugDrawPolyVertex>& vertices, std::vector<uint32_t>& indices,
 		dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
 	
-	static void BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& vertices,
-		const dtMeshTile* tile, uint32_t color, float width, bool inner, int flags);
-	void BuildOffmeshConnections(std::vector<DebugDrawLineVertex>& vertices, dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query);
-	void BuildBVTree(const dtMeshTile* tile);
+	void BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& vertices,
+		const dtMeshTile* tile, uint32_t color, float width, bool inner);
 
 	ZoneRenderManager* m_mgr;
 

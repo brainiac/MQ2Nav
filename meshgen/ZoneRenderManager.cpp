@@ -774,10 +774,10 @@ void ZoneNavMeshRender::Build()
 		if (m_flags & DRAW_BOUNDARIES)
 		{
 			// Draw inner poly boundaries
-			BuildPolyBoundaries(polyBoundaryVertices, tile, duRGBA(0, 48, 64, 32), 1.5, true, m_flags);
+			BuildPolyBoundaries(polyBoundaryVertices, tile, duRGBA(0, 48, 64, 32), 1.5, true);
 
 			// Draw outer poly boundaries
-			BuildPolyBoundaries(polyBoundaryVertices, tile, duRGBA(0, 48, 64, 220), 2.5f, false, m_flags);
+			BuildPolyBoundaries(polyBoundaryVertices, tile, duRGBA(0, 48, 64, 220), 2.5f, false);
 		}
 
 		if (m_flags & DRAW_POLY_VERTICES)
@@ -948,9 +948,8 @@ static float distancePtLine2d(const float* pt, const float* p, const float* q)
 	return dx * dx + dz * dz;
 }
 
-/* static */
 void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& vertices,
-	const dtMeshTile* tile, uint32_t color, float width, bool inner, int flags)
+	const dtMeshTile* tile, uint32_t color, float width, bool inner)
 {
 	static constexpr float threshold = 0.01f * 0.01f;
 
@@ -977,7 +976,7 @@ void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& ve
 				// If poly links to external poly, check for external poly.
 				if (p->neis[j] & DT_EXT_LINK)
 				{
-					if ((flags & DRAW_TILE_BOUNDARIES) == 0)
+					if ((m_flags & DRAW_TILE_BOUNDARIES) == 0)
 						continue;
 
 					bool con = false;
@@ -998,7 +997,7 @@ void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& ve
 				}
 				else
 				{
-					if ((flags & DRAW_POLY_BOUNDARIES) == 0)
+					if ((m_flags & DRAW_POLY_BOUNDARIES) == 0)
 						continue;
 
 					c = duRGBA(0, 48, 64, 32);
@@ -1044,89 +1043,6 @@ void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& ve
 			}
 		}
 	}
-}
-
-void ZoneNavMeshRender::BuildOffmeshConnections(std::vector<DebugDrawLineVertex>& vertices,
-	dtPolyRef base, const dtMeshTile* tile, const dtNavMeshQuery* query)
-{
-	ZoneRenderDebugDraw ddu(m_mgr);
-	duDebugDraw* dd = &ddu;
-
-	dd->begin(DU_DRAW_LINES, 2.0f);
-
-	for (int i = 0; i < tile->header->polyCount; ++i)
-	{
-		const dtPoly* p = &tile->polys[i];
-		if (p->getType() != DT_POLYTYPE_OFFMESH_CONNECTION)	// Skip regular polys.
-			continue;
-
-		unsigned int col;
-		if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
-			col = duRGBA(255, 196, 0, 220);
-		else
-			col = duDarkenCol(duTransCol(PolyToCol(p), 220));
-
-		const dtOffMeshConnection* con = &tile->offMeshCons[i - tile->header->offMeshBase];
-		const float* va = &tile->verts[p->verts[0] * 3];
-		const float* vb = &tile->verts[p->verts[1] * 3];
-
-		// Check to see if start and end end-points have links.
-		bool startSet = false;
-		bool endSet = false;
-		for (unsigned int k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
-		{
-			if (tile->links[k].edge == 0)
-				startSet = true;
-			if (tile->links[k].edge == 1)
-				endSet = true;
-		}
-
-		// End points and their on-mesh locations.
-		dd->vertex(va[0], va[1], va[2], col);
-		dd->vertex(con->pos[0], con->pos[1], con->pos[2], col);
-		unsigned int col2 = startSet ? col : duRGBA(220, 32, 16, 196);
-		duAppendCircle(dd, con->pos[0], con->pos[1] + 0.1f, con->pos[2], con->rad, col2);
-
-		dd->vertex(vb[0], vb[1], vb[2], col);
-		dd->vertex(con->pos[3], con->pos[4], con->pos[5], col);
-		col2 = endSet ? col : duRGBA(220, 32, 16, 196);
-		duAppendCircle(dd, con->pos[3], con->pos[4] + 0.1f, con->pos[5], con->rad, col2);
-
-		// End point vertices.
-		dd->vertex(con->pos[0], con->pos[1], con->pos[2], duRGBA(0, 48, 64, 196));
-		dd->vertex(con->pos[0], con->pos[1] + 0.2f, con->pos[2], duRGBA(0, 48, 64, 196));
-
-		dd->vertex(con->pos[3], con->pos[4], con->pos[5], duRGBA(0, 48, 64, 196));
-		dd->vertex(con->pos[3], con->pos[4] + 0.2f, con->pos[5], duRGBA(0, 48, 64, 196));
-
-		// Connection arc.
-		duAppendArc(dd, con->pos[0], con->pos[1], con->pos[2], con->pos[3], con->pos[4], con->pos[5], 0.25f,
-			(con->flags & 1) ? 0.6f : 0, 0.6f, col);
-	}
-	dd->end();
-}
-
-void ZoneNavMeshRender::BuildBVTree(const dtMeshTile* tile)
-{
-	// Draw BV nodes.
-	const float cs = 1.0f / tile->header->bvQuantFactor;
-
-	//dd->begin(DU_DRAW_LINES, 1.0f);
-	for (int i = 0; i < tile->header->bvNodeCount; ++i)
-	{
-		const dtBVNode* n = &tile->bvTree[i];
-		if (n->i < 0) // Leaf indices are positive.
-			continue;
-
-		//duAppendBoxWire(dd, tile->header->bmin[0] + n->bmin[0] * cs,
-		//	tile->header->bmin[1] + n->bmin[1] * cs,
-		//	tile->header->bmin[2] + n->bmin[2] * cs,
-		//	tile->header->bmin[0] + n->bmax[0] * cs,
-		//	tile->header->bmin[1] + n->bmax[1] * cs,
-		//	tile->header->bmin[2] + n->bmax[2] * cs,
-		//	duRGBA(255, 255, 255, 128));
-	}
-	//dd->end();
 }
 
 uint32_t ZoneNavMeshRender::PolyToCol(const dtPoly* poly)
