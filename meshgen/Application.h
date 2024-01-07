@@ -159,7 +159,6 @@ private:
 	void DrawAreaTypesEditor();
 	void ShowImportExportSettingsDialog(bool import);
 
-
 private:
 	EQConfig          m_eqConfig;
 

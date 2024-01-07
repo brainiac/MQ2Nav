@@ -21,7 +21,7 @@ public:
 
 	const std::string& GetEverquestPath() const { return m_everquestPath; }
 	const std::string& GetOutputPath() const { return m_outputPath; }
-	const std::string& GetMQ2Path() const { return m_mq2Path; }
+	const std::string& GetMacroQuestPath() const { return m_mqPath; }
 
 	void SelectEverquestPath();
 	void SelectOutputPath();
@@ -35,7 +35,7 @@ public:
 
 	// map expansion, and its maps
 	using Expansion = std::pair<std::string, ZoneList>;
-	using MapList =std::vector<Expansion>;
+	using MapList = std::vector<Expansion>;
 
 	const MapList& GetMapList() const { return m_loadedMaps; }
 
@@ -50,7 +50,7 @@ private:
 	void LoadZones();
 
 	std::string m_everquestPath;
-	std::string m_mq2Path;
+	std::string m_mqPath;
 	std::string m_outputPath;
 	bool m_useMaxExtents = true;
 

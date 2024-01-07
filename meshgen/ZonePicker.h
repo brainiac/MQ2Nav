@@ -30,12 +30,18 @@ public:
 	std::string GetSelectedZone() const { return m_selectedZone; }
 
 private:
-	bool DrawExpansionGroup(const EQConfig::Expansion& expansion);
+	bool DrawExpansionGroup(const EQConfig::Expansion& expansion, bool showExpansions);
+
+	const EQConfig& m_eqConfig;
 
 	// Mapping of Zones to Expansions
-	using ZoneCollection = std::map<std::string, std::string>;
-	ZoneCollection m_allMaps;
-	EQConfig::MapList m_mapList;
+	struct MapInfo
+	{
+		std::string longName;
+		std::string shortName;
+		std::string expansion;
+	};
+	std::vector<MapInfo> m_allMaps;
 
 	std::string m_eqDirectory;
 	char m_filterText[64] = { 0 };
@@ -43,6 +49,7 @@ private:
 	std::string m_selectedZone;
 
 	bool m_loadNavMesh = true;
+	bool m_showExpansionButtons = true;
 	bool m_batchMode = false;
 	int m_selectedExpansion = -1;
 

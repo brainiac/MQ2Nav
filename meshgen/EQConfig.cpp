@@ -161,10 +161,10 @@ void EQConfig::LoadConfigFromIni()
 	}
 	else
 	{
-		m_mq2Path = outPath;
+		m_mqPath = outPath;
 	}
 
-	m_outputPath = m_mq2Path + "\\resources\\MQ2Nav";
+	m_outputPath = m_mqPath + "\\resources\\MQ2Nav";
 
 	char szTemp[10] = { 0 };
 	GetPrivateProfileString("General", "ZoneMaxExtents", m_useMaxExtents ? "true" : "false",
@@ -181,7 +181,7 @@ void EQConfig::SaveConfigToIni()
 	PathAppendA(fullPath, "config\\MeshGenerator.ini");
 
 	WritePrivateProfileString("General", "EverQuest Path", m_everquestPath.c_str(), fullPath);
-	WritePrivateProfileString("General", "Output Path", m_mq2Path.c_str(), fullPath);
+	WritePrivateProfileString("General", "Output Path", m_mqPath.c_str(), fullPath);
 	WritePrivateProfileString("General", "ZoneMaxExtents", m_useMaxExtents ? "true" : "false", fullPath);
 }
 
@@ -251,12 +251,12 @@ void EQConfig::SelectEverquestPath()
 
 void EQConfig::SelectOutputPath()
 {
-	std::string result = OpenFileDialog("c:\\", "Find Output (MQ2) Directory");
+	std::string result = OpenFileDialog("c:\\", "Find Output (MacroQuest) Directory");
 
 	if (!result.empty())
 	{
-		m_mq2Path = result;
-		m_outputPath = m_mq2Path + "\\resources\\MQ2Nav";
+		m_mqPath = result;
+		m_outputPath = m_mqPath + "\\resources\\MQ2Nav";
 
 		SaveConfigToIni();
 	}

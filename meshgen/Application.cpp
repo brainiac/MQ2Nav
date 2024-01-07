@@ -944,11 +944,10 @@ void Application::ShowSettingsDialog()
 			m_eqConfig.SelectEverquestPath();
 		ImGui::PopItemWidth();
 
-		ImGui::Text("Navmesh Path (Path to MQ2 root directory)");
+		ImGui::Text("Navmesh Path (Path to MacroQuest root directory)");
 		ImGui::PushItemWidth(400);
 		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(244, 250, 125));
-		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetMQ2Path().c_str(),
-			m_eqConfig.GetMQ2Path().length(), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetMacroQuestPath().c_str(), m_eqConfig.GetMacroQuestPath().length(), ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
@@ -1256,16 +1255,12 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 	m_zoneShortname = zoneShortName;
 	m_zoneLongname = m_eqConfig.GetLongNameForShortName(m_zoneShortname);
 
-	std::stringstream ss;
-	ss << m_zoneLongname << " (" << m_zoneShortname << ")";
-	m_zoneDisplayName = ss.str();
+	m_zoneDisplayName = fmt::format("{} ({})", m_zoneLongname, m_zoneShortname);
 	m_expansionExpanded.clear();
 
 	// Update the window title
-	std::stringstream ss2;
-	ss2 << "MQ2Nav Mesh Generator - " << m_zoneDisplayName;
-	std::string windowTitle = ss2.str();
-	//SDL_SetWindowTitle(m_window, windowTitle.c_str());
+	std::string windowTitle = fmt::format("MacroQuest NavMesh Generator - {}", m_zoneDisplayName);
+	SDL_SetWindowTitle(m_window, windowTitle.c_str());
 
 	m_meshTool->handleGeometryChanged(m_geom.get());
 	m_navMesh->SetZoneName(m_zoneShortname);

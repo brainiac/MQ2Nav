@@ -18,8 +18,8 @@
 struct ExpansionLogoFile
 {
 	const char* filename;
-	int expansionsPerRow;
-	int expansionsPerColumn;
+	int columnCount;
+	int rowCount;
 	std::vector<int> skipIndices;
 };
 
@@ -51,7 +51,6 @@ void PopulateExpansionLogoImages()
 	if (!ExpansionLogoImages.empty())
 		return;
 
-	int index = 0;
 	int currentExpansion = 0;
 	int fileIndex = 0;
 
@@ -62,12 +61,12 @@ void PopulateExpansionLogoImages()
 		ExpansionLogoImageInfo imageInfo;
 		imageInfo.fileIndex = fileIndex++;
 
-		for (int col = 0; col < fileInfo.expansionsPerColumn; ++col)
+		for (int col = 0; col < fileInfo.columnCount; ++col)
 		{
-			for (int row = 0; row < fileInfo.expansionsPerRow; ++row, ++localIndex)
+			for (int row = 0; row < fileInfo.rowCount; ++row, ++localIndex)
 			{
 				// Check if we should skip
-				if (std::find(begin(fileInfo.skipIndices), end(fileInfo.skipIndices), localIndex) != end(fileInfo.skipIndices))
+				if (std::ranges::find(fileInfo.skipIndices, localIndex) != end(fileInfo.skipIndices))
 					continue;
 
 				imageInfo.expansionId = currentExpansion;
@@ -83,8 +82,7 @@ void PopulateExpansionLogoImages()
 std::pair<int, ImVec2> FindExpansionImage(int expansion, bool active)
 {
 	// get the image index by searching for the expansion number
-	auto iter = std::find_if(
-		begin(ExpansionLogoImages), end(ExpansionLogoImages),
+	auto iter = std::ranges::find_if(ExpansionLogoImages,
 		[&](const ExpansionLogoImageInfo& info) { return info.expansionId == expansion; });
 	if (iter == end(ExpansionLogoImages))
 		return { -1, ImVec2() };
@@ -98,12 +96,18 @@ std::pair<int, ImVec2> FindExpansionImage(int expansion, bool active)
 }
 
 ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
-	: m_allMaps(eqConfig.GetAllMaps())
-	, m_mapList(eqConfig.GetMapList())
+	: m_eqConfig(eqConfig)
 	, m_eqDirectory(eqConfig.GetEverquestPath())
 	, m_batchMode(batchMode)
 {
-#if EXPANSION_BUTTONS
+	auto& mapList = m_eqConfig.GetMapList();
+	for (const auto& [exp, maps] : mapList)
+	{
+		for (const auto& map : maps)
+		{
+		}
+	}
+
 	for (const auto& expansionFile : ExpansionLogoFiles)
 	{
 		std::string path = m_eqDirectory + "\\" + expansionFile.filename;
@@ -112,22 +116,26 @@ ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
 		m_textures.push_back(texture);
 	}
 
-	PopulateExpansionLogoImages();
-#endif
+	// If we failed to load all the texture then disable the buttons
+	if (std::ranges::all_of(m_textures, [](const auto& tex) { return !isValid(tex); }))
+	{
+		m_showExpansionButtons = false;
+	}
+	else
+	{
+		PopulateExpansionLogoImages();
+	}
 }
 
 ZonePicker::~ZonePicker()
 {
-#if EXPANSION_BUTTONS
 	for (const auto& texture : m_textures)
 	{
 		if (isValid(texture))
 			bgfx::destroy(texture);
 	}
-#endif
 }
 
-#if EXPANSION_BUTTONS
 static bool ExpansionButton(bgfx::TextureHandle texture, const ImVec2& pos)
 {
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
@@ -142,12 +150,10 @@ static bool ExpansionButton(bgfx::TextureHandle texture, const ImVec2& pos)
 	ImGui::PopStyleColor(3);
 	return result;
 }
-#endif
 
-bool ZonePicker::DrawExpansionGroup(const EQConfig::Expansion& expansion)
+bool ZonePicker::DrawExpansionGroup(const EQConfig::Expansion& expansion, bool showExpansions)
 {
 	bool result = false;
-	ImGui::Columns(2);
 
 	for (const auto& zonePair : expansion.second)
 	{
@@ -156,13 +162,21 @@ bool ZonePicker::DrawExpansionGroup(const EQConfig::Expansion& expansion)
 
 		ImGui::PushID(shortName.c_str());
 
+		ImGui::TableNextRow();
+		ImGui::TableNextColumn();
+
 		bool selected = false;
 		if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns/* | ImGuiSelectableFlags_MenuItem*/))
 			selected = true;
-		ImGui::NextColumn();
-		ImGui::SetColumnOffset(-1, 300);
-		ImGui::Text(shortName.c_str());
-		ImGui::NextColumn();
+
+		ImGui::TableNextColumn();
+		ImGui::Text("%s", shortName.c_str());
+
+		ImGui::TableNextColumn();
+		if (showExpansions)
+		{
+			ImGui::Text("%s", expansion.first.c_str());
+		}
 
 		ImGui::PopID();
 
@@ -173,7 +187,6 @@ bool ZonePicker::DrawExpansionGroup(const EQConfig::Expansion& expansion)
 			break;
 		}
 	}
-	ImGui::Columns(1);
 
 	return result;
 }
@@ -193,6 +206,7 @@ bool ZonePicker::Show(bool focus)
 
 	ImGui::SetNextWindowPos(ImVec2(xPos, yPos), ImGuiCond_Always);
 	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+	const auto& mapList = m_eqConfig.GetMapList();
 
 	bool show = true;
 
@@ -211,115 +225,123 @@ bool ZonePicker::Show(bool focus)
 
 		std::string text(m_filterText);
 
-#if EXPANSION_BUTTONS
-		ImGui::BeginChild("##ExpansionList", ImVec2(148, ImGui::GetWindowHeight() - 115));
-
-		for (int i = (int)m_mapList.size() - 1; i >= 0; --i)
+		if (m_showExpansionButtons)
 		{
-			ImGui::PushID(i);
-			auto data = FindExpansionImage(i, m_selectedExpansion == i);
-			if (data.first < m_textures.size())
+			ImGui::BeginChild("##ExpansionList", ImVec2(148, ImGui::GetWindowHeight() - 115));
+
+			for (int i = static_cast<int>(mapList.size()) - 1; i >= 0; --i)
 			{
-				auto [fileId, pos] = data;
-
-				if (ExpansionButton(m_textures[fileId], pos))
+				ImGui::PushID(i);
+				if (auto data = FindExpansionImage(i, m_selectedExpansion == i); data.first < m_textures.size())
 				{
-					m_selectedExpansion = (m_selectedExpansion == i ? -1 : i);
-				}
-			}
-			ImGui::PopID();
-		}
-
-		ImGui::EndChild();
-		ImGui::SameLine();
-#endif
-
-		ImGui::BeginChild("##ZoneList", ImVec2(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x,
-			ImGui::GetWindowHeight() - 115), false);
-
-		if (text.empty())
-		{
-			ImGui::PushID("ZonesByExpansion");
-
-			if (m_selectedExpansion == -1)
-			{
-				// if there is no filter we will display the tree of zones
-				for (const auto& expansionInfo : m_mapList)
-				{
-					const std::string& expansionName = expansionInfo.first;
-
-					if (ImGui::TreeNode(expansionName.c_str()))
+					if (auto [fileId, pos] = data; ExpansionButton(m_textures[fileId], pos))
 					{
-						if (DrawExpansionGroup(expansionInfo))
-							result = true;
-
-						ImGui::TreePop();
+						m_selectedExpansion = (m_selectedExpansion == i ? -1 : i);
 					}
 				}
+				ImGui::PopID();
+			}
+
+			ImGui::EndChild();
+			ImGui::SameLine();
+		}
+
+		if (ImGui::BeginTable("##ZoneList", 3, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY,
+			ImVec2(0, ImGui::GetWindowHeight() - 115)))
+		{
+			ImGui::TableSetupScrollFreeze(0, 1);
+			ImGui::TableSetupColumn("Long Name");
+			ImGui::TableSetupColumn("Short Name");
+			ImGui::TableSetupColumn("Expansion");
+			ImGui::TableHeadersRow();
+
+			if (text.empty())
+			{
+				ImGui::PushID("ZonesByExpansion");
+
+				if (m_selectedExpansion == -1)
+				{
+					// if there is no filter we will display the tree of zones
+					for (const auto& expansionInfo : mapList)
+					{
+						const std::string& expansionName = expansionInfo.first;
+
+						ImGui::TableNextRow();
+						ImGui::TableNextColumn();
+
+						if (ImGui::TreeNode(expansionName.c_str()))
+						{
+							if (DrawExpansionGroup(expansionInfo, true))
+								result = true;
+
+							ImGui::TreePop();
+						}
+					}
+				}
+				else
+				{
+					const EQConfig::Expansion& expansion = mapList[m_selectedExpansion];
+
+					if (DrawExpansionGroup(expansion, true))
+						result = true;
+				}
+
+				ImGui::PopID();
 			}
 			else
 			{
-				const EQConfig::Expansion& expansion = m_mapList[m_selectedExpansion];
+				int count = 0;
+				std::string lastZone;
 
-				if (DrawExpansionGroup(expansion))
-					result = true;
-			}
+				ImGui::PushID("ZonesByFilter");
 
-			ImGui::PopID();
-		}
-		else
-		{
-			int count = 0;
-			std::string lastZone;
-
-			ImGui::PushID("ZonesByFilter");
-
-			ImGui::Columns(2);
-
-			for (const auto& mapIter : m_allMaps)
-			{
-				const std::string& shortName = mapIter.first;
-				const std::string& longName = mapIter.second;
-
-				if (mq::ci_find_substr(shortName, text) != -1
-					|| mq::ci_find_substr(longName, text) != -1)
+				for (const auto& map : m_allMaps)
 				{
-					ImGui::PushID(shortName.c_str());
+					const std::string& shortName = map.shortName;
+					const std::string& longName = map.longName;
+					const std::string& expansion = map.expansion;
 
-					std::string displayName = longName + " (" + shortName + ")";
-					lastZone = shortName;
-					bool selected = false;
-					if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns/* | ImGuiSelectableFlags_MenuItem*/))
-						selected = true;
-					ImGui::NextColumn();
-					ImGui::SetColumnOffset(-1, 300);
-					ImGui::Text(shortName.c_str());
-					ImGui::NextColumn();
-
-					ImGui::PopID();
-					if (selected)
+					if (mq::ci_find_substr(shortName, text) != -1 || mq::ci_find_substr(longName, text) != -1)
 					{
-						m_selectedZone = shortName;
-						result = true;
-						break;
+						ImGui::PushID(shortName.c_str());
+
+						ImGui::TableNextRow();
+						ImGui::TableNextColumn();
+
+						lastZone = shortName;
+
+						bool selected = false;
+						if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns))
+							selected = true;
+
+						ImGui::TableNextColumn();
+						ImGui::Text("%s", shortName.c_str());
+
+						ImGui::TableNextColumn();
+						ImGui::Text("%s", expansion.c_str());
+
+						ImGui::PopID();
+						if (selected)
+						{
+							m_selectedZone = shortName;
+							result = true;
+							break;
+						}
 					}
+					count++;
 				}
-				count++;
+
+				if (count == 1 && selectSingle)
+				{
+					m_selectedZone = lastZone;
+					result = true;
+				}
+
+				ImGui::PopID();
 			}
 
-			ImGui::Columns(1);
-
-
-			if (count == 1 && selectSingle)
-			{
-				m_selectedZone = lastZone;
-				result = true;
-			}
-
-			ImGui::PopID();
+			ImGui::EndTable();
 		}
-
-		ImGui::EndChild();
 
 		ImGui::PushItemWidth(350);
 		if (ImGui::Button("Cancel") || result) {
