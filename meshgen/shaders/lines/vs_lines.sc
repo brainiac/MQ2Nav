@@ -32,11 +32,9 @@ void main()
 	vec2 ndc_pos_1 = clip_pos_b.xy / clip_pos_b.w;
 
 	vec2 line_vector = ndc_pos_1 - ndc_pos_0;
-	vec2 viewport_line_vector = line_vector * u_viewRect.zw;
 	vec2 dir = normalize(vec2(line_vector.x, line_vector.y * u_aspect_ratio));
 
 	float extension_length = u_aa_radius.y;
-	float line_length = length(line_vector * u_viewRect.zw) + 2.0 * extension_length;
 	line_width_a = max(1.0, line_width_a) + u_aa_radius.x;
 	line_width_b = max(1.0, line_width_b) + u_aa_radius.x;
 
@@ -45,15 +43,9 @@ void main()
 	vec2 normal_b = vec2(line_width_b / u_width, line_width_b / u_height) * normal;
 	vec2 extension = vec2(extension_length / u_width, extension_length / u_height) * dir;
 
-	float v_line_width = (1.0 - quad_pos.x) * line_width_a + quad_pos.x * line_width_b;
-	float v_line_length = 0.5 * line_length;
-	float v_v = (2.0 * quad_pos.x - 1.0) * v_line_length;
-	float v_u = quad_pos.y * v_line_width;
-
 	vec2 zw_part = (1.0 - quad_pos.x) * clip_pos_a.zw + quad_pos.x * clip_pos_b.zw;
 	vec2 dir_y = quad_pos.y * ((1.0 - quad_pos.x) * normal_a + quad_pos.x * normal_b);
 	vec2 dir_x = quad_pos.x * line_vector + (2.0 * quad_pos.x - 1.0) * extension;
 
 	gl_Position = vec4((ndc_pos_0 + dir_x + dir_y) * zw_part.y, zw_part);
-	v_texcoord0 = vec4(v_u, v_v, v_line_width, v_line_length);
 }

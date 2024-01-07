@@ -348,9 +348,6 @@ bool Application::update()
 	bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height));
 	bgfx::setViewTransform(0, view, proj);
 
-	// Use debug font to print information about this example.
-	bgfx::dbgTextClear();
-
 	// This dummy draw call is here to make sure that view 0 is cleared
 	// if no other draw calls are submitted to view 0.
 	bgfx::touch(0);

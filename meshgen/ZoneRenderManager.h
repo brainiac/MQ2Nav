@@ -28,9 +28,9 @@ struct DebugDrawGridTexturedVertex
 	{
 		ms_layout
 			.begin()
-			.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
 			.end();
 	}
 
@@ -55,7 +55,6 @@ struct DebugDrawPolyVertex
 
 	inline static bgfx::VertexLayout ms_layout;
 };
-
 
 struct DebugDrawLineVertex
 {
@@ -82,10 +81,35 @@ struct DebugDrawLineVertex
 	{
 		ms_layout
 			.begin()
-			.add(bgfx::Attrib::TexCoord7, 4, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord6, 4, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord5, 4, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord4, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord7, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord6, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord5, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord4, 4, bgfx::AttribType::Float)
+			.end();
+	}
+
+	inline static bgfx::VertexLayout ms_layout;
+};
+
+struct DebugDrawPointVertex
+{
+	glm::vec4 pos;
+	glm::vec4 color;
+	glm::vec4 width;
+
+	DebugDrawPointVertex(const glm::vec3& pos, float width, ImColor color)
+		: pos(pos.x, pos.y, pos.z, 1.0f)
+		, color(color.Value.x, color.Value.y, color.Value.z, color.Value.w)
+		, width(width, 0, 0, 0)
+	{}
+
+	static void init()
+	{
+		ms_layout
+			.begin()
+				.add(bgfx::Attrib::TexCoord7, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord6, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord5, 4, bgfx::AttribType::Float)
 			.end();
 	}
 
@@ -217,8 +241,13 @@ public:
 	void SetFlags(uint32_t flags);
 	uint32_t GetFlags() const { return m_flags; }
 
-	void SetLineAARadius(float radius) { m_lineAARadius = radius; }
-	float GetLineAARadius() const { return m_lineAARadius; }
+	float GetPointSize() const {
+		return m_pointSize;
+	}
+	void SetPointSize(float pointsize) {
+		m_pointSize = pointsize;
+		m_dirty = true;
+	}
 
 	void Build();
 	void UpdateQuery();
@@ -244,14 +273,13 @@ private:
 	const dtNavMeshQuery* m_query = nullptr;
 	uint32_t m_flags = 0;
 	bool m_dirty = false;
-	float m_lineAARadius = 0.0f;
+	float m_pointSize = 5.0f;
 
 	bgfx::VertexBufferHandle m_tilePolysVB = BGFX_INVALID_HANDLE;
-	bgfx::VertexBufferHandle m_linesVB = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_indexBuffer = BGFX_INVALID_HANDLE;
 	std::pair<int, int> m_tileIndices;
-	std::pair<int, int> m_lineIndices;
-
-	bgfx::VertexBufferHandle m_debugDrawVB = BGFX_INVALID_HANDLE;
-	std::pair<int, int> m_debugIndices;
+	bgfx::VertexBufferHandle m_lineInstances = BGFX_INVALID_HANDLE;
+	int m_lineIndices = 0;
+	bgfx::VertexBufferHandle m_pointsInstances = BGFX_INVALID_HANDLE;
+	int m_pointsIndices = 0;
 };
