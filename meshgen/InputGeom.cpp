@@ -8,39 +8,37 @@
 #include <DetourNavMesh.h>
 #include <Recast.h>
 #include <RecastDebugDraw.h>
+#include <glm/gtc/type_ptr.inl>
 
-static bool intersectSegmentTriangle(const float* sp, const float* sq,
-	const float* a, const float* b, const float* c,
-	float &t)
+static bool intersectSegmentTriangle(const glm::vec3& sp, const glm::vec3& sq,
+	const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, float &t)
 {
-	float v, w;
-	float ab[3], ac[3], qp[3], ap[3], norm[3], e[3];
-	rcVsub(ab, b, a);
-	rcVsub(ac, c, a);
-	rcVsub(qp, sp, sq);
+	glm::vec3 ab = b - a;
+	glm::vec3 ac = c - a;
+	glm::vec3 qp = sp - sq;
 
 	// Compute triangle normal. Can be precalculated or cached if
 	// intersecting multiple segments against the same triangle
-	rcVcross(norm, ab, ac);
+	glm::vec3 norm = glm::cross(ab, ac);
 
 	// Compute denominator d. If d <= 0, segment is parallel to or points
 	// away from triangle, so exit early
-	float d = rcVdot(qp, norm);
+	float d = glm::dot(qp, norm);
 	if (d <= 0.0f) return false;
 
 	// Compute intersection t value of pq with plane of triangle. A ray
 	// intersects iff 0 <= t. Segment intersects iff 0 <= t <= 1. Delay
 	// dividing by d until intersection has been found to pierce triangle
-	rcVsub(ap, sp, a);
-	t = rcVdot(ap, norm);
+	glm::vec3 ap = sp - a;
+	t = glm::dot(ap, norm);
 	if (t < 0.0f) return false;
 	if (t > d) return false; // For segment; exclude this code line for a ray test
 
 	// Compute barycentric coordinate components and test if within bounds
-	rcVcross(e, qp, ap);
-	v = rcVdot(ac, e);
+	glm::vec3 e = glm::cross(qp, ap);
+	float v = glm::dot(ac, e);
 	if (v < 0.0f || v > d) return false;
-	w = -rcVdot(ab, e);
+	float w = -glm::dot(ab, e);
 	if (w < 0.0f || v + w > d) return false;
 
 	// Segment/ray intersects triangle. Perform delayed division
@@ -52,8 +50,8 @@ static bool intersectSegmentTriangle(const float* sp, const float* sq,
 //----------------------------------------------------------------------------
 
 InputGeom::InputGeom(const std::string& zoneShortName, const std::string& eqPath)
-	: m_zoneShortName(zoneShortName)
-	, m_eqPath(eqPath)
+	: m_eqPath(eqPath)
+	, m_zoneShortName(zoneShortName)
 {
 }
 
@@ -97,15 +95,12 @@ bool InputGeom::loadGeometry(std::unique_ptr<MapGeometryLoader> loader, rcContex
 }
 
 #pragma region Utilities
-static bool isectSegAABB(const float* sp, const float* sq,
-	const float* amin, const float* amax, float& tmin, float& tmax)
+static bool isectSegAABB(const glm::vec3& sp, const glm::vec3& sq,
+	const glm::vec3& amin, const glm::vec3& amax, float& tmin, float& tmax)
 {
-	static const float EPS = 1e-6f;
+	static constexpr float EPS = 1e-6f;
 
-	float d[3];
-	d[0] = sq[0] - sp[0];
-	d[1] = sq[1] - sp[1];
-	d[2] = sq[2] - sp[2];
+	glm::vec3 d = sq - sp;
 	tmin = 0.0;
 	tmax = 1.0f;
 
@@ -131,29 +126,31 @@ static bool isectSegAABB(const float* sp, const float* sq,
 	return true;
 }
 
-bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
+bool InputGeom::raycastMesh(const glm::vec3& src, glm::vec3& dst, float& tmin)
 {
-	float dir[3];
-	rcVsub(dir, dst, src);
+	glm::vec3 dir = dst - src;
 
 	// Prune hit ray.
 	float btmin, btmax;
-	if (!isectSegAABB(src, dst, &m_meshBMin[0], &m_meshBMax[0], btmin, btmax))
+	if (!isectSegAABB(src, dst, m_meshBMin, m_meshBMax, btmin, btmax))
 		return false;
-	float p[2], q[2];
-	p[0] = src[0] + (dst[0] - src[0])*btmin;
-	p[1] = src[2] + (dst[2] - src[2])*btmin;
-	q[0] = src[0] + (dst[0] - src[0])*btmax;
-	q[1] = src[2] + (dst[2] - src[2])*btmax;
+
+	glm::vec2 pq = dst.xz() - src.xz();
+
+	glm::vec2 p, q;
+	p.x = src.x + pq.x * btmin;
+	p.y = src.z + pq.y * btmin;
+	q.x = src.x + pq.x * btmax;
+	q.y = src.z + pq.y * btmax;
 
 	int cid[512];
-	const int ncid = rcGetChunksOverlappingSegment(m_chunkyMesh.get(), p, q, cid, 512);
+	const int ncid = rcGetChunksOverlappingSegment(m_chunkyMesh.get(), glm::value_ptr(p), glm::value_ptr(q), cid, 512);
 	if (!ncid)
 		return false;
 
 	tmin = 1.0f;
 	bool hit = false;
-	const float* verts = m_loader->getVerts();
+	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(m_loader->getVerts());
 
 	for (int i = 0; i < ncid; ++i)
 	{
@@ -164,11 +161,7 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 		for (int j = 0; j < ntris * 3; j += 3)
 		{
 			float t = 1;
-			if (intersectSegmentTriangle(
-				src, dst,
-				&verts[tris[j] * 3],
-				&verts[tris[j + 1] * 3],
-				&verts[tris[j + 2] * 3], t))
+			if (intersectSegmentTriangle(src, dst, verts[tris[j]], verts[tris[j + 1]], verts[tris[j + 2]], t))
 			{
 				if (t < tmin)
 					tmin = t;

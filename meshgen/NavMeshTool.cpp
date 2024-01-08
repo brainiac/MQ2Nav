@@ -21,13 +21,13 @@
 #include <DetourNavMesh.h>
 #include <DetourNavMeshBuilder.h>
 
-#include <bgfx/bgfx.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
 #include <ppl.h>
 #include <agents.h>
+#include <complex>
 
 //----------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ NavMeshTool::NavMeshTool(const std::shared_ptr<NavMesh>& navMesh)
 	m_renderManager->init();
 	m_renderManager->SetNavMeshConfig(&m_config);
 	m_renderManager->GetNavMeshRender()->SetFlags(
-		ZoneNavMeshRender::DRAW_TILES | ZoneNavMeshRender::DRAW_TILE_BOUNDARIES
+		ZoneNavMeshRender::DRAW_TILES | ZoneNavMeshRender::DRAW_TILE_BOUNDARIES | ZoneNavMeshRender::DRAW_CLOSED_LIST
 	);
 
 	UpdateTileSizes();
@@ -150,6 +150,8 @@ void NavMeshTool::handleDebug()
 		if (ImGui::CheckboxFlags("Draw Polygon Boundaries", &flags, ZoneNavMeshRender::DRAW_POLY_BOUNDARIES))
 			m_renderManager->GetNavMeshRender()->SetFlags(flags);
 		if (ImGui::CheckboxFlags("Draw Polygon Vertices", &flags, ZoneNavMeshRender::DRAW_POLY_VERTICES))
+			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+		if (ImGui::CheckboxFlags("Draw Closed List", &flags, ZoneNavMeshRender::DRAW_CLOSED_LIST))
 			m_renderManager->GetNavMeshRender()->SetFlags(flags);
 
 		float pointSize = m_renderManager->GetNavMeshRender()->GetPointSize();
@@ -403,10 +405,15 @@ void NavMeshTool::handleTools()
 	}
 }
 
-void NavMeshTool::handleRender()
+void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ivec4& viewport)
 {
+	m_viewModelProjMtx = viewModelProjMtx;
+	m_viewport = viewport;
+
 	if (!m_geom || !m_geom->getMeshLoader())
 		return;
+
+	m_navMesh->SendEventIfDirty();
 
 	ZoneRenderDebugDraw dd(m_renderManager.get());
 
@@ -533,15 +540,20 @@ void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
 	dd->depthMask(true);
 }
 
-void NavMeshTool::handleRenderOverlay(const glm::mat4& proj,
-	const glm::mat4& model, const glm::ivec4& view)
+void NavMeshTool::handleRenderOverlay()
 {
 	if (m_tool)
 	{
-		m_tool->handleRenderOverlay(proj, model, view);
+		m_tool->handleRenderOverlay();
 	}
 
-	renderOverlayToolStates(proj, model, view);
+	for (const auto& p : m_toolStates)
+	{
+		if (p.second)
+		{
+			p.second->handleRenderOverlay();
+		}
+	}
 }
 
 void NavMeshTool::handleGeometryChanged(InputGeom* geom)
@@ -558,7 +570,7 @@ void NavMeshTool::handleGeometryChanged(InputGeom* geom)
 	NavMeshUpdated();
 }
 
-bool NavMeshTool::handleBuild()
+bool NavMeshTool::BuildMesh()
 {
 	if (!m_geom || !m_geom->getMeshLoader())
 	{
@@ -618,32 +630,14 @@ void NavMeshTool::RemoveTile(const glm::vec3& pos)
 	auto navMesh = m_navMesh->GetNavMesh();
 	if (!navMesh) return;
 
-	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
-	const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
+	glm::ivec2 tilePos = m_navMesh->GetTilePos(pos);
 
-	const float ts = m_config.tileSize * m_config.cellSize;
-	const int tx = (int)((pos[0] - bmin[0]) / ts);
-	const int ty = (int)((pos[2] - bmin[2]) / ts);
-
-	dtTileRef tileRef = navMesh->getTileRefAt(tx, ty, 0);
-	navMesh->removeTile(tileRef, 0, 0);
+	m_navMesh->RemoveTileAt(tilePos.x, tilePos.y);
 }
 
 void NavMeshTool::RemoveAllTiles()
 {
-	std::shared_ptr<dtNavMesh> navMesh = m_navMesh->GetNavMesh();
-	if (!navMesh) return;
-
-	for (int i = 0; i < navMesh->getMaxTiles(); ++i)
-	{
-		const dtMeshTile* tile = nullptr;
-
-		if ((tile = const_cast<const dtNavMesh*>(navMesh.get())->getTile(i))
-			&& tile->header != nullptr)
-		{
-			navMesh->removeTile(navMesh->getTileRef(tile), 0, 0);
-		}
-	}
+	m_navMesh->RemoveAllTiles();
 }
 
 void NavMeshTool::CancelBuildAllTiles(bool wait)
@@ -694,8 +688,7 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 	std::shared_ptr<dtNavMesh> navMesh = m_navMesh->GetNavMesh();
 	if (!navMesh)
 	{
-		navMesh = std::shared_ptr<dtNavMesh>(dtAllocNavMesh(),
-			[](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
+		navMesh = std::shared_ptr<dtNavMesh>(dtAllocNavMesh(), [](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
 
 		m_navMesh->SetNavMesh(navMesh, false);
 
@@ -720,18 +713,7 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 	unsigned char* data = buildTileMesh(tx, ty, glm::value_ptr(tileBmin),
 		glm::value_ptr(tileBmax), offMeshConnections, dataSize);
 
-	// Remove any previous data (navmesh owns and deletes the data).
-	dtTileRef tileRef = navMesh->getTileRefAt(tx, ty, 0);
-	navMesh->removeTile(tileRef, 0, 0);
-
-	// Add tile, or leave the location empty.
-	if (data)
-	{
-		// Let the navmesh own the data.
-		dtStatus status = navMesh->addTile(data, dataSize, DT_TILE_FREE_DATA, 0, 0);
-		if (dtStatusFailed(status))
-			dtFree(data);
-	}
+	m_navMesh->AddTile(data, dataSize, tx, ty);
 
 	SPDLOG_LOGGER_DEBUG(m_logger, "Build Tile ({}, {}):", tx, ty);
 }
@@ -749,19 +731,15 @@ void NavMeshTool::RebuildTile(
 
 	auto bmin = tile->header->bmin;
 	auto bmax = tile->header->bmax;
+	int tx = tile->header->x;
+	int ty = tile->header->y;
 
 	int dataSize = 0;
-	unsigned char* data = buildTileMesh(tile->header->x, tile->header->y, bmin, bmax, connBuffer, dataSize);
+	unsigned char* data = buildTileMesh(tx, ty, bmin, bmax, connBuffer, dataSize);
 
-	navMesh->removeTile(tileRef, 0, 0);
+	m_navMesh->AddTile(data, dataSize, tx, ty, tile->header->layer);
 
-	if (data)
-	{
-		dtStatus status = navMesh->addTile(data, dataSize, DT_TILE_FREE_DATA, 0, 0);
-		if (dtStatusFailed(status))
-			dtFree(data);
-	}
-
+	SPDLOG_LOGGER_DEBUG(m_logger, "Rebuild Tile ({}, {}):", tx, ty);
 }
 
 void NavMeshTool::RebuildTiles(const std::vector<dtTileRef>& tiles)
@@ -780,53 +758,6 @@ void NavMeshTool::SaveNavMesh()
 	// save everything out
 	m_navMesh->SaveNavMeshFile();
 }
-
-struct TileData
-{
-	unsigned char* data = 0;
-	int length = 0;
-	int x = 0;
-	int y = 0;
-};
-
-using TileDataPtr = std::shared_ptr<TileData>;
-
-class NavmeshUpdaterAgent : public concurrency::agent
-{
-public:
-	explicit NavmeshUpdaterAgent(concurrency::ISource<TileDataPtr>& dataSource,
-		const std::shared_ptr<dtNavMesh>& navMesh)
-		: m_source(dataSource)
-		, m_navMesh(navMesh)
-	{
-	}
-
-protected:
-	virtual void run() override
-	{
-		TileDataPtr data = receive(m_source);
-		while (data != nullptr)
-		{
-			// Remove any previous data (navmesh owns and deletes the data).
-			m_navMesh->removeTile(m_navMesh->getTileRefAt(data->x, data->y, 0), 0, 0);
-
-			// Let the navmesh own the data.
-			dtStatus status = m_navMesh->addTile(data->data, data->length, DT_TILE_FREE_DATA, 0, 0);
-			if (dtStatusFailed(status))
-			{
-				dtFree(data->data);
-			}
-
-			data = receive(m_source);
-		}
-
-		done();
-	}
-
-private:
-	concurrency::ISource<TileDataPtr>& m_source;
-	std::shared_ptr<dtNavMesh> m_navMesh;
-};
 
 void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async)
 {
@@ -863,13 +794,6 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 
 	auto offMeshConnections = m_navMesh->CreateOffMeshConnectionBuffer();
 
-	//concurrency::CurrentScheduler::Create(concurrency::SchedulerPolicy(1, concurrency::MaxConcurrency, 3));
-
-	concurrency::unbounded_buffer<TileDataPtr> agentTiles;
-	NavmeshUpdaterAgent updater_agent(agentTiles, navMesh);
-
-	updater_agent.start();
-
 	// Start the build process.
 	m_ctx->startTimer(RC_TIMER_TEMP);
 
@@ -878,7 +802,7 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 	{
 		for (int y = 0; y < th; y++)
 		{
-			tasks.run([this, x, y, &bmin, &bmax, tcs, &agentTiles, offMeshConnections]()
+			tasks.run([this, x, y, &bmin, &bmax, tcs, offMeshConnections]()
 				{
 					if (m_cancelTiles)
 						return;
@@ -906,19 +830,13 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 						tileData->x = x;
 						tileData->y = y;
 
-						asend(agentTiles, tileData);
+						asend(m_builtTileData, tileData);
 					}
 				});
 		}
 	}
 
 	tasks.wait();
-
-	// send terminator
-	asend(agentTiles, TileDataPtr());
-
-	concurrency::agent::wait(&updater_agent);
-
 
 	// Start the build process.
 	m_ctx->stopTimer(RC_TIMER_TEMP);
@@ -1281,11 +1199,11 @@ void NavMeshTool::setToolState(ToolType type, ToolState* s)
 	m_toolStates[type] = std::unique_ptr<ToolState>(s);
 }
 
-void NavMeshTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
+void NavMeshTool::handleClick(const glm::vec3& p, bool shift)
 {
 	if (m_tool)
 	{
-		m_tool->handleClick(s, p, shift);
+		m_tool->handleClick(p, shift);
 	}
 }
 
@@ -1302,6 +1220,12 @@ void NavMeshTool::handleUpdate(float dt)
 		{
 			p.second->handleUpdate(dt);
 		}
+	}
+
+	TileDataPtr data;
+	while (concurrency::try_receive(m_builtTileData, data))
+	{
+		m_navMesh->AddTile(data->data, data->length, data->x, data->y);
 	}
 }
 
@@ -1338,14 +1262,24 @@ void NavMeshTool::renderToolStates()
 	}
 }
 
-void NavMeshTool::renderOverlayToolStates(const glm::mat4& proj,
-	const glm::mat4& model, const glm::ivec4& view)
+glm::ivec2 NavMeshTool::Project(const glm::vec3& point) const
 {
-	for (const auto& p : m_toolStates)
+	// Transform the point into clip space
+	glm::vec4 clipSpacePoint = m_viewModelProjMtx * glm::vec4(point, 1.0f);
+	
+	// Perform perspective division to get NDC coordinates
+	glm::vec3 ndc = glm::vec3(clipSpacePoint) / clipSpacePoint.w;
+	
+	// Check if the point is outside the NDC cube of [-1, 1] in any axis;
+	if (ndc.x < -1.0 || ndc.x > 1.0 ||
+		ndc.y < -1.0 || ndc.y > 1.0 ||
+		ndc.z < -1.0 || ndc.z > 1.0)
 	{
-		if (p.second)
-		{
-			p.second->handleRenderOverlay(proj, model, view);
-		}
+		return glm::vec2(-1, -1);
 	}
+
+	glm::ivec2 screenPos;
+	screenPos.x = static_cast<int>((ndc.x * 0.5f + 0.5f) * static_cast<float>(m_viewport.z) + static_cast<float>(m_viewport.x));
+	screenPos.y = static_cast<int>((ndc.y * 0.5f + 0.5f) * static_cast<float>(m_viewport.w) + static_cast<float>(m_viewport.y));
+	return screenPos;
 }

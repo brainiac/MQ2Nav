@@ -27,7 +27,7 @@ public:
 	inline const rcChunkyTriMesh* getChunkyMesh() const { return m_chunkyMesh.get(); }
 
 	// Utilities
-	bool raycastMesh(float* src, float* dst, float& tmin);
+	bool raycastMesh(const glm::vec3& src, glm::vec3& dst, float& tmin);
 
 private:
 	std::string m_eqPath;

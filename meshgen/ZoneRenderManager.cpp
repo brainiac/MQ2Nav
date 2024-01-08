@@ -715,7 +715,12 @@ void ZoneNavMeshRender::Build()
 		return;
 	}
 
+	m_query = m_navMesh->GetNavMeshQuery().get();
+
 	DestroyObjects();
+
+	auto& mutex = m_navMesh->GetTileMutex();
+	std::unique_lock lock(mutex);
 
 	const dtNavMeshQuery* q = m_flags & DRAW_CLOSED_LIST ? m_query : nullptr;
 	const dtNavMesh& mesh = *m_navMesh->GetNavMesh();

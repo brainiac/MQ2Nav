@@ -310,6 +310,8 @@ void NavMeshTesterTool::handleMenu()
 
 	ImGui::Separator();
 
+	ImGui::DragFloat("Random Radius", &m_randomRadius, 1, 0, 5000);
+
 	if (ImGui::Button("Set Random Start"))
 	{
 		dtStatus status = m_navQuery->findRandomPoint(&m_filter, frand, &m_startRef, glm::value_ptr(m_spos));
@@ -320,6 +322,7 @@ void NavMeshTesterTool::handleMenu()
 		}
 	}
 
+	ImGui::SameLine();
 	ImGui::BeginDisabled(!m_sposSet);
 
 	if (ImGui::Button("Set Random End", ImVec2(0, 0)))
@@ -417,9 +420,9 @@ void NavMeshTesterTool::handleMenu()
 	}
 }
 
-void NavMeshTesterTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
+void NavMeshTesterTool::handleClick(const glm::vec3& p, bool shift)
 {
-	if (shift)
+	if (!shift)
 	{
 		m_sposSet = true;
 		m_spos = p;
@@ -1125,7 +1128,7 @@ void NavMeshTesterTool::handleRender()
 		for (int i = 0; i < m_nrandPoints; i++)
 		{
 			const glm::vec3& p = m_randPoints[i];
-			dd.vertex(p.x, p.x + 0.1f, p.z, duRGBA(220, 32, 16, 192));
+			dd.vertex(p.x, p.y + 0.1f, p.z, duRGBA(220, 32, 16, 192));
 		}
 		dd.end();
 
@@ -1137,26 +1140,27 @@ void NavMeshTesterTool::handleRender()
 	}
 }
 
-void NavMeshTesterTool::handleRenderOverlay(const glm::mat4& proj,
-	const glm::mat4& model, const glm::ivec4& view)
+void NavMeshTesterTool::handleRenderOverlay()
 {
 	// Draw start and end point labels
 	if (m_sposSet)
 	{
-		glm::vec3 pos = glm::project(m_spos, model, proj, view);
-
-		mq::imgui::RenderTextCentered((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
+		if (glm::ivec2 pos = m_meshTool->Project(m_spos); pos.x >= 0)
+		{
+			mq::imgui::RenderTextCentered(pos.x + 5, -(pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
+		}
 	}
 	if (m_eposSet)
 	{
-		glm::vec3 pos = glm::project(m_epos, model, proj, view);
-
-		mq::imgui::RenderTextCentered((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "End");
+		if (glm::ivec2 pos = m_meshTool->Project(m_epos); pos.x >= 0)
+		{
+			mq::imgui::RenderTextCentered(pos.x + 5, -(pos.y - 5), ImVec4(0, 0, 0, 220), "End");
+		}
 	}
 
 	// Tool help
 	ImGui::TextColored(ImVec4(255, 255, 255, 192),
-		"LMB+SHIFT: Set start location. LMB: Set end location");
+		"LMB: Set start location. LMB+SHIFT: Set end location");
 }
 
 void NavMeshTesterTool::drawAgent(const glm::vec3& pos, float r, float h, float c, uint32_t col)

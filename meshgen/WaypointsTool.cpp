@@ -27,7 +27,7 @@ void WaypointsTool::handleMenu()
 	ImGui::Text("Coming soon...");
 }
 
-void WaypointsTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
+void WaypointsTool::handleClick(const glm::vec3& p, bool shift)
 {
 }
 
@@ -39,7 +39,6 @@ void WaypointsTool::handleRender()
 {
 }
 
-void WaypointsTool::handleRenderOverlay(const glm::mat4& proj,
-	const glm::mat4& model, const glm::ivec4& view)
+void WaypointsTool::handleRenderOverlay()
 {
 }

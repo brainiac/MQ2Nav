@@ -106,6 +106,7 @@ void NavMesh::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh, bool reset)
 	m_navMesh = navMesh;
 	m_navMeshQuery.reset();
 	m_lastLoadResult = LoadResult::None;
+	m_dirty = true;
 }
 
 void NavMesh::ResetSavedData(PersistedDataFields fields)
@@ -1239,6 +1240,68 @@ float NavMesh::GetClosestHeight(const glm::vec3& pos)
 	}
 
 	return height_it == heights.end() ? pos.y : *height_it;
+}
+
+//============================================================================
+
+glm::ivec2 NavMesh::GetTilePos(const glm::vec3& pos) const
+{
+	return glm::ivec2((pos - m_boundsMin).xz() / (m_config.tileSize * m_config.cellSize));
+}
+
+void NavMesh::RemoveTileAt(int tx, int ty, int layer)
+{
+	if (m_navMesh)
+	{
+		std::unique_lock lock(m_tileMutex);
+
+		if (dtTileRef tileRef = m_navMesh->getTileRefAt(tx, ty, layer); tileRef != 0)
+		{
+			m_navMesh->removeTile(tileRef, nullptr, nullptr);
+			m_dirty = true;
+		}
+	}
+}
+
+void NavMesh::RemoveAllTiles(int layer)
+{
+	if (m_navMesh)
+	{
+		std::unique_lock lock(m_tileMutex);
+
+		for (int i = 0; i < m_navMesh->getMaxTiles(); ++i)
+		{
+			const dtMeshTile* tile = const_cast<const dtNavMesh*>(m_navMesh.get())->getTile(i);
+
+			if (tile && tile->header != nullptr && (layer == -1 || tile->header->layer == layer))
+			{
+				m_navMesh->removeTile(m_navMesh->getTileRef(tile), nullptr, nullptr);
+				m_dirty = true;
+			}
+		}
+	}
+}
+
+dtTileRef NavMesh::AddTile(uint8_t* data, int dataSize, int tx, int ty, int layer)
+{
+	// Remove any previous data (navmesh owns and deletes the data).
+	RemoveTileAt(tx, ty, layer);
+	dtTileRef tileRef = 0;
+
+	// Add tile, or leave the location empty.
+	if (data)
+	{
+		std::unique_lock lock(m_tileMutex);
+
+		// Let the navmesh own the data.
+		dtStatus status = m_navMesh->addTile(data, dataSize, DT_TILE_FREE_DATA, 0, &tileRef);
+		if (dtStatusFailed(status))
+			dtFree(data);
+
+		m_dirty = true;
+	}
+
+	return tileRef;
 }
 
 //============================================================================

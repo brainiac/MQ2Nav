@@ -2,6 +2,7 @@
 
 #include <bx/math.h>
 #include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.inl>
 
 
 Camera::Camera()
@@ -131,7 +132,9 @@ void Camera::ClearKeyState()
 	m_keys = 0;
 }
 
-void Camera::GetViewMatrix(float* viewMatrix)
+glm::mat4x4 Camera::GetViewMatrix() const 
 {
-	bx::mtxLookAt(viewMatrix, bx::load<bx::Vec3>(&m_eye.x), bx::load<bx::Vec3>(&m_at.x), bx::load<bx::Vec3>(&m_up.x));
+	glm::mat4x4 viewMatrix;
+	bx::mtxLookAt(glm::value_ptr(viewMatrix), bx::load<bx::Vec3>(&m_eye.x), bx::load<bx::Vec3>(&m_at.x), bx::load<bx::Vec3>(&m_up.x));
+	return viewMatrix;
 }

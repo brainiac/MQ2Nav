@@ -170,6 +170,7 @@ bool Application::InitSystem()
 
 	m_width = 1600;
 	m_height = 900;
+	m_projMtx = m_viewModelMtx = glm::identity<glm::mat4x4>();
 
 	// scale default window size by monitor dpi
 	float dpi = 0;
@@ -337,27 +338,26 @@ bool Application::update()
 
 	UpdateCamera();
 
-	float view[16];
-	m_camera->GetViewMatrix(view);
-
-	float proj[16];
-	bx::mtxProj(proj, 50.0f, float(m_width) / float(m_height), m_nearPlane, m_farPlane, m_caps->homogeneousDepth,
-		bx::Handedness::Right);
+	float aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
+	float fov = 50.0f;
+	m_viewModelMtx = m_camera->GetViewMatrix();
+	bx::mtxProj(glm::value_ptr(m_projMtx), fov, aspectRatio, m_nearPlane, m_farPlane, m_caps->homogeneousDepth, bx::Handedness::Right);
 
 	// Set view 0 default viewport.
-	bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height));
-	bgfx::setViewTransform(0, view, proj);
+	m_viewport = glm::ivec4(0, 0, m_width, m_height);
+	bgfx::setViewRect(0, 0, 0, static_cast<uint16_t>(m_width), static_cast<uint16_t>(m_height));
+	bgfx::setViewTransform(0, glm::value_ptr(m_viewModelMtx), glm::value_ptr(m_projMtx));
+
+	glm::mat4 viewModelProj = m_projMtx * m_viewModelMtx;
+
+	m_rayStart = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 0.0f), m_viewModelMtx, m_projMtx, m_viewport);
+	m_rayEnd = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), m_viewModelMtx, m_projMtx, m_viewport);
 
 	// This dummy draw call is here to make sure that view 0 is cleared
 	// if no other draw calls are submitted to view 0.
 	bgfx::touch(0);
 
-	{
-		//std::lock_guard<std::mutex> lock(m_renderMutex);
-
-
-		m_meshTool->handleRender();
-	}
+	m_meshTool->handleRender(viewModelProj, m_viewport);
 
 	// Load a zone if a zone load was requested
 	if (!m_nextZoneToLoad.empty())
@@ -491,24 +491,19 @@ bool Application::HandleEvents()
 				{
 					// Hit test mesh.
 					float t;
-					if (m_geom->raycastMesh(glm::value_ptr(m_rays), glm::value_ptr(m_raye), t))
+					if (m_geom->raycastMesh(m_rayStart, m_rayEnd, t))
 					{
 						if (SDL_GetModState() & KMOD_CTRL)
 						{
 							m_mposSet = true;
-							m_mpos[0] = m_rays[0] + (m_raye[0] - m_rays[0])*t;
-							m_mpos[1] = m_rays[1] + (m_raye[1] - m_rays[1])*t;
-							m_mpos[2] = m_rays[2] + (m_raye[2] - m_rays[2])*t;
+							m_mpos = m_rayStart + (m_rayEnd - m_rayStart) * t;
 						}
 						else
 						{
-							glm::vec3 pos;
-							pos[0] = m_rays[0] + (m_raye[0] - m_rays[0])*t;
-							pos[1] = m_rays[1] + (m_raye[1] - m_rays[1])*t;
-							pos[2] = m_rays[2] + (m_raye[2] - m_rays[2])*t;
+							glm::vec3 pos = m_rayStart + (m_rayEnd - m_rayStart) * t;
 							bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
 
-							m_meshTool->handleClick(m_rays, pos, shift);
+							m_meshTool->handleClick(pos, shift);
 						}
 					}
 					else
@@ -714,7 +709,7 @@ void Application::RenderInterface()
 
 	if (ImGui::Begin("##Overlay", &m_showOverlay, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
 	{
-		m_meshTool->handleRenderOverlay(m_proj, m_model, m_view);
+		m_meshTool->handleRenderOverlay();
 
 		// Help text.
 		static const char msg[] = "Hotkeys:\n* W/S/A/D: Move\n"
@@ -770,68 +765,111 @@ void Application::RenderInterface()
 	if (m_showProperties)
 	{
 		ImGui::SetNextWindowPos(ImVec2(20, 21 + 20), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSizeConstraints(ImVec2(360, -1), ImVec2(360, -1));
 
-		ImGui::Begin("Properties", &m_showProperties, ImGuiWindowFlags_AlwaysAutoResize);
-
-		// show zone name
-		if (!m_zoneLoaded)
-			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
-		else
-			ImGui::TextColored(ImColor(0, 255, 0), m_zoneDisplayName.c_str());
-
-		ImGui::Separator();
-
-		glm::vec3 cameraPos = m_camera->GetPosition().zxy();
-		if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
+		if (!ImGui::Begin("Info", &m_showProperties, ImGuiWindowFlags_AlwaysAutoResize))
 		{
-			m_camera->SetPosition(cameraPos.yzx());
+			ImGui::End();
+			return;
 		}
 
-		float angle[2] = { m_camera->GetHorizontalAngle(), m_camera->GetVerticalAngle() };
-		if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
+		if (ImGui::BeginTabBar("##InspectorTabs"))
 		{
-			m_camera->SetHorizontalAngle(angle[0]);
-			m_camera->SetVerticalAngle(angle[1]);
-		}
-
-		float planes[2] = { m_nearPlane, m_farPlane };
-		if (ImGui::DragFloat2("Near/Far Plane", planes))
-		{
-			m_nearPlane = planes[0];
-			m_farPlane = planes[1];
-		}
-
-		if (m_geom)
-		{
-			auto* loader = m_geom->getMeshLoader();
-
-			if (loader->HasDynamicObjects())
-				ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
-			else
+			if (ImGui::BeginTabItem("Properties"))
 			{
-				ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
+				// show zone name
+				if (!m_zoneLoaded)
+					ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
+				else
+					ImGui::TextColored(ImColor(0, 255, 0), m_zoneDisplayName.c_str());
 
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::BeginTooltip();
-					ImGui::Text("Dynamic objects can be loaded after entering\n"
-						"a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
-						"to refresh the dynamic objects.");
-					ImGui::EndTooltip();
-				}
-			}
-
-			ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
-
-			if (m_navMesh->IsNavMeshLoaded())
-			{
 				ImGui::Separator();
-				if (ImGui::Button((const char*)ICON_FA_FLOPPY_O " Save"))
-					SaveMesh();
+
+				glm::vec3 cameraPos = m_camera->GetPosition().zxy();
+				if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
+				{
+					m_camera->SetPosition(cameraPos.yzx());
+				}
+
+				float angle[2] = { m_camera->GetHorizontalAngle(), m_camera->GetVerticalAngle() };
+				if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
+				{
+					m_camera->SetHorizontalAngle(angle[0]);
+					m_camera->SetVerticalAngle(angle[1]);
+				}
+
+				if (m_geom)
+				{
+					auto* loader = m_geom->getMeshLoader();
+
+					if (loader->HasDynamicObjects())
+						ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
+					else
+					{
+						ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
+
+						if (ImGui::IsItemHovered())
+						{
+							ImGui::BeginTooltip();
+							ImGui::Text("Dynamic objects can be loaded after entering\n"
+								"a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
+								"to refresh the dynamic objects.");
+							ImGui::EndTooltip();
+						}
+					}
+
+					ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
+
+					if (m_navMesh->IsNavMeshLoaded())
+					{
+						ImGui::Separator();
+						if (ImGui::Button((const char*)ICON_FA_FLOPPY_O " Save"))
+							SaveMesh();
+					}
+				}
+
+				ImGui::EndTabItem();
 			}
+
+			if (ImGui::BeginTabItem("Scene"))
+			{
+				float planes[2] = { m_nearPlane, m_farPlane };
+				if (ImGui::DragFloat2("Near/Far Plane", planes))
+				{
+					m_nearPlane = planes[0];
+					m_farPlane = planes[1];
+				}
+
+				ImGui::InputInt4("Viewport", glm::value_ptr(m_viewport));
+				ImGui::InputFloat3("Ray Start", glm::value_ptr(m_rayStart));
+				ImGui::InputFloat3("Ray End", glm::value_ptr(m_rayEnd));
+
+				if (ImGui::CollapsingHeader("ViewModel Matrix"))
+				{
+					ImGui::InputFloat4("[0]", glm::value_ptr(m_viewModelMtx[0]));
+					ImGui::InputFloat4("[1]", glm::value_ptr(m_viewModelMtx[1]));
+					ImGui::InputFloat4("[2]", glm::value_ptr(m_viewModelMtx[2]));
+					ImGui::InputFloat4("[3]", glm::value_ptr(m_viewModelMtx[3]));
+				}
+
+				if (ImGui::CollapsingHeader("Projection Matrix"))
+				{
+					ImGui::InputFloat4("[0]", glm::value_ptr(m_projMtx[0]));
+					ImGui::InputFloat4("[1]", glm::value_ptr(m_projMtx[1]));
+					ImGui::InputFloat4("[2]", glm::value_ptr(m_projMtx[2]));
+					ImGui::InputFloat4("[3]", glm::value_ptr(m_projMtx[3]));
+				}
+
+				ImGui::InputInt2("Mouse", glm::value_ptr(m_mousePos));
+
+				ImGui::Separator();
+				ImGui::SliderFloat("Cam Movement Speed", &m_camMoveSpeed, 10, 350);
+
+				ImGui::EndTabItem();
+			}
+
+			ImGui::EndTabBar();
 		}
-		ImGui::Separator();
-		ImGui::SliderFloat("Cam Movement Speed", &m_camMoveSpeed, 10, 350);
 
 		ImGui::End();
 	}
@@ -1184,7 +1222,8 @@ void Application::ResetCamera()
 		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
 
 		// Reset camera and fog to match the mesh bounds.
-		float camr = sqrtf(rcSqr(bmax[0] - bmin[0]) + rcSqr(bmax[1] - bmin[1]) + rcSqr(bmax[2] - bmin[2])) / 2;
+		float camr = glm::distance(bmax, bmin) / 2;
+		m_farPlane = camr * 3;
 
 		glm::vec3 cam = {
 			(bmax[0] + bmin[0]) / 2 + camr,

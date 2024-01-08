@@ -40,7 +40,7 @@ void NavMeshInfoTool::handleMenu()
 	ImGui::Text("Compatibility Version: v%d", navMesh->GetHeaderVersion());
 }
 
-void NavMeshInfoTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
+void NavMeshInfoTool::handleClick(const glm::vec3& p, bool shift)
 {
 }
 
@@ -52,7 +52,6 @@ void NavMeshInfoTool::handleRender()
 {
 }
 
-void NavMeshInfoTool::handleRenderOverlay(const glm::mat4& proj,
-	const glm::mat4& model, const glm::ivec4& view)
+void NavMeshInfoTool::handleRenderOverlay()
 {
 }

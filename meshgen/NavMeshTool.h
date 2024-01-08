@@ -18,6 +18,8 @@
 #include <map>
 #include <memory>
 #include <thread>
+#include <agents.h>
+
 
 class RecastContext;
 class InputGeom;
@@ -54,13 +56,12 @@ class Tool
 public:
 	virtual ~Tool() {}
 	virtual ToolType type() const = 0;
-	virtual void init(class NavMeshTool* meshTool) = 0;
+	virtual void init(NavMeshTool* meshTool) = 0;
 	virtual void reset() = 0;
 	virtual void handleMenu() = 0;
-	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) = 0;
+	virtual void handleClick(const glm::vec3& p, bool shift) = 0;
 	virtual void handleRender() = 0;
-	virtual void handleRenderOverlay(const glm::mat4& proj,
-		const glm::mat4& model, const glm::ivec4& view) = 0;
+	virtual void handleRenderOverlay() = 0;
 	virtual void handleUpdate(float dt) = 0;
 };
 
@@ -70,9 +71,8 @@ struct ToolState
 	virtual void init(NavMeshTool* meshTool) = 0;
 	virtual void reset() = 0;
 	virtual void handleRender() = 0;
-	virtual void handleRenderOverlay(const glm::mat4& proj,
-		const glm::mat4& model, const glm::ivec4& view) = 0;
-	virtual void handleUpdate(const float dt) = 0;
+	virtual void handleRenderOverlay() = 0;
+	virtual void handleUpdate(float dt) = 0;
 };
 
 //----------------------------------------------------------------------------
@@ -87,16 +87,15 @@ public:
 
 	void handleDebug();
 	void handleTools();
-	void handleRender();
+	void handleRender(const glm::mat4& viewModelProjMtx, const glm::ivec4& viewport);
 	void handleUpdate(float dt);
-	void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
+	void handleRenderOverlay();
 	void handleGeometryChanged(InputGeom* geom);
-
-	bool handleBuild();
-	void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift);
+	void handleClick(const glm::vec3& p, bool shift);
 
 	void GetTilePos(const glm::vec3& pos, int& tx, int& ty);
 
+	bool BuildMesh();
 	void BuildTile(const glm::vec3& pos);
 	void RemoveTile(const glm::vec3& pos);
 	void RemoveAllTiles();
@@ -128,6 +127,10 @@ public:
 
 	ZoneRenderManager* GetRenderManager() { return m_renderManager.get(); }
 
+	glm::ivec2 Project(const glm::vec3& point) const;
+	const glm::ivec4& GetViewport() const { return m_viewport; }
+	const glm::mat4& GetViewModelProjMtx() const { return m_viewModelProjMtx; }
+
 private:
 	deleting_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
 
@@ -136,7 +139,6 @@ private:
 	void initToolStates();
 	void resetToolStates();
 	void renderToolStates();
-	void renderOverlayToolStates(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 
 	void RebuildTile(
 		const std::shared_ptr<OffMeshConnectionBuffer> connBuffer,
@@ -155,6 +157,9 @@ private:
 	void drawConvexVolumes(duDebugDraw* dd);
 
 private:
+	glm::mat4 m_viewModelProjMtx;
+	glm::ivec4 m_viewport;
+
 	InputGeom* m_geom = nullptr;
 	std::unique_ptr<ZoneRenderManager> m_renderManager;
 
@@ -182,6 +187,17 @@ private:
 	std::atomic<bool> m_buildingTiles = false;
 	std::atomic<bool> m_cancelTiles = false;
 	std::thread m_buildThread;
+
+	struct TileData
+	{
+		unsigned char* data = 0;
+		int length = 0;
+		int x = 0;
+		int y = 0;
+	};
+
+	using TileDataPtr = std::shared_ptr<TileData>;
+	concurrency::unbounded_buffer<TileDataPtr> m_builtTileData;
 
 	uint8_t m_navMeshDrawFlags = 0;
 	NavMeshConfig m_config;

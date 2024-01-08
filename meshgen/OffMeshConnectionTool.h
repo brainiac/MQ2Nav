@@ -18,17 +18,16 @@ class OffMeshConnectionTool : public Tool
 {
 public:
 	OffMeshConnectionTool();
-	~OffMeshConnectionTool();
+	~OffMeshConnectionTool() override;
 
 	virtual ToolType type() const override { return ToolType::OFFMESH_CONNECTION; }
 	virtual void init(NavMeshTool* meshTool) override;
 	virtual void reset() override;
 	virtual void handleMenu() override;
-	virtual void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift) override;
+	virtual void handleClick(const glm::vec3& p, bool shift) override;
 	virtual void handleUpdate(float dt) override;
 	virtual void handleRender() override;
-	virtual void handleRenderOverlay(const glm::mat4& proj,
-		const glm::mat4& model, const glm::ivec4& view) override;
+	virtual void handleRenderOverlay() override;
 
 private:
 	NavMeshTool* m_meshTool = nullptr;
@@ -45,8 +44,7 @@ public:
 	virtual void init(NavMeshTool* meshTool) override;
 	virtual void reset() override;
 	virtual void handleRender() override;
-	virtual void handleRenderOverlay(const glm::mat4& proj,
-		const glm::mat4& model, const glm::ivec4& view) override;
+	virtual void handleRenderOverlay() override;
 	virtual void handleUpdate(const float dt) override {}
 
 	std::vector<dtTileRef> handleConnectionClick(const glm::vec3& p, bool shift);

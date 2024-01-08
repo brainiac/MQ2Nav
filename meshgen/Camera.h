@@ -46,7 +46,7 @@ public:
 	void SetKeyState(uint32_t key, bool down);
 	void ClearKeyState();
 
-	void GetViewMatrix(float* viewMatrix);
+	glm::mat4x4 GetViewMatrix() const;
 
 	glm::vec3 GetLookingAt() const { return m_at; }
 

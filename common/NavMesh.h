@@ -11,6 +11,8 @@
 #include <DetourNavMesh.h>
 #include <mq/base/Signal.h>
 
+#include <atomic>
+#include <mutex>
 #include <array>
 #include <map>
 #include <string>
@@ -134,6 +136,27 @@ public:
 
 	int GetHeaderVersion() const { return static_cast<int>(m_version); }
 
+	void SendEventIfDirty()
+	{
+		if (m_dirty)
+		{
+			m_dirty = false;
+			OnNavMeshChanged();
+		}
+	}
+
+	//------------------------------------------------------------------------
+	// Tiles
+
+	glm::ivec2 GetTilePos(const glm::vec3& pos) const;
+
+	void RemoveTileAt(int tx, int ty, int layer = 0);
+	void RemoveAllTiles(int layer = -1);
+
+	dtTileRef AddTile(uint8_t* data, int dataSize, int tx, int ty, int layer = 0);
+
+	std::mutex& GetTileMutex() { return m_tileMutex; }
+
 	//------------------------------------------------------------------------
 	// area types
 
@@ -223,6 +246,8 @@ private:
 	std::string m_dataFile;
 	LoadResult m_lastLoadResult = LoadResult::None;
 	NavMeshHeaderVersion m_version = {};
+	std::atomic_bool m_dirty = false;
+	std::mutex m_tileMutex;
 
 	std::shared_ptr<dtNavMesh> m_navMesh;
 	std::shared_ptr<dtNavMeshQuery> m_navMeshQuery;
@@ -241,7 +266,7 @@ private:
 
 	// area types
 	std::vector<const PolyAreaType*> m_polyAreaList;
-	std::array<PolyAreaType, (int)PolyArea::Last + 1> m_polyAreas;
+	std::array<PolyAreaType, static_cast<int>(PolyArea::Last) + 1> m_polyAreas;
 };
 
 //----------------------------------------------------------------------------

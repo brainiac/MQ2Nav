@@ -196,8 +196,8 @@ private:
 	uint32_t m_reset;
 	bool m_needResetViewport = false;
 	bool m_resetCamera = true;
-	float m_nearPlane = 10.0f;
-	float m_farPlane = -1000.0f;
+	float m_nearPlane = 1.0f;
+	float m_farPlane = 1000.0f;
 
 	float m_progress = 0.0f;
 	std::string m_activityMessage;
@@ -207,11 +207,11 @@ private:
 
 	float m_camr = 10;
 
-	glm::mat4 m_proj;
-	glm::mat4 m_model;
-	glm::ivec4 m_view;
-	glm::vec3 m_rays; // ray start
-	glm::vec3 m_raye; // ray end
+	glm::mat4 m_projMtx;
+	glm::mat4 m_viewModelMtx;
+	glm::ivec4 m_viewport;
+	glm::vec3 m_rayStart;
+	glm::vec3 m_rayEnd;
 
 	uint32_t m_lastTime = 0;
 	float m_time = 0.0f;

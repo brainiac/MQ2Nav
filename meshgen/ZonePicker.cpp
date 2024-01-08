@@ -105,6 +105,7 @@ ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
 	{
 		for (const auto& map : maps)
 		{
+			m_allMaps.emplace_back(map.first, map.second, exp);
 		}
 	}
 

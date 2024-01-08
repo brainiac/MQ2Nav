@@ -209,7 +209,7 @@ void NavMeshPruneTool::handleMenu()
 	}
 }
 
-void NavMeshPruneTool::handleClick(const glm::vec3& /*s*/, const glm::vec3& p, bool /*shift*/)
+void NavMeshPruneTool::handleClick(const glm::vec3& p, bool /*shift*/)
 {
 	if (!m_meshTool) return;
 	InputGeom* geom = m_meshTool->getInputGeom();
@@ -274,8 +274,7 @@ void NavMeshPruneTool::handleRender()
 	}
 }
 
-void NavMeshPruneTool::handleRenderOverlay(const glm::mat4& /*proj*/,
-	const glm::mat4& /*model*/, const glm::ivec4& view)
+void NavMeshPruneTool::handleRenderOverlay()
 {
 	// Tool help
 	ImGui::TextColored(ImVec4(255, 255, 255, 192),

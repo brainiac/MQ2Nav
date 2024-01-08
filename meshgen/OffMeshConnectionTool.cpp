@@ -212,7 +212,7 @@ void OffMeshConnectionTool::handleMenu()
 	}
 }
 
-void OffMeshConnectionTool::handleClick(const glm::vec3& s, const glm::vec3& p, bool shift)
+void OffMeshConnectionTool::handleClick(const glm::vec3& p, bool shift)
 {
 	if (!m_meshTool) return; // ??
 
@@ -238,15 +238,15 @@ void OffMeshConnectionTool::handleRender()
 {
 }
 
-void OffMeshConnectionTool::handleRenderOverlay(const glm::mat4& proj,
-	const glm::mat4& model, const glm::ivec4& view)
+void OffMeshConnectionTool::handleRenderOverlay()
 {
 	// Draw start and end point labels
 	if (m_state->m_hitPosSet)
 	{
-		glm::vec3 pos = glm::project(m_state->m_hitPos, model, proj, view);
-
-		mq::imgui::RenderText((int)pos.x + 5, -((int)pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
+		if (glm::ivec2 pos = m_meshTool->Project(m_state->m_hitPos); pos.x >= 0)
+		{
+			mq::imgui::RenderText(pos.x + 5, -(pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
+		}
 	}
 
 	// Tool help
@@ -318,7 +318,7 @@ void OffMeshConnectionToolState::handleRender()
 	dd.depthMask(true);
 }
 
-void OffMeshConnectionToolState::handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view)
+void OffMeshConnectionToolState::handleRenderOverlay()
 {
 
 }
