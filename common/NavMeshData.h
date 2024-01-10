@@ -168,7 +168,8 @@ enum struct ConnectionType : uint8_t
 struct OffMeshConnection
 {
 	uint32_t id = 0;
-	glm::vec3 start, end;
+	glm::vec3 start = { 0, 0, 0 };
+	glm::vec3 end = { 0, 0, 0 };
 	ConnectionType type = ConnectionType::Basic;
 	uint8_t areaType = (uint8_t)PolyArea::Ground;
 	bool bidirectional = true;

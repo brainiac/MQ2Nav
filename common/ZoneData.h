@@ -14,8 +14,8 @@ class ZoneDataLoader;
 
 struct ModelInfo
 {
-	glm::vec3 min;
-	glm::vec3 max;
+	glm::vec3 min = { 0, 0, 0 };
+	glm::vec3 max = { 0, 0, 0 };
 
 	OldModelPtr oldModel;
 	ModelPtr newModel;

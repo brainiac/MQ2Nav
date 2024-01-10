@@ -273,7 +273,7 @@ int Application::RunMainLoop()
 		glEnable(GL_DEPTH_TEST);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		gluPerspective(50.0f, (float)m_width / (float)m_height, 1.0f, m_camr);
+		gluPerspective(50.0f, (float)m_width / (float)m_height, m_camf, m_camr);
 
 		// set up modelview matrix
 		glMatrixMode(GL_MODELVIEW);

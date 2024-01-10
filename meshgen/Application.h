@@ -208,6 +208,7 @@ private:
 
 	glm::vec3 m_cam;
 	float m_camr = 10;
+	float m_camf = 1.0f;
 
 	uint32_t m_lastTime = 0;
 	float m_time = 0;
