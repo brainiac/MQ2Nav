@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\dependencies\im3d\im3d.cpp" />
     <ClCompile Include="..\dependencies\meshoptimizer\allocator.cpp" />
     <ClCompile Include="..\dependencies\meshoptimizer\clusterizer.cpp" />
     <ClCompile Include="..\dependencies\meshoptimizer\indexcodec.cpp" />
@@ -56,6 +57,9 @@
     <ClCompile Include="ZoneRenderManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\dependencies\im3d\im3d.h" />
+    <ClInclude Include="..\dependencies\im3d\im3d_config.h" />
+    <ClInclude Include="..\dependencies\im3d\im3d_math.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />

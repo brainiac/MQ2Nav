@@ -48,7 +48,8 @@ public:
 
 	glm::mat4x4 GetViewMatrix() const;
 
-	glm::vec3 GetLookingAt() const { return m_at; }
+	const glm::vec3& GetLookingAt() const { return m_at; }
+	const glm::vec3& GetDirection() const { return m_direction; }
 
 	void UpdateMouseLook(int deltaX, int deltaY);
 

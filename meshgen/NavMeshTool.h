@@ -159,6 +159,7 @@ private:
 private:
 	glm::mat4 m_viewModelProjMtx;
 	glm::ivec4 m_viewport;
+	NavMeshConfig m_config;
 
 	InputGeom* m_geom = nullptr;
 	std::unique_ptr<ZoneRenderManager> m_renderManager;
@@ -199,13 +200,9 @@ private:
 	using TileDataPtr = std::shared_ptr<TileData>;
 	concurrency::unbounded_buffer<TileDataPtr> m_builtTileData;
 
-	uint8_t m_navMeshDrawFlags = 0;
-	NavMeshConfig m_config;
-
 	bool m_drawInputGeometry = true;
-	bool m_drawNavMeshTiles = true;
-	bool m_drawNavMeshDisabledTiles = true;
 	bool m_drawNavMeshBVTree = false;
 	bool m_drawNavMeshNodes = false;
 	bool m_drawNavMeshPortals = false;
+	bool m_drawGrid = true;
 };

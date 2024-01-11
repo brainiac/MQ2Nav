@@ -36,6 +36,11 @@
 #include "engine/debugdraw/debugdraw.h"
 #include <bgfx/bgfx.h>
 
+#include <im3d/im3d.h>
+#include <im3d/im3d_math.h>
+
+#include "imgui_internal.h"
+
 #pragma warning(push)
 #pragma warning(disable: 4244)
 
@@ -333,22 +338,22 @@ bool Application::update()
 	}
 
 	ImGui_Impl_NewFrame();
+	Im3D_NewFrame();
 
 	RenderInterface();
 
 	UpdateCamera();
 
 	float aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
-	float fov = 50.0f;
 	m_viewModelMtx = m_camera->GetViewMatrix();
-	bx::mtxProj(glm::value_ptr(m_projMtx), fov, aspectRatio, m_nearPlane, m_farPlane, m_caps->homogeneousDepth, bx::Handedness::Right);
+	bx::mtxProj(glm::value_ptr(m_projMtx), m_fov, aspectRatio, m_nearPlane, m_farPlane, m_caps->homogeneousDepth, bx::Handedness::Right);
 
 	// Set view 0 default viewport.
 	m_viewport = glm::ivec4(0, 0, m_width, m_height);
 	bgfx::setViewRect(0, 0, 0, static_cast<uint16_t>(m_width), static_cast<uint16_t>(m_height));
 	bgfx::setViewTransform(0, glm::value_ptr(m_viewModelMtx), glm::value_ptr(m_projMtx));
 
-	glm::mat4 viewModelProj = m_projMtx * m_viewModelMtx;
+	m_viewModelProjMtx = m_projMtx * m_viewModelMtx;
 
 	m_rayStart = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 0.0f), m_viewModelMtx, m_projMtx, m_viewport);
 	m_rayEnd = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), m_viewModelMtx, m_projMtx, m_viewport);
@@ -357,7 +362,14 @@ bool Application::update()
 	// if no other draw calls are submitted to view 0.
 	bgfx::touch(0);
 
-	m_meshTool->handleRender(viewModelProj, m_viewport);
+
+	ZoneRenderDebugDraw dd(g_zoneRenderManager);
+	dd.begin(DU_DRAW_LINES, 3.0f);
+	dd.vertex(glm::value_ptr(m_rayStart), duRGBA(255, 255, 255, 255));
+	dd.vertex(glm::value_ptr(m_rayEnd), duRGBA(255, 255, 255, 255));
+	dd.end();
+
+	m_meshTool->handleRender(m_viewModelProjMtx, m_viewport);
 
 	// Load a zone if a zone load was requested
 	if (!m_nextZoneToLoad.empty())
@@ -370,6 +382,10 @@ bool Application::update()
 		m_loadMeshOnZone = false;
 		m_nextZoneToLoad.clear();
 	}
+
+
+	Im3d::Draw();
+	Im3D_DrawText();
 
 	ImGui_Impl_Render();
 
@@ -860,10 +876,62 @@ void Application::RenderInterface()
 					ImGui::InputFloat4("[3]", glm::value_ptr(m_projMtx[3]));
 				}
 
+				ImGui::DragFloat("FOV", &m_fov, 0.1f, 30.0f, 150.0f);
+
 				ImGui::InputInt2("Mouse", glm::value_ptr(m_mousePos));
 
 				ImGui::Separator();
-				ImGui::SliderFloat("Cam Movement Speed", &m_camMoveSpeed, 10, 350);
+				ImGui::SliderFloat("Cam Speed", &m_camMoveSpeed, 10, 350);
+
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Im3d"))
+			{
+				Im3d::AppData& appData = Im3d::GetAppData();
+				static float size = 2.0f;
+
+				//for (int i = 0; i < Im3d::Key_Count; ++i)
+				//{
+				//	ImGui::Text("Key %d: %d", i, appData.m_keyDown[i]);
+				//}
+				ImGui::DragFloat("Size", &size);
+				ImGui::InputFloat3("Cursor Ray Origin", &appData.m_cursorRayOrigin.x);
+				ImGui::InputFloat3("Cursor Ray Direction", &appData.m_cursorRayDirection.x);
+				Im3d::SetSize(size);
+
+				static Im3d::Mat4 transform(1.0f);
+				//transform.setTranslation(Im3d::Vec3(200, -300, 200));
+
+				Im3d::Text(Im3d::Vec3(10, 0, 0), 1.0, Im3d::Color(1.0, 0.0, 0.0), 0, "Hello");
+
+				if (Im3d::Gizmo("GizmoUnified", transform))
+				{
+					// if Gizmo() returns true, the transform was modified
+					switch (Im3d::GetContext().m_gizmoMode)
+					{
+					case Im3d::GizmoMode_Translation:
+					{
+						Im3d::Vec3 pos = transform.getTranslation();
+						ImGui::Text("Position: %.3f, %.3f, %.3f", pos.x, pos.y, pos.z);
+						break;
+					}
+					case Im3d::GizmoMode_Rotation:
+					{
+						Im3d::Vec3 euler = Im3d::ToEulerXYZ(transform.getRotation());
+						ImGui::Text("Rotation: %.3f, %.3f, %.3f", Im3d::Degrees(euler.x), Im3d::Degrees(euler.y), Im3d::Degrees(euler.z));
+						break;
+					}
+					case Im3d::GizmoMode_Scale:
+					{
+						Im3d::Vec3 scale = transform.getScale();
+						ImGui::Text("Scale: %.3f, %.3f, %.3f", scale.x, scale.y, scale.z);
+						break;
+					}
+					default: break;
+					};
+
+				}
 
 				ImGui::EndTabItem();
 			}
@@ -1485,4 +1553,143 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 	}
 
 	m_firstShow = false;
+}
+
+void Application::Im3D_NewFrame()
+{
+	Im3d::AppData& ad = Im3d::GetAppData();
+
+	ad.m_deltaTime = m_timeDelta;
+	ad.m_viewportSize = Im3d::Vec2(m_viewport.z, m_viewport.w);
+	ad.m_viewOrigin = m_camera->GetPosition();
+	ad.m_viewDirection = m_camera->GetDirection();
+	ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
+	ad.m_projOrtho = false;
+	ad.m_projScaleY = glm::tan(glm::radians(m_fov) * 0.5f) * 2.0f;
+
+	ad.m_cursorRayOrigin = ad.m_viewOrigin;
+
+#if 1
+	glm::vec2 cursorPos = m_mousePos;
+	cursorPos = (cursorPos / glm::vec2(m_viewport.zw())) * 2.0f - 1.0f;
+	cursorPos.y = -cursorPos.y;
+
+	ImGui::Text("cursorPos: %.2f %.2f", cursorPos.x, cursorPos.y);
+
+	glm::vec3 rayDirection;
+	rayDirection.x = cursorPos.x / m_projMtx[0][0];
+	rayDirection.y = cursorPos.y / m_projMtx[1][1];
+	rayDirection.z = -1.0f;
+	glm::vec4 result = glm::vec4(glm::normalize(rayDirection), 1.0f);
+	ad.m_cursorRayDirection = *(Im3d::Vec3*)&result;
+
+	ImGui::InputFloat3("Cursor Ray Direction", &ad.m_cursorRayDirection.x);
+	ImGui::InputFloat3("Ray End", &m_rayEnd.x);
+	glm::vec3 n = glm::normalize(m_rayEnd);
+	ImGui::InputFloat3("Ray End (Normalized)", &n.x);
+	ad.m_cursorRayDirection = n;
+#else
+	//ad.m_cursorRayDirection = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), m_viewModelMtx, m_projMtx, m_viewport);
+	ad.m_cursorRayDirection = m_rayEnd;
+#endif
+
+	//ad.setCullFrustum(m_viewModelProjMtx, true);
+
+	bool ctrlDown = (SDL_GetModState() & KMOD_CTRL) != 0;
+
+	const Uint8* keyState = SDL_GetKeyboardState(nullptr);
+
+	//m_camera->SetKeyState(CameraKey_Forward, keyState[SDL_SCANCODE_W] != 0);
+	bool keyOk = !ImGui::GetIO().WantCaptureKeyboard;
+
+	ad.m_keyDown[Im3d::Mouse_Left/*Im3d::Action_Select*/] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+
+	ad.m_keyDown[Im3d::Key_L/*Action_GizmoLocal*/] = keyOk && keyState[SDL_SCANCODE_L] != 0;
+	ad.m_keyDown[Im3d::Key_T/*Action_GizmoTranslation*/] = keyOk && keyState[SDL_SCANCODE_T] != 0;
+	ad.m_keyDown[Im3d::Key_R/*Action_GizmoRotation*/] = keyOk && keyState[SDL_SCANCODE_R] != 0;
+	ad.m_keyDown[Im3d::Key_S/*Action_GizmoScale*/] = keyOk && keyState[SDL_SCANCODE_S] != 0;
+
+	ad.m_snapTranslation = ctrlDown ? 0.1f : 0.0f;
+	ad.m_snapRotation = ctrlDown ? Im3d::Radians(30.0f) : 0.0f;
+	ad.m_snapScale = ctrlDown ? 0.5f : 0.0f;
+
+	Im3d::NewFrame();
+}
+
+void Application::Im3D_DrawText()
+{
+	Im3d::AppData& appData = Im3d::GetAppData();
+	uint32_t drawListCount = Im3d::GetTextDrawListCount();
+
+	ImDrawList* imDrawList = ImGui::GetBackgroundDrawList();
+	const Im3d::Mat4 viewProj = m_viewModelProjMtx;
+	for (uint32_t i = 0; i < drawListCount; ++i)
+	{
+		const Im3d::TextDrawList& textDrawList = Im3d::GetTextDrawLists()[i];
+
+		if (textDrawList.m_layerId == Im3d::MakeId("NamedLayer"))
+		{
+			// The application may group primitives into layers, which can be used to change the draw state (e.g. enable depth testing, use a different shader)
+		}
+
+		for (uint32_t j = 0; j < textDrawList.m_textDataCount; ++j)
+		{
+			const Im3d::TextData& textData = textDrawList.m_textData[j];
+			if (textData.m_positionSize.w == 0.0f || textData.m_color.getA() == 0.0f)
+			{
+				continue;
+			}
+
+			// Project world -> screen space.
+			Im3d::Vec4 clip = viewProj * glm::vec4(textData.m_positionSize.x, textData.m_positionSize.y, textData.m_positionSize.z, 1.0f);
+			Im3d::Vec2 screen = Im3d::Vec2(clip.x / clip.w, clip.y / clip.w);
+
+			// Cull text which falls offscreen. Note that this doesn't take into account text size but works well enough in practice.
+			if (clip.w < 0.0f || screen.x >= 1.0f || screen.y >= 1.0f)
+			{
+				continue;
+			}
+
+			// Pixel coordinates for the ImGuiWindow ImGui.
+			screen = screen * Im3d::Vec2(0.5f) + Im3d::Vec2(0.5f);
+			screen.y = 1.0f - screen.y; // screen space origin is reversed by the projection.
+			screen = screen * Im3d::Vec2(m_viewport.z, m_viewport.w);
+
+			// All text data is stored in a single buffer; each textData instance has an offset into this buffer.
+			const char* text = textDrawList.m_textBuffer + textData.m_textBufferOffset;
+
+			// Calculate the final text size in pixels to apply alignment flags correctly.
+			ImGuiContext* g = ImGui::GetCurrentContext();
+			ImFont* font = ImGui::GetFont();
+			float fontSize = font->FontSize * textData.m_positionSize.w;
+			ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, -1.0f, text, text + textData.m_textLength, nullptr);
+
+			textSize.x = IM_TRUNC(textSize.x + 0.99999f);
+
+			// Generate a pixel offset based on text flags.
+			Im3d::Vec2 textOffset = Im3d::Vec2(-textSize.x * 0.5f, -textSize.y * 0.5f); // default to center
+			if ((textData.m_flags & Im3d::TextFlags_AlignLeft) != 0)
+			{
+				textOffset.x = -textSize.x;
+			}
+			else if ((textData.m_flags & Im3d::TextFlags_AlignRight) != 0)
+			{
+				textOffset.x = 0.0f;
+			}
+
+			if ((textData.m_flags & Im3d::TextFlags_AlignTop) != 0)
+			{
+				textOffset.y = -textSize.y;
+			}
+			else if ((textData.m_flags & Im3d::TextFlags_AlignBottom) != 0)
+			{
+				textOffset.y = 0.0f;
+			}
+
+			// Add text to the window draw list.
+			screen = screen + textOffset;
+			imDrawList->AddText(nullptr, textData.m_positionSize.w * ImGui::GetFontSize(),
+				ImVec2(screen.x, screen.y), textData.m_color.getABGR(), text, text + textData.m_textLength);
+		}
+	}
 }

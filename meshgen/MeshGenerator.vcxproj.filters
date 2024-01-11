@@ -51,6 +51,9 @@
     <Filter Include="Source Files\imgui">
       <UniqueIdentifier>{40fdafbd-1cca-46f5-a4da-ed0bf65c0638}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\engine\im3d">
+      <UniqueIdentifier>{27845826-a9cb-4027-bdb9-de634379f86d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -172,6 +175,9 @@
     </ClCompile>
     <ClCompile Include="ZoneRenderManager.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\im3d\im3d.cpp">
+      <Filter>Source Files\engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -300,6 +306,15 @@
     </ClInclude>
     <ClInclude Include="ZoneRenderManager.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dependencies\im3d\im3d.h">
+      <Filter>Header Files\engine\im3d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dependencies\im3d\im3d_config.h">
+      <Filter>Header Files\engine\im3d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dependencies\im3d\im3d_math.h">
+      <Filter>Header Files\engine\im3d</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

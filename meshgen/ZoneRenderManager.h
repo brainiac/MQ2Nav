@@ -188,7 +188,10 @@ public:
 	virtual void vertex(const float* pos, unsigned int color, const float* uv) override {}
 	virtual void vertex(const float x, const float y, const float z, unsigned int color, const float u, const float v) override {}
 
+	void vertex(const float* pos, float width, uint32_t color);
+
 	virtual unsigned int polyToCol(const dtPoly* poly) override;
+
 
 private:
 	ZoneRenderManager* m_render;

@@ -133,6 +133,8 @@ private:
 	bool InitSystem();
 	void RenderInterface();
 
+	void Im3D_NewFrame();
+	void Im3D_DrawText();
 
 	// Load a zone's geometry given its shortname.
 	void LoadGeometry(const std::string& zoneShortName, bool loadMesh);
@@ -209,9 +211,11 @@ private:
 
 	glm::mat4 m_projMtx;
 	glm::mat4 m_viewModelMtx;
+	glm::mat4 m_viewModelProjMtx;
 	glm::ivec4 m_viewport;
 	glm::vec3 m_rayStart;
 	glm::vec3 m_rayEnd;
+	float m_fov = 50.0f;
 
 	uint32_t m_lastTime = 0;
 	float m_time = 0.0f;

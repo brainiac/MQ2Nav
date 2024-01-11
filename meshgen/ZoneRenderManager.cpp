@@ -18,6 +18,8 @@
 #include <recast/Detour/Include/DetourNavMeshQuery.h>
 #include <imgui/imgui.h>
 
+#include "im3d/im3d_math.h"
+
 ZoneRenderManager* g_zoneRenderManager = nullptr;
 
 static const bgfx::EmbeddedShader s_embeddedShaders[] = {
@@ -287,9 +289,44 @@ void ZoneRenderDebugDraw::vertex(const float x, const float y, const float z, un
 	}
 }
 
+void ZoneRenderDebugDraw::vertex(const float* pos, float width, uint32_t color)
+{
+	m_width = width;
+
+	vertex(pos, color);
+}
+
 unsigned int ZoneRenderDebugDraw::polyToCol(const dtPoly* poly)
 {
 	return m_render->GetNavMeshRender()->PolyToCol(poly);
+}
+
+//============================================================================
+
+static void Im3d_Draw(const Im3d::DrawList& drawList)
+{
+	ZoneRenderDebugDraw dd(g_zoneRenderManager);
+
+	if (drawList.m_primType == Im3d::DrawPrimitive_Triangles)
+	{
+		dd.begin(DU_DRAW_TRIS);
+	}
+	else if (drawList.m_primType == Im3d::DrawPrimitive_Lines)
+	{
+		dd.begin(DU_DRAW_LINES);
+	}
+	else if (drawList.m_primType == Im3d::DrawPrimitive_Points)
+	{
+		dd.begin(DU_DRAW_POINTS);
+	}
+
+	for (uint32_t i = 0; i < drawList.m_vertexCount; ++i)
+	{
+		const Im3d::VertexData* vertex = drawList.m_vertexData + i;
+		dd.vertex(&vertex->m_positionSize.x, vertex->m_positionSize.w, vertex->m_color.getABGR());
+	}
+
+	dd.end();
 }
 
 //============================================================================
@@ -301,6 +338,9 @@ ZoneRenderManager::ZoneRenderManager()
 
 	// TEMP
 	g_zoneRenderManager = this;
+
+	auto& im3dData = Im3d::GetAppData();
+	im3dData.drawCallback = Im3d_Draw;
 }
 
 ZoneRenderManager::~ZoneRenderManager()
@@ -392,6 +432,7 @@ void ZoneRenderManager::Render()
 		m_lastPointsSize = m_points.size();
 
 		bgfx::Encoder* encoder = bgfx::begin();
+		encoder->setMarker("DebugDraw: Points");
 		encoder->setVertexBuffer(0, s_shared.m_quad2VB);
 		encoder->setIndexBuffer(s_shared.m_quadIB);
 		encoder->setInstanceDataBuffer(m_ddPointsVB, 0, static_cast<uint32_t>(m_points.size()));
@@ -422,6 +463,7 @@ void ZoneRenderManager::Render()
 		m_lastLinesSize = m_lines.size();
 
 		bgfx::Encoder* encoder = bgfx::begin();
+		encoder->setMarker("DebugDraw: Lines");
 		encoder->setVertexBuffer(0, s_shared.m_quad1VB);
 		encoder->setIndexBuffer(s_shared.m_quadIB);
 		encoder->setInstanceDataBuffer(m_ddLinesVB, 0, static_cast<uint32_t>(m_lines.size()));
@@ -461,6 +503,7 @@ void ZoneRenderManager::Render()
 		m_lastTrisIndicesSize = m_triIndices.size();
 
 		bgfx::Encoder* encoder = bgfx::begin();
+		encoder->setMarker("DebugDraw: Triangles");
 		encoder->setVertexBuffer(0, m_ddTrisVB);
 		encoder->setIndexBuffer(m_ddIndexBuffer, 0, static_cast<uint32_t>(m_triIndices.size()));
 		encoder->setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);

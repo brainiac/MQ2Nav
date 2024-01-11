@@ -154,17 +154,18 @@ void NavMeshTool::handleDebug()
 		if (ImGui::CheckboxFlags("Draw Closed List", &flags, ZoneNavMeshRender::DRAW_CLOSED_LIST))
 			m_renderManager->GetNavMeshRender()->SetFlags(flags);
 
+		ImGui::Checkbox("Draw Grid", &m_drawGrid);
+
 		float pointSize = m_renderManager->GetNavMeshRender()->GetPointSize();
 		if (ImGui::DragFloat("PointSize", &pointSize, 0.01f, 0, 10, "%.2f"))
 		{
 			m_renderManager->SetPointSize(pointSize);
 			m_renderManager->GetNavMeshRender()->SetPointSize(pointSize);
 		}
-
-		//ImGui::Checkbox("Draw Disabled Tiles", &m_drawNavMeshDisabledTiles);
-		//ImGui::Checkbox("Draw BV Tree", &m_drawNavMeshBVTree);
-		//ImGui::Checkbox("Draw Nodes", &m_drawNavMeshNodes);
-		//ImGui::Checkbox("Draw Portals", &m_drawNavMeshPortals);
+	
+		ImGui::Checkbox("Draw BV Tree", &m_drawNavMeshBVTree);
+		ImGui::Checkbox("Draw Nodes", &m_drawNavMeshNodes);
+		ImGui::Checkbox("Draw Portals", &m_drawNavMeshPortals);
 	}
 }
 
@@ -424,20 +425,22 @@ void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ive
 
 	dd.depthMask(false);
 
-	// Draw bounds
-	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
-	const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
-	duDebugDrawBoxWire(&dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2],
-		duRGBA(255, 255, 255, 128), 1.0f);
+	if (m_drawGrid)
+	{
+		// Draw bounds
+		const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
+		const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
+		duDebugDrawBoxWire(&dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2],
+			duRGBA(255, 255, 255, 128), 1.0f);
 
-	// Tiling grid.
-	int gw = 0, gh = 0;
-	rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
-	const int tw = (gw + (int)m_config.tileSize - 1) / (int)m_config.tileSize;
-	const int th = (gh + (int)m_config.tileSize - 1) / (int)m_config.tileSize;
-	const float s = m_config.tileSize * m_config.cellSize;
-	duDebugDrawGridXZ(&dd, bmin[0], bmin[1], bmin[2], tw, th, s, duRGBA(0, 0, 0, 64), 1.0f);
-
+		// Tiling grid.
+		int gw = 0, gh = 0;
+		rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
+		const int tw = (gw + (int)m_config.tileSize - 1) / (int)m_config.tileSize;
+		const int th = (gh + (int)m_config.tileSize - 1) / (int)m_config.tileSize;
+		const float s = m_config.tileSize * m_config.cellSize;
+		duDebugDrawGridXZ(&dd, bmin[0], bmin[1], bmin[2], tw, th, s, duRGBA(0, 0, 0, 64), 1.0f);
+	}
 	if (m_navMesh->IsNavMeshLoaded())
 	{
 		auto navMesh = m_navMesh->GetNavMesh();
@@ -446,16 +449,13 @@ void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ive
 		if (navMesh && navQuery)
 		{
 			m_renderManager->GetNavMeshRender()->Render();
-			//if (m_drawNavMeshTiles)
-			//	duDebugDrawNavMeshWithClosedList(&dd, *navMesh, *navQuery, DU_DRAWNAVMESH_OFFMESHCONS | DU_DRAWNAVMESH_CLOSEDLIST);
-			//if (m_drawNavMeshBVTree)
-			//	duDebugDrawNavMeshBVTree(&dd, *navMesh);
-			//if (m_drawNavMeshPortals)
-			//	duDebugDrawNavMeshPortals(&dd, *navMesh);
-			//if (m_drawNavMeshNodes)
-			//	duDebugDrawNavMeshNodes(&dd, *navQuery);
-			//if (m_drawNavMeshDisabledTiles)
-			//	duDebugDrawNavMeshPolysWithFlags(&dd, *navMesh, +PolyFlags::Disabled, duRGBA(192, 48, 0, 128));
+
+			if (m_drawNavMeshBVTree)
+				duDebugDrawNavMeshBVTree(&dd, *navMesh);
+			if (m_drawNavMeshPortals)
+				duDebugDrawNavMeshPortals(&dd, *navMesh);
+			if (m_drawNavMeshNodes)
+				duDebugDrawNavMeshNodes(&dd, *navQuery);
 		}
 	}
 

@@ -185,7 +185,7 @@ public:
 				//D3DXMatrixScaling(&scale, scaleFactor, scaleFactor, scaleFactor);
 
 				// multiply the transform matrix by the scale matrix to produce new matrix
-				glm::mat4* mtx = pSwitch->pActor->GetObjectToWorldMatrix();
+				glm::mat4* mtx = (glm::mat4*)pSwitch->pActor->GetObjectToWorldMatrix();
 				glm::mat4 scale = glm::scale(*mtx, glm::vec3(scaleFactor));
 
 #if RENDER_MODELS
@@ -447,7 +447,8 @@ void ModelLoader::DumpDoors()
 					writer.StartArray();
 					for (int j = 0; j < 4; j++)
 					{
-						writer.Double((*pSwitch->pActor->GetObjectToWorldMatrix())[i][j]);
+						glm::mat4* mtx = (glm::mat4*)pSwitch->pActor->GetObjectToWorldMatrix();
+						writer.Double((*mtx)[i][j]);
 					}
 					writer.EndArray();
 				}
