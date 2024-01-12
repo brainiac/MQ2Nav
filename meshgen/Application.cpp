@@ -1567,31 +1567,8 @@ void Application::Im3D_NewFrame()
 	ad.m_projOrtho = false;
 	ad.m_projScaleY = glm::tan(glm::radians(m_fov) * 0.5f) * 2.0f;
 
-	ad.m_cursorRayOrigin = ad.m_viewOrigin;
-
-#if 1
-	glm::vec2 cursorPos = m_mousePos;
-	cursorPos = (cursorPos / glm::vec2(m_viewport.zw())) * 2.0f - 1.0f;
-	cursorPos.y = -cursorPos.y;
-
-	ImGui::Text("cursorPos: %.2f %.2f", cursorPos.x, cursorPos.y);
-
-	glm::vec3 rayDirection;
-	rayDirection.x = cursorPos.x / m_projMtx[0][0];
-	rayDirection.y = cursorPos.y / m_projMtx[1][1];
-	rayDirection.z = -1.0f;
-	glm::vec4 result = glm::vec4(glm::normalize(rayDirection), 1.0f);
-	ad.m_cursorRayDirection = *(Im3d::Vec3*)&result;
-
-	ImGui::InputFloat3("Cursor Ray Direction", &ad.m_cursorRayDirection.x);
-	ImGui::InputFloat3("Ray End", &m_rayEnd.x);
-	glm::vec3 n = glm::normalize(m_rayEnd);
-	ImGui::InputFloat3("Ray End (Normalized)", &n.x);
-	ad.m_cursorRayDirection = n;
-#else
-	//ad.m_cursorRayDirection = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), m_viewModelMtx, m_projMtx, m_viewport);
-	ad.m_cursorRayDirection = m_rayEnd;
-#endif
+	ad.m_cursorRayOrigin = m_rayStart;
+	ad.m_cursorRayDirection = glm::normalize(m_rayEnd - m_rayStart);
 
 	//ad.setCullFrustum(m_viewModelProjMtx, true);
 
