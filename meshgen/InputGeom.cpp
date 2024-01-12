@@ -126,7 +126,7 @@ static bool isectSegAABB(const glm::vec3& sp, const glm::vec3& sq,
 	return true;
 }
 
-bool InputGeom::raycastMesh(const glm::vec3& src, glm::vec3& dst, float& tmin)
+bool InputGeom::raycastMesh(const glm::vec3& src, const glm::vec3& dst, float& tmin)
 {
 	glm::vec3 dir = dst - src;
 

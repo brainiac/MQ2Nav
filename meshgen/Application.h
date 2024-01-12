@@ -131,7 +131,8 @@ public:
 
 private:
 	bool InitSystem();
-	void RenderInterface();
+	void InitImGui();
+	void UpdateImGui();
 
 	void Im3D_NewFrame();
 	void Im3D_DrawText();
@@ -163,11 +164,9 @@ private:
 
 private:
 	EQConfig          m_eqConfig;
-
 	HWND              m_hWnd = nullptr;
 	SDL_Window*       m_window = nullptr;
-	Camera*           m_camera = nullptr;
-	const bgfx::Caps* m_caps = nullptr;
+	int               m_width, m_height;
 
 	// The build context. Everything passes this around. We own it.
 	std::unique_ptr<RecastContext> m_rcContext;
@@ -191,15 +190,6 @@ private:
 	// The input geometry (??)
 	std::unique_ptr<InputGeom> m_geom;
 
-	// rendering properties
-	uint32_t m_width;
-	uint32_t m_height;
-	uint32_t m_debug;
-	uint32_t m_reset;
-	bool m_needResetViewport = false;
-	bool m_resetCamera = true;
-	float m_nearPlane = 1.0f;
-	float m_farPlane = 1000.0f;
 
 	float m_progress = 0.0f;
 	std::string m_activityMessage;
@@ -207,19 +197,10 @@ private:
 	bool m_showLog = false;
 	bool m_showFailedToOpenDialog = false;
 
-	float m_camr = 10;
-
-	glm::mat4 m_projMtx;
-	glm::mat4 m_viewModelMtx;
-	glm::mat4 m_viewModelProjMtx;
-	glm::ivec4 m_viewport;
-	glm::vec3 m_rayStart;
-	glm::vec3 m_rayEnd;
-	float m_fov = 50.0f;
-
 	uint32_t m_lastTime = 0;
 	float m_time = 0.0f;
 	float m_timeDelta = 0;
+	float m_timeAccumulator = 0;
 
 	// mesh hittest
 	bool m_mposSet = false;

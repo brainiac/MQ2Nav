@@ -6,11 +6,10 @@
 #include "meshgen/InputGeom.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshTool.h"
+#include "meshgen/RenderManager.h"
 #include "meshgen/ZonePicker.h"
-#include "meshgen/resource.h"
 #include "common/Utilities.h"
 
-#include <RecastDebugDraw.h>
 #include <fmt/format.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -21,23 +20,18 @@
 #include <zone-utilities/log/log_macros.h>
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
 
-#include "imgui/imgui_impl.h"
 #include "imgui/ImGuiUtils.h"
+#include "imgui/imgui_impl.h"
 #include "imgui/imgui_impl_sdl2.h"
 #include <imgui.h>
 
 #include <filesystem>
 #include <sstream>
 
-#include "mq/base/Color.h"
-#include "engine/bgfx_utils.h"
-#include "engine/debugdraw/debugdraw.h"
 #include <bgfx/bgfx.h>
+#include <bx/math.h>
 
-#include <im3d/im3d.h>
-#include <im3d/im3d_math.h>
 
 #include "imgui_internal.h"
 
@@ -53,18 +47,6 @@ static const int32_t MAX_LOG_MESSAGES = 1000;
 static bool IsKeyboardBlocked()
 {
 	return ImGui::GetIO().WantTextInput;
-}
-
-static HWND sdlNativeWindowHandle(SDL_Window* window)
-{
-	SDL_SysWMinfo wmi;
-	SDL_VERSION(&wmi.version);
-	if (!SDL_GetWindowWMInfo(window, &wmi))
-	{
-		return nullptr;
-	}
-
-	return wmi.info.win.window;
 }
 
 class EQEmuLogSink : public EQEmu::Log::LogBase
@@ -134,10 +116,13 @@ Application::Application()
 
 	eqLogInit(-1);
 	eqLogRegister(std::make_shared<EQEmuLogSink>());
+
+	g_render = new RenderManager();
 }
 
 Application::~Application()
 {
+	delete g_render;
 }
 
 bool Application::Initialize(int32_t argc, const char* const* argv)
@@ -157,7 +142,6 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 
 	m_navMesh = std::make_shared<NavMesh>(m_eqConfig.GetOutputPath(), startingZone);
 	m_meshTool = std::make_unique<NavMeshTool>(m_navMesh);
-	m_camera = new Camera();
 
 	m_rcContext = std::make_unique<RecastContext>();
 
@@ -175,7 +159,6 @@ bool Application::InitSystem()
 
 	m_width = 1600;
 	m_height = 900;
-	m_projMtx = m_viewModelMtx = glm::identity<glm::mat4x4>();
 
 	// scale default window size by monitor dpi
 	float dpi = 0;
@@ -189,9 +172,6 @@ bool Application::InitSystem()
 		}
 	}
 
-	m_debug = BGFX_DEBUG_TEXT;
-	m_reset = BGFX_RESET_MSAA_X16;
-
 	// Setup window
 	SDL_WindowFlags window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	m_window = SDL_CreateWindow("MacroQuest NavMesh Generator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height, window_flags);
@@ -204,44 +184,19 @@ bool Application::InitSystem()
 		return false;
 	}
 
-	bgfx::Init init;
-	init.type = bgfx::RendererType::Direct3D11;
-	init.vendorId = BGFX_PCI_ID_NONE;
-	init.platformData.nwh = sdlNativeWindowHandle(m_window);
-	init.platformData.ndt = nullptr;
-	init.platformData.type = bgfx::NativeWindowHandleType::Default;
-	init.resolution.width = m_width;
-	init.resolution.height = m_height;
-	init.resolution.reset = m_reset;
-	if (!bgfx::init(init))
-	{
-		char szMessage[256];
-		sprintf_s(szMessage, "Error: bgfx::init() failed");
-
-		::MessageBoxA(nullptr, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
+	if (!g_render->Initialize(m_width, m_height, m_window))
 		return false;
-	}
 
-	bgfx::setViewMode(0, bgfx::ViewMode::Sequential);
+	InitImGui();
 
-	utilsInit();
-	ddInit();
-	
-	ZoneRenderManager::init();
+	m_lastTime = SDL_GetTicks();
+	m_time = 0.0f;
 
-	// Enable debug text.
-	bgfx::setDebug(m_debug);
+	return true;
+}
 
-	// Set view 0 clear state.
-	ImVec4 clear_color = ImVec4(0.3f, 0.3f, 0.32f, 1.00f);
-
-	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, mq::MQColor(clear_color).ToRGBA(), 1.0f, 0);
-	m_caps = bgfx::getCaps();
-
-	//
-	// Initialize ImGui
-	//
-
+void Application::InitImGui()
+{
 	IMGUI_CHECKVERSION();
 	ImGuiContext* context = ImGui::CreateContext();
 
@@ -249,9 +204,7 @@ bool Application::InitSystem()
 	io.IniFilename = m_iniFile.c_str();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-	//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	//io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports | ImGuiConfigFlags_DpiEnableScaleFonts;
 
 	ImGui::StyleColorsDark();
 
@@ -267,15 +220,6 @@ bool Application::InitSystem()
 
 	mq::imgui::ConfigureFonts(io.Fonts);
 	mq::imgui::ConfigureStyle();
-
-	//
-	//
-
-	m_lastTime = SDL_GetTicks();
-	m_time = 0.0f;
-
-	bgfx::frame();
-	return true;
 }
 
 int Application::shutdown()
@@ -288,21 +232,7 @@ int Application::shutdown()
 	m_zonePicker.reset();
 	m_geom.reset();
 
-	ZoneRenderManager::shutdown();
-
-	// shutdown ImGui
-	ImGui_Impl_Shutdown();
-
-	ddShutdown();
-
-	// Shutdown bgfx.
-	bgfx::shutdown();
-
-	utilsShutdown();
-
-	delete m_camera;
-	m_camera = nullptr;
-
+	g_render->Shutdown();
 	return 0;
 }
 
@@ -317,59 +247,36 @@ bool Application::update()
 	m_lastTime = time;
 	m_time += m_timeDelta;
 
-	static float timeAcc = 0.0f;
-
 	if (!HandleCallbacks())
 		return false;
 
 	if (!HandleEvents())
 		return false;
 
-	const float SIM_RATE = 20;
-	const float DELTA_TIME = 1.0f / SIM_RATE;
-	timeAcc = rcClamp(timeAcc + m_timeDelta, -1.0f, 1.0f);
+	// Run simulation frames that have elapsed since the last iteration
+	constexpr float SIM_RATE = 20;
+	constexpr float DELTA_TIME = 1.0f / SIM_RATE;
+	m_timeAccumulator = rcClamp(m_timeAccumulator + m_timeDelta, -1.0f, 1.0f);
 	int simIter = 0;
-	while (timeAcc > DELTA_TIME)
+	while (m_timeAccumulator > DELTA_TIME)
 	{
-		timeAcc -= DELTA_TIME;
+		m_timeAccumulator -= DELTA_TIME;
 		if (simIter < 5 && m_meshTool)
 			m_meshTool->handleUpdate(DELTA_TIME);
 		simIter++;
 	}
 
-	ImGui_Impl_NewFrame();
-	Im3D_NewFrame();
-
-	RenderInterface();
-
 	UpdateCamera();
 
-	float aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
-	m_viewModelMtx = m_camera->GetViewMatrix();
-	bx::mtxProj(glm::value_ptr(m_projMtx), m_fov, aspectRatio, m_nearPlane, m_farPlane, m_caps->homogeneousDepth, bx::Handedness::Right);
+	g_render->BeginFrame(m_timeDelta);
 
-	// Set view 0 default viewport.
-	m_viewport = glm::ivec4(0, 0, m_width, m_height);
-	bgfx::setViewRect(0, 0, 0, static_cast<uint16_t>(m_width), static_cast<uint16_t>(m_height));
-	bgfx::setViewTransform(0, glm::value_ptr(m_viewModelMtx), glm::value_ptr(m_projMtx));
+	UpdateImGui();
 
-	m_viewModelProjMtx = m_projMtx * m_viewModelMtx;
+	// TODO: Can push these down into the mesh tool
+	Camera* camera = g_render->GetCamera();
+	const glm::mat4& viewProjMtx = camera->GetViewProjMtx();
 
-	m_rayStart = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 0.0f), m_viewModelMtx, m_projMtx, m_viewport);
-	m_rayEnd = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), m_viewModelMtx, m_projMtx, m_viewport);
-
-	// This dummy draw call is here to make sure that view 0 is cleared
-	// if no other draw calls are submitted to view 0.
-	bgfx::touch(0);
-
-
-	ZoneRenderDebugDraw dd(g_zoneRenderManager);
-	dd.begin(DU_DRAW_LINES, 3.0f);
-	dd.vertex(glm::value_ptr(m_rayStart), duRGBA(255, 255, 255, 255));
-	dd.vertex(glm::value_ptr(m_rayEnd), duRGBA(255, 255, 255, 255));
-	dd.end();
-
-	m_meshTool->handleRender(m_viewModelProjMtx, m_viewport);
+	m_meshTool->handleRender(viewProjMtx, g_render->GetViewport());
 
 	// Load a zone if a zone load was requested
 	if (!m_nextZoneToLoad.empty())
@@ -383,15 +290,7 @@ bool Application::update()
 		m_nextZoneToLoad.clear();
 	}
 
-
-	Im3d::Draw();
-	Im3D_DrawText();
-
-	ImGui_Impl_Render();
-
-	// Advance to next frame. Rendering thread will be kicked to process submitted rendering primitives.
-	bgfx::frame();
-
+	g_render->EndFrame();
 	return true;
 }
 
@@ -411,7 +310,8 @@ bool Application::HandleEvents()
 			{
 				m_width = event.window.data1;
 				m_height = event.window.data2;
-				bgfx::reset(m_width, m_height, m_reset);
+
+				g_render->Resize(m_width, m_height);
 			}
 			break;
 
@@ -505,18 +405,21 @@ bool Application::HandleEvents()
 				// Hit test mesh.
 				if (m_geom)
 				{
+					const glm::vec3& rayStart = g_render->GetCursorRayStart();
+					const glm::vec3& rayEnd = g_render->GetCursorRayEnd();
+
 					// Hit test mesh.
-					float t;
-					if (m_geom->raycastMesh(m_rayStart, m_rayEnd, t))
+					if (float t; m_geom->raycastMesh(rayStart, rayEnd, t))
 					{
+						glm::vec3 pos = rayStart + (rayEnd - rayStart) * t;
+
 						if (SDL_GetModState() & KMOD_CTRL)
 						{
 							m_mposSet = true;
-							m_mpos = m_rayStart + (m_rayEnd - m_rayStart) * t;
+							m_mpos = pos;
 						}
 						else
 						{
-							glm::vec3 pos = m_rayStart + (m_rayEnd - m_rayStart) * t;
 							bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
 
 							m_meshTool->handleClick(pos, shift);
@@ -551,6 +454,8 @@ bool Application::HandleEvents()
 
 			m_mousePos.x = event.motion.x;
 			m_mousePos.y = m_height - 1 - event.motion.y;
+			g_render->SetMousePosition(m_mousePos.x, m_mousePos.y);
+
 			if (m_rotate)
 			{
 				int dx = m_mousePos.x - m_lastMouseLook.x;
@@ -558,7 +463,8 @@ bool Application::HandleEvents()
 				m_lastMouseLook = m_mousePos;
 				m_lastMouseLook.y = m_mousePos.y;
 
-				m_camera->UpdateMouseLook(dx, dy);
+				Camera* camera = g_render->GetCamera();
+				camera->UpdateMouseLook(dx, dy);
 			}
 			break;
 
@@ -582,34 +488,29 @@ void Application::UpdateMovementState(bool keydown)
 
 void Application::UpdateCamera()
 {
-	// Perform the camera reset if requested
-	if (m_resetCamera)
-	{
-		ResetCamera();
-		m_resetCamera = false;
-	}
+	Camera* camera = g_render->GetCamera();
 
 	if (ImGui::GetIO().WantCaptureKeyboard)
 	{
-		m_camera->ClearKeyState();
+		camera->ClearKeyState();
 	}
 	else
 	{
 		const Uint8* keyState = SDL_GetKeyboardState(nullptr);
 
-		m_camera->SetKeyState(CameraKey_Forward, keyState[SDL_SCANCODE_W] != 0);
-		m_camera->SetKeyState(CameraKey_Backward, keyState[SDL_SCANCODE_S] != 0);
-		m_camera->SetKeyState(CameraKey_Left, keyState[SDL_SCANCODE_A] != 0);
-		m_camera->SetKeyState(CameraKey_Right, keyState[SDL_SCANCODE_D] != 0);
-		m_camera->SetKeyState(CameraKey_Up, keyState[SDL_SCANCODE_SPACE] != 0);
-		m_camera->SetKeyState(CameraKey_Down, keyState[SDL_SCANCODE_C] != 0);
-		m_camera->SetKeyState(CameraKey_SpeedUp, (SDL_GetModState() & KMOD_SHIFT) != 0);
+		camera->SetKeyState(CameraKey_Forward, keyState[SDL_SCANCODE_W] != 0);
+		camera->SetKeyState(CameraKey_Backward, keyState[SDL_SCANCODE_S] != 0);
+		camera->SetKeyState(CameraKey_Left, keyState[SDL_SCANCODE_A] != 0);
+		camera->SetKeyState(CameraKey_Right, keyState[SDL_SCANCODE_D] != 0);
+		camera->SetKeyState(CameraKey_Up, keyState[SDL_SCANCODE_SPACE] != 0);
+		camera->SetKeyState(CameraKey_Down, keyState[SDL_SCANCODE_C] != 0);
+		camera->SetKeyState(CameraKey_SpeedUp, (SDL_GetModState() & KMOD_SHIFT) != 0);
 	}
 
-	m_camera->Update(m_timeDelta);
+	camera->Update(m_timeDelta);
 }
 
-void Application::RenderInterface()
+void Application::UpdateImGui()
 {
 	char buffer[240] = { 0, };
 
@@ -801,17 +702,31 @@ void Application::RenderInterface()
 
 				ImGui::Separator();
 
-				glm::vec3 cameraPos = m_camera->GetPosition().zxy();
+				Camera* camera = g_render->GetCamera();
+				
+				glm::vec3 cameraPos = to_eq_coord(camera->GetPosition());
 				if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
 				{
-					m_camera->SetPosition(cameraPos.yzx());
+					camera->SetPosition(from_eq_coord(cameraPos));
 				}
 
-				float angle[2] = { m_camera->GetHorizontalAngle(), m_camera->GetVerticalAngle() };
+				float angle[2] = { camera->GetHorizontalAngle(), camera->GetVerticalAngle() };
 				if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
 				{
-					m_camera->SetHorizontalAngle(angle[0]);
-					m_camera->SetVerticalAngle(angle[1]);
+					camera->SetHorizontalAngle(angle[0]);
+					camera->SetVerticalAngle(angle[1]);
+				}
+
+				float fov = camera->GetFieldOfView();
+				if (ImGui::DragFloat("FOV", &fov))
+				{
+					camera->SetFieldOfView(fov);
+				}
+
+				float ratio = camera->GetAspectRatio();
+				if (ImGui::DragFloat("Aspect Ratio", &ratio, 0.1f))
+				{
+					camera->SetAspectRatio(ratio);
 				}
 
 				if (m_geom)
@@ -847,94 +762,94 @@ void Application::RenderInterface()
 				ImGui::EndTabItem();
 			}
 
-			if (ImGui::BeginTabItem("Scene"))
-			{
-				float planes[2] = { m_nearPlane, m_farPlane };
-				if (ImGui::DragFloat2("Near/Far Plane", planes))
-				{
-					m_nearPlane = planes[0];
-					m_farPlane = planes[1];
-				}
+			//if (ImGui::BeginTabItem("Scene"))
+			//{
+			//	float planes[2] = { m_nearPlane, m_farPlane };
+			//	if (ImGui::DragFloat2("Near/Far Plane", planes))
+			//	{
+			//		m_nearPlane = planes[0];
+			//		m_farPlane = planes[1];
+			//	}
 
-				ImGui::InputInt4("Viewport", glm::value_ptr(m_viewport));
-				ImGui::InputFloat3("Ray Start", glm::value_ptr(m_rayStart));
-				ImGui::InputFloat3("Ray End", glm::value_ptr(m_rayEnd));
+			//	ImGui::InputInt4("Viewport", glm::value_ptr(m_viewport));
+			//	ImGui::InputFloat3("Ray Start", glm::value_ptr(m_rayStart));
+			//	ImGui::InputFloat3("Ray End", glm::value_ptr(m_rayEnd));
 
-				if (ImGui::CollapsingHeader("ViewModel Matrix"))
-				{
-					ImGui::InputFloat4("[0]", glm::value_ptr(m_viewModelMtx[0]));
-					ImGui::InputFloat4("[1]", glm::value_ptr(m_viewModelMtx[1]));
-					ImGui::InputFloat4("[2]", glm::value_ptr(m_viewModelMtx[2]));
-					ImGui::InputFloat4("[3]", glm::value_ptr(m_viewModelMtx[3]));
-				}
+			//	if (ImGui::CollapsingHeader("ViewModel Matrix"))
+			//	{
+			//		ImGui::InputFloat4("[0]", glm::value_ptr(m_viewModelMtx[0]));
+			//		ImGui::InputFloat4("[1]", glm::value_ptr(m_viewModelMtx[1]));
+			//		ImGui::InputFloat4("[2]", glm::value_ptr(m_viewModelMtx[2]));
+			//		ImGui::InputFloat4("[3]", glm::value_ptr(m_viewModelMtx[3]));
+			//	}
 
-				if (ImGui::CollapsingHeader("Projection Matrix"))
-				{
-					ImGui::InputFloat4("[0]", glm::value_ptr(m_projMtx[0]));
-					ImGui::InputFloat4("[1]", glm::value_ptr(m_projMtx[1]));
-					ImGui::InputFloat4("[2]", glm::value_ptr(m_projMtx[2]));
-					ImGui::InputFloat4("[3]", glm::value_ptr(m_projMtx[3]));
-				}
+			//	if (ImGui::CollapsingHeader("Projection Matrix"))
+			//	{
+			//		ImGui::InputFloat4("[0]", glm::value_ptr(m_projMtx[0]));
+			//		ImGui::InputFloat4("[1]", glm::value_ptr(m_projMtx[1]));
+			//		ImGui::InputFloat4("[2]", glm::value_ptr(m_projMtx[2]));
+			//		ImGui::InputFloat4("[3]", glm::value_ptr(m_projMtx[3]));
+			//	}
 
-				ImGui::DragFloat("FOV", &m_fov, 0.1f, 30.0f, 150.0f);
+			//	ImGui::DragFloat("FOV", &m_fov, 0.1f, 30.0f, 150.0f);
 
-				ImGui::InputInt2("Mouse", glm::value_ptr(m_mousePos));
+			//	ImGui::InputInt2("Mouse", glm::value_ptr(m_mousePos));
 
-				ImGui::Separator();
-				ImGui::SliderFloat("Cam Speed", &m_camMoveSpeed, 10, 350);
+			//	ImGui::Separator();
+			//	ImGui::SliderFloat("Cam Speed", &m_camMoveSpeed, 10, 350);
 
-				ImGui::EndTabItem();
-			}
+			//	ImGui::EndTabItem();
+			//}
 
-			if (ImGui::BeginTabItem("Im3d"))
-			{
-				Im3d::AppData& appData = Im3d::GetAppData();
-				static float size = 2.0f;
+			//if (ImGui::BeginTabItem("Im3d"))
+			//{
+			//	Im3d::AppData& appData = Im3d::GetAppData();
+			//	static float size = 2.0f;
 
-				//for (int i = 0; i < Im3d::Key_Count; ++i)
-				//{
-				//	ImGui::Text("Key %d: %d", i, appData.m_keyDown[i]);
-				//}
-				ImGui::DragFloat("Size", &size);
-				ImGui::InputFloat3("Cursor Ray Origin", &appData.m_cursorRayOrigin.x);
-				ImGui::InputFloat3("Cursor Ray Direction", &appData.m_cursorRayDirection.x);
-				Im3d::SetSize(size);
+			//	//for (int i = 0; i < Im3d::Key_Count; ++i)
+			//	//{
+			//	//	ImGui::Text("Key %d: %d", i, appData.m_keyDown[i]);
+			//	//}
+			//	ImGui::DragFloat("Size", &size);
+			//	ImGui::InputFloat3("Cursor Ray Origin", &appData.m_cursorRayOrigin.x);
+			//	ImGui::InputFloat3("Cursor Ray Direction", &appData.m_cursorRayDirection.x);
+			//	Im3d::SetSize(size);
 
-				static Im3d::Mat4 transform(1.0f);
-				//transform.setTranslation(Im3d::Vec3(200, -300, 200));
+			//	static Im3d::Mat4 transform(1.0f);
+			//	//transform.setTranslation(Im3d::Vec3(200, -300, 200));
 
-				Im3d::Text(Im3d::Vec3(10, 0, 0), 1.0, Im3d::Color(1.0, 0.0, 0.0), 0, "Hello");
+			//	Im3d::Text(Im3d::Vec3(10, 0, 0), 1.0, Im3d::Color(1.0, 0.0, 0.0), 0, "Hello");
 
-				if (Im3d::Gizmo("GizmoUnified", transform))
-				{
-					// if Gizmo() returns true, the transform was modified
-					switch (Im3d::GetContext().m_gizmoMode)
-					{
-					case Im3d::GizmoMode_Translation:
-					{
-						Im3d::Vec3 pos = transform.getTranslation();
-						ImGui::Text("Position: %.3f, %.3f, %.3f", pos.x, pos.y, pos.z);
-						break;
-					}
-					case Im3d::GizmoMode_Rotation:
-					{
-						Im3d::Vec3 euler = Im3d::ToEulerXYZ(transform.getRotation());
-						ImGui::Text("Rotation: %.3f, %.3f, %.3f", Im3d::Degrees(euler.x), Im3d::Degrees(euler.y), Im3d::Degrees(euler.z));
-						break;
-					}
-					case Im3d::GizmoMode_Scale:
-					{
-						Im3d::Vec3 scale = transform.getScale();
-						ImGui::Text("Scale: %.3f, %.3f, %.3f", scale.x, scale.y, scale.z);
-						break;
-					}
-					default: break;
-					};
+			//	if (Im3d::Gizmo("GizmoUnified", transform))
+			//	{
+			//		// if Gizmo() returns true, the transform was modified
+			//		switch (Im3d::GetContext().m_gizmoMode)
+			//		{
+			//		case Im3d::GizmoMode_Translation:
+			//		{
+			//			Im3d::Vec3 pos = transform.getTranslation();
+			//			ImGui::Text("Position: %.3f, %.3f, %.3f", pos.x, pos.y, pos.z);
+			//			break;
+			//		}
+			//		case Im3d::GizmoMode_Rotation:
+			//		{
+			//			Im3d::Vec3 euler = Im3d::ToEulerXYZ(transform.getRotation());
+			//			ImGui::Text("Rotation: %.3f, %.3f, %.3f", Im3d::Degrees(euler.x), Im3d::Degrees(euler.y), Im3d::Degrees(euler.z));
+			//			break;
+			//		}
+			//		case Im3d::GizmoMode_Scale:
+			//		{
+			//			Im3d::Vec3 scale = transform.getScale();
+			//			ImGui::Text("Scale: %.3f, %.3f, %.3f", scale.x, scale.y, scale.z);
+			//			break;
+			//		}
+			//		default: break;
+			//		};
 
-				}
+			//	}
 
-				ImGui::EndTabItem();
-			}
+			//	ImGui::EndTabItem();
+			//}
 
 			ImGui::EndTabBar();
 		}
@@ -1291,7 +1206,9 @@ void Application::ResetCamera()
 
 		// Reset camera and fog to match the mesh bounds.
 		float camr = glm::distance(bmax, bmin) / 2;
-		m_farPlane = camr * 3;
+
+		Camera* camera = g_render->GetCamera();
+		camera->SetFarClipPlane(camr * 3);
 
 		glm::vec3 cam = {
 			(bmax[0] + bmin[0]) / 2 + camr,
@@ -1299,9 +1216,9 @@ void Application::ResetCamera()
 			(bmax[2] + bmin[2]) / 2 + camr
 		};
 
-		m_camera->SetPosition(cam);
-		m_camera->SetHorizontalAngle(-45);
-		m_camera->SetVerticalAngle(45);
+		camera->SetPosition(cam);
+		camera->SetHorizontalAngle(-45);
+		camera->SetVerticalAngle(45);
 	}
 }
 
@@ -1371,7 +1288,7 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 
 	m_meshTool->handleGeometryChanged(m_geom.get());
 	m_navMesh->SetZoneName(m_zoneShortname);
-	m_resetCamera = true;
+	ResetCamera();
 	m_zoneLoaded = true;
 
 	if (loadMesh)
@@ -1553,120 +1470,4 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 	}
 
 	m_firstShow = false;
-}
-
-void Application::Im3D_NewFrame()
-{
-	Im3d::AppData& ad = Im3d::GetAppData();
-
-	ad.m_deltaTime = m_timeDelta;
-	ad.m_viewportSize = Im3d::Vec2(m_viewport.z, m_viewport.w);
-	ad.m_viewOrigin = m_camera->GetPosition();
-	ad.m_viewDirection = m_camera->GetDirection();
-	ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
-	ad.m_projOrtho = false;
-	ad.m_projScaleY = glm::tan(glm::radians(m_fov) * 0.5f) * 2.0f;
-
-	ad.m_cursorRayOrigin = m_rayStart;
-	ad.m_cursorRayDirection = glm::normalize(m_rayEnd - m_rayStart);
-
-	//ad.setCullFrustum(m_viewModelProjMtx, true);
-
-	bool ctrlDown = (SDL_GetModState() & KMOD_CTRL) != 0;
-
-	const Uint8* keyState = SDL_GetKeyboardState(nullptr);
-
-	//m_camera->SetKeyState(CameraKey_Forward, keyState[SDL_SCANCODE_W] != 0);
-	bool keyOk = !ImGui::GetIO().WantCaptureKeyboard;
-
-	ad.m_keyDown[Im3d::Mouse_Left/*Im3d::Action_Select*/] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-
-	ad.m_keyDown[Im3d::Key_L/*Action_GizmoLocal*/] = keyOk && keyState[SDL_SCANCODE_L] != 0;
-	ad.m_keyDown[Im3d::Key_T/*Action_GizmoTranslation*/] = keyOk && keyState[SDL_SCANCODE_T] != 0;
-	ad.m_keyDown[Im3d::Key_R/*Action_GizmoRotation*/] = keyOk && keyState[SDL_SCANCODE_R] != 0;
-	ad.m_keyDown[Im3d::Key_S/*Action_GizmoScale*/] = keyOk && keyState[SDL_SCANCODE_S] != 0;
-
-	ad.m_snapTranslation = ctrlDown ? 0.1f : 0.0f;
-	ad.m_snapRotation = ctrlDown ? Im3d::Radians(30.0f) : 0.0f;
-	ad.m_snapScale = ctrlDown ? 0.5f : 0.0f;
-
-	Im3d::NewFrame();
-}
-
-void Application::Im3D_DrawText()
-{
-	Im3d::AppData& appData = Im3d::GetAppData();
-	uint32_t drawListCount = Im3d::GetTextDrawListCount();
-
-	ImDrawList* imDrawList = ImGui::GetBackgroundDrawList();
-	const Im3d::Mat4 viewProj = m_viewModelProjMtx;
-	for (uint32_t i = 0; i < drawListCount; ++i)
-	{
-		const Im3d::TextDrawList& textDrawList = Im3d::GetTextDrawLists()[i];
-
-		if (textDrawList.m_layerId == Im3d::MakeId("NamedLayer"))
-		{
-			// The application may group primitives into layers, which can be used to change the draw state (e.g. enable depth testing, use a different shader)
-		}
-
-		for (uint32_t j = 0; j < textDrawList.m_textDataCount; ++j)
-		{
-			const Im3d::TextData& textData = textDrawList.m_textData[j];
-			if (textData.m_positionSize.w == 0.0f || textData.m_color.getA() == 0.0f)
-			{
-				continue;
-			}
-
-			// Project world -> screen space.
-			Im3d::Vec4 clip = viewProj * glm::vec4(textData.m_positionSize.x, textData.m_positionSize.y, textData.m_positionSize.z, 1.0f);
-			Im3d::Vec2 screen = Im3d::Vec2(clip.x / clip.w, clip.y / clip.w);
-
-			// Cull text which falls offscreen. Note that this doesn't take into account text size but works well enough in practice.
-			if (clip.w < 0.0f || screen.x >= 1.0f || screen.y >= 1.0f)
-			{
-				continue;
-			}
-
-			// Pixel coordinates for the ImGuiWindow ImGui.
-			screen = screen * Im3d::Vec2(0.5f) + Im3d::Vec2(0.5f);
-			screen.y = 1.0f - screen.y; // screen space origin is reversed by the projection.
-			screen = screen * Im3d::Vec2(m_viewport.z, m_viewport.w);
-
-			// All text data is stored in a single buffer; each textData instance has an offset into this buffer.
-			const char* text = textDrawList.m_textBuffer + textData.m_textBufferOffset;
-
-			// Calculate the final text size in pixels to apply alignment flags correctly.
-			ImGuiContext* g = ImGui::GetCurrentContext();
-			ImFont* font = ImGui::GetFont();
-			float fontSize = font->FontSize * textData.m_positionSize.w;
-			ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, -1.0f, text, text + textData.m_textLength, nullptr);
-
-			textSize.x = IM_TRUNC(textSize.x + 0.99999f);
-
-			// Generate a pixel offset based on text flags.
-			Im3d::Vec2 textOffset = Im3d::Vec2(-textSize.x * 0.5f, -textSize.y * 0.5f); // default to center
-			if ((textData.m_flags & Im3d::TextFlags_AlignLeft) != 0)
-			{
-				textOffset.x = -textSize.x;
-			}
-			else if ((textData.m_flags & Im3d::TextFlags_AlignRight) != 0)
-			{
-				textOffset.x = 0.0f;
-			}
-
-			if ((textData.m_flags & Im3d::TextFlags_AlignTop) != 0)
-			{
-				textOffset.y = -textSize.y;
-			}
-			else if ((textData.m_flags & Im3d::TextFlags_AlignBottom) != 0)
-			{
-				textOffset.y = 0.0f;
-			}
-
-			// Add text to the window draw list.
-			screen = screen + textOffset;
-			imDrawList->AddText(nullptr, textData.m_positionSize.w * ImGui::GetFontSize(),
-				ImVec2(screen.x, screen.y), textData.m_color.getABGR(), text, text + textData.m_textLength);
-		}
-	}
 }

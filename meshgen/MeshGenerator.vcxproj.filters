@@ -21,14 +21,8 @@
     <Filter Include="Source Files\engine">
       <UniqueIdentifier>{770c3172-8e5c-47ed-b0ed-f14a39530381}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\engine\debugdraw">
-      <UniqueIdentifier>{da8b3d14-202f-485b-b969-e2e8900ed24f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\engine">
       <UniqueIdentifier>{6ab7d524-d9d6-4638-b9b4-a2006f19b9eb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\engine\debugdraw">
-      <UniqueIdentifier>{eecdf7b3-cedd-488d-a9b1-887aa8cc226f}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource Files\engine">
       <UniqueIdentifier>{66217644-198f-4383-988e-cd4d4c4ff525}</UniqueIdentifier>
@@ -110,9 +104,6 @@
     <ClCompile Include="engine\bgfx_utils.cpp">
       <Filter>Source Files\engine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\debugdraw\debugdraw.cpp">
-      <Filter>Source Files\engine\debugdraw</Filter>
-    </ClCompile>
     <ClCompile Include="..\dependencies\meshoptimizer\indexgenerator.cpp">
       <Filter>Source Files\dependencies\meshoptimizer</Filter>
     </ClCompile>
@@ -179,6 +170,9 @@
     <ClCompile Include="..\dependencies\im3d\im3d.cpp">
       <Filter>Source Files\engine</Filter>
     </ClCompile>
+    <ClCompile Include="RenderManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapGeometryLoader.h">
@@ -232,45 +226,6 @@
     <ClInclude Include="NavMeshInfoTool.h">
       <Filter>Header Files\tools</Filter>
     </ClInclude>
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill_lit.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill_texture.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_lines.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_lines_stipple.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\debugdraw.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_lit.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_lit_mesh.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_mesh.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_texture.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_lines.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_lines_stipple.bin.h">
-      <Filter>Header Files\engine\debugdraw</Filter>
-    </ClInclude>
     <ClInclude Include="engine\bgfx_utils.h">
       <Filter>Header Files\engine</Filter>
     </ClInclude>
@@ -315,6 +270,9 @@
     </ClInclude>
     <ClInclude Include="..\dependencies\im3d\im3d_math.h">
       <Filter>Header Files\engine\im3d</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderManager.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

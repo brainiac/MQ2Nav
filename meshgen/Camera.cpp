@@ -1,9 +1,9 @@
+#include "pch.h"
 #include "Camera.h"
 
-#include <bx/math.h>
+#include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.inl>
-
 
 Camera::Camera()
 {
@@ -41,14 +41,14 @@ void Camera::Update(float deltaTime)
 		float angleY = glm::radians(180 - m_verticalAngle);
 
 		m_direction = {
-			bx::cos(angleY) * bx::sin(angleX),
-			bx::sin(angleY),
-			-bx::cos(angleY) * bx::cos(angleX),
+			glm::cos(angleY) * glm::sin(angleX),
+			glm::sin(angleY),
+			-glm::cos(angleY) * glm::cos(angleX),
 		};
 		m_right = {
-			bx::sin(angleX - bx::kPiHalf),
+			glm::sin(angleX - glm::half_pi<float>()),
 			0.0f,
-			-bx::cos(angleX - bx::kPiHalf),
+			-glm::cos(angleX - glm::half_pi<float>()),
 		};
 
 		changed = true;
@@ -99,6 +99,11 @@ void Camera::Update(float deltaTime)
 	{
 		m_at = m_eye + m_direction;
 		m_up = glm::cross(m_right, m_direction);
+
+		m_viewMtx = glm::lookAtLH(m_eye, m_at, m_up);
+		m_projMtx = glm::perspective(glm::radians(m_fov), m_aspectRatio, m_nearPlane, m_farPlane);
+
+		m_viewProjMtx = m_projMtx * m_viewMtx;
 		m_dirty = false;
 	}
 }
@@ -130,11 +135,4 @@ void Camera::SetKeyState(uint32_t key, bool down)
 void Camera::ClearKeyState()
 {
 	m_keys = 0;
-}
-
-glm::mat4x4 Camera::GetViewMatrix() const 
-{
-	glm::mat4x4 viewMatrix;
-	bx::mtxLookAt(glm::value_ptr(viewMatrix), bx::load<bx::Vec3>(&m_eye.x), bx::load<bx::Vec3>(&m_at.x), bx::load<bx::Vec3>(&m_up.x));
-	return viewMatrix;
 }

@@ -43,10 +43,24 @@ public:
 	void SetVerticalAngle(float angle);
 	float GetVerticalAngle() const { return m_verticalAngle; }
 
+	void SetFieldOfView(float fov) { m_fov = fov; m_dirty = true; }
+	float GetFieldOfView() const { return m_fov; }
+
+	void SetAspectRatio(float aspectRatio) { m_aspectRatio = aspectRatio; m_dirty = true; }
+	float GetAspectRatio() const { return m_aspectRatio; }
+
+	void SetNearClipPlane(float nearPlane) { m_nearPlane = nearPlane; m_dirty = true; }
+	float GetNearClipPlane() const { return m_nearPlane; }
+
+	void SetFarClipPlane(float farPlane) { m_farPlane = farPlane; m_dirty = true; }
+	float GetFarClipPlane() const { return m_farPlane; }
+
 	void SetKeyState(uint32_t key, bool down);
 	void ClearKeyState();
 
-	glm::mat4x4 GetViewMatrix() const;
+	const glm::mat4& GetViewMtx() const { return m_viewMtx; }
+	const glm::mat4& GetProjMtx() const { return m_projMtx; }
+	const glm::mat4& GetViewProjMtx() const { return m_viewProjMtx; }
 
 	const glm::vec3& GetLookingAt() const { return m_at; }
 	const glm::vec3& GetDirection() const { return m_direction; }
@@ -69,7 +83,13 @@ private:
 	bool m_dirty = false;
 	bool m_moving = false;
 
-	glm::mat4x4 m_viewMatrix;
+	glm::mat4 m_viewMtx;
+	glm::mat4 m_projMtx;
+	glm::mat4 m_viewProjMtx;
+	float m_aspectRatio = 1.0f;
+	float m_fov = 50;
+	float m_nearPlane = 1.0f;
+	float m_farPlane = 1000.0f;
 
 	// rotational angle, in degrees
 	float m_horizontalAngle = 0.0f;

@@ -32,7 +32,6 @@
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="engine\bgfx_utils.cpp" />
-    <ClCompile Include="engine\debugdraw\debugdraw.cpp" />
     <ClCompile Include="EQConfig.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
@@ -52,6 +51,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="RenderManager.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
     <ClCompile Include="ZoneRenderManager.cpp" />
@@ -64,19 +64,6 @@
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="engine\bgfx_utils.h" />
-    <ClInclude Include="engine\debugdraw\debugdraw.h" />
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill.bin.h" />
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill_lit.bin.h" />
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_fill_texture.bin.h" />
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_lines.bin.h" />
-    <ClInclude Include="engine\debugdraw\fs_debugdraw_lines_stipple.bin.h" />
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill.bin.h" />
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_lit.bin.h" />
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_lit_mesh.bin.h" />
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_mesh.bin.h" />
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_fill_texture.bin.h" />
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_lines.bin.h" />
-    <ClInclude Include="engine\debugdraw\vs_debugdraw_lines_stipple.bin.h" />
     <ClInclude Include="engine\embedded_shader.h" />
     <ClInclude Include="engine\packrect.h" />
     <ClInclude Include="EQConfig.h" />
@@ -98,6 +85,7 @@
     <ClInclude Include="NavMeshTileTool.h" />
     <ClInclude Include="OffMeshConnectionTool.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="RenderManager.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="WaypointsTool.h" />
     <ClInclude Include="ZonePicker.h" />

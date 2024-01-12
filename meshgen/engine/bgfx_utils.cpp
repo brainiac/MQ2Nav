@@ -9,8 +9,6 @@
 #include <string>
 
 #include <bgfx/bgfx.h>
-#include <bx/commandline.h>
-#include <bx/endian.h>
 #include <bx/file.h>
 #include <bx/math.h>
 #include <bx/readerwriter.h>

@@ -33,7 +33,8 @@
 #include <shlobj.h>
 #include <Shlwapi.h>
 
-//#include <SDL2/SDL.h>
-//#include <SDL2/SDL_syswm.h>
-
+#include <glm/glm.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <SDL2/SDL.h>
 #include <bgfx/bgfx.h>
