@@ -14,6 +14,10 @@
 // Windows Header Files:
 #include <windows.h>
 
+#if defined(LoadImage)
+#undef LoadImage
+#endif
+
 #include <math.h>
 
 // C RunTime Header Files

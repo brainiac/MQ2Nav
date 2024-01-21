@@ -5,11 +5,11 @@
 #include "meshgen/ZonePicker.h"
 #include "engine/bgfx_utils.h"
 #include "imgui/imgui_impl_bgfx.h"
-#include "eqlib/Constants.h"
 
 #include <mq/base/String.h>
-#include <glm/glm.hpp>
 #include <imgui.h>
+
+#include "ResourceManager.h"
 
 #define EXPANSION_BUTTONS 1
 
@@ -113,7 +113,7 @@ ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
 	{
 		std::string path = m_eqDirectory + "\\" + expansionFile.filename;
 
-		bgfx::TextureHandle texture = loadTexture(path.c_str());
+		bgfx::TextureHandle texture = g_resourceMgr->LoadTexture(path.c_str());
 		m_textures.push_back(texture);
 	}
 

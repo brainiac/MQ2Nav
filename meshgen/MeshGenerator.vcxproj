@@ -31,7 +31,6 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
-    <ClCompile Include="engine\bgfx_utils.cpp" />
     <ClCompile Include="EQConfig.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
@@ -52,6 +51,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="RenderManager.cpp" />
+    <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
     <ClCompile Include="ZoneRenderManager.cpp" />
@@ -63,7 +63,6 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
-    <ClInclude Include="engine\bgfx_utils.h" />
     <ClInclude Include="engine\embedded_shader.h" />
     <ClInclude Include="engine\packrect.h" />
     <ClInclude Include="EQConfig.h" />
@@ -87,6 +86,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="RenderManager.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="WaypointsTool.h" />
     <ClInclude Include="ZonePicker.h" />
     <ClInclude Include="ZoneRenderManager.h" />

@@ -2,17 +2,16 @@
 #include "pch.h"
 #include "RenderManager.h"
 
-#include <eqlib/eqgame.h>
-#include <glm/ext/matrix_projection.hpp>
-#include <glm/gtc/type_ptr.inl>
-
 #include "ZoneRenderManager.h"
 
 #include "mq/base/Color.h"
 #include "imgui/imgui_impl.h"
-#include "imgui/imgui_impl_sdl2.h"
-#include "engine/bgfx_utils.h"
 
+#include <bx/pixelformat.h>
+#include <bgfx/bgfx.h>
+#include <bimg/bimg.h>
+#include <glm/ext/matrix_projection.hpp>
+#include <glm/gtc/type_ptr.inl>
 #include <im3d/im3d.h>
 #include <im3d/im3d_math.h>
 #include <SDL2/SDL_syswm.h>
@@ -40,10 +39,13 @@ RenderManager::RenderManager()
 	, m_bgfxResetFlags(BGFX_RESET_MSAA_X4)
 {
 	m_camera = std::make_unique<Camera>();
+
+
 }
 
 RenderManager::~RenderManager()
 {
+
 }
 
 bool RenderManager::Initialize(int width, int height, SDL_Window* window)
@@ -82,8 +84,6 @@ bool RenderManager::Initialize(int width, int height, SDL_Window* window)
 	float aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
 	m_camera->SetAspectRatio(aspectRatio);
 
-	utilsInit();
-
 	ZoneRenderManager::init();
 
 	bgfx::frame();
@@ -100,8 +100,6 @@ void RenderManager::Shutdown()
 
 	// Shutdown bgfx.
 	bgfx::shutdown();
-
-	utilsShutdown();
 }
 
 void RenderManager::BeginFrame(float timeDelta)

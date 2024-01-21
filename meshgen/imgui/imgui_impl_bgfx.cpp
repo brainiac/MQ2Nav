@@ -15,8 +15,7 @@
 #include "imgui_impl_bgfx.h"
 #include "imgui.h"
 
-#include "engine/embedded_shader.h"
-#include "engine/bgfx_utils.h"
+#include "meshgen/ResourceManager.h"
 
 // BGFX/BX
 #include "bgfx/bgfx.h"
@@ -31,6 +30,14 @@ static bgfx::ProgramHandle s_imageProgram = BGFX_INVALID_HANDLE;
 static bgfx::UniformHandle s_tex = BGFX_INVALID_HANDLE;
 static bgfx::UniformHandle s_imageLodEnabled = BGFX_INVALID_HANDLE;
 static bgfx::VertexLayout s_layout;
+
+
+inline bool checkAvailTransientBuffers(uint32_t numVertices, const bgfx::VertexLayout& layout, uint32_t numIndices)
+{
+	return numVertices == bgfx::getAvailTransientVertexBuffer(numVertices, layout)
+		&& (0 == numIndices || numIndices == bgfx::getAvailTransientIndexBuffer(numIndices));
+}
+
 
 // This is the main rendering function that you have to implement and call after
 // ImGui::Render(). Pass ImGui::GetDrawData() to this function.
@@ -189,34 +196,12 @@ bool ImGui_ImplBgfx_CreateFontsTexture()
 	return true;
 }
 
-#include "shaders/imgui/fs_imgui.bin.h"
-#include "shaders/imgui/vs_imgui.bin.h"
-#include "shaders/imgui/fs_imgui_image.bin.h"
-#include "shaders/imgui/vs_imgui_image.bin.h"
-
-static const bgfx::EmbeddedShader s_embeddedShaders[] = {
-	BGFX_EMBEDDED_SHADER(vs_imgui),
-	BGFX_EMBEDDED_SHADER(fs_imgui),
-	BGFX_EMBEDDED_SHADER(vs_imgui_image),
-	BGFX_EMBEDDED_SHADER(fs_imgui_image),
-	
-	BGFX_EMBEDDED_SHADER_END()
-};
-
 bool ImGui_ImplBgfx_CreateDeviceObjects()
 {
-	bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
-
-	s_program = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_imgui"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_imgui"),
-		true);
+	s_program = g_resourceMgr->GetProgramHandle("imgui");
+	s_imageProgram = g_resourceMgr->GetProgramHandle("imgui_image");
 
 	s_imageLodEnabled = bgfx::createUniform("u_imageLodEnabled", bgfx::UniformType::Vec4);
-	s_imageProgram = bgfx::createProgram(
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_imgui_image"),
-		bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_imgui_image"),
-		true);
 
 	s_layout
 		.begin()
@@ -243,8 +228,6 @@ void ImGui_ImplBgfx_InvalidateDeviceObjects()
 	}
 
 	bgfx::destroy(s_imageLodEnabled);
-	bgfx::destroy(s_imageProgram);
-	bgfx::destroy(s_program);
 }
 
 void ImGui_ImplBgfx_Init()

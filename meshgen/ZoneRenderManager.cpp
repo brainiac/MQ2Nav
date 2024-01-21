@@ -1,17 +1,10 @@
 #include "ZoneRenderManager.h"
 
-#include "InputGeom.h"
+#include "meshgen/InputGeom.h"
+#include "meshgen/ResourceManager.h"
 #include "common/NavMeshData.h"
 #include "common/NavMesh.h"
-#include "engine/embedded_shader.h"
-#include "shaders/navmesh/fs_inputgeom.bin.h"
-#include "shaders/navmesh/vs_inputgeom.bin.h"
-#include "shaders/navmesh/fs_meshtile.bin.h"
-#include "shaders/navmesh/vs_meshtile.bin.h"
-#include "shaders/lines/fs_lines.bin.h"
-#include "shaders/lines/vs_lines.bin.h"
-#include "shaders/points/fs_points.bin.h"
-#include "shaders/points/vs_points.bin.h"
+
 
 #include <glm/gtc/type_ptr.hpp>
 #include <recast/DebugUtils/Include/DebugDraw.h>
@@ -21,19 +14,6 @@
 #include "im3d/im3d_math.h"
 
 ZoneRenderManager* g_zoneRenderManager = nullptr;
-
-static const bgfx::EmbeddedShader s_embeddedShaders[] = {
-	BGFX_EMBEDDED_SHADER(fs_inputgeom),
-	BGFX_EMBEDDED_SHADER(vs_inputgeom),
-	BGFX_EMBEDDED_SHADER(fs_meshtile),
-	BGFX_EMBEDDED_SHADER(vs_meshtile),
-	BGFX_EMBEDDED_SHADER(fs_lines),
-	BGFX_EMBEDDED_SHADER(vs_lines),
-	BGFX_EMBEDDED_SHADER(fs_points),
-	BGFX_EMBEDDED_SHADER(vs_points),
-
-	BGFX_EMBEDDED_SHADER_END()
-};
 
 //============================================================================
 
@@ -99,19 +79,11 @@ struct ZoneRenderShared
 		m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
 
 		bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
-		m_inputGeoProgram = bgfx::createProgram(
-			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_inputgeom"),
-			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_inputgeom"), true);
-		m_meshTileProgram = bgfx::createProgram(
-			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_meshtile"),
-			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_meshtile"), true);
+		m_inputGeoProgram = g_resourceMgr->GetProgramHandle("inputgeom");
+		m_meshTileProgram = g_resourceMgr->GetProgramHandle("meshtile");
 
-		m_linesProgram = bgfx::createProgram(
-			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_lines"),
-			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_lines"), true);
-		m_pointsProgram = bgfx::createProgram(
-			bgfx::createEmbeddedShader(s_embeddedShaders, type, "vs_points"),
-			bgfx::createEmbeddedShader(s_embeddedShaders, type, "fs_points"), true);
+		m_linesProgram = g_resourceMgr->GetProgramHandle("lines");
+		m_pointsProgram = g_resourceMgr->GetProgramHandle("points");
 
 		glm::vec3 linesQuad[] = {
 			{ 0.0, -1.0, 0.0 },

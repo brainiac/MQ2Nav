@@ -101,9 +101,6 @@
     <ClCompile Include="NavMeshInfoTool.cpp">
       <Filter>Source Files\tools</Filter>
     </ClCompile>
-    <ClCompile Include="engine\bgfx_utils.cpp">
-      <Filter>Source Files\engine</Filter>
-    </ClCompile>
     <ClCompile Include="..\dependencies\meshoptimizer\indexgenerator.cpp">
       <Filter>Source Files\dependencies\meshoptimizer</Filter>
     </ClCompile>
@@ -173,6 +170,9 @@
     <ClCompile Include="RenderManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ResourceManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapGeometryLoader.h">
@@ -226,9 +226,6 @@
     <ClInclude Include="NavMeshInfoTool.h">
       <Filter>Header Files\tools</Filter>
     </ClInclude>
-    <ClInclude Include="engine\bgfx_utils.h">
-      <Filter>Header Files\engine</Filter>
-    </ClInclude>
     <ClInclude Include="engine\packrect.h">
       <Filter>Header Files\engine</Filter>
     </ClInclude>
@@ -272,6 +269,9 @@
       <Filter>Header Files\engine\im3d</Filter>
     </ClInclude>
     <ClInclude Include="RenderManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

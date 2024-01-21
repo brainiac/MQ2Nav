@@ -7,6 +7,7 @@
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/RenderManager.h"
+#include "meshgen/ResourceManager.h"
 #include "meshgen/ZonePicker.h"
 #include "common/Utilities.h"
 
@@ -34,6 +35,7 @@
 
 
 #include "imgui_internal.h"
+#include "ResourceManager.h"
 
 #pragma warning(push)
 #pragma warning(disable: 4244)
@@ -118,10 +120,12 @@ Application::Application()
 	eqLogRegister(std::make_shared<EQEmuLogSink>());
 
 	g_render = new RenderManager();
+	g_resourceMgr = new ResourceManager();
 }
 
 Application::~Application()
 {
+	delete g_resourceMgr;
 	delete g_render;
 }
 
@@ -186,6 +190,8 @@ bool Application::InitSystem()
 
 	if (!g_render->Initialize(m_width, m_height, m_window))
 		return false;
+	if (!g_resourceMgr->Initialize())
+		return false;
 
 	InitImGui();
 
@@ -232,6 +238,7 @@ int Application::shutdown()
 	m_zonePicker.reset();
 	m_geom.reset();
 
+	g_resourceMgr->Shutdown();
 	g_render->Shutdown();
 	return 0;
 }
