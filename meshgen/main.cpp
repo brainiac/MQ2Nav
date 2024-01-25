@@ -19,5 +19,5 @@ int main(int argc, char* argv[])
 			break;
 	}
 
-	return app.shutdown();
+	return app.Shutdown();
 }

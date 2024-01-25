@@ -13,6 +13,7 @@
 #include <DetourDebugDraw.h>
 #include <DetourCommon.h>
 
+#include <im3d/im3d.h>
 #include <imgui/imgui.h>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -1145,17 +1146,13 @@ void NavMeshTesterTool::handleRenderOverlay()
 	// Draw start and end point labels
 	if (m_sposSet)
 	{
-		if (glm::ivec2 pos = m_meshTool->Project(m_spos); pos.x >= 0)
-		{
-			mq::imgui::RenderTextCentered(pos.x + 5, -(pos.y - 5), ImVec4(0, 0, 0, 220), "Start");
-		}
+		Im3d::Text(Im3d::Vec3(m_spos), 1.0f, Im3d::Color(0, 0, 0, 0.86f),
+			Im3d::TextFlags_AlignBottom | Im3d::TextFlags_AlignRight, "Start");
 	}
 	if (m_eposSet)
 	{
-		if (glm::ivec2 pos = m_meshTool->Project(m_epos); pos.x >= 0)
-		{
-			mq::imgui::RenderTextCentered(pos.x + 5, -(pos.y - 5), ImVec4(0, 0, 0, 220), "End");
-		}
+		Im3d::Text(Im3d::Vec3(m_epos), 1.0f, Im3d::Color(0, 0, 0, 0.86f),
+			Im3d::TextFlags_AlignBottom | Im3d::TextFlags_AlignRight, "End");
 	}
 
 	// Tool help

@@ -46,7 +46,7 @@ public:
 	void SetFieldOfView(float fov) { m_fov = fov; m_dirty = true; }
 	float GetFieldOfView() const { return m_fov; }
 
-	void SetAspectRatio(float aspectRatio) { m_aspectRatio = aspectRatio; m_dirty = true; }
+	void SetAspectRatio(float aspectRatio) { if (m_aspectRatio != aspectRatio) { m_aspectRatio = aspectRatio; m_dirty = true; } }
 	float GetAspectRatio() const { return m_aspectRatio; }
 
 	void SetNearClipPlane(float nearPlane) { m_nearPlane = nearPlane; m_dirty = true; }

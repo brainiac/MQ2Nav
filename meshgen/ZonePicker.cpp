@@ -95,7 +95,7 @@ std::pair<int, ImVec2> FindExpansionImage(int expansion, bool active)
 	return { info.fileIndex, pos };
 }
 
-ZonePicker::ZonePicker(const EQConfig& eqConfig, bool batchMode)
+ZonePicker::ZonePicker(const ApplicationConfig& eqConfig, bool batchMode)
 	: m_eqConfig(eqConfig)
 	, m_eqDirectory(eqConfig.GetEverquestPath())
 	, m_batchMode(batchMode)
@@ -152,7 +152,7 @@ static bool ExpansionButton(bgfx::TextureHandle texture, const ImVec2& pos)
 	return result;
 }
 
-bool ZonePicker::DrawExpansionGroup(const EQConfig::Expansion& expansion, bool showExpansions)
+bool ZonePicker::DrawExpansionGroup(const ApplicationConfig::Expansion& expansion, bool showExpansions)
 {
 	bool result = false;
 
@@ -192,9 +192,21 @@ bool ZonePicker::DrawExpansionGroup(const EQConfig::Expansion& expansion, bool s
 	return result;
 }
 
-bool ZonePicker::Show(bool focus)
+bool ZonePicker::Show()
 {
 	bool result = false;
+	bool focus = false;
+
+	const char* dialogName = "Open Zone";
+
+	if (m_isShowing)
+	{
+		focus = true;
+		m_isShowing = false;
+
+		ImGui::SetNextWindowFocus();
+		ImGui::OpenPopup(dialogName);
+	}
 
 	float width = 900;
 	ImVec2 avail = ImGui::GetIO().DisplaySize;
@@ -211,7 +223,7 @@ bool ZonePicker::Show(bool focus)
 
 	bool show = true;
 
-	if (ImGui::Begin("Open Zone", &show,
+	if (ImGui::BeginPopupModal(dialogName, &show,
 		ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
 	{
 		ImGui::Text("Select a zone or type to filter by name");
@@ -281,7 +293,7 @@ bool ZonePicker::Show(bool focus)
 				}
 				else
 				{
-					const EQConfig::Expansion& expansion = mapList[m_selectedExpansion];
+					const ApplicationConfig::Expansion& expansion = mapList[m_selectedExpansion];
 
 					if (DrawExpansionGroup(expansion, true))
 						result = true;
@@ -354,8 +366,9 @@ bool ZonePicker::Show(bool focus)
 		ImGui::SameLine();
 		ImGui::Checkbox("Load Navmesh if available", &m_loadNavMesh);
 
+
+		ImGui::EndPopup();
 	}
-	ImGui::End();
 
 	if (!show) result = true;
 

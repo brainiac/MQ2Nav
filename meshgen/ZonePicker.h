@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "meshgen/EQConfig.h"
+#include "meshgen/ApplicationConfig.h"
 #include <bgfx/bgfx.h>
 
 #include <map>
@@ -21,18 +21,18 @@ struct IMAGEDATA
 class ZonePicker
 {
 public:
-	ZonePicker(const EQConfig& eqConfig, bool batchMode = false);
+	ZonePicker(const ApplicationConfig& eqConfig, bool batchMode = false);
 	~ZonePicker();
 
-	bool Show(bool focus);
+	bool Show();
 
 	bool ShouldLoadNavMesh() const { return m_loadNavMesh; }
 	std::string GetSelectedZone() const { return m_selectedZone; }
 
 private:
-	bool DrawExpansionGroup(const EQConfig::Expansion& expansion, bool showExpansions);
+	bool DrawExpansionGroup(const ApplicationConfig::Expansion& expansion, bool showExpansions);
 
-	const EQConfig& m_eqConfig;
+	const ApplicationConfig& m_eqConfig;
 
 	// Mapping of Zones to Expansions
 	struct MapInfo
@@ -52,6 +52,7 @@ private:
 	bool m_showExpansionButtons = true;
 	bool m_batchMode = false;
 	int m_selectedExpansion = -1;
+	bool m_isShowing = true;
 
 	std::vector<bgfx::TextureHandle> m_textures;
 };

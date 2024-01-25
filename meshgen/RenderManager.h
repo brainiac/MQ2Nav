@@ -6,6 +6,8 @@
 #include <bgfx/bgfx.h>
 #include <SDL2/SDL.h>
 
+#include "im3d/im3d.h"
+
 class RenderManager
 {
 public:
@@ -24,16 +26,20 @@ public:
 	const glm::vec3& GetCursorRayStart() const { return m_cursorRayStart; }
 	const glm::vec3& GetCursorRayEnd() const { return m_cursorRayEnd; }
 
-	void Resize(int width, int height);
-	void SetMousePosition(int mouseX, int mouseY);
+	void SetViewport(const glm::ivec2& origin, const glm::ivec2& size);
+	void SetWindowSize(int width, int height);
+
+	void SetMousePosition(const glm::ivec2& mousePos);
+	const glm::ivec2& GetMousePos() const { return m_mousePos; }
 
 private:
 	void Im3D_NewFrame(float timeDelta);
 	void Im3D_DrawText();
+	static void Im3D_Draw(const Im3d::DrawList& drawList);
 
 private:
-	int                     m_width = 0;
-	int                     m_height = 0;
+	int                     m_windowWidth = 0;
+	int                     m_windowHeight = 0;
 	SDL_Window*             m_window = nullptr;
 	std::unique_ptr<Camera> m_camera = nullptr;
 	uint32_t                m_bgfxDebug;
@@ -46,6 +52,7 @@ private:
 	glm::vec3               m_cursorRayStart;
 	glm::vec3               m_cursorRayEnd;
 	glm::ivec2              m_mousePos;
+	glm::ivec2              m_windowSize;
 };
 
 template <typename T, glm::qualifier Q>

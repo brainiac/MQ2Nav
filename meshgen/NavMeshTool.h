@@ -21,10 +21,10 @@
 #include <agents.h>
 
 
-class RecastContext;
 class InputGeom;
 class dtNavMesh;
 class dtNavMeshQuery;
+class rcContext;
 
 class NavMeshTool;
 class NavMeshLoader;
@@ -83,7 +83,7 @@ public:
 	NavMeshTool(const std::shared_ptr<NavMesh>& navMesh);
 	virtual ~NavMeshTool();
 
-	void setContext(RecastContext* ctx) { m_ctx = ctx; }
+	void setContext(rcContext* ctx) { m_ctx = ctx; }
 
 	void handleDebug();
 	void handleTools();
@@ -171,7 +171,7 @@ private:
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
 
 	// we don't own this
-	RecastContext* m_ctx = nullptr;
+	rcContext* m_ctx = nullptr;
 
 	std::shared_ptr<spdlog::logger> m_logger;
 

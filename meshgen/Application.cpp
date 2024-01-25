@@ -4,6 +4,7 @@
 
 #include "meshgen/Application.h"
 #include "meshgen/InputGeom.h"
+#include "meshgen/Logging.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/RenderManager.h"
@@ -11,113 +12,39 @@
 #include "meshgen/ZonePicker.h"
 #include "common/Utilities.h"
 
+#include "imgui/ImGuiUtils.h"
+#include "imgui/imgui_impl.h"
+#include "imgui/imgui_impl_sdl2.h"
+#include "imgui_internal.h"
+#include <imgui.h>
+
+#include <bx/math.h>
 #include <fmt/format.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
-#include <zone-utilities/log/log_base.h>
-#include <zone-utilities/log/log_macros.h>
-
 #include <SDL2/SDL.h>
-
-#include "imgui/ImGuiUtils.h"
-#include "imgui/imgui_impl.h"
-#include "imgui/imgui_impl_sdl2.h"
-#include <imgui.h>
 
 #include <filesystem>
 #include <sstream>
-
-#include <bgfx/bgfx.h>
-#include <bx/math.h>
-
-
-#include "imgui_internal.h"
-#include "ResourceManager.h"
-
-#pragma warning(push)
-#pragma warning(disable: 4244)
 
 namespace fs = std::filesystem;
 
 //============================================================================
 
-static const int32_t MAX_LOG_MESSAGES = 1000;
-
-static bool IsKeyboardBlocked()
-{
-	return ImGui::GetIO().WantTextInput;
-}
-
-class EQEmuLogSink : public EQEmu::Log::LogBase
-{
-public:
-	EQEmuLogSink()
-	{
-		m_logger = spdlog::get("EQEmu");
-	}
-
-	virtual void OnRegister(int enabled_logs) override {}
-	virtual void OnUnregister() override {}
-
-	virtual void OnMessage(EQEmu::Log::LogType log_type, const std::string& message) override
-	{
-		switch (log_type)
-		{
-		case EQEmu::Log::LogTrace:
-			m_logger->trace(message);
-			break;
-		case EQEmu::Log::LogDebug:
-			m_logger->debug(message);
-			break;
-		case EQEmu::Log::LogInfo:
-			m_logger->info(message);
-			break;
-		case EQEmu::Log::LogWarn:
-			m_logger->warn(message);
-			break;
-		case EQEmu::Log::LogError:
-			m_logger->error(message);
-			break;
-		case EQEmu::Log::LogFatal:
-			m_logger->critical(message);
-			break;
-		}
-	}
-
-private:
-	std::shared_ptr<spdlog::logger> m_logger;
-};
-
-//============================================================================
-
 Application::Application()
 {
-	// Construct the path to the ini file
-	char fullPath[MAX_PATH] = { 0 };
-	GetModuleFileNameA(nullptr, fullPath, MAX_PATH);
-	PathRemoveFileSpecA(fullPath);
+	Logging::Initialize();
+	m_config.Initialize();
+	Logging::InitSecondStage(this);
 
-	// TODO: Support config directory
-	m_iniFile = fmt::format("{}/config/MeshGenerator_UI.ini", fullPath);
-	m_logFile = fmt::format("{}/logs/MeshGenerator.log", fullPath);
-
-	// set up default logger
-	auto logger = spdlog::create<spdlog::sinks::basic_file_sink_mt>("MeshGen", m_logFile, true);
-	logger->sinks().push_back(std::make_shared<ConsoleLogSink<std::mutex>>(this));
-#if defined(_DEBUG)
-	logger->sinks().push_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
-#endif
-	spdlog::set_default_logger(logger);
-	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v");
-	spdlog::flush_every(std::chrono::seconds{ 5 });
-	spdlog::register_logger(logger->clone("Recast"));
-	spdlog::register_logger(logger->clone("EQEmu"));
-
-	eqLogInit(-1);
-	eqLogRegister(std::make_shared<EQEmuLogSink>());
+	SPDLOG_INFO("EverQuest Path: {}", m_config.GetEverquestPath());
+	SPDLOG_INFO("MacroQuest Path: {} IsValid={}", m_config.GetMacroQuestPath(), m_config.IsMacroQuestPathValid());
+	SPDLOG_INFO("Config Path: {}", m_config.GetConfigPath());
+	SPDLOG_INFO("Resources Path: {}", m_config.GetResourcesPath());
+	SPDLOG_INFO("Logging Path: {}", m_config.GetLogsPath());
+	SPDLOG_INFO("Output Path: {}", m_config.GetOutputPath());
 
 	g_render = new RenderManager();
 	g_resourceMgr = new ResourceManager();
@@ -127,6 +54,8 @@ Application::~Application()
 {
 	delete g_resourceMgr;
 	delete g_render;
+
+	Logging::Shutdown();
 }
 
 bool Application::Initialize(int32_t argc, const char* const* argv)
@@ -144,15 +73,13 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 		m_nextZoneToLoad = startingZone;
 	}
 
-	m_navMesh = std::make_shared<NavMesh>(m_eqConfig.GetOutputPath(), startingZone);
+	m_navMesh = std::make_shared<NavMesh>(m_config.GetOutputPath(), startingZone);
 	m_meshTool = std::make_unique<NavMeshTool>(m_navMesh);
 
 	m_rcContext = std::make_unique<RecastContext>();
 
 	m_meshTool->setContext(m_rcContext.get());
-	m_meshTool->setOutputPath(m_eqConfig.GetOutputPath().c_str());
-
-	m_lastTime = GetTickCount64();
+	m_meshTool->setOutputPath(m_config.GetOutputPath().c_str());
 
 	return true;
 }
@@ -161,24 +88,24 @@ bool Application::InitSystem()
 {
 	SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS | SDL_INIT_TIMER);
 
-	m_width = 1600;
-	m_height = 900;
-
-	// scale default window size by monitor dpi
-	float dpi = 0;
-	if (SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0)
+	if (!m_config.GetSavedWindowDimensions(m_windowRect))
 	{
-		if (dpi > 0)
-		{
-			dpi = dpi / 96;
-			m_width *= dpi;
-			m_height *= dpi;
-		}
+		m_windowRect = {
+			SDL_WINDOWPOS_CENTERED,
+			SDL_WINDOWPOS_CENTERED,
+			1600,
+			900
+		};
+	}
+	else
+	{
+		SPDLOG_INFO("Loaded persisted window rect: {},{},{},{}",
+			m_windowRect.x, m_windowRect.y, m_windowRect.z, m_windowRect.w);
 	}
 
 	// Setup window
 	SDL_WindowFlags window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-	m_window = SDL_CreateWindow("MacroQuest NavMesh Generator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height, window_flags);
+	m_window = SDL_CreateWindow("MacroQuest NavMesh Generator", m_windowRect.x, m_windowRect.y, m_windowRect.z, m_windowRect.w, window_flags);
 	if (m_window == nullptr)
 	{
 		char szMessage[256];
@@ -188,14 +115,16 @@ bool Application::InitSystem()
 		return false;
 	}
 
-	if (!g_render->Initialize(m_width, m_height, m_window))
+	//SDL_GetWindowPosition(m_window, &x, &y);
+
+	if (!g_render->Initialize(m_windowRect.z, m_windowRect.w, m_window))
 		return false;
 	if (!g_resourceMgr->Initialize())
 		return false;
 
 	InitImGui();
 
-	m_lastTime = SDL_GetTicks();
+	m_lastTime = SDL_GetTicks64();
 	m_time = 0.0f;
 
 	return true;
@@ -207,12 +136,13 @@ void Application::InitImGui()
 	ImGuiContext* context = ImGui::CreateContext();
 
 	ImGuiIO& io = ImGui::GetIO();
+
+	// this requires permanent storage
+	m_iniFile = fmt::format("{}/config/MeshGenerator_UI.ini", m_config.GetConfigPath());
 	io.IniFilename = m_iniFile.c_str();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-	ImGui::StyleColorsDark();
 
 	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -228,7 +158,7 @@ void Application::InitImGui()
 	mq::imgui::ConfigureStyle();
 }
 
-int Application::shutdown()
+int Application::Shutdown()
 {
 	Halt();
 
@@ -249,8 +179,10 @@ bool Application::update()
 		return false;
 
 	// fractional time since last update
-	Uint32 time = GetTickCount64();
-	m_timeDelta = (time - m_lastTime) / 1000.0f;
+	//std::chrono::steady_clock::time_point time = std::chrono::steady_clock::now();
+	//auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time - m_lastTime).count();
+	uint64_t time = SDL_GetTicks64();
+	m_timeDelta = (time / m_lastTime) / 1000.0f;
 	m_lastTime = time;
 	m_time += m_timeDelta;
 
@@ -278,6 +210,8 @@ bool Application::update()
 	g_render->BeginFrame(m_timeDelta);
 
 	UpdateImGui();
+
+	UpdateViewport();
 
 	// TODO: Can push these down into the mesh tool
 	Camera* camera = g_render->GetCamera();
@@ -315,10 +249,38 @@ bool Application::HandleEvents()
 		case SDL_WINDOWEVENT:
 			if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
 			{
-				m_width = event.window.data1;
-				m_height = event.window.data2;
+				m_windowRect.z = event.window.data1;
+				m_windowRect.w = event.window.data2;
 
-				g_render->Resize(m_width, m_height);
+				Uint32 flags = SDL_GetWindowFlags(m_window);
+				bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
+				if (!isMaximized)
+					m_config.SetSavedWindowDimensions(m_windowRect);
+
+				UpdateViewport();
+			}
+			else if (event.window.event == SDL_WINDOWEVENT_MOVED)
+			{
+				m_windowRect.x = event.window.data1;
+				m_windowRect.y = event.window.data2;
+
+				Uint32 flags = SDL_GetWindowFlags(m_window);
+				bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
+				if (!isMaximized)
+					m_config.SetSavedWindowDimensions(m_windowRect);
+			}
+			else if (event.window.event == SDL_WINDOWEVENT_SHOWN)
+			{
+				int x, y, z, w;
+				SDL_GetWindowPosition(m_window, &x, &y);
+				SDL_GetWindowSize(m_window, &z, &w);
+
+				m_windowRect = { x, y, z, w };
+
+				Uint32 flags = SDL_GetWindowFlags(m_window);
+				bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
+				if (!isMaximized)
+					m_config.SetSavedWindowDimensions(m_windowRect);
 			}
 			break;
 
@@ -331,7 +293,7 @@ bool Application::HandleEvents()
 					m_showZonePickerDialog = false;
 			}
 
-			if (IsKeyboardBlocked())
+			if (ImGui::GetIO().WantTextInput)
 				break;
 
 			// Handle any key presses here.
@@ -340,7 +302,7 @@ bool Application::HandleEvents()
 				switch (event.key.keysym.sym)
 				{
 				case SDLK_o:
-					m_showZonePickerDialog = true;
+					ShowZonePickerDialog();
 					break;
 				case SDLK_l:
 					OpenMesh();
@@ -370,26 +332,6 @@ bool Application::HandleEvents()
 			{
 				m_done = true;
 			}
-			else
-			{
-				switch (event.key.keysym.scancode)
-				{
-				case SDL_SCANCODE_W:
-				case SDL_SCANCODE_S:
-				case SDL_SCANCODE_A:
-				case SDL_SCANCODE_D:
-				case SDL_SCANCODE_SPACE:
-				case SDL_SCANCODE_C:
-					UpdateMovementState(true);
-					break;
-
-				default: break;
-				}
-			}
-			break;
-
-		case SDL_KEYUP:
-			UpdateMovementState(false);
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
@@ -456,12 +398,12 @@ bool Application::HandleEvents()
 			break;
 
 		case SDL_MOUSEMOTION:
+			g_render->SetMousePosition(glm::ivec2{ event.motion.x, event.motion.y });
+			m_mousePos.x = event.motion.x;
+			m_mousePos.y = event.motion.y;
+
 			if (io.WantCaptureMouse)
 				break;
-
-			m_mousePos.x = event.motion.x;
-			m_mousePos.y = m_height - 1 - event.motion.y;
-			g_render->SetMousePosition(m_mousePos.x, m_mousePos.y);
 
 			if (m_rotate)
 			{
@@ -471,7 +413,7 @@ bool Application::HandleEvents()
 				m_lastMouseLook.y = m_mousePos.y;
 
 				Camera* camera = g_render->GetCamera();
-				camera->UpdateMouseLook(dx, dy);
+				camera->UpdateMouseLook(dx, -dy);
 			}
 			break;
 
@@ -486,11 +428,6 @@ bool Application::HandleEvents()
 	}
 
 	return !m_done;
-}
-
-void Application::UpdateMovementState(bool keydown)
-{
-
 }
 
 void Application::UpdateCamera()
@@ -519,15 +456,18 @@ void Application::UpdateCamera()
 
 void Application::UpdateImGui()
 {
-	char buffer[240] = { 0, };
-
 	if (!m_activityMessage.empty())
 	{
-		mq::imgui::RenderTextCentered(ImVec2(m_width / 2, m_height / 2),
+		mq::imgui::RenderTextCentered(
+			ImVec2(static_cast<float>(m_windowRect.z / 2), static_cast<float>(m_windowRect.w / 2)),
 			ImColor(255, 255, 255, 128), m_activityMessage.c_str(), m_progress);
 	}
 
 	m_showFailedToOpenDialog = false;
+
+	ImGuiViewport* mainViewport = ImGui::GetMainViewport();
+
+	m_dockspaceID = ImGui::DockSpaceOverViewport(mainViewport, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingOverCentralNode);
 
 	if (ImGui::BeginMainMenuBar())
 	{
@@ -536,7 +476,7 @@ void Application::UpdateImGui()
 			if (ImGui::MenuItem("Open Zone", "Ctrl+O", nullptr,
 				!m_meshTool->isBuildingTiles()))
 			{
-				m_showZonePickerDialog = true;
+				ShowZonePickerDialog();
 			}
 
 			ImGui::Separator();
@@ -618,32 +558,45 @@ void Application::UpdateImGui()
 		ImGui::EndMainMenuBar();
 	}
 
-	ShowZonePickerDialog();
+	DrawZonePickerDialog();
 
-	if (m_showZonePickerDialog)
+	if (m_showOverlay)
 	{
-		return;
+		ImGuiContext* ctx = ImGui::GetCurrentContext();
+		ImVec2 Corner;
+
+		if (ImGuiDockNode* dockNode = ImGui::DockContextFindNodeByID(ctx, m_dockspaceID))
+		{
+			ImGuiDockNode* centralNode = dockNode->CentralNode;
+
+			Corner = ImVec2(centralNode->Pos.x + centralNode->Size.x,
+				centralNode->Pos.y + centralNode->Size.y);
+		}
+		else
+		{
+			Corner = ImGui::GetIO().DisplaySize;
+		}
+
+		ImGui::SetNextWindowPos(
+			ImVec2(Corner.x - 10.0f, Corner.y - 10.0f),
+			ImGuiCond_Always,
+			ImVec2(1.0, 1.0));
+		ImGui::SetNextWindowBgAlpha(0.3f);
+
+		if (ImGui::Begin("##Overlay", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+		{
+			m_meshTool->handleRenderOverlay();
+
+			// Help text.
+			static const char msg[] = "Hotkeys:\n* W/S/A/D: Move\n"
+				"* Space/C: Move up/down\n"
+				"* Shift+Move: Increase movement speed\n"
+				"* RMB: Look around";
+
+			ImGui::TextColored(ImColor(255, 255, 255, 128), msg);
+		}
+		ImGui::End();
 	}
-
-	ImGui::SetNextWindowPos(
-		ImVec2(ImGui::GetIO().DisplaySize.x - 10.0 - 315, ImGui::GetIO().DisplaySize.y - 10.0),
-		ImGuiCond_Always,
-		ImVec2(1.0, 1.0));
-	ImGui::SetNextWindowBgAlpha(0.3f);
-
-	if (ImGui::Begin("##Overlay", &m_showOverlay, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
-	{
-		m_meshTool->handleRenderOverlay();
-
-		// Help text.
-		static const char msg[] = "Hotkeys:\n* W/S/A/D: Move\n"
-			"* Space/C: Move up/down\n"
-			"* Shift+Move: Increase movement speed\n"
-			"* RMB: Look around";
-
-		ImGui::TextColored(ImColor(255, 255, 255, 128), msg);
-	}
-	ImGui::End();
 
 	if (m_showFailedToOpenDialog)
 		ImGui::OpenPopup("Failed To Open");
@@ -689,85 +642,87 @@ void Application::UpdateImGui()
 	if (m_showProperties)
 	{
 		ImGui::SetNextWindowPos(ImVec2(20, 21 + 20), ImGuiCond_FirstUseEver);
-		ImGui::SetNextWindowSizeConstraints(ImVec2(360, -1), ImVec2(360, -1));
+		//ImGui::SetNextWindowSizeConstraints(ImVec2(360, -1), ImVec2(360, -1));
 
-		if (!ImGui::Begin("Info", &m_showProperties, ImGuiWindowFlags_AlwaysAutoResize))
+		if (ImGui::Begin("Info", &m_showProperties))
 		{
-			ImGui::End();
-			return;
-		}
+			// show zone name
+			if (!m_zoneLoaded)
+				ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
+			else
+				ImGui::TextColored(ImColor(0, 255, 0), m_zoneDisplayName.c_str());
 
-		if (ImGui::BeginTabBar("##InspectorTabs"))
-		{
-			if (ImGui::BeginTabItem("Properties"))
+			ImGui::Separator();
+
+			Camera* camera = g_render->GetCamera();
+
+			glm::vec3 cameraPos = to_eq_coord(camera->GetPosition());
+			if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
 			{
-				// show zone name
-				if (!m_zoneLoaded)
-					ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
-				else
-					ImGui::TextColored(ImColor(0, 255, 0), m_zoneDisplayName.c_str());
-
-				ImGui::Separator();
-
-				Camera* camera = g_render->GetCamera();
-				
-				glm::vec3 cameraPos = to_eq_coord(camera->GetPosition());
-				if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
-				{
-					camera->SetPosition(from_eq_coord(cameraPos));
-				}
-
-				float angle[2] = { camera->GetHorizontalAngle(), camera->GetVerticalAngle() };
-				if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
-				{
-					camera->SetHorizontalAngle(angle[0]);
-					camera->SetVerticalAngle(angle[1]);
-				}
-
-				float fov = camera->GetFieldOfView();
-				if (ImGui::DragFloat("FOV", &fov))
-				{
-					camera->SetFieldOfView(fov);
-				}
-
-				float ratio = camera->GetAspectRatio();
-				if (ImGui::DragFloat("Aspect Ratio", &ratio, 0.1f))
-				{
-					camera->SetAspectRatio(ratio);
-				}
-
-				if (m_geom)
-				{
-					auto* loader = m_geom->getMeshLoader();
-
-					if (loader->HasDynamicObjects())
-						ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
-					else
-					{
-						ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
-
-						if (ImGui::IsItemHovered())
-						{
-							ImGui::BeginTooltip();
-							ImGui::Text("Dynamic objects can be loaded after entering\n"
-								"a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
-								"to refresh the dynamic objects.");
-							ImGui::EndTooltip();
-						}
-					}
-
-					ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
-
-					if (m_navMesh->IsNavMeshLoaded())
-					{
-						ImGui::Separator();
-						if (ImGui::Button((const char*)ICON_FA_FLOPPY_O " Save"))
-							SaveMesh();
-					}
-				}
-
-				ImGui::EndTabItem();
+				camera->SetPosition(from_eq_coord(cameraPos));
 			}
+
+			float angle[2] = { camera->GetHorizontalAngle(), camera->GetVerticalAngle() };
+			if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
+			{
+				camera->SetHorizontalAngle(angle[0]);
+				camera->SetVerticalAngle(angle[1]);
+			}
+
+			float fov = camera->GetFieldOfView();
+			if (ImGui::DragFloat("FOV", &fov))
+			{
+				camera->SetFieldOfView(fov);
+			}
+
+			float ratio = camera->GetAspectRatio();
+			if (ImGui::DragFloat("Aspect Ratio", &ratio, 0.1f))
+			{
+				camera->SetAspectRatio(ratio);
+			}
+
+			if (m_geom)
+			{
+				auto* loader = m_geom->getMeshLoader();
+
+				if (loader->HasDynamicObjects())
+					ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
+				else
+				{
+					ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
+
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::BeginTooltip();
+						ImGui::Text("Dynamic objects can be loaded after entering\n"
+							"a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
+							"to refresh the dynamic objects.");
+						ImGui::EndTooltip();
+					}
+				}
+
+				ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
+
+				if (m_navMesh->IsNavMeshLoaded())
+				{
+					ImGui::Separator();
+					if (ImGui::Button((const char*)ICON_FA_FLOPPY_O " Save"))
+						SaveMesh();
+				}
+			}
+
+			ImGuiContext* ctx = ImGui::GetCurrentContext();
+
+			ImGui::DragInt4("Window Rect", &m_windowRect.x);
+
+			glm::ivec4 rect = g_render->GetViewport();
+			ImGui::DragInt4("Viewport", &rect.x);
+
+			ImGui::DragInt2("Mouse Pos", &m_mousePos.x);
+
+			glm::ivec2 viewportMouse = g_render->GetMousePos();
+			ImGui::DragInt2("Viewport Mouse", &viewportMouse.x);
+
 
 			//if (ImGui::BeginTabItem("Scene"))
 			//{
@@ -857,8 +812,6 @@ void Application::UpdateImGui()
 
 			//	ImGui::EndTabItem();
 			//}
-
-			ImGui::EndTabBar();
 		}
 
 		ImGui::End();
@@ -867,16 +820,16 @@ void Application::UpdateImGui()
 	if (m_showTools)
 	{
 		// start the tools dialog
-		ImGui::SetNextWindowPos(ImVec2(m_width - 315, 21));
-		ImGui::SetNextWindowSize(ImVec2(315, m_height - 21));
+		//ImGui::SetNextWindowPos(ImVec2(m_width - 315, 21));
+		//ImGui::SetNextWindowSize(ImVec2(315, m_height - 21));
 
-		const float oldWindowRounding = ImGui::GetStyle().WindowRounding;
-		ImGui::GetStyle().WindowRounding = 0;
+		//const float oldWindowRounding = ImGui::GetStyle().WindowRounding;
+		//ImGui::GetStyle().WindowRounding = 0;
 
-		ImGui::Begin("##Tools", &m_showTools, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-			| ImGuiWindowFlags_NoTitleBar);
+		ImGui::Begin("Tools##Tools", &m_showTools, /*ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+			| ImGuiWindowFlags_NoTitleBar*/ 0);
 
-		ImGui::GetStyle().WindowRounding = oldWindowRounding;
+		//ImGui::GetStyle().WindowRounding = oldWindowRounding;
 
 		if (m_geom)
 		{
@@ -962,34 +915,34 @@ void Application::ShowSettingsDialog()
 		ImGui::Text("EQ Path");
 		ImGui::PushItemWidth(400);
 		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(244, 250, 125));
-		ImGui::InputText("##EQPath", (char*)m_eqConfig.GetEverquestPath().c_str(),
-			m_eqConfig.GetEverquestPath().length(), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputText("##EQPath", (char*)m_config.GetEverquestPath().c_str(),
+			m_config.GetEverquestPath().length(), ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 		ImGui::PushItemWidth(125);
 		if (ImGui::Button("Change##EverquestPath", ImVec2(120, 0)))
-			m_eqConfig.SelectEverquestPath();
+			m_config.SelectEverquestPath();
 		ImGui::PopItemWidth();
 
 		ImGui::Text("Navmesh Path (Path to MacroQuest root directory)");
 		ImGui::PushItemWidth(400);
 		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor(244, 250, 125));
-		ImGui::InputText("##NavmeshPath", (char*)m_eqConfig.GetMacroQuestPath().c_str(), m_eqConfig.GetMacroQuestPath().length(), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputText("##NavmeshPath", (char*)m_config.GetMacroQuestPath().c_str(), m_config.GetMacroQuestPath().length(), ImGuiInputTextFlags_ReadOnly);
 		ImGui::PopStyleColor(1);
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 		ImGui::PushItemWidth(125);
 		if (ImGui::Button("Change##OutputPath", ImVec2(120, 0)))
 		{
-			m_eqConfig.SelectOutputPath();
-			m_navMesh->SetNavMeshDirectory(m_eqConfig.GetOutputPath());
+			m_config.SelectMacroQuestPath();
+			m_navMesh->SetNavMeshDirectory(m_config.GetOutputPath());
 		}
 		ImGui::PopItemWidth();
 
-		bool useExtents = m_eqConfig.GetUseMaxExtents();
+		bool useExtents = m_config.GetUseMaxExtents();
 		if (ImGui::Checkbox("Apply max extents to zones with far away geometry", &useExtents))
-			m_eqConfig.SetUseMaxExtents(useExtents);
+			m_config.SetUseMaxExtents(useExtents);
 		if (ImGui::IsItemHovered())
 		{
 			ImGui::BeginTooltip();
@@ -1009,22 +962,16 @@ void Application::ShowSettingsDialog()
 	}
 }
 
-void Application::ShowZonePickerDialog()
+void Application::DrawZonePickerDialog()
 {
-	if (m_meshTool->isBuildingTiles()) {
+	if (m_meshTool->isBuildingTiles())
+	{
 		m_showZonePickerDialog = false;
 	}
 
-	if (m_showZonePickerDialog) {
-		bool focus = false;
-		if (!m_zonePicker)
-		{
-			m_zonePicker = std::make_unique<ZonePicker>(m_eqConfig);
-			focus = true;
-			ImGui::SetNextWindowFocus();
-		}
-
-		if (m_zonePicker->Show(focus))
+	if (m_showZonePickerDialog)
+	{
+		if (m_zonePicker->Show())
 		{
 			m_loadMeshOnZone = m_zonePicker->ShouldLoadNavMesh();
 			m_nextZoneToLoad = m_zonePicker->GetSelectedZone();
@@ -1032,8 +979,37 @@ void Application::ShowZonePickerDialog()
 		}
 	}
 
-	if (!m_showZonePickerDialog && m_zonePicker) {
+	if (!m_showZonePickerDialog && m_zonePicker)
+	{
 		m_zonePicker.reset();
+	}
+}
+
+void Application::ShowZonePickerDialog()
+{
+	m_showZonePickerDialog = true;
+
+	if (!m_zonePicker)
+	{
+		m_zonePicker = std::make_unique<ZonePicker>(m_config);
+	}
+}
+
+void Application::UpdateViewport()
+{
+	ImGuiContext* ctx = ImGui::GetCurrentContext();
+
+	g_render->SetWindowSize(m_windowRect.z, m_windowRect.w);
+
+	if (ImGuiDockNode* dockNode = ImGui::DockContextFindNodeByID(ctx, m_dockspaceID))
+	{
+		ImGuiDockNode* centralNode = dockNode->CentralNode;
+
+		g_render->SetViewport({ centralNode->Pos.x, centralNode->Pos.y }, { centralNode->Size.x, centralNode->Size.y });
+	}
+	else
+	{
+		g_render->SetViewport({ 0, 0 }, m_windowRect.zw());
 	}
 }
 
@@ -1232,7 +1208,7 @@ void Application::ResetCamera()
 std::string Application::GetMeshFilename()
 {
 	std::stringstream ss;
-	ss << m_eqConfig.GetOutputPath() << "\\" << m_zoneShortname << ".navmesh";
+	ss << m_config.GetOutputPath() << "\\" << m_zoneShortname << ".navmesh";
 
 	return ss.str();
 }
@@ -1248,15 +1224,15 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 
 	Halt();
 
-	std::string eqPath = m_eqConfig.GetEverquestPath();
-	std::string outputPath = m_eqConfig.GetOutputPath();
+	std::string eqPath = m_config.GetEverquestPath();
+	std::string outputPath = m_config.GetOutputPath();
 
 	auto ptr = std::make_unique<InputGeom>(zoneShortName, eqPath);
 
 	auto geomLoader = std::make_unique<MapGeometryLoader>(
 		zoneShortName, eqPath, outputPath);
 
-	if (m_eqConfig.GetUseMaxExtents())
+	if (m_config.GetUseMaxExtents())
 	{
 		auto iter = MaxZoneExtents.find(zoneShortName);
 		if (iter != MaxZoneExtents.end())
@@ -1270,7 +1246,7 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 		m_showFailedToLoadZone = true;
 
 		std::stringstream ss;
-		ss << "Failed to load zone: " << m_eqConfig.GetLongNameForShortName(zoneShortName);
+		ss << "Failed to load zone: " << m_config.GetLongNameForShortName(zoneShortName);
 
 		m_failedZoneMsg = ss.str();
 		m_geom.reset();
@@ -1284,7 +1260,7 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 	m_geom = std::move(ptr);
 
 	m_zoneShortname = zoneShortName;
-	m_zoneLongname = m_eqConfig.GetLongNameForShortName(m_zoneShortname);
+	m_zoneLongname = m_config.GetLongNameForShortName(m_zoneShortname);
 
 	m_zoneDisplayName = fmt::format("{} ({})", m_zoneLongname, m_zoneShortname);
 	m_expansionExpanded.clear();
@@ -1327,64 +1303,12 @@ bool Application::HandleCallbacks()
 	return !m_done;
 }
 
-//============================================================================
-
-RecastContext::RecastContext()
-{
-	m_logger = spdlog::get("Recast");
-}
-
-void RecastContext::doLog(const rcLogCategory category,
-	const char* message, const int length)
-{
-	switch (category)
-	{
-	case RC_LOG_PROGRESS:
-		m_logger->trace(std::string_view(message, length));
-		break;
-
-	case RC_LOG_WARNING:
-		m_logger->warn(std::string_view(message, length));
-		break;
-
-	case RC_LOG_ERROR:
-		m_logger->error(std::string_view(message, length));
-		break;
-	}
-}
-
-void RecastContext::doResetTimers()
-{
-	for (int i = 0; i < RC_MAX_TIMERS; ++i)
-		m_accTime[i] = std::chrono::nanoseconds();
-}
-
-void RecastContext::doStartTimer(const rcTimerLabel label)
-{
-	m_startTime[label] = std::chrono::steady_clock::now();
-}
-
-void RecastContext::doStopTimer(const rcTimerLabel label)
-{
-	auto deltaTime = std::chrono::steady_clock::now() - m_startTime[label];
-
-	m_accTime[label] += deltaTime;
-}
-
-int RecastContext::doGetAccumulatedTime(const rcTimerLabel label) const
-{
-	return std::chrono::duration_cast<std::chrono::microseconds>(
-		m_accTime[label]).count();
-}
-
-#pragma warning(pop)
-
 //----------------------------------------------------------------------------
 
 ImportExportSettingsDialog::ImportExportSettingsDialog(
 	const std::shared_ptr<NavMesh>& navMesh, bool import)
-	: m_navMesh(navMesh)
-	, m_import(import)
+	: m_import(import)
+	, m_navMesh(navMesh)
 {
 	fs::path settingsPath = navMesh->GetNavMeshDirectory();
 	settingsPath /= "Settings";

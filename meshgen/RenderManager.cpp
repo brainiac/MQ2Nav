@@ -50,8 +50,8 @@ RenderManager::~RenderManager()
 
 bool RenderManager::Initialize(int width, int height, SDL_Window* window)
 {
-	m_width = width;
-	m_height = height;
+	m_windowWidth = width;
+	m_windowHeight = height;
 	m_window = window;
 
 	bgfx::Init init;
@@ -60,8 +60,8 @@ bool RenderManager::Initialize(int width, int height, SDL_Window* window)
 	init.platformData.nwh = SDLNativeWindowHandle(window);
 	init.platformData.ndt = nullptr;
 	init.platformData.type = bgfx::NativeWindowHandleType::Default;
-	init.resolution.width = m_width;
-	init.resolution.height = m_height;
+	init.resolution.width = m_windowWidth;
+	init.resolution.height = m_windowHeight;
 	init.resolution.reset = m_bgfxResetFlags;
 	if (!bgfx::init(init))
 	{
@@ -79,10 +79,8 @@ bool RenderManager::Initialize(int width, int height, SDL_Window* window)
 
 	ImVec4 clear_color = ImVec4(0.3f, 0.3f, 0.32f, 1.00f);
 	bgfx::setViewClear(m_viewId, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, mq::MQColor(clear_color).ToRGBA(), 1.0f, 0);
-	bgfx::setViewRect(m_viewId, 0, 0, static_cast<uint16_t>(m_width), static_cast<uint16_t>(m_height));
 
-	float aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
-	m_camera->SetAspectRatio(aspectRatio);
+	SetViewport({ 0, 0 }, { m_windowWidth, m_windowHeight });
 
 	ZoneRenderManager::init();
 
@@ -111,6 +109,8 @@ void RenderManager::BeginFrame(float timeDelta)
 	m_cursorRayStart = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 0.0f), m_camera->GetViewMtx(), m_camera->GetProjMtx(), m_viewport);
 	m_cursorRayEnd   = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), m_camera->GetViewMtx(), m_camera->GetProjMtx(), m_viewport);
 
+	m_viewModelProjMtx = m_camera->GetViewProjMtx();
+
 	bgfx::touch(m_viewId);
 }
 
@@ -127,19 +127,12 @@ void RenderManager::EndFrame()
 
 void RenderManager::Im3D_DrawText()
 {
-	Im3d::AppData& appData = Im3d::GetAppData();
 	uint32_t drawListCount = Im3d::GetTextDrawListCount();
-
 	ImDrawList* imDrawList = ImGui::GetBackgroundDrawList();
-	const Im3d::Mat4 viewProj = m_viewModelProjMtx;
+
 	for (uint32_t i = 0; i < drawListCount; ++i)
 	{
 		const Im3d::TextDrawList& textDrawList = Im3d::GetTextDrawLists()[i];
-
-		if (textDrawList.m_layerId == Im3d::MakeId("NamedLayer"))
-		{
-			// The application may group primitives into layers, which can be used to change the draw state (e.g. enable depth testing, use a different shader)
-		}
 
 		for (uint32_t j = 0; j < textDrawList.m_textDataCount; ++j)
 		{
@@ -150,8 +143,8 @@ void RenderManager::Im3D_DrawText()
 			}
 
 			// Project world -> screen space.
-			Im3d::Vec4 clip = viewProj * glm::vec4(textData.m_positionSize.x, textData.m_positionSize.y, textData.m_positionSize.z, 1.0f);
-			Im3d::Vec2 screen = Im3d::Vec2(clip.x / clip.w, clip.y / clip.w);
+			glm::vec4 clip = m_viewModelProjMtx * glm::vec4(textData.m_positionSize.x, textData.m_positionSize.y, textData.m_positionSize.z, 1.0f);
+			glm::vec2 screen = glm::vec2(clip.x / clip.w, clip.y / clip.w);
 
 			// Cull text which falls offscreen. Note that this doesn't take into account text size but works well enough in practice.
 			if (clip.w < 0.0f || screen.x >= 1.0f || screen.y >= 1.0f)
@@ -160,9 +153,9 @@ void RenderManager::Im3D_DrawText()
 			}
 
 			// Pixel coordinates for the ImGuiWindow ImGui.
-			screen = screen * Im3d::Vec2(0.5f) + Im3d::Vec2(0.5f);
+			screen = screen * glm::vec2(0.5f) + glm::vec2(0.5f);
 			screen.y = 1.0f - screen.y; // screen space origin is reversed by the projection.
-			screen = screen * Im3d::Vec2(static_cast<float>(m_viewport.z), static_cast<float>(m_viewport.w));
+			screen = screen * glm::vec2(m_viewport.zw()) + glm::vec2(m_viewport.xy());
 
 			// All text data is stored in a single buffer; each textData instance has an offset into this buffer.
 			const char* text = textDrawList.m_textBuffer + textData.m_textBufferOffset;
@@ -176,7 +169,7 @@ void RenderManager::Im3D_DrawText()
 			textSize.x = static_cast<float>(static_cast<int>(textSize.x + 0.99999f));
 
 			// Generate a pixel offset based on text flags.
-			Im3d::Vec2 textOffset = Im3d::Vec2(-textSize.x * 0.5f, -textSize.y * 0.5f); // default to center
+			glm::vec2 textOffset = glm::vec2(-textSize.x * 0.5f, -textSize.y * 0.5f); // default to center
 			if ((textData.m_flags & Im3d::TextFlags_AlignLeft) != 0)
 			{
 				textOffset.x = -textSize.x;
@@ -197,6 +190,7 @@ void RenderManager::Im3D_DrawText()
 
 			// Add text to the window draw list.
 			screen = screen + textOffset;
+
 			imDrawList->AddText(nullptr, textData.m_positionSize.w * ImGui::GetFontSize(),
 				ImVec2(screen.x, screen.y), textData.m_color.getABGR(), text, text + textData.m_textLength);
 		}
@@ -218,13 +212,9 @@ void RenderManager::Im3D_NewFrame(float timeDelta)
 	ad.m_cursorRayOrigin = m_cursorRayStart;
 	ad.m_cursorRayDirection = glm::normalize(m_cursorRayEnd - m_cursorRayStart);
 
-	//ad.setCullFrustum(m_viewModelProjMtx, true);
-
 	bool ctrlDown = (SDL_GetModState() & KMOD_CTRL) != 0;
 
 	const Uint8* keyState = SDL_GetKeyboardState(nullptr);
-
-	//m_camera->SetKeyState(CameraKey_Forward, keyState[SDL_SCANCODE_W] != 0);
 	bool keyOk = !ImGui::GetIO().WantCaptureKeyboard;
 
 	ad.m_keyDown[Im3d::Mouse_Left/*Im3d::Action_Select*/] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
@@ -241,20 +231,35 @@ void RenderManager::Im3D_NewFrame(float timeDelta)
 	Im3d::NewFrame();
 }
 
-void RenderManager::Resize(int width, int height)
+void RenderManager::SetViewport(const glm::ivec2& origin, const glm::ivec2& size)
 {
-	m_width = width;
-	m_height = height;
-	m_viewport = { 0, 0, width, height };
+	m_viewport = { origin.x, origin.y, size.x, size.y };
 
-	float aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
+	float aspectRatio = static_cast<float>(m_viewport.z) / static_cast<float>(m_viewport.w);
+
 	m_camera->SetAspectRatio(aspectRatio);
 
-	bgfx::reset(m_width, m_height, m_bgfxResetFlags);
-	bgfx::setViewRect(m_viewId, 0, 0, static_cast<uint16_t>(m_width), static_cast<uint16_t>(m_height));
+	bgfx::setViewRect(m_viewId, static_cast<uint16_t>(m_viewport.x), static_cast<uint16_t>(m_viewport.y),
+		static_cast<uint16_t>(m_viewport.z), static_cast<uint16_t>(m_viewport.w));
 }
 
-void RenderManager::SetMousePosition(int mouseX, int mouseY)
+void RenderManager::SetWindowSize(int width, int height)
 {
+	m_windowWidth = width;
+	m_windowHeight = height;
+
+	bgfx::reset(m_windowWidth, m_windowHeight, m_bgfxResetFlags);
+}
+
+void RenderManager::SetMousePosition(const glm::ivec2& mousePos)
+{
+	int mouseX = mousePos.x;
+	int mouseY = mousePos.y - m_viewport.y;
+
+	mouseY = (m_viewport.w - 1 - mouseY) + m_viewport.y;
+
+	if (mouseY < 0)
+		mouseY = 0;
+
 	m_mousePos = { mouseX, mouseY };
 }

@@ -56,7 +56,7 @@
     <ClCompile Include="MapGeometryLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="EQConfig.cpp">
+    <ClCompile Include="ApplicationConfig.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ChunkyTriMesh.cpp">
@@ -173,12 +173,15 @@
     <ClCompile Include="ResourceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Logging.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapGeometryLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EQConfig.h">
+    <ClInclude Include="ApplicationConfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
@@ -226,12 +229,6 @@
     <ClInclude Include="NavMeshInfoTool.h">
       <Filter>Header Files\tools</Filter>
     </ClInclude>
-    <ClInclude Include="engine\packrect.h">
-      <Filter>Header Files\engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\embedded_shader.h">
-      <Filter>Header Files\engine</Filter>
-    </ClInclude>
     <ClInclude Include="imgui\imgui_impl_bgfx.h">
       <Filter>Header Files\imgui</Filter>
     </ClInclude>
@@ -272,6 +269,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ResourceManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Logging.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

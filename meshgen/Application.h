@@ -7,40 +7,38 @@
 #pragma once
 
 #include "meshgen/Camera.h"
-#include "meshgen/EQConfig.h"
+#include "meshgen/ApplicationConfig.h"
 #include "common/NavMesh.h"
 #include "common/Utilities.h"
 #include "imgui/ImGuiUtils.h"
 
-#include <Recast.h>
-#include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 #include <imgui/imgui.h>
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/base_sink.h>
 
-#include <cstdio>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <deque>
 #include <mutex>
 #include <thread>
-#include <chrono>
 
 class RecastContext;
 class InputGeom;
 class NavMeshTool;
 class ZonePicker;
 class ImportExportSettingsDialog;
+class rcContext;
 
 struct ImGuiConsoleLog
 {
 	ImGuiTextBuffer Buf;
 	ImGuiTextFilter Filter;
 	ImVector<int>   Offsets;
-	bool            ScrollToBottom;
+	bool            ScrollToBottom = false;
+
+	ImGuiConsoleLog()
+	{}
 
 	void Clear()
 	{
@@ -111,15 +109,16 @@ public:
 	virtual ~Application();
 
 	bool Initialize(int argc, const char* const* argv);
-	int shutdown();
+	int Shutdown();
 
 	bool update();
 
-	RecastContext& GetContext() { return *m_rcContext; }
+	ApplicationConfig& GetConfig() { return m_config; }
+
+	rcContext& GetContext() { return *m_rcContext; }
 
 	//------------------------------------------------------------------------
 
-	void ShowZonePickerDialog();
 	void ShowSettingsDialog();
 
 	void PushEvent(const std::function<void()>& cb);
@@ -133,9 +132,6 @@ private:
 	bool InitSystem();
 	void InitImGui();
 	void UpdateImGui();
-
-	void Im3D_NewFrame();
-	void Im3D_DrawText();
 
 	// Load a zone's geometry given its shortname.
 	void LoadGeometry(const std::string& zoneShortName, bool loadMesh);
@@ -155,21 +151,24 @@ private:
 	bool HandleEvents();
 	bool HandleCallbacks();
 
-
-	void UpdateMovementState(bool keydown);
 	void UpdateCamera();
 
 	void DrawAreaTypesEditor();
 	void ShowImportExportSettingsDialog(bool import);
 
+	void DrawZonePickerDialog();
+	void ShowZonePickerDialog();
+
+	void UpdateViewport();
+
 private:
-	EQConfig          m_eqConfig;
+	ApplicationConfig m_config;
 	HWND              m_hWnd = nullptr;
 	SDL_Window*       m_window = nullptr;
-	int               m_width, m_height;
+	glm::ivec4        m_windowRect = { 0, 0, 0, 0 };
 
 	// The build context. Everything passes this around. We own it.
-	std::unique_ptr<RecastContext> m_rcContext;
+	std::unique_ptr<rcContext> m_rcContext;
 
 	// short name of the currently loaded zone
 	std::string m_zoneShortname;
@@ -197,7 +196,7 @@ private:
 	bool m_showLog = false;
 	bool m_showFailedToOpenDialog = false;
 
-	uint32_t m_lastTime = 0;
+	uint64_t m_lastTime = 0;
 	float m_time = 0.0f;
 	float m_timeDelta = 0;
 	float m_timeAccumulator = 0;
@@ -236,7 +235,6 @@ private:
 	bool m_loadMeshOnZone = false;
 
 	std::string m_iniFile;
-	std::string m_logFile;
 
 	bool m_showFailedToLoadZone = false;
 	std::string m_failedZoneMsg;
@@ -251,52 +249,9 @@ private:
 	std::mutex m_callbackMutex;
 
 	ImGuiConsoleLog m_console;
+	ImGuiID m_dockspaceID = 0;
 };
 
-template <typename Mutex>
-class ConsoleLogSink : public spdlog::sinks::base_sink<Mutex>
-{
-public:
-	ConsoleLogSink(Application* application)
-		: m_application(application)
-	{}
-
-protected:
-	void sink_it_(const spdlog::details::log_msg& msg) override
-	{
-		spdlog::memory_buf_t formatted;
-		this->formatter_->format(msg, formatted);
-
-		m_application->AddLog(fmt::to_string(formatted).c_str());
-	}
-
-	void flush_() override {}
-
-private:
-	Application* m_application;
-};
-
-//----------------------------------------------------------------------------
-
-class RecastContext : public rcContext
-{
-public:
-	RecastContext();
-	virtual ~RecastContext() = default;
-
-protected:
-	virtual void doResetLog() override {}
-	virtual void doLog(const rcLogCategory category, const char* msg, const int len) override;
-	virtual void doResetTimers() override;
-	virtual void doStartTimer(const rcTimerLabel label) override;
-	virtual void doStopTimer(const rcTimerLabel label) override;
-	virtual int doGetAccumulatedTime(const rcTimerLabel label) const override;
-
-private:
-	std::shared_ptr<spdlog::logger> m_logger;
-	std::array<std::chrono::steady_clock::time_point, RC_MAX_TIMERS> m_startTime;
-	std::array<std::chrono::nanoseconds, RC_MAX_TIMERS> m_accTime;
-};
 
 //----------------------------------------------------------------------------
 

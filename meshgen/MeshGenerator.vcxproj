@@ -31,13 +31,14 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
-    <ClCompile Include="EQConfig.cpp" />
+    <ClCompile Include="ApplicationConfig.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
     <ClCompile Include="imgui\imgui_impl.cpp" />
     <ClCompile Include="imgui\imgui_impl_bgfx.cpp" />
     <ClCompile Include="imgui\imgui_impl_sdl2.cpp" />
     <ClCompile Include="InputGeom.cpp" />
+    <ClCompile Include="Logging.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
     <ClCompile Include="NavMeshInfoTool.cpp" />
@@ -63,9 +64,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
-    <ClInclude Include="engine\embedded_shader.h" />
-    <ClInclude Include="engine\packrect.h" />
-    <ClInclude Include="EQConfig.h" />
+    <ClInclude Include="ApplicationConfig.h" />
     <ClInclude Include="ImGuiWidgets.h" />
     <ClInclude Include="imgui\fs_imgui.bin.h" />
     <ClInclude Include="imgui\fs_imgui_image.bin.h" />
@@ -76,6 +75,7 @@
     <ClInclude Include="imgui\vs_imgui_image.bin.h" />
     <ClInclude Include="InputGeom.h" />
     <ClInclude Include="Application.h" />
+    <ClInclude Include="Logging.h" />
     <ClInclude Include="MapGeometryLoader.h" />
     <ClInclude Include="NavMeshInfoTool.h" />
     <ClInclude Include="NavMeshTool.h" />
