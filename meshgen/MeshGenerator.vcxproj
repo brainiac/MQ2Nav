@@ -12,22 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\dependencies\im3d\im3d.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\allocator.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\clusterizer.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\indexcodec.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\indexgenerator.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\overdrawanalyzer.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\overdrawoptimizer.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\quantization.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\simplifier.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\spatialorder.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\stripifier.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\vcacheanalyzer.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\vcacheoptimizer.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\vertexcodec.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\vertexfilter.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\vfetchanalyzer.cpp" />
-    <ClCompile Include="..\dependencies\meshoptimizer\vfetchoptimizer.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />

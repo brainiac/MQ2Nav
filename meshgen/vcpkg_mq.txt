@@ -9,3 +9,6 @@ directxtk
 wil
 bgfx[platform-default-features]
 bgfx[tools]:x64-windows
+entt
+taskflow
+meshoptimizer
