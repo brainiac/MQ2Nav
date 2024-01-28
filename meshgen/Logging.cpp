@@ -54,29 +54,6 @@ private:
 	std::shared_ptr<spdlog::logger> m_logger;
 };
 
-template <typename Mutex>
-class ConsoleLogSink : public spdlog::sinks::base_sink<Mutex>
-{
-public:
-	ConsoleLogSink(Application* application)
-		: m_application(application)
-	{}
-
-protected:
-	void sink_it_(const spdlog::details::log_msg& msg) override
-	{
-		spdlog::memory_buf_t formatted;
-		this->formatter_->format(msg, formatted);
-
-		m_application->AddLog(fmt::to_string(formatted).c_str());
-	}
-
-	void flush_() override {}
-
-private:
-	Application* m_application;
-};
-
 std::shared_ptr<spdlog::logger> g_logger;
 
 void Logging::Initialize()
@@ -105,19 +82,11 @@ void Logging::Initialize()
 
 void Logging::InitSecondStage(Application* app)
 {
-	{
-		auto sink = std::make_shared<ConsoleLogSink<std::mutex>>(app);
-		sink->set_level(spdlog::level::debug);
-		g_logger->sinks().push_back(sink);
-	}
+	std::string logFile = fmt::format("{}/logs/MeshGenerator.log", g_config.GetLogsPath());
 
-	std::string logFile = fmt::format("{}/logs/MeshGenerator.log", app->GetConfig().GetLogsPath());
-
-	{
-		auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile, true);
-		sink->set_level(spdlog::level::debug);
-		g_logger->sinks().push_back(sink);
-	}
+	auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile, true);
+	sink->set_level(spdlog::level::debug);
+	g_logger->sinks().push_back(sink);
 }
 
 
@@ -132,8 +101,7 @@ RecastContext::RecastContext()
 	m_logger = spdlog::get("Recast");
 }
 
-void RecastContext::doLog(const rcLogCategory category,
-	const char* message, const int length)
+void RecastContext::doLog(const rcLogCategory category, const char* message, const int length)
 {
 	switch (category)
 	{

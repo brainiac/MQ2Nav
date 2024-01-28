@@ -17,12 +17,14 @@
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="ApplicationConfig.cpp" />
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="DebugPanel.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
     <ClCompile Include="imgui\imgui_impl.cpp" />
     <ClCompile Include="imgui\imgui_impl_bgfx.cpp" />
     <ClCompile Include="imgui\imgui_impl_sdl2.cpp" />
     <ClCompile Include="InputGeom.cpp" />
     <ClCompile Include="Logging.cpp" />
+    <ClCompile Include="ConsolePanel.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
     <ClCompile Include="NavMeshInfoTool.cpp" />
@@ -31,12 +33,15 @@
     <ClCompile Include="NavMeshTesterTool.cpp" />
     <ClCompile Include="NavMeshTileTool.cpp" />
     <ClCompile Include="OffMeshConnectionTool.cpp" />
+    <ClCompile Include="PanelManager.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="PropertiesPanel.cpp" />
     <ClCompile Include="RenderManager.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
+    <ClCompile Include="ToolsPanel.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
     <ClCompile Include="ZoneRenderManager.cpp" />
@@ -49,6 +54,8 @@
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="ApplicationConfig.h" />
+    <ClInclude Include="DebugPanel.h" />
+    <ClInclude Include="Hash.h" />
     <ClInclude Include="ImGuiWidgets.h" />
     <ClInclude Include="imgui\fs_imgui.bin.h" />
     <ClInclude Include="imgui\fs_imgui_image.bin.h" />
@@ -60,6 +67,7 @@
     <ClInclude Include="InputGeom.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="Logging.h" />
+    <ClInclude Include="ConsolePanel.h" />
     <ClInclude Include="MapGeometryLoader.h" />
     <ClInclude Include="NavMeshInfoTool.h" />
     <ClInclude Include="NavMeshTool.h" />
@@ -67,10 +75,13 @@
     <ClInclude Include="NavMeshTesterTool.h" />
     <ClInclude Include="NavMeshTileTool.h" />
     <ClInclude Include="OffMeshConnectionTool.h" />
+    <ClInclude Include="PanelManager.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="PropertiesPanel.h" />
     <ClInclude Include="RenderManager.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ResourceManager.h" />
+    <ClInclude Include="ToolsPanel.h" />
     <ClInclude Include="WaypointsTool.h" />
     <ClInclude Include="ZonePicker.h" />
     <ClInclude Include="ZoneRenderManager.h" />

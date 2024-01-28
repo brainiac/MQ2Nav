@@ -12,3 +12,4 @@ bgfx[tools]:x64-windows
 entt
 taskflow
 meshoptimizer
+yaml-cpp

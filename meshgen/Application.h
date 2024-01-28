@@ -29,81 +29,19 @@ class NavMeshTool;
 class ZonePicker;
 class ImportExportSettingsDialog;
 class rcContext;
+class PanelManager;
 
-struct ImGuiConsoleLog
-{
-	ImGuiTextBuffer Buf;
-	ImGuiTextFilter Filter;
-	ImVector<int>   Offsets;
-	bool            ScrollToBottom = false;
-
-	ImGuiConsoleLog()
-	{}
-
-	void Clear()
-	{
-		Buf.clear();
-		Offsets.clear();
-	}
-
-	void AddLog(const char* string)
-	{
-		int old_size = Buf.size();
-		Buf.appendf("%s", string);
-		for (int new_size = Buf.size(); old_size < new_size; old_size++)
-		{
-			if (Buf[old_size] == '\n')
-				Offsets.push_back(old_size);
-		}
-		ScrollToBottom = true;
-	}
-
-	void Draw(const char* title, bool* p_opened = nullptr)
-	{
-		ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-		ImGui::Begin(title, p_opened);
-		if (ImGui::Button("Clear")) Clear();
-		ImGui::SameLine();
-		bool copy = ImGui::Button("Copy");
-		ImGui::SameLine();
-		Filter.Draw("Filter", -100.0f);
-		ImGui::Separator();
-		ImGui::BeginChild("scrolling");
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 1));
-		if (copy) ImGui::LogToClipboard();
-		ImGui::PushFont(mq::imgui::ConsoleFont);
-
-		if (Filter.IsActive())
-		{
-			const char* buf_begin = Buf.begin();
-			const char* line = buf_begin;
-			for (int line_no = 0; line != nullptr; line_no++)
-			{
-				const char* line_end = (line_no < Offsets.Size) ? buf_begin + Offsets[line_no] : nullptr;
-				if (Filter.PassFilter(line, line_end))
-					ImGui::TextUnformatted(line, line_end);
-				line = line_end && line_end[1] ? line_end + 1 : nullptr;
-			}
-		}
-		else
-		{
-			ImGui::TextUnformatted(Buf.begin());
-		}
-
-		ImGui::PopFont();
-
-		if (ScrollToBottom)
-			ImGui::SetScrollHereY(1.0f);
-		ScrollToBottom = false;
-
-		ImGui::PopStyleVar();
-		ImGui::EndChild();
-		ImGui::End();
-	}
-};
+// TEMP
+class PropertiesPanel;
+class DebugPanel;
+class ToolsPanel;
 
 class Application
 {
+	friend class DebugPanel;
+	friend class PropertiesPanel;
+	friend class ToolsPanel;
+
 public:
 	Application();
 	virtual ~Application();
@@ -113,8 +51,6 @@ public:
 
 	bool update();
 
-	ApplicationConfig& GetConfig() { return m_config; }
-
 	rcContext& GetContext() { return *m_rcContext; }
 
 	//------------------------------------------------------------------------
@@ -123,10 +59,6 @@ public:
 
 	void PushEvent(const std::function<void()>& cb);
 
-	void AddLog(const std::string& message)
-	{
-		m_console.AddLog(message.c_str());
-	}
 
 private:
 	bool InitSystem();
@@ -162,7 +94,6 @@ private:
 	void UpdateViewport();
 
 private:
-	ApplicationConfig m_config;
 	HWND              m_hWnd = nullptr;
 	SDL_Window*       m_window = nullptr;
 	glm::ivec4        m_windowRect = { 0, 0, 0, 0 };
@@ -188,6 +119,9 @@ private:
 
 	// The input geometry (??)
 	std::unique_ptr<InputGeom> m_geom;
+
+	// UI Panel Manager
+	std::unique_ptr<PanelManager> m_panelManager;
 
 
 	float m_progress = 0.0f;
@@ -247,9 +181,6 @@ private:
 
 	std::vector<std::function<void()>> m_callbackQueue;
 	std::mutex m_callbackMutex;
-
-	ImGuiConsoleLog m_console;
-	ImGuiID m_dockspaceID = 0;
 };
 
 

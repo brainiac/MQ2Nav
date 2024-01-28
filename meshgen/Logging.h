@@ -6,6 +6,7 @@
 
 class Application;
 
+extern std::shared_ptr<spdlog::logger> g_logger;
 
 namespace Logging
 {

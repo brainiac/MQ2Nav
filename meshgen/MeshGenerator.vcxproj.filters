@@ -42,6 +42,12 @@
     <Filter Include="Header Files\engine\im3d">
       <UniqueIdentifier>{27845826-a9cb-4027-bdb9-de634379f86d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\panels">
+      <UniqueIdentifier>{f3750570-e4ce-4fd2-8089-02e560fb5bc5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\panels">
+      <UniqueIdentifier>{382d7c8e-aee7-4272-b129-b634fde0e9aa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -121,6 +127,21 @@
     </ClCompile>
     <ClCompile Include="Logging.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsolePanel.cpp">
+      <Filter>Source Files\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugPanel.cpp">
+      <Filter>Source Files\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="PropertiesPanel.cpp">
+      <Filter>Source Files\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="PanelManager.cpp">
+      <Filter>Source Files\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolsPanel.cpp">
+      <Filter>Source Files\panels</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -219,6 +240,24 @@
     </ClInclude>
     <ClInclude Include="Logging.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Hash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugPanel.h">
+      <Filter>Header Files\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="PanelManager.h">
+      <Filter>Header Files\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="PropertiesPanel.h">
+      <Filter>Header Files\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsolePanel.h">
+      <Filter>Header Files\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolsPanel.h">
+      <Filter>Header Files\panels</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

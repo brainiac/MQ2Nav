@@ -24,6 +24,7 @@ public:
 	void Initialize();
 
 	const std::string& GetExecutablePath() const { return m_exePath; }
+	const std::string& GetSettingsFileName() const { return m_settingsFile; }
 
 	void SetEverquestPath(const std::string& everquestPath);
 	const std::string& GetEverquestPath() const { return m_everquestPath; }
@@ -87,3 +88,5 @@ private:
 	std::map<std::string, std::string> m_mapNames;
 	bool m_mapsLoaded = false;
 };
+
+extern ApplicationConfig g_config;

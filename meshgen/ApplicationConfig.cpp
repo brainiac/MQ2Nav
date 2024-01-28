@@ -20,6 +20,8 @@
 
 namespace fs = std::filesystem;
 
+ApplicationConfig g_config;
+
 ApplicationConfig::ApplicationConfig()
 {
 	// Init COM library
