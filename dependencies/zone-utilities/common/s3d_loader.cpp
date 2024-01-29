@@ -38,7 +38,7 @@ bool EQEmu::S3DLoader::ParseWLDFile(std::string file_name, std::string wld_name,
 	SafeStructAllocParse(wld_header, header);
 	
 	if (header->magic != 0x54503d02) {
-		eqLogMessage(LogDebug, "Header magic of %x did not match expected 0x54503d02", header->magic);
+		eqLogMessage(LogError, "Header magic of %x did not match expected 0x54503d02", header->magic);
 		return false;
 	}
 

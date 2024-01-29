@@ -64,7 +64,7 @@ void NavMesh::SetZoneName(const std::string& zoneShortName)
 	m_zoneName = zoneShortName;
 
 	UpdateDataFile();
-	SPDLOG_DEBUG("Setting navmesh zone to: {}", m_zoneName);
+	SPDLOG_INFO("Setting navmesh zone to: {}", m_zoneName);
 }
 
 void NavMesh::SetNavMeshDirectory(const std::string& dirname)

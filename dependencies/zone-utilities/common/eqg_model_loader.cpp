@@ -12,7 +12,7 @@ EQEmu::EQGModelLoader::~EQGModelLoader() {
 }
 
 bool EQEmu::EQGModelLoader::Load(EQEmu::PFS::Archive &archive, std::string model, std::shared_ptr<EQG::Geometry>& model_out) {
-	eqLogMessage(LogTrace, "Loading model %s.", model.c_str());
+	eqLogMessage(LogDebug, "Loading model %s.", model.c_str());
 	std::vector<char> buffer;
 	if(!archive.Get(model, buffer)) {
 		eqLogMessage(LogError, "Unable to load %s, file was not found.", model.c_str());
@@ -35,7 +35,7 @@ bool EQEmu::EQGModelLoader::Load(EQEmu::PFS::Archive &archive, std::string model
 	}
 	else if(header->magic[3] != 'T')
 	{
-		eqLogMessage(LogDebug, "Attempted to load an eqg model that was not type M or T.");
+		eqLogMessage(LogWarn, "Attempted to load an eqg model that was not type M or T.");
 		return false;
 	}
 

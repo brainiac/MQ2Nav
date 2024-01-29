@@ -259,6 +259,15 @@
     <ClInclude Include="ToolsPanel.h">
       <Filter>Header Files\panels</Filter>
     </ClInclude>
+    <ClInclude Include="imgui\scoped_helpers.h">
+      <Filter>Header Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="RecastContext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\imgui_utilities.h">
+      <Filter>Header Files\imgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="meshgen.natvis">

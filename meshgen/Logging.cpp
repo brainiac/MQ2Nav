@@ -12,14 +12,17 @@
 #include <zone-utilities/log/log_base.h>
 #include <zone-utilities/log/log_macros.h>
 
-static const int32_t MAX_LOG_MESSAGES = 1000;
+std::shared_ptr<spdlog::logger> g_logger;
 
+//----------------------------------------------------------------------------
+
+// EQEmuLogSink will capture log events from the EQEmu code (zone_utilities), and forward it to our log system.
 class EQEmuLogSink : public EQEmu::Log::LogBase
 {
 public:
 	EQEmuLogSink()
 	{
-		m_logger = spdlog::get("EQEmu");
+		m_logger = Logging::GetLogger(LoggingCategory::EQEmu);
 	}
 
 	virtual void OnRegister(int enabled_logs) override {}
@@ -47,6 +50,8 @@ public:
 		case EQEmu::Log::LogFatal:
 			m_logger->critical(message);
 			break;
+
+		default: break;
 		}
 	}
 
@@ -54,7 +59,8 @@ private:
 	std::shared_ptr<spdlog::logger> m_logger;
 };
 
-std::shared_ptr<spdlog::logger> g_logger;
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 void Logging::Initialize()
 {
@@ -73,8 +79,13 @@ void Logging::Initialize()
 	spdlog::set_default_logger(g_logger);
 	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v");
 	spdlog::flush_every(std::chrono::seconds{ 5 });
-	spdlog::register_logger(g_logger->clone("Recast"));
-	spdlog::register_logger(g_logger->clone("EQEmu"));
+
+	auto recastLogger = g_logger->clone("Recast");
+	spdlog::register_logger(recastLogger);
+
+	auto emuLogger = g_logger->clone("EQEmu");
+	emuLogger->set_level(spdlog::level::trace);
+	spdlog::register_logger(emuLogger);
 
 	eqLogInit(-1);
 	eqLogRegister(std::make_shared<EQEmuLogSink>());
@@ -82,63 +93,68 @@ void Logging::Initialize()
 
 void Logging::InitSecondStage(Application* app)
 {
-	std::string logFile = fmt::format("{}/logs/MeshGenerator.log", g_config.GetLogsPath());
+	std::string logFile = fmt::format("{}\\MeshGenerator.log", g_config.GetLogsPath());
 
 	auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile, true);
 	sink->set_level(spdlog::level::debug);
 	g_logger->sinks().push_back(sink);
 }
 
-
 void Logging::Shutdown()
 {
 	g_logger.reset();
 }
 
-
-RecastContext::RecastContext()
-{
-	m_logger = spdlog::get("Recast");
-}
-
-void RecastContext::doLog(const rcLogCategory category, const char* message, const int length)
+std::shared_ptr<spdlog::logger> Logging::GetLogger(LoggingCategory category)
 {
 	switch (category)
 	{
-	case RC_LOG_PROGRESS:
-		m_logger->trace(std::string_view(message, length));
-		break;
+	case LoggingCategory::EQEmu:
+		return spdlog::get("EQEmu");
 
-	case RC_LOG_WARNING:
-		m_logger->warn(std::string_view(message, length));
-		break;
+	case LoggingCategory::Recast:
+		return spdlog::get("Recast");
 
-	case RC_LOG_ERROR:
-		m_logger->error(std::string_view(message, length));
-		break;
+	default:
+		return g_logger;
 	}
 }
 
-void RecastContext::doResetTimers()
+LoggingCategory Logging::GetLoggingCategory(std::string_view loggerName)
 {
-	for (int i = 0; i < RC_MAX_TIMERS; ++i)
-		m_accTime[i] = std::chrono::nanoseconds();
+	if (loggerName.empty())
+		return LoggingCategory::MeshGen;
+
+	switch (loggerName[0])
+	{
+	case 'E':
+		if (loggerName == "EQEmu")
+			return LoggingCategory::EQEmu;
+		return LoggingCategory::Other;
+
+	case 'R':
+		if (loggerName == "Recast")
+			return LoggingCategory::Recast;
+		return LoggingCategory::Other;
+
+	case 'M':
+		if (loggerName == "MeshGen")
+			return LoggingCategory::MeshGen;
+		return LoggingCategory::Other;
+
+	default:
+		return LoggingCategory::Other;
+	}
 }
 
-void RecastContext::doStartTimer(const rcTimerLabel label)
+const char* Logging::GetLoggingCategoryName(LoggingCategory category)
 {
-	m_startTime[label] = std::chrono::steady_clock::now();
-}
-
-void RecastContext::doStopTimer(const rcTimerLabel label)
-{
-	auto deltaTime = std::chrono::steady_clock::now() - m_startTime[label];
-
-	m_accTime[label] += deltaTime;
-}
-
-int RecastContext::doGetAccumulatedTime(const rcTimerLabel label) const
-{
-	return (int)std::chrono::duration_cast<std::chrono::microseconds>(
-		m_accTime[label]).count();
+	switch (category)
+	{
+	case LoggingCategory::Recast: return "Recast";
+	case LoggingCategory::EQEmu: return "EQEmu";
+	case LoggingCategory::MeshGen: return "MeshGen";
+	default:
+	case LoggingCategory::Other: return "Other";
+	}
 }

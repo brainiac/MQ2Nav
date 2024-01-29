@@ -1,12 +1,18 @@
 #pragma once
 
-#include <Recast.h>
 #include <spdlog/spdlog.h>
-#include <chrono>
 
 class Application;
 
 extern std::shared_ptr<spdlog::logger> g_logger;
+
+enum class LoggingCategory
+{
+	MeshGen = 0,
+	EQEmu,
+	Recast,
+	Other,
+};
 
 namespace Logging
 {
@@ -16,27 +22,12 @@ namespace Logging
 	// Executed during 2nd stage of initialization
 	void InitSecondStage(Application* app);
 
+	std::shared_ptr<spdlog::logger> GetLogger(LoggingCategory category);
+
+	LoggingCategory GetLoggingCategory(std::string_view loggerName);
+	const char* GetLoggingCategoryName(LoggingCategory category);
+
 	void Shutdown();
 }
 
 //----------------------------------------------------------------------------
-
-class RecastContext : public rcContext
-{
-public:
-	RecastContext();
-	virtual ~RecastContext() = default;
-
-protected:
-	virtual void doResetLog() override {}
-	virtual void doLog(const rcLogCategory category, const char* msg, const int len) override;
-	virtual void doResetTimers() override;
-	virtual void doStartTimer(const rcTimerLabel label) override;
-	virtual void doStopTimer(const rcTimerLabel label) override;
-	virtual int doGetAccumulatedTime(const rcTimerLabel label) const override;
-
-private:
-	std::shared_ptr<spdlog::logger> m_logger;
-	std::array<std::chrono::steady_clock::time_point, RC_MAX_TIMERS> m_startTime;
-	std::array<std::chrono::nanoseconds, RC_MAX_TIMERS> m_accTime;
-};

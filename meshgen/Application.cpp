@@ -11,6 +11,7 @@
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/PanelManager.h"
 #include "meshgen/PropertiesPanel.h"
+#include "meshgen/RecastContext.h"
 #include "meshgen/RenderManager.h"
 #include "meshgen/ResourceManager.h"
 #include "meshgen/ToolsPanel.h"
@@ -157,6 +158,9 @@ void Application::InitImGui()
 		style.WindowRounding = 0.0f;
 		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 	}
+
+	style.FrameRounding = 2;
+	style.ScrollbarRounding = 8;
 
 	ImGui_Impl_Init(m_window, context);
 

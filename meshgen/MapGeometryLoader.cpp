@@ -585,7 +585,7 @@ void MapGeometryLoader::LoadDoors()
 		}
 		else
 		{
-			eqLogMessage(LogTrace, "Couldn't find model for %s.", params.name.c_str());
+			eqLogMessage(LogWarn, "Couldn't find model for %s.", params.name.c_str());
 		}
 	}
 }
@@ -594,7 +594,7 @@ void MapGeometryLoader::LoadDoors()
 
 bool MapGeometryLoader::Build()
 {
-	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a standard eqg.", m_zoneName.c_str());
+	eqLogMessage(LogInfo, "Attempting to load %s.eqg as a standard eqg.", m_zoneName.c_str());
 
 	std::string filePath = m_eqPath + "\\" + m_zoneName;
 
@@ -608,14 +608,14 @@ bool MapGeometryLoader::Build()
 		return CompileEQG(eqg_models, eqg_placables, eqg_regions, eqg_lights);
 	}
 
-	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a v4 eqg.", m_zoneName.c_str());
+	eqLogMessage(LogInfo, "Attempting to load %s.eqg as a v4 eqg.", m_zoneName.c_str());
 	EQEmu::EQG4Loader eqg4;
 	if (eqg4.Load(filePath, terrain))
 	{
 		return CompileEQGv4();
 	}
 
-	eqLogMessage(LogTrace, "Attempting to load %s.s3d as a standard s3d.", m_zoneName.c_str());
+	eqLogMessage(LogInfo, "Attempting to load %s.s3d as a standard s3d.", m_zoneName.c_str());
 	EQEmu::S3DLoader s3d;
 	std::vector<EQEmu::S3D::WLDFragment> zone_frags;
 	std::vector<EQEmu::S3D::WLDFragment> zone_object_frags;

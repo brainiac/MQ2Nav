@@ -2,12 +2,37 @@
 #include "pch.h"
 #include "ConsolePanel.h"
 
+#include "imgui/imgui_utilities.h"
+#include "imgui/scoped_helpers.h"
 #include "meshgen/Application.h"
 #include "meshgen/Logging.h"
 
+#include <fmt/chrono.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/base_sink.h>
 #include <mutex>
+
+//----------------------------------------------------------------------------
+
+static constexpr ImVec4 s_levelColors[spdlog::level::n_levels] = {
+	ImVec4(0.3f, 0.3f, 0.3f, 1.0f),                     // trace
+	ImVec4(0.6f, 0.6f, 0.6f, 1.0f),                     // debug
+	ImVec4(0.0f, 0.431372549f, 1.0f, 1.0f),             // info
+	ImVec4(1.0f, 0.90f, 0.06f, 1.0f),                   // warning
+	ImVec4(1.0f, 0.31f, 0.31f, 1.0f),                   // error
+	ImVec4(1.0f, 0.0f, 0.0f, 1.0f),                     // critical
+};
+
+static constexpr ImVec4 s_levelColorsForText[spdlog::level::n_levels] = {
+	ImVec4(0.3f, 0.3f, 0.3f, 1.0f),                     // trace
+	ImVec4(0.6f, 0.6f, 0.6f, 1.0f),                     // debug
+	ImVec4(1.0f, 1.0, 1.0f, 1.0f),                      // info
+	ImVec4(1.0f, 0.90f, 0.06f, 1.0f),                   // warning
+	ImVec4(1.0f, 0.31f, 0.31f, 1.0f),                   // error
+	ImVec4(1.0f, 0.0f, 0.0f, 1.0f),                     // critical
+};
+
+static constexpr float s_toolbarHeight = 22.0f;
 
 //----------------------------------------------------------------------------
 
@@ -15,8 +40,11 @@ class ConsoleLogSink : public spdlog::sinks::base_sink<std::mutex>
 {
 public:
 	ConsoleLogSink(ConsolePanel* panel)
-		: m_panel(panel)
-	{}
+		: m_console(panel)
+	{
+	}
+
+	spdlog::formatter& formatter() { return *this->formatter_; }
 
 protected:
 	void sink_it_(const spdlog::details::log_msg& msg) override;
@@ -24,18 +52,13 @@ protected:
 	void flush_() override {}
 
 private:
-	ConsolePanel* m_panel;
+	ConsolePanel* m_console;
 };
 
 void ConsoleLogSink::sink_it_(const spdlog::details::log_msg& msg)
 {
-	spdlog::memory_buf_t formatted;
-	this->formatter_->format(msg, formatted);
-
-	m_panel->AddLog(formatted.data(), formatted.data() + formatted.size());
+	m_console->AddLog(msg);
 }
-
-static ConsoleLogSink* s_logSink = nullptr;
 
 //----------------------------------------------------------------------------
 
@@ -43,32 +66,34 @@ ConsolePanel::ConsolePanel()
 	: PanelWindow("Console Log", "ConsolePanel")
 {
 	m_sink = std::make_shared<ConsoleLogSink>(this);
-	m_sink->set_level(spdlog::level::debug);
+	m_sink->set_level(spdlog::level::trace);
 
-	g_logger->sinks().push_back(m_sink);
+	spdlog::apply_all([this](const std::shared_ptr<spdlog::logger>& logger) {
+		logger->sinks().push_back(m_sink);
+	});
 }
 
 ConsolePanel::~ConsolePanel()
 {
-	std::erase(g_logger->sinks(), m_sink);
+	spdlog::apply_all([this](const std::shared_ptr<spdlog::logger>& logger) {
+		std::erase(g_logger->sinks(), m_sink);
+	});
 }
 
-void ConsolePanel::Clear()
+void ConsolePanel::AddLog(const spdlog::details::log_msg& message)
 {
-	m_buffer.clear();
-	m_offsets.clear();
-}
+	m_messages.emplace_back(
+		message.time,
+		Logging::GetLoggingCategory(
+			std::string_view(message.logger_name.data(), message.logger_name.size())),
+		message.level,
+		std::string_view(message.payload.data(), message.payload.size())
+	);
 
-void ConsolePanel::AddLog(const char* str_begin, const char* str_end)
-{
-	int old_size = m_buffer.size();
-	m_buffer.append(str_begin, str_end);
-	for (int new_size = m_buffer.size(); old_size < new_size; old_size++)
-	{
-		if (m_buffer[old_size] == '\n')
-			m_offsets.push_back(old_size);
-	}
-	m_scrollToBottom = true;
+	const ConsoleMessage& newMsg = m_messages.back();
+
+	if (MessageMatchesFilter(newMsg))
+		m_filteredMessages.push_back(m_messages.size() - 1);
 }
 
 void ConsolePanel::OnImGuiRender(bool* p_open)
@@ -77,46 +102,232 @@ void ConsolePanel::OnImGuiRender(bool* p_open)
 
 	if (ImGui::Begin(panelName.c_str(), p_open))
 	{
-		if (ImGui::Button("Clear"))
-			Clear();
-		ImGui::SameLine();
-		bool copy = ImGui::Button("Copy");
-		ImGui::SameLine();
-		m_filter.Draw("Filter", -100.0f);
-		ImGui::Separator();
+		ImVec2 consoleSize = ImGui::GetContentRegionAvail();
+		consoleSize.y -= 26.0f;
 
-		if (ImGui::BeginChild("scrolling"))
-		{
-			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 1));
-			if (copy)
-				ImGui::LogToClipboard();
-			ImGui::PushFont(mq::imgui::ConsoleFont);
+		RenderToolbar({ consoleSize.x, s_toolbarHeight });
 
-			if (m_filter.IsActive())
-			{
-				const char* buf_begin = m_buffer.begin();
-				const char* line = buf_begin;
-				for (int line_no = 0; line != nullptr; line_no++)
-				{
-					const char* line_end = (line_no < m_offsets.Size) ? buf_begin + m_offsets[line_no] : nullptr;
-					if (m_filter.PassFilter(line, line_end))
-						ImGui::TextUnformatted(line, line_end);
-					line = line_end && line_end[1] ? line_end + 1 : nullptr;
-				}
-			}
-			else
-			{
-				ImGui::TextUnformatted(m_buffer.begin());
-			}
-
-			ImGui::PopFont();
-			if (m_scrollToBottom)
-				ImGui::SetScrollHereY(1.0f);
-			m_scrollToBottom = false;
-
-			ImGui::PopStyleVar();
-		}
-		ImGui::EndChild();
+		RenderLogs(consoleSize);
 	}
 	ImGui::End();
+}
+
+void ConsolePanel::RenderToolbar(const ImVec2& size)
+{
+	{
+		mq::imgui::ScopedStyleStack styleScope(
+		   ImGuiStyleVar_FrameBorderSize, 0.0f,
+		   ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f)
+	   );
+
+		ImGui::BeginChild("Toolbar", size);
+	}
+
+	if (ImGui::Button("Clear", { 75.0f, s_toolbarHeight }))
+	{
+		m_messages.clear();
+	}
+
+	const auto& style = ImGui::GetStyle();
+	ImGui::SameLine(0.0f, 16.0f);
+
+	bool filterChanged = false;
+
+	constexpr ImVec4 disabledButtonColor(0.1f, 0.1f, 0.1f, 1.0f);
+	constexpr ImVec4 enabledButtonColor(0.2f, 0.2f, 0.2f, 1.0f);
+
+	// Category filters
+	for (int i = 0; i <= static_cast<int>(LoggingCategory::Other); ++i)
+	{
+		if (i != 0)
+			ImGui::SameLine();
+
+		LoggingCategory category = static_cast<LoggingCategory>(i);
+		const char* name = Logging::GetLoggingCategoryName(category);
+		bool enabled = (m_categoryMask & (1 << i)) != 0;
+
+		mq::imgui::ScopedColorStack buttonColorScope(
+			ImGuiCol_Button, enabled ? enabledButtonColor : disabledButtonColor
+		);
+
+		if (ImGui::Button(name, { 0.0f, s_toolbarHeight }))
+		{
+			m_categoryMask ^= (1 << i);
+			filterChanged = true;
+		}
+	}
+
+	ImGui::SameLine(0.0f, 16.0f);
+
+	// Level filters
+	{
+		static constexpr ImVec2 buttonSize(s_toolbarHeight, s_toolbarHeight);
+
+		for (int i = 0; i < spdlog::level::off; ++i)
+		{
+			if (i != 0)
+				ImGui::SameLine();
+
+			bool enabled = m_levelMask & (1 << i);
+			const char* name = spdlog::level::short_level_names[i];
+
+			{
+				mq::imgui::ScopedColorStack buttonColorScope(
+					ImGuiCol_Text, enabled ? s_levelColors[i] : style.Colors[ImGuiCol_TextDisabled],
+					ImGuiCol_Button, enabled ? enabledButtonColor : disabledButtonColor
+				);
+
+				if (ImGui::Button(name, buttonSize))
+				{
+					m_levelMask ^= (1 << i);
+					filterChanged = true;
+				}
+			}
+
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+			{
+				char label[32] = { 0 };
+				sprintf_s(label, "%.*s", static_cast<int>(spdlog::level::level_string_views[i].size()),
+					spdlog::level::level_string_views[i].data());
+				label[0] = ::toupper(label[0]);
+
+				ImGui::SetTooltip(label);
+			}
+		}
+
+		ImGui::SameLine(0.0f, 16.0f);
+
+		if (m_filter.Draw("Filter", -60.0f))
+		{
+			filterChanged = true;
+		}
+	}
+
+	ImGui::EndChild();
+
+	if (filterChanged)
+	{
+		RefilterMessages();
+	}
+}
+
+void ConsolePanel::RenderLogs(const ImVec2& size)
+{
+	mq::imgui::ScopedStyleStack tableStyle(
+		ImGuiStyleVar_CellPadding, ImVec2(4.0f, 4.0f)
+	);
+	constexpr ImColor backgroundColor = IM_COL32(36, 36, 36, 255);
+	mq::imgui::ScopedColorStack tableColor(
+		ImGuiCol_TableRowBg, backgroundColor,
+		ImGuiCol_TableRowBgAlt, mq::imgui::ColorWithMultipliedValue(backgroundColor, 1.2f),
+		ImGuiCol_ChildBg, backgroundColor
+	);
+
+	ImGuiTableFlags flags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_BordersInnerV
+		| ImGuiTableFlags_Reorderable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg;
+
+	if (ImGui::BeginTable("##Log", 4, flags, size))
+	{
+		const float cursorX = ImGui::GetCursorScreenPos().x;
+
+		ImGui::TableSetupColumn("Level", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+		ImGui::TableSetupColumn("Timestamp", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+		ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+		ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
+
+		{
+			// Headers
+
+			const ImColor activeColor = mq::imgui::ColorWithMultipliedValue(backgroundColor, 1.3f);
+			mq::imgui::ScopedColorStack headerColors(
+				ImGuiCol_HeaderHovered, activeColor,
+				ImGuiCol_HeaderActive, activeColor
+			);
+
+			ImGui::TableSetupScrollFreeze(0, 1);
+			ImGui::TableNextRow(ImGuiTableRowFlags_Headers, 22.0f);
+
+			for (int i = 0; i < 4; ++i)
+			{
+				constexpr float edgeOffset = 4.0f;
+				ImGui::TableSetColumnIndex(i);
+				const char* columnName = ImGui::TableGetColumnName(i);
+				mq::imgui::ShiftCursor(edgeOffset * 3.0f, edgeOffset * 2.0f);
+				ImGui::TableHeader(columnName);
+				mq::imgui::ShiftCursor(-edgeOffset * 3.0f, -edgeOffset * 2.0f);
+			}
+
+			ImGui::SetCursorScreenPos(ImVec2(cursorX, ImGui::GetCursorScreenPos().y));
+			mq::imgui::DrawUnderline(true, 0.0f, 9.0f);
+		}
+
+		// Draw contents
+		ImGuiListClipper clipper;
+		clipper.Begin(static_cast<int>(m_filteredMessages.size()));
+
+		while (clipper.Step())
+		{
+			for (int index = clipper.DisplayStart; index < clipper.DisplayEnd; ++index)
+			{
+				size_t pos = m_filteredMessages[index];
+				const ConsoleMessage& message = m_messages[pos];
+
+				ImGui::PushID(&message);
+
+				{
+					mq::imgui::ScopedColorStack rowColor(
+						ImGuiCol_Text, s_levelColorsForText[message.level]
+					);
+
+					ImGui::TableNextRow();
+
+					// Level
+					ImGui::TableNextColumn();
+					mq::imgui::ShiftCursorX(4.0f);
+
+					auto levelSV = spdlog::level::level_string_views[message.level];
+					ImGui::Text("%c%.*s", ::toupper(levelSV[0]), levelSV.size() - 1, levelSV.data() + 1);
+
+					// Timestamp
+					ImGui::TableNextColumn();
+					mq::imgui::ShiftCursorX(4.0f);
+					ImGui::Text("%s", message.timestampStr);
+
+					// Category
+					ImGui::TableNextColumn();
+					mq::imgui::ShiftCursorX(4.0f);
+
+					ImGui::Text("%s", Logging::GetLoggingCategoryName(message.category));
+
+					// Message
+					ImGui::TableNextColumn();
+					mq::imgui::ShiftCursorX(4.0f);
+					ImGui::Text("%s", message.message.c_str());
+				}
+
+				ImGui::PopID();
+			}
+		}
+
+		if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+			ImGui::SetScrollHereY(1.0f);
+
+		ImGui::EndTable();
+	}
+}
+
+void ConsolePanel::RefilterMessages()
+{
+	m_filteredMessages.clear();
+	m_filteredMessages.reserve(m_messages.size());
+
+	for (size_t i = 0; i < m_messages.size(); ++i)
+	{
+		const ConsoleMessage& message = m_messages[i];
+
+		if (!MessageMatchesFilter(message))
+			continue;
+
+		m_filteredMessages.push_back(i);
+	}
 }
