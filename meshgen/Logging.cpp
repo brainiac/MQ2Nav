@@ -2,8 +2,9 @@
 #include "pch.h"
 #include "Logging.h"
 
-#include "Application.h"
-#include "ApplicationConfig.h"
+#include "meshgen/Application.h"
+#include "meshgen/ApplicationConfig.h"
+#include "meshgen/ConsolePanel.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/msvc_sink.h>
@@ -64,6 +65,9 @@ private:
 
 void Logging::Initialize()
 {
+	// Set up our console logging sink
+	g_consoleSink = std::make_shared<ConsoleLogSink>();
+
 	// set up default logger
 	g_logger = std::make_shared<spdlog::logger>("MeshGen");
 	g_logger->set_level(spdlog::level::debug);
@@ -87,6 +91,10 @@ void Logging::Initialize()
 	emuLogger->set_level(spdlog::level::trace);
 	spdlog::register_logger(emuLogger);
 
+	spdlog::apply_all([](const std::shared_ptr<spdlog::logger>& logger) {
+		logger->sinks().push_back(g_consoleSink);
+	});
+
 	eqLogInit(-1);
 	eqLogRegister(std::make_shared<EQEmuLogSink>());
 }
@@ -102,6 +110,10 @@ void Logging::InitSecondStage(Application* app)
 
 void Logging::Shutdown()
 {
+	spdlog::apply_all([](const std::shared_ptr<spdlog::logger>& logger) {
+		std::erase(g_logger->sinks(), g_consoleSink);
+	});
+	g_consoleSink.reset();
 	g_logger.reset();
 }
 

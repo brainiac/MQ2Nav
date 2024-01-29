@@ -104,11 +104,6 @@ bool Application::InitSystem()
 			900
 		};
 	}
-	else
-	{
-		SPDLOG_INFO("Loaded persisted window rect: {},{},{},{}",
-			m_windowRect.x, m_windowRect.y, m_windowRect.z, m_windowRect.w);
-	}
 
 	// Setup window
 	SDL_WindowFlags window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);

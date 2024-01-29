@@ -9,7 +9,6 @@
 
 #include <fmt/chrono.h>
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/base_sink.h>
 #include <mutex>
 
 //----------------------------------------------------------------------------
@@ -36,48 +35,44 @@ static constexpr float s_toolbarHeight = 22.0f;
 
 //----------------------------------------------------------------------------
 
-class ConsoleLogSink : public spdlog::sinks::base_sink<std::mutex>
+ConsoleLogSink::ConsoleLogSink()
 {
-public:
-	ConsoleLogSink(ConsolePanel* panel)
-		: m_console(panel)
-	{
-	}
-
-	spdlog::formatter& formatter() { return *this->formatter_; }
-
-protected:
-	void sink_it_(const spdlog::details::log_msg& msg) override;
-
-	void flush_() override {}
-
-private:
-	ConsolePanel* m_console;
-};
-
-void ConsoleLogSink::sink_it_(const spdlog::details::log_msg& msg)
-{
-	m_console->AddLog(msg);
+	set_level(spdlog::level::trace);
 }
+
+void ConsoleLogSink::sink_it_(const spdlog::details::log_msg& message)
+{
+	if (m_console)
+		m_console->AddLog(message);
+	else
+	{
+		queuedMessages.emplace_back(
+			message.time,
+			Logging::GetLoggingCategory(
+				std::string_view(message.logger_name.data(), message.logger_name.size())),
+			message.level,
+			std::string_view(message.payload.data(), message.payload.size())
+		);
+	}
+}
+
+std::shared_ptr<ConsoleLogSink> g_consoleSink;
 
 //----------------------------------------------------------------------------
 
 ConsolePanel::ConsolePanel()
 	: PanelWindow("Console Log", "ConsolePanel")
 {
-	m_sink = std::make_shared<ConsoleLogSink>(this);
-	m_sink->set_level(spdlog::level::trace);
+	m_sink = g_consoleSink;
+	m_sink->SetConsolePanel(this);
 
-	spdlog::apply_all([this](const std::shared_ptr<spdlog::logger>& logger) {
-		logger->sinks().push_back(m_sink);
-	});
+	std::vector<ConsoleMessage> messages = std::move(m_sink->queuedMessages);
+	for (auto&& message : messages)
+		AddLog(std::move(message));
 }
 
 ConsolePanel::~ConsolePanel()
 {
-	spdlog::apply_all([this](const std::shared_ptr<spdlog::logger>& logger) {
-		std::erase(g_logger->sinks(), m_sink);
-	});
 }
 
 void ConsolePanel::AddLog(const spdlog::details::log_msg& message)
@@ -91,7 +86,15 @@ void ConsolePanel::AddLog(const spdlog::details::log_msg& message)
 	);
 
 	const ConsoleMessage& newMsg = m_messages.back();
+	if (MessageMatchesFilter(newMsg))
+		m_filteredMessages.push_back(m_messages.size() - 1);
+}
 
+void ConsolePanel::AddLog(ConsoleMessage&& message)
+{
+	m_messages.push_back(std::move(message));
+
+	const ConsoleMessage& newMsg = m_messages.back();
 	if (MessageMatchesFilter(newMsg))
 		m_filteredMessages.push_back(m_messages.size() - 1);
 }
@@ -126,6 +129,7 @@ void ConsolePanel::RenderToolbar(const ImVec2& size)
 	if (ImGui::Button("Clear", { 75.0f, s_toolbarHeight }))
 	{
 		m_messages.clear();
+		m_filteredMessages.clear();
 	}
 
 	const auto& style = ImGui::GetStyle();

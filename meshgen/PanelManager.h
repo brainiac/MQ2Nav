@@ -84,10 +84,9 @@ public:
 		size_t hash = hash::fnv_1a()(panel->panelName);
 
 		assert(!m_panels.contains(hash));
-
 		m_panelsSorted.push_back(hash);
-
 		m_panels.emplace(hash, panel);
+
 		return panel;
 	}
 

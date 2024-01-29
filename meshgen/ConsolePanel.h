@@ -5,10 +5,11 @@
 #include "meshgen/PanelManager.h"
 
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/base_sink.h>
 #include <deque>
 
 class Application;
-class ConsoleLogSink;
+class ConsolePanel;
 
 struct ConsoleMessage
 {
@@ -38,6 +39,28 @@ struct ConsoleMessage
 	std::string message;
 };
 
+
+class ConsoleLogSink : public spdlog::sinks::base_sink<std::mutex>
+{
+public:
+	ConsoleLogSink();
+
+	std::vector<ConsoleMessage> queuedMessages;
+
+	void SetConsolePanel(ConsolePanel* console) { m_console = console; }
+
+protected:
+	void sink_it_(const spdlog::details::log_msg& msg) override;
+	void flush_() override {}
+
+private:
+	ConsolePanel* m_console = nullptr;
+};
+
+extern std::shared_ptr<ConsoleLogSink> g_consoleSink;
+
+
+
 class ConsolePanel : public PanelWindow
 {
 public:
@@ -47,6 +70,7 @@ public:
 	virtual void OnImGuiRender(bool* p_open) override;
 
 	void AddLog(const spdlog::details::log_msg& message);
+	void AddLog(ConsoleMessage&& message);
 
 private:
 	void RenderToolbar(const ImVec2& size);
