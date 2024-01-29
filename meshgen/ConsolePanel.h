@@ -59,8 +59,6 @@ private:
 
 extern std::shared_ptr<ConsoleLogSink> g_consoleSink;
 
-
-
 class ConsolePanel : public PanelWindow
 {
 public:
@@ -95,7 +93,8 @@ private:
 	std::shared_ptr<ConsoleLogSink> m_sink;
 	std::deque<ConsoleMessage> m_messages;
 	ImGuiTextFilter m_filter;
-	uint8_t m_categoryMask = 0xff;
+	uint8_t m_categoryMask = 0xf7; // bgfx off by default
 	uint8_t m_levelMask = 0xfe;  // trace off by default
 	std::vector<size_t> m_filteredMessages;
+	bool m_scrollToBottom = false;
 };

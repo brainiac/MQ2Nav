@@ -41,7 +41,7 @@ public:
 	BgfxCallback()
 	{
 		m_logger = Logging::GetLogger(LoggingCategory::Bgfx);
-		m_logger->set_level(spdlog::level::trace);
+		m_logger->set_level(spdlog::level::debug);
 	}
 
 	~BgfxCallback() override
@@ -75,9 +75,15 @@ public:
 			out = (char*)alloca(total + 1);
 			vsnprintf(out, total, _format, _argList);
 		}
-		out[total] = '\0';
+		if (out[total - 1] == '\n')
+			out[total - 1] = '\0';
+		else
+			out[total] = '\0';
 
-		m_logger->log(spdlog::source_loc(_filePath, _line, ""), spdlog::level::trace, "{}", out);
+		if (strncmp(out, "BGFX ", 5) == 0)
+			out += 5;
+
+		m_logger->log(spdlog::source_loc(_filePath, _line, ""), spdlog::level::debug, "{}", out);
 	}
 
 	void profilerBegin(const char* _name, uint32_t _abgr, const char* _filePath, uint16_t _line) override

@@ -24,6 +24,7 @@ public:
 	EQEmuLogSink()
 	{
 		m_logger = Logging::GetLogger(LoggingCategory::EQEmu);
+		m_logger->set_level(spdlog::level::trace);
 	}
 
 	virtual void OnRegister(int enabled_logs) override {}
@@ -71,6 +72,7 @@ void Logging::Initialize()
 	// set up default logger
 	g_logger = std::make_shared<spdlog::logger>("MeshGen");
 	g_logger->set_level(spdlog::level::debug);
+	g_logger->sinks().push_back(g_consoleSink);
 
 #if defined(_DEBUG)
 	{
@@ -91,12 +93,7 @@ void Logging::Initialize()
 	spdlog::register_logger(bgfxLogger);
 
 	auto emuLogger = g_logger->clone("EQEmu");
-	emuLogger->set_level(spdlog::level::trace);
 	spdlog::register_logger(emuLogger);
-
-	spdlog::apply_all([](const std::shared_ptr<spdlog::logger>& logger) {
-		logger->sinks().push_back(g_consoleSink);
-	});
 
 	eqLogInit(-1);
 	eqLogRegister(std::make_shared<EQEmuLogSink>());

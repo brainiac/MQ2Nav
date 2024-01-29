@@ -4,19 +4,19 @@
 
 #include "imgui/imgui_utilities.h"
 #include "imgui/scoped_helpers.h"
+#include "imgui/fonts/IconsFontAwesome.h"
 #include "meshgen/Application.h"
 #include "meshgen/Logging.h"
 
 #include <fmt/chrono.h>
 #include <spdlog/spdlog.h>
-#include <mutex>
 
 //----------------------------------------------------------------------------
 
 static constexpr ImVec4 s_levelColors[spdlog::level::n_levels] = {
 	ImVec4(0.3f, 0.3f, 0.3f, 1.0f),                     // trace
 	ImVec4(0.6f, 0.6f, 0.6f, 1.0f),                     // debug
-	ImVec4(0.0f, 0.431372549f, 1.0f, 1.0f),             // info
+	ImVec4(0.0f, 0.44f, 1.0f, 1.0f),                    // info
 	ImVec4(1.0f, 0.90f, 0.06f, 1.0f),                   // warning
 	ImVec4(1.0f, 0.31f, 0.31f, 1.0f),                   // error
 	ImVec4(1.0f, 0.0f, 0.0f, 1.0f),                     // critical
@@ -73,6 +73,7 @@ ConsolePanel::ConsolePanel()
 
 ConsolePanel::~ConsolePanel()
 {
+	m_sink->SetConsolePanel(nullptr);
 }
 
 void ConsolePanel::AddLog(const spdlog::details::log_msg& message)
@@ -230,6 +231,8 @@ void ConsolePanel::RenderLogs(const ImVec2& size)
 	ImGuiTableFlags flags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_BordersInnerV
 		| ImGuiTableFlags_Reorderable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg;
 
+	bool atBottom = false;
+
 	if (ImGui::BeginTable("##Log", 4, flags, size))
 	{
 		const float cursorX = ImGui::GetCursorScreenPos().x;
@@ -313,10 +316,30 @@ void ConsolePanel::RenderLogs(const ImVec2& size)
 			}
 		}
 
-		if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+		if (m_scrollToBottom)
+		{
 			ImGui::SetScrollHereY(1.0f);
+			m_scrollToBottom = false;
+		}
+
+		if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+		{
+			ImGui::SetScrollHereY(1.0f);
+			atBottom = true;
+		}
 
 		ImGui::EndTable();
+	}
+
+	if (!atBottom)
+	{
+		ImGui::SetCursorPos({ImGui::GetContentRegionMax().x - 48.0f, ImGui::GetContentRegionMax().y - 36.0f});
+		ImGui::BeginChild("ButtonContainer", ImVec2(28.0f, 28.0f));
+		if (ImGui::Button((const char*)ICON_FA_ARROW_DOWN, { 28.0f, 28.0f }))
+		{
+			m_scrollToBottom = true;
+		}
+		ImGui::EndChild();
 	}
 }
 
