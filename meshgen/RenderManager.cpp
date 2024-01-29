@@ -2,11 +2,13 @@
 #include "pch.h"
 #include "RenderManager.h"
 
-#include "ZoneRenderManager.h"
+#include "meshgen/ZoneRenderManager.h"
+#include "meshgen/Logging.h"
 
 #include "mq/base/Color.h"
 #include "imgui/imgui_impl.h"
 
+#include <bx/file.h>
 #include <bx/pixelformat.h>
 #include <bgfx/bgfx.h>
 #include <bimg/bimg.h>
@@ -14,6 +16,7 @@
 #include <glm/gtc/type_ptr.inl>
 #include <im3d/im3d.h>
 #include <im3d/im3d_math.h>
+#include <spdlog/spdlog.h>
 #include <SDL2/SDL_syswm.h>
 
 //============================================================================
@@ -32,6 +35,102 @@ static HWND SDLNativeWindowHandle(SDL_Window* window)
 	return wmi.info.win.window;
 }
 
+class BgfxCallback : public bgfx::CallbackI
+{
+public:
+	BgfxCallback()
+	{
+		m_logger = Logging::GetLogger(LoggingCategory::Bgfx);
+		m_logger->set_level(spdlog::level::trace);
+	}
+
+	~BgfxCallback() override
+	{
+	}
+
+	void fatal(const char* _filePath, uint16_t _line, bgfx::Fatal::Enum _code, const char* _str) override
+	{
+		m_logger->log(spdlog::source_loc(_filePath, _line, ""), spdlog::level::critical, "BGFX FATAL 0x{:08x}: {}", static_cast<int>(_code), _str);
+
+		if (bgfx::Fatal::DebugCheck == _code)
+		{
+			bx::debugBreak();
+		}
+		else
+		{
+			abort();
+		}
+	}
+
+	void traceVargs(const char* _filePath, uint16_t _line, const char* _format, va_list _argList) override
+	{
+		char temp[2048];
+		char* out = temp;
+		va_list argListCopy;
+		va_copy(argListCopy, _argList);
+		int32_t total = vsnprintf(out, sizeof(temp), _format, argListCopy);
+		va_end(argListCopy);
+		if ((int32_t)sizeof(temp) < total)
+		{
+			out = (char*)alloca(total + 1);
+			vsnprintf(out, total, _format, _argList);
+		}
+		out[total] = '\0';
+
+		m_logger->log(spdlog::source_loc(_filePath, _line, ""), spdlog::level::trace, "{}", out);
+	}
+
+	void profilerBegin(const char* _name, uint32_t _abgr, const char* _filePath, uint16_t _line) override
+	{
+	}
+
+	void profilerBeginLiteral(const char* _name, uint32_t _abgr, const char* _filePath, uint16_t _line) override
+	{
+	}
+
+	void profilerEnd() override
+	{
+	}
+
+	uint32_t cacheReadSize(uint64_t _id) override { return 0; }
+
+	bool cacheRead(uint64_t _id, void* _data, uint32_t _size) override { return false; }
+
+	void cacheWrite(uint64_t _id, const void* _data, uint32_t _size) override {}
+
+	void screenShot(const char* _filePath, uint32_t _width, uint32_t _height, uint32_t _pitch, const void* _data,
+		uint32_t _size, bool _yflip) override
+	{
+		const int32_t len = bx::strLen(_filePath) + 5;
+		char* filePath = (char*)alloca(len);
+		bx::strCopy(filePath, len, _filePath);
+		bx::strCat(filePath, len, ".tga");
+
+		bx::FileWriter writer;
+		if (bx::open(&writer, filePath))
+		{
+			bimg::imageWriteTga(&writer, _width, _height, _pitch, _data, false, _yflip);
+			bx::close(&writer);
+		}
+	}
+
+	void captureBegin(uint32_t _width, uint32_t _height, uint32_t _pitch, bgfx::TextureFormat::Enum _format,
+		bool _yflip) override
+	{
+	}
+
+	void captureEnd() override
+	{
+	}
+
+	void captureFrame(const void* _data, uint32_t _size) override
+	{
+	}
+
+private:
+	std::shared_ptr<spdlog::logger> m_logger;
+};
+
 //============================================================================
 
 RenderManager::RenderManager()
@@ -39,13 +138,11 @@ RenderManager::RenderManager()
 	, m_bgfxResetFlags(BGFX_RESET_MSAA_X4)
 {
 	m_camera = std::make_unique<Camera>();
-
-
+	m_callback = std::make_unique<BgfxCallback>();
 }
 
 RenderManager::~RenderManager()
 {
-
 }
 
 bool RenderManager::Initialize(int width, int height, SDL_Window* window)
@@ -63,6 +160,7 @@ bool RenderManager::Initialize(int width, int height, SDL_Window* window)
 	init.resolution.width = m_windowWidth;
 	init.resolution.height = m_windowHeight;
 	init.resolution.reset = m_bgfxResetFlags;
+	init.callback = m_callback.get();
 	if (!bgfx::init(init))
 	{
 		char szMessage[256];

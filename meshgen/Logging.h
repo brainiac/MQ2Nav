@@ -11,6 +11,7 @@ enum class LoggingCategory
 	MeshGen = 0,
 	EQEmu,
 	Recast,
+	Bgfx,
 	Other,
 };
 

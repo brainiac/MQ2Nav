@@ -4,9 +4,8 @@
 #include "Camera.h"
 
 #include <bgfx/bgfx.h>
-#include <SDL2/SDL.h>
 
-#include "im3d/im3d.h"
+class BgfxCallback;
 
 class RenderManager
 {
@@ -35,9 +34,8 @@ public:
 private:
 	void Im3D_NewFrame(float timeDelta);
 	void Im3D_DrawText();
-	static void Im3D_Draw(const Im3d::DrawList& drawList);
 
-private:
+	std::unique_ptr<BgfxCallback> m_callback;
 	int                     m_windowWidth = 0;
 	int                     m_windowHeight = 0;
 	SDL_Window*             m_window = nullptr;

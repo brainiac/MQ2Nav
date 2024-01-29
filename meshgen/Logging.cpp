@@ -87,6 +87,9 @@ void Logging::Initialize()
 	auto recastLogger = g_logger->clone("Recast");
 	spdlog::register_logger(recastLogger);
 
+	auto bgfxLogger = g_logger->clone("bgfx");
+	spdlog::register_logger(bgfxLogger);
+
 	auto emuLogger = g_logger->clone("EQEmu");
 	emuLogger->set_level(spdlog::level::trace);
 	spdlog::register_logger(emuLogger);
@@ -127,6 +130,9 @@ std::shared_ptr<spdlog::logger> Logging::GetLogger(LoggingCategory category)
 	case LoggingCategory::Recast:
 		return spdlog::get("Recast");
 
+	case LoggingCategory::Bgfx:
+		return spdlog::get("bgfx");
+
 	default:
 		return g_logger;
 	}
@@ -154,6 +160,11 @@ LoggingCategory Logging::GetLoggingCategory(std::string_view loggerName)
 			return LoggingCategory::MeshGen;
 		return LoggingCategory::Other;
 
+	case 'b':
+		if (loggerName == "bgfx")
+			return LoggingCategory::Bgfx;
+		return LoggingCategory::Other;
+
 	default:
 		return LoggingCategory::Other;
 	}
@@ -166,6 +177,7 @@ const char* Logging::GetLoggingCategoryName(LoggingCategory category)
 	case LoggingCategory::Recast: return "Recast";
 	case LoggingCategory::EQEmu: return "EQEmu";
 	case LoggingCategory::MeshGen: return "MeshGen";
+	case LoggingCategory::Bgfx: return "Bgfx";
 	default:
 	case LoggingCategory::Other: return "Other";
 	}

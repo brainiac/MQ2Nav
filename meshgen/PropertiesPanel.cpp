@@ -89,18 +89,6 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 			}
 		}
 
-		ImGuiContext* ctx = ImGui::GetCurrentContext();
-
-		ImGui::DragInt4("Window Rect", &m_app->m_windowRect.x);
-
-		glm::ivec4 rect = g_render->GetViewport();
-		ImGui::DragInt4("Viewport", &rect.x);
-
-		ImGui::DragInt2("Mouse Pos", &m_app->m_mousePos.x);
-
-		glm::ivec2 viewportMouse = g_render->GetMousePos();
-		ImGui::DragInt2("Viewport Mouse", &viewportMouse.x);
-
 
 		//if (ImGui::BeginTabItem("Scene"))
 		//{
