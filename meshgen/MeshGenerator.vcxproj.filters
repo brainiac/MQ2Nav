@@ -143,6 +143,9 @@
     <ClCompile Include="ToolsPanel.cpp">
       <Filter>Source Files\panels</Filter>
     </ClCompile>
+    <ClCompile Include="RecastContext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapGeometryLoader.h">

@@ -8,6 +8,7 @@
 #include "meshgen/NavMeshTesterTool.h"
 #include "meshgen/NavMeshTileTool.h"
 #include "meshgen/OffMeshConnectionTool.h"
+#include "meshgen/RecastContext.h"
 #include "meshgen/WaypointsTool.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
@@ -16,6 +17,7 @@
 #include "imgui/fonts/IconsMaterialDesign.h"
 
 #include <Recast.h>
+#include <RecastDump.h>
 #include <DetourCommon.h>
 #include <DetourDebugDraw.h>
 #include <DetourNavMesh.h>
@@ -765,6 +767,8 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 	if (m_buildingTiles) return;
 	if (!navMesh) return;
 
+	RecastContext::ResetAllTimers();
+
 	// if async, invoke on a new thread
 	if (async)
 	{
@@ -841,7 +845,10 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 	// Start the build process.
 	m_ctx->stopTimer(RC_TIMER_TEMP);
 
-	m_totalBuildTimeMs = m_ctx->getAccumulatedTime(RC_TIMER_TEMP) / 1000.0f;
+	int totalTime = m_ctx->getAccumulatedTime(RC_TIMER_TEMP);
+	m_totalBuildTimeMs = totalTime / 1000.0f;
+
+	duLogBuildTimes(*m_ctx, totalTime);
 
 	m_buildingTiles = false;
 }

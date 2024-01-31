@@ -39,6 +39,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="PropertiesPanel.cpp" />
+    <ClCompile Include="RecastContext.cpp" />
     <ClCompile Include="RenderManager.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="ToolsPanel.cpp" />
