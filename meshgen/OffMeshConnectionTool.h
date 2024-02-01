@@ -20,14 +20,14 @@ public:
 	OffMeshConnectionTool();
 	~OffMeshConnectionTool() override;
 
-	virtual ToolType type() const override { return ToolType::OFFMESH_CONNECTION; }
-	virtual void init(NavMeshTool* meshTool) override;
-	virtual void reset() override;
-	virtual void handleMenu() override;
-	virtual void handleClick(const glm::vec3& p, bool shift) override;
-	virtual void handleUpdate(float dt) override;
-	virtual void handleRender() override;
-	virtual void handleRenderOverlay() override;
+	ToolType type() const override { return ToolType::OFFMESH_CONNECTION; }
+	void init(NavMeshTool* meshTool) override;
+	void reset() override;
+	void handleMenu() override;
+	void handleClick(const glm::vec3& p, bool shift) override;
+	void handleUpdate(float dt) override;
+	void handleRender() override;
+	void handleRenderOverlay() override;
 
 private:
 	NavMeshTool* m_meshTool = nullptr;
@@ -41,11 +41,11 @@ class OffMeshConnectionToolState : public ToolState
 	friend class OffMeshConnectionTool;
 
 public:
-	virtual void init(NavMeshTool* meshTool) override;
-	virtual void reset() override;
-	virtual void handleRender() override;
-	virtual void handleRenderOverlay() override;
-	virtual void handleUpdate(const float dt) override {}
+	void init(NavMeshTool* meshTool) override;
+	void reset() override;
+	void handleRender() override;
+	void handleRenderOverlay() override;
+	void handleUpdate(const float dt) override {}
 
 	std::vector<dtTileRef> handleConnectionClick(const glm::vec3& p, bool shift);
 	std::vector<dtTileRef> UpdateConnection(OffMeshConnection* conn);

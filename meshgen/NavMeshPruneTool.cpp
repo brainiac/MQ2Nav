@@ -3,7 +3,6 @@
 //
 
 #include "meshgen/NavMeshPruneTool.h"
-#include "meshgen/InputGeom.h"
 #include "meshgen/NavMeshTool.h"
 #include "common/NavMeshData.h"
 
@@ -211,9 +210,10 @@ void NavMeshPruneTool::handleMenu()
 
 void NavMeshPruneTool::handleClick(const glm::vec3& p, bool /*shift*/)
 {
-	if (!m_meshTool) return;
-	InputGeom* geom = m_meshTool->getInputGeom();
-	if (!geom) return;
+	if (!m_meshTool)
+		return;
+	if (m_meshTool->GetZoneContext())
+		return;
 	auto nav = m_meshTool->GetNavMesh()->GetNavMesh();
 	if (!nav) return;
 	auto query = m_meshTool->GetNavMesh()->GetNavMeshQuery();

@@ -1,17 +1,16 @@
 #include "ZoneRenderManager.h"
 
-#include "meshgen/InputGeom.h"
+#include "meshgen/MapGeometryLoader.h"
 #include "meshgen/ResourceManager.h"
+#include "meshgen/ZoneContext.h"
 #include "common/NavMeshData.h"
 #include "common/NavMesh.h"
-
+#include "im3d/im3d_math.h"
 
 #include <glm/gtc/type_ptr.hpp>
 #include <recast/DebugUtils/Include/DebugDraw.h>
 #include <recast/Detour/Include/DetourNavMeshQuery.h>
 #include <imgui/imgui.h>
-
-#include "im3d/im3d_math.h"
 
 ZoneRenderManager* g_zoneRenderManager = nullptr;
 
@@ -371,9 +370,10 @@ void ZoneRenderManager::DestroyObjects()
 	m_lastTrisIndicesSize = 0;
 }
 
-void ZoneRenderManager::SetInputGeometry(InputGeom* geom)
+void ZoneRenderManager::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
 {
-	m_zoneInputGeometry->SetInputGeometry(geom);
+	m_zoneContext = zoneContext;
+	m_zoneInputGeometry->SetZoneContext(zoneContext);
 }
 
 void ZoneRenderManager::SetNavMeshConfig(const NavMeshConfig* config)
@@ -497,16 +497,16 @@ ZoneInputGeometryRender::~ZoneInputGeometryRender()
 {
 }
 
-void ZoneInputGeometryRender::SetInputGeometry(InputGeom* geom)
+void ZoneInputGeometryRender::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
 {
-	if (m_geom == geom)
+	if (m_zoneContext == zoneContext)
 		return;
 
-	m_geom = geom;
+	m_zoneContext = zoneContext;
 
 	DestroyObjects();
 
-	if (m_geom)
+	if (m_zoneContext)
 	{
 		CreateObjects();
 	}
@@ -514,7 +514,7 @@ void ZoneInputGeometryRender::SetInputGeometry(InputGeom* geom)
 
 void ZoneInputGeometryRender::CreateObjects()
 {
-	auto loader = m_geom->getMeshLoader();
+	auto loader = m_zoneContext->GetMeshLoader();
 	const NavMeshConfig* config = m_mgr->GetNavMeshConfig();
 
 	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(loader->getVerts());

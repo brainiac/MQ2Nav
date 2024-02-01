@@ -5,7 +5,6 @@
 #include "meshgen/Application.h"
 #include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/DebugPanel.h"
-#include "meshgen/InputGeom.h"
 #include "meshgen/Logging.h"
 #include "meshgen/ConsolePanel.h"
 #include "meshgen/MapGeometryLoader.h"
@@ -35,6 +34,8 @@
 
 #include <filesystem>
 #include <sstream>
+
+#include "ZoneContext.h"
 
 
 namespace fs = std::filesystem;
@@ -78,8 +79,11 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 
 	if (!startingZone.empty())
 	{
-		m_loadMeshOnZone = true;
-		m_nextZoneToLoad = startingZone;
+		m_backgroundTaskManager->PostToMainThread([this, startingZone]()
+			{
+				// Load the zone
+				BeginLoadZone(startingZone, true);
+			});
 	}
 
 	m_navMesh = std::make_shared<NavMesh>(g_config.GetOutputPath(), startingZone);
@@ -212,8 +216,6 @@ int Application::Shutdown()
 		m_meshTool->GetRenderManager()->DestroyObjects();
 
 	m_zonePicker.reset();
-	m_geom.reset();
-
 	g_resourceMgr->Shutdown();
 	g_render->Shutdown();
 	return 0;
@@ -230,7 +232,8 @@ bool Application::Update()
 	m_lastTime = time;
 	m_time += m_timeDelta;
 
-	if (!HandleCallbacks())
+	m_backgroundTaskManager->Process();
+	if (m_done)
 		return false;
 
 	if (!HandleEvents())
@@ -262,18 +265,6 @@ bool Application::Update()
 	const glm::mat4& viewProjMtx = camera->GetViewProjMtx();
 
 	m_meshTool->handleRender(viewProjMtx, g_render->GetViewport());
-
-	// Load a zone if a zone load was requested
-	if (!m_nextZoneToLoad.empty())
-	{
-		PushEvent([zone = m_nextZoneToLoad, loadMesh = m_loadMeshOnZone, this]()
-			{
-				LoadGeometry(zone, loadMesh);
-			});
-
-		m_loadMeshOnZone = false;
-		m_nextZoneToLoad.clear();
-	}
 
 	g_render->EndFrame();
 	return true;
@@ -401,13 +392,13 @@ bool Application::HandleEvents()
 			else if (event.button.button == SDL_BUTTON_LEFT)
 			{
 				// Hit test mesh.
-				if (m_geom)
+				if (m_zoneContext)
 				{
 					const glm::vec3& rayStart = g_render->GetCursorRayStart();
 					const glm::vec3& rayEnd = g_render->GetCursorRayEnd();
 
 					// Hit test mesh.
-					if (float t; m_geom->raycastMesh(rayStart, rayEnd, t))
+					if (float t; m_zoneContext->RaycastMesh(rayStart, rayEnd, t))
 					{
 						bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
 
@@ -532,7 +523,7 @@ void Application::UpdateImGui()
 				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
 			{
 				m_navMesh->ResetNavMesh();
-				m_meshTool->handleGeometryChanged(m_geom.get());
+				m_meshTool->SetZoneContext(m_zoneContext);
 			}
 
 			ImGui::Separator();
@@ -926,10 +917,10 @@ void Application::DrawAreaTypesEditor()
 
 void Application::ResetCamera()
 {
-	if (m_geom)
+	if (m_zoneContext)
 	{
-		const glm::vec3& bmin = m_geom->getMeshBoundsMin();
-		const glm::vec3& bmax = m_geom->getMeshBoundsMax();
+		const glm::vec3& bmin = m_zoneContext->GetMeshBoundsMin();
+		const glm::vec3& bmax = m_zoneContext->GetMeshBoundsMax();
 
 		// Reset camera and fog to match the mesh bounds.
 		float camr = glm::distance(bmax, bmin) / 2;
@@ -954,101 +945,74 @@ void Application::Halt()
 	m_meshTool->CancelBuildAllTiles();
 }
 
-void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
+void Application::BeginLoadZone(const std::string& shortName, bool loadMesh)
 {
-	std::unique_lock<std::mutex> lock(m_renderMutex);
-
 	m_backgroundTaskManager->StopZoneTasks();
 	Halt();
 
-	std::string eqPath = g_config.GetEverquestPath();
-	std::string outputPath = g_config.GetOutputPath();
+	//SetZoneContext(nullptr);
 
-	auto ptr = std::make_unique<InputGeom>(zoneShortName, eqPath);
+	std::shared_ptr<ZoneContext> zoneContext = std::make_shared<ZoneContext>(shortName);
+	zoneContext->SetAutoloadMesh(loadMesh);
 
-	auto geomLoader = std::make_unique<MapGeometryLoader>(
-		zoneShortName, eqPath, outputPath);
-
-	if (g_config.GetUseMaxExtents())
-	{
-		auto iter = MaxZoneExtents.find(zoneShortName);
-		if (iter != MaxZoneExtents.end())
-		{
-			geomLoader->SetMaxExtents(iter->second);
-		}
-	}
-
-	if (!ptr->loadGeometry(std::move(geomLoader), m_rcContext.get()))
-	{
-		m_panelManager->ShowNotificationDialog(
-			"Failed To Open Zone",
-			fmt::format("Failed to load zone: {} ({})", g_config.GetLongNameForShortName(zoneShortName), zoneShortName)
-		);
-
-		m_geom.reset();
-
-		m_navMesh->ResetNavMesh();
-		m_meshTool->handleGeometryChanged(nullptr);
-		m_zoneLoaded = false;
-		return;
-	}
-
-	m_geom = std::move(ptr);
-
-	m_zoneShortname = zoneShortName;
-	m_zoneLongname = g_config.GetLongNameForShortName(m_zoneShortname);
-
-	m_zoneDisplayName = fmt::format("{} ({})", m_zoneLongname, m_zoneShortname);
-
-	// Update the window title
-	std::string windowTitle = fmt::format("MacroQuest NavMesh Generator - {}", m_zoneDisplayName);
-	SDL_SetWindowTitle(m_window, windowTitle.c_str());
-
-	m_meshTool->handleGeometryChanged(m_geom.get());
-	m_navMesh->SetZoneName(m_zoneShortname);
-	ResetCamera();
-	m_zoneLoaded = true;
-
-	if (loadMesh)
-	{
-		m_navMesh->LoadNavMeshFile();
-	}
-}
-
-void Application::PushEvent(const std::function<void()>& cb)
-{
-	std::unique_lock<std::mutex> lock(m_callbackMutex);
-	m_callbackQueue.push_back(cb);
-}
-
-void Application::BeginLoadZone(const std::string& shortName, bool loadMesh)
-{
-	m_loadMeshOnZone = loadMesh;
-	m_nextZoneToLoad = shortName;
+	m_backgroundTaskManager->BeginZoneLoad(zoneContext);
 }
 
 void Application::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
 {
+	if (m_zoneContext == zoneContext)
+		return;
+
 	m_zoneContext = zoneContext;
 
-	m_panelManager->SetZoneContext(zoneContext);
+	if (zoneContext == nullptr)
+	{
+		m_zoneLoaded = false;
+
+		m_navMesh->ResetNavMesh();
+		m_meshTool->SetZoneContext(nullptr);
+		m_panelManager->SetZoneContext(zoneContext);
+	}
+	else
+	{
+		m_zoneLoaded = true;
+
+		// Update the window title
+		std::string windowTitle = fmt::format("MacroQuest NavMesh Generator - {}",
+			m_zoneContext->GetDisplayName());
+		SDL_SetWindowTitle(m_window, windowTitle.c_str());
+
+		m_meshTool->SetZoneContext(m_zoneContext);
+		m_navMesh->SetZoneName(m_zoneContext->GetShortName());
+		m_panelManager->SetZoneContext(m_zoneContext);
+
+		ResetCamera();
+
+		if (m_zoneContext->GetAutoloadMesh())
+		{
+			m_navMesh->LoadNavMeshFile();
+		}
+	}
 }
 
-bool Application::HandleCallbacks()
+void Application::SetProgressDisplay(bool display)
 {
-	std::vector<std::function<void()>> callbacks;
+	SPDLOG_INFO("SetProgressDisplay(todo): {}", display);
+}
 
-	{
-		std::unique_lock<std::mutex> lock(m_callbackMutex);
-		std::swap(callbacks, m_callbackQueue);
-	}
+void Application::SetProgressText(const std::string& text)
+{
+	SPDLOG_INFO("SetProgressText(todo): {}", text);
+}
 
-	for (const auto& cb : callbacks)
-	{
-		cb();
-	}
+void Application::SetProgressValue(float value)
+{
+	SPDLOG_INFO("SetProgressValue(todo): {}", value);
+}
 
-	return !m_done;
+void Application::ShowNotificationDialog(const std::string& title, const std::string& message, bool modal)
+{
+	m_panelManager->ShowNotificationDialog(title, message, modal);
 }
 
 //----------------------------------------------------------------------------

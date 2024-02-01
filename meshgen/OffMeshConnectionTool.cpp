@@ -5,7 +5,6 @@
 #include "OffMeshConnectionTool.h"
 
 #include "common/NavMeshData.h"
-#include "meshgen/InputGeom.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/ImGuiWidgets.h"
 #include "meshgen/ZoneRenderManager.h"

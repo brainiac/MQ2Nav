@@ -1,14 +1,13 @@
 #pragma once
 
-#include <unordered_map>
-#include <recast/Detour/Include/DetourNavMesh.h>
 #include <bgfx/bgfx.h>
-
 #include <glm/glm.hpp>
 #include <imgui/imgui.h>
 #include <recast/DebugUtils/Include/DebugDraw.h>
+#include <recast/Detour/Include/DetourNavMesh.h>
+#include <unordered_map>
 
-class InputGeom;
+class ZoneContext;
 class ZoneInputGeometryRender;
 class ZoneNavMeshRender;
 class ZoneNavMeshTileRender;
@@ -132,7 +131,7 @@ public:
 	void DestroyObjects();
 	void Render();
 
-	void SetInputGeometry(InputGeom* geom);
+	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
 
 	void SetNavMeshConfig(const NavMeshConfig* config);
 	const NavMeshConfig* GetNavMeshConfig() const { return m_meshConfig; }
@@ -148,6 +147,7 @@ public:
 	}
 
 private:
+	std::shared_ptr<ZoneContext> m_zoneContext;
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
 	const NavMeshConfig* m_meshConfig = nullptr;
@@ -212,7 +212,7 @@ public:
 	explicit ZoneInputGeometryRender(ZoneRenderManager* manager);
 	~ZoneInputGeometryRender();
 
-	void SetInputGeometry(InputGeom* geom);
+	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
 
 	void Render();
 	void DestroyObjects();
@@ -221,7 +221,7 @@ private:
 	void CreateObjects();
 
 	ZoneRenderManager* m_mgr;
-	InputGeom* m_geom = nullptr;
+	std::shared_ptr<ZoneContext> m_zoneContext;
 
 	bgfx::VertexBufferHandle m_vbh = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_ibh = BGFX_INVALID_HANDLE;

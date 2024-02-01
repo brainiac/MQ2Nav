@@ -26,8 +26,8 @@ struct rcChunkyTriMeshNode
 
 struct rcChunkyTriMesh
 {
-	inline rcChunkyTriMesh() = default;
-	inline ~rcChunkyTriMesh() { delete[] nodes; delete[] tris; }
+	rcChunkyTriMesh() = default;
+	~rcChunkyTriMesh() { delete[] nodes; delete[] tris; }
 
 	rcChunkyTriMeshNode* nodes = nullptr;
 	int nnodes = 0;

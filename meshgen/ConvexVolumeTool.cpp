@@ -3,7 +3,6 @@
 //
 #include "meshgen/ConvexVolumeTool.h"
 #include "meshgen/ImGuiWidgets.h"
-#include "meshgen/InputGeom.h"
 #include "meshgen/NavMeshTool.h"
 #include "common/Utilities.h"
 #include "imgui/ImGuiUtils.h"

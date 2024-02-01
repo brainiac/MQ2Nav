@@ -25,7 +25,6 @@
 
 class BackgroundTaskManager;
 class RecastContext;
-class InputGeom;
 class NavMeshTool;
 class ZonePicker;
 class ImportExportSettingsDialog;
@@ -34,7 +33,6 @@ class PanelManager;
 class ZoneContext;
 
 // TEMP
-class PropertiesPanel;
 class DebugPanel;
 class ToolsPanel;
 
@@ -54,11 +52,17 @@ public:
 
 	//------------------------------------------------------------------------
 
-	void PushEvent(const std::function<void()>& cb);
-
 	void BeginLoadZone(const std::string& shortName, bool loadMesh);
 
+	// Set the zone context. This is called when the zone is loaded.
 	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
+
+	// Set progress display text
+	void SetProgressDisplay(bool display);
+	void SetProgressText(const std::string& text);
+	void SetProgressValue(float value);
+
+	void ShowNotificationDialog(const std::string& title, const std::string& message, bool modal = true);
 
 private:
 	bool InitSystem();
@@ -78,7 +82,6 @@ private:
 
 	// input event handling
 	bool HandleEvents();
-	bool HandleCallbacks();
 
 	void UpdateCamera();
 
@@ -96,12 +99,6 @@ private:
 	// The build context. Everything passes this around. We own it.
 	std::unique_ptr<rcContext> m_rcContext;
 
-	// short name of the currently loaded zone
-	std::string m_zoneShortname;
-
-	// long name of the currently loaded zone
-	std::string m_zoneLongname;
-
 	// rendering requires a hold on this lock. Used for updating the
 	// render state from other threads
 	std::mutex m_renderMutex;
@@ -111,9 +108,6 @@ private:
 
 	// The mesh tool that we use to build/manipulate the mesh
 	std::unique_ptr<NavMeshTool> m_meshTool;
-
-	// The input geometry (??)
-	std::unique_ptr<InputGeom> m_geom;
 
 	// UI Panel Manager
 	std::unique_ptr<PanelManager> m_panelManager;
@@ -133,24 +127,18 @@ private:
 	bool m_done = false;
 
 	// maps display
-	std::string m_zoneDisplayName;
 	bool m_zoneLoaded = false;
 	bool m_showSettingsDialog = false;
 	bool m_showMapAreas = false;
 	bool m_showOverlay = true;
 	bool m_showDemo = false;
 	bool m_showMetricsWindow = false;
-	
-	// zone to load on next pass
-	std::string m_nextZoneToLoad;
-	bool m_loadMeshOnZone = false;
 
 	std::unique_ptr<BackgroundTaskManager> m_backgroundTaskManager;
 	std::unique_ptr<ZonePicker> m_zonePicker;
 	std::unique_ptr<ImportExportSettingsDialog> m_importExportSettings;
 	std::shared_ptr<ZoneContext> m_zoneContext;
 
-	std::vector<std::function<void()>> m_callbackQueue;
 	std::mutex m_callbackMutex;
 };
 

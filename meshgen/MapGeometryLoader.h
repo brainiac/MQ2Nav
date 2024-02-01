@@ -45,16 +45,16 @@ public:
 
 	bool load();
 
-	inline const std::string& getFileName() const { return m_zoneName; }
+	const std::string& getFileName() const { return m_zoneName; }
 
-	inline const float* getVerts() const { return m_verts; }
-	inline const float* getNormals() const { return m_normals; }
-	inline const int* getTris() const { return m_tris; }
-	inline int getVertCount() const { return m_vertCount; }
-	inline int getTriCount() const { return m_triCount; }
+	const float* getVerts() const { return m_verts; }
+	const float* getNormals() const { return m_normals; }
+	const int* getTris() const { return m_tris; }
+	int getVertCount() const { return m_vertCount; }
+	int getTriCount() const { return m_triCount; }
 
-	inline int GetDynamicObjectsCount() const { return m_dynamicObjects; }
-	inline bool HasDynamicObjects() const { return m_hasDynamicObjects; }
+	int GetDynamicObjectsCount() const { return m_dynamicObjects; }
+	bool HasDynamicObjects() const { return m_hasDynamicObjects; }
 
 private:
 	bool Build();

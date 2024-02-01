@@ -23,7 +23,6 @@
     <ClCompile Include="imgui\imgui_impl.cpp" />
     <ClCompile Include="imgui\imgui_impl_bgfx.cpp" />
     <ClCompile Include="imgui\imgui_impl_sdl2.cpp" />
-    <ClCompile Include="InputGeom.cpp" />
     <ClCompile Include="Logging.cpp" />
     <ClCompile Include="ConsolePanel.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -71,7 +70,6 @@
     <ClInclude Include="imgui\scoped_helpers.h" />
     <ClInclude Include="imgui\vs_imgui.bin.h" />
     <ClInclude Include="imgui\vs_imgui_image.bin.h" />
-    <ClInclude Include="InputGeom.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="Logging.h" />
     <ClInclude Include="ConsolePanel.h" />

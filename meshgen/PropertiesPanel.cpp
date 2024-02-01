@@ -3,8 +3,9 @@
 #include "PropertiesPanel.h"
 
 #include "meshgen/Application.h"
+#include "meshgen/MapGeometryLoader.h"
 #include "meshgen/RenderManager.h"
-#include "meshgen/InputGeom.h"
+#include "meshgen/ZoneContext.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -25,10 +26,10 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 	if (ImGui::Begin(panelName.c_str(), p_open))
 	{
 		// show zone name
-		if (!m_app->m_zoneLoaded)
+		if (!m_zoneContext || !m_zoneContext->IsZoneLoaded())
 			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
 		else
-			ImGui::TextColored(ImColor(0, 255, 0), m_app->m_zoneDisplayName.c_str());
+			ImGui::TextColored(ImColor(0, 255, 0), "%s", m_zoneContext->GetDisplayName().c_str());
 
 		ImGui::Separator();
 
@@ -59,9 +60,9 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 			camera->SetAspectRatio(ratio);
 		}
 
-		if (m_app->m_geom)
+		if (m_zoneContext)
 		{
-			auto* loader = m_app->m_geom->getMeshLoader();
+			auto* loader = m_zoneContext->GetMeshLoader();
 
 			if (loader->HasDynamicObjects())
 				ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
@@ -88,97 +89,15 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 					m_app->SaveMesh();
 			}
 		}
-
-
-		//if (ImGui::BeginTabItem("Scene"))
-		//{
-		//	float planes[2] = { m_nearPlane, m_farPlane };
-		//	if (ImGui::DragFloat2("Near/Far Plane", planes))
-		//	{
-		//		m_nearPlane = planes[0];
-		//		m_farPlane = planes[1];
-		//	}
-
-		//	ImGui::InputInt4("Viewport", glm::value_ptr(m_viewport));
-		//	ImGui::InputFloat3("Ray Start", glm::value_ptr(m_rayStart));
-		//	ImGui::InputFloat3("Ray End", glm::value_ptr(m_rayEnd));
-
-		//	if (ImGui::CollapsingHeader("ViewModel Matrix"))
-		//	{
-		//		ImGui::InputFloat4("[0]", glm::value_ptr(m_viewModelMtx[0]));
-		//		ImGui::InputFloat4("[1]", glm::value_ptr(m_viewModelMtx[1]));
-		//		ImGui::InputFloat4("[2]", glm::value_ptr(m_viewModelMtx[2]));
-		//		ImGui::InputFloat4("[3]", glm::value_ptr(m_viewModelMtx[3]));
-		//	}
-
-		//	if (ImGui::CollapsingHeader("Projection Matrix"))
-		//	{
-		//		ImGui::InputFloat4("[0]", glm::value_ptr(m_projMtx[0]));
-		//		ImGui::InputFloat4("[1]", glm::value_ptr(m_projMtx[1]));
-		//		ImGui::InputFloat4("[2]", glm::value_ptr(m_projMtx[2]));
-		//		ImGui::InputFloat4("[3]", glm::value_ptr(m_projMtx[3]));
-		//	}
-
-		//	ImGui::DragFloat("FOV", &m_fov, 0.1f, 30.0f, 150.0f);
-
-		//	ImGui::InputInt2("Mouse", glm::value_ptr(m_mousePos));
-
-		//	ImGui::Separator();
-		//	ImGui::SliderFloat("Cam Speed", &m_camMoveSpeed, 10, 350);
-
-		//	ImGui::EndTabItem();
-		//}
-
-		//if (ImGui::BeginTabItem("Im3d"))
-		//{
-		//	Im3d::AppData& appData = Im3d::GetAppData();
-		//	static float size = 2.0f;
-
-		//	//for (int i = 0; i < Im3d::Key_Count; ++i)
-		//	//{
-		//	//	ImGui::Text("Key %d: %d", i, appData.m_keyDown[i]);
-		//	//}
-		//	ImGui::DragFloat("Size", &size);
-		//	ImGui::InputFloat3("Cursor Ray Origin", &appData.m_cursorRayOrigin.x);
-		//	ImGui::InputFloat3("Cursor Ray Direction", &appData.m_cursorRayDirection.x);
-		//	Im3d::SetSize(size);
-
-		//	static Im3d::Mat4 transform(1.0f);
-		//	//transform.setTranslation(Im3d::Vec3(200, -300, 200));
-
-		//	Im3d::Text(Im3d::Vec3(10, 0, 0), 1.0, Im3d::Color(1.0, 0.0, 0.0), 0, "Hello");
-
-		//	if (Im3d::Gizmo("GizmoUnified", transform))
-		//	{
-		//		// if Gizmo() returns true, the transform was modified
-		//		switch (Im3d::GetContext().m_gizmoMode)
-		//		{
-		//		case Im3d::GizmoMode_Translation:
-		//		{
-		//			Im3d::Vec3 pos = transform.getTranslation();
-		//			ImGui::Text("Position: %.3f, %.3f, %.3f", pos.x, pos.y, pos.z);
-		//			break;
-		//		}
-		//		case Im3d::GizmoMode_Rotation:
-		//		{
-		//			Im3d::Vec3 euler = Im3d::ToEulerXYZ(transform.getRotation());
-		//			ImGui::Text("Rotation: %.3f, %.3f, %.3f", Im3d::Degrees(euler.x), Im3d::Degrees(euler.y), Im3d::Degrees(euler.z));
-		//			break;
-		//		}
-		//		case Im3d::GizmoMode_Scale:
-		//		{
-		//			Im3d::Vec3 scale = transform.getScale();
-		//			ImGui::Text("Scale: %.3f, %.3f, %.3f", scale.x, scale.y, scale.z);
-		//			break;
-		//		}
-		//		default: break;
-		//		};
-
-		//	}
-
-		//	ImGui::EndTabItem();
-		//}
 	}
 
 	ImGui::End();
+}
+
+void PropertiesPanel::SetZoneContext(const std::shared_ptr<ZoneContext>& context)
+{
+	if (m_zoneContext == context)
+		return;
+
+	m_zoneContext = context;
 }

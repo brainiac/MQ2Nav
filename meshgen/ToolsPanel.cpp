@@ -3,8 +3,8 @@
 #include "ToolsPanel.h"
 
 #include "meshgen/Application.h"
-#include "meshgen/InputGeom.h"
 #include "meshgen/NavMeshTool.h"
+#include "meshgen/ZoneContext.h"
 
 
 ToolsPanel::ToolsPanel(Application* app)
@@ -19,10 +19,9 @@ ToolsPanel::~ToolsPanel()
 
 void ToolsPanel::OnImGuiRender(bool* p_open)
 {
-
 	if (ImGui::Begin(panelName.c_str(), p_open))
 	{
-		if (m_app->m_geom)
+		if (m_zoneContext && m_zoneContext->IsZoneLoaded())
 		{
 			if (m_app->m_meshTool->isBuildingTiles())
 			{
@@ -45,6 +44,16 @@ void ToolsPanel::OnImGuiRender(bool* p_open)
 				m_app->m_meshTool->handleTools();
 			}
 		}
+		else
+		{
+			ImGui::Text("No zone is loaded");
+		}
 	}
+
 	ImGui::End();
+}
+
+void ToolsPanel::SetZoneContext(const std::shared_ptr<ZoneContext>& context)
+{
+	m_zoneContext = context;
 }

@@ -562,11 +562,16 @@ NavMesh::LoadResult NavMesh::LoadNavMeshFile()
 {
 	if (m_dataFile.empty())
 	{
+		SPDLOG_INFO("No navmesh found: {}", m_dataFile);
 		return LoadResult::MissingFile;
 	}
 
+	SPDLOG_INFO("Loading navmesh: {}", m_dataFile);
+
 	m_lastLoadResult = LoadMesh(m_dataFile.c_str());
 	OnNavMeshChanged();
+
+	SPDLOG_INFO("Navmesh load completed");
 
 	return m_lastLoadResult;
 }

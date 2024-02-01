@@ -1,8 +1,10 @@
 
+#include "pch.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/Application.h"
+#include "meshgen/ChunkyTriMesh.h"
 #include "meshgen/ConvexVolumeTool.h"
-#include "meshgen/InputGeom.h"
+#include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshInfoTool.h"
 #include "meshgen/NavMeshPruneTool.h"
 #include "meshgen/NavMeshTesterTool.h"
@@ -10,6 +12,7 @@
 #include "meshgen/OffMeshConnectionTool.h"
 #include "meshgen/RecastContext.h"
 #include "meshgen/WaypointsTool.h"
+#include "meshgen/ZoneContext.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
 #include "common/proto/NavMeshFile.pb.h"
@@ -26,7 +29,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
-
 #include <ppl.h>
 #include <agents.h>
 #include <complex>
@@ -63,16 +65,30 @@ NavMeshTool::~NavMeshTool()
 
 //----------------------------------------------------------------------------
 
+void NavMeshTool::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
+{
+	m_zoneContext = zoneContext;
+
+	if (m_tool)
+	{
+		m_tool->reset();
+	}
+	resetToolStates();
+
+	m_renderManager->SetZoneContext(zoneContext);
+	NavMeshUpdated();
+}
+
 void NavMeshTool::NavMeshUpdated()
 {
 	if (!m_navMesh->IsNavMeshLoadedFromDisk())
 	{
-		if (m_geom)
+		if (m_zoneContext)
 		{
 			// reset to default
 			m_navMesh->SetNavMeshBounds(
-				m_geom->getMeshBoundsMin(),
-				m_geom->getMeshBoundsMax());
+				m_zoneContext->GetMeshBoundsMin(),
+				m_zoneContext->GetMeshBoundsMax());
 		}
 
 		m_navMesh->GetNavMeshConfig() = m_config;
@@ -140,7 +156,7 @@ void NavMeshTool::UpdateTileSizes()
 
 void NavMeshTool::handleDebug()
 {
-	if (m_geom)
+	if (m_zoneContext)
 	{
 		ImGui::Checkbox("Draw Input Geometry", &m_drawInputGeometry);
 
@@ -280,7 +296,8 @@ void NavMeshTool::handleTools()
 			m_config = NavMeshConfig{};
 		}
 
-		if (ImGui::TreeNodeEx("Tiling", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+		if (ImGui::TreeNodeEx("Tiling", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
+		{
 
 			ImGui::SliderFloat("Tile Size", &m_config.tileSize, 16.0f, 1024.0f, "%.0f");
 
@@ -289,32 +306,36 @@ void NavMeshTool::handleTools()
 			ImGui::SliderFloat("Cell Size", &m_config.cellSize, 0.1f, 1.0f);
 			ImGui::SliderFloat("Cell Height", &m_config.cellHeight, 0.1f, 1.0f);
 		}
-		if (ImGui::TreeNodeEx("Agent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+		if (ImGui::TreeNodeEx("Agent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
+		{
 			ImGui::SliderFloat("Height", &m_config.agentHeight, 0.1f, 15.0f, "%.1f");
 			ImGui::SliderFloat("Radius", &m_config.agentRadius, 0.1f, 15.0f, "%.1f");
 			ImGui::SliderFloat("Max Climb", &m_config.agentMaxClimb, 0.1f, 15.0f, "%.1f");
 			ImGui::SliderFloat("Max Slope", &m_config.agentMaxSlope, 0.0f, 90.0f, "%.1f");
 		}
 
-		if (m_geom && ImGui::TreeNodeEx("Bounding Box", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
+		if (m_zoneContext &&
+			ImGui::TreeNodeEx("Bounding Box", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
+		{
 			glm::vec3 min, max;
 			m_navMesh->GetNavMeshBounds(min, max);
 
-			ImGui::SliderFloat("Min X", &min.x, m_geom->getMeshBoundsMin().x, m_geom->getMeshBoundsMax().x, "%.1f");
-			ImGui::SliderFloat("Min Y", &min.y, m_geom->getMeshBoundsMin().y, m_geom->getMeshBoundsMax().y, "%.1f");
-			ImGui::SliderFloat("Min Z", &min.z, m_geom->getMeshBoundsMin().z, m_geom->getMeshBoundsMax().z, "%.1f");
-			ImGui::SliderFloat("Max X", &max.x, m_geom->getMeshBoundsMin().x, m_geom->getMeshBoundsMax().x, "%.1f");
-			ImGui::SliderFloat("Max Y", &max.y, m_geom->getMeshBoundsMin().y, m_geom->getMeshBoundsMax().y, "%.1f");
-			ImGui::SliderFloat("Max Z", &max.z, m_geom->getMeshBoundsMin().z, m_geom->getMeshBoundsMax().z, "%.1f");
+			glm::vec3 bmin = m_zoneContext->GetMeshBoundsMin();
+			glm::vec3 bmax = m_zoneContext->GetMeshBoundsMax();
+
+			ImGui::SliderFloat("Min X", &min.x, bmin.x, bmax.x, "%.1f");
+			ImGui::SliderFloat("Min Y", &min.y, bmin.y, bmax.y, "%.1f");
+			ImGui::SliderFloat("Min Z", &min.z, bmin.z, bmax.z, "%.1f");
+			ImGui::SliderFloat("Max X", &max.x, bmin.x, bmax.x, "%.1f");
+			ImGui::SliderFloat("Max Y", &max.y, bmin.y, bmax.y, "%.1f");
+			ImGui::SliderFloat("Max Z", &max.z, bmin.z, bmax.z, "%.1f");
 
 			m_navMesh->SetNavMeshBounds(min, max);
 
 			ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - 131);
 			if (ImGuiEx::ColoredButton("Reset Bounding Box", ImVec2(130, 0), 0.0))
 			{
-				m_navMesh->SetNavMeshBounds(
-					m_geom->getMeshBoundsMin(),
-					m_geom->getMeshBoundsMax());
+				m_navMesh->SetNavMeshBounds(bmin, bmax);
 			}
 		}
 
@@ -413,7 +434,7 @@ void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ive
 	m_viewModelProjMtx = viewModelProjMtx;
 	m_viewport = viewport;
 
-	if (!m_geom || !m_geom->getMeshLoader())
+	if (!m_zoneContext || !m_zoneContext->IsZoneLoaded())
 		return;
 
 	m_navMesh->SendEventIfDirty();
@@ -558,23 +579,9 @@ void NavMeshTool::handleRenderOverlay()
 	}
 }
 
-void NavMeshTool::handleGeometryChanged(InputGeom* geom)
-{
-	m_geom = geom;
-
-	if (m_tool)
-	{
-		m_tool->reset();
-	}
-	resetToolStates();
-
-	m_renderManager->SetInputGeometry(geom);
-	NavMeshUpdated();
-}
-
 bool NavMeshTool::BuildMesh()
 {
-	if (!m_geom || !m_geom->getMeshLoader())
+	if (!m_zoneContext || !m_zoneContext->GetMeshLoader())
 	{
 		SPDLOG_LOGGER_ERROR(m_logger, "buildTiledNavigation: No vertices and triangles.");
 		return false;
@@ -616,7 +623,7 @@ bool NavMeshTool::BuildMesh()
 
 void NavMeshTool::GetTilePos(const glm::vec3& pos, int& tx, int& ty)
 {
-	if (!m_geom) return;
+	if (!m_zoneContext) return;
 
 	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
 
@@ -627,7 +634,7 @@ void NavMeshTool::GetTilePos(const glm::vec3& pos, int& tx, int& ty)
 
 void NavMeshTool::RemoveTile(const glm::vec3& pos)
 {
-	if (!m_geom) return;
+	if (!m_zoneContext) return;
 
 	auto navMesh = m_navMesh->GetNavMesh();
 	if (!navMesh) return;
@@ -666,7 +673,7 @@ void NavMeshTool::resetCommonSettings()
 
 void NavMeshTool::BuildTile(const glm::vec3& pos)
 {
-	if (!m_geom) return;
+	if (!m_zoneContext) return;
 
 	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
 	const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
@@ -724,7 +731,7 @@ void NavMeshTool::RebuildTile(
 	const std::shared_ptr<OffMeshConnectionBuffer> connBuffer,
 	dtTileRef tileRef)
 {
-	if (!m_geom) return;
+	if (!m_zoneContext) return;
 	const auto& navMesh = m_navMesh->GetNavMesh();
 	if (!navMesh) return;
 
@@ -763,7 +770,7 @@ void NavMeshTool::SaveNavMesh()
 
 void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async)
 {
-	if (!m_geom) return;
+	if (!m_zoneContext) return;
 	if (m_buildingTiles) return;
 	if (!navMesh) return;
 
@@ -865,9 +872,11 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshTool::rasterizeGeometry(rcConfi
 		return 0;
 	}
 
-	const float* verts = m_geom->getMeshLoader()->getVerts();
-	const int nverts = m_geom->getMeshLoader()->getVertCount();
-	const rcChunkyTriMesh* chunkyMesh = m_geom->getChunkyMesh();
+	MapGeometryLoader* loader = m_zoneContext->GetMeshLoader();
+
+	const float* verts = loader->getVerts();
+	const int nverts = loader->getVertCount();
+	const rcChunkyTriMesh* chunkyMesh = m_zoneContext->GetChunkyMesh();
 
 	// Allocate array that can hold triangle flags.
 	// If you have multiple meshes you need to process, allocate
@@ -928,9 +937,9 @@ unsigned char* NavMeshTool::buildTileMesh(
 	const std::shared_ptr<OffMeshConnectionBuffer>& offMeshConnections,
 	int& dataSize) const
 {
-	if (!m_geom || !m_geom->getMeshLoader() || !m_geom->getChunkyMesh())
+	if (!m_zoneContext || !m_zoneContext->IsZoneLoaded() || !m_zoneContext->GetChunkyMesh())
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Input mesh is not specified.");
+		SPDLOG_LOGGER_ERROR(m_logger, "buildTileMesh: Input mesh is not specified.");
 		return 0;
 	}
 

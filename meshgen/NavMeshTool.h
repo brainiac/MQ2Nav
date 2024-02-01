@@ -20,8 +20,6 @@
 #include <thread>
 #include <agents.h>
 
-
-class InputGeom;
 class dtNavMesh;
 class dtNavMeshQuery;
 class rcContext;
@@ -83,6 +81,9 @@ public:
 	NavMeshTool(const std::shared_ptr<NavMesh>& navMesh);
 	virtual ~NavMeshTool();
 
+	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
+	std::shared_ptr<ZoneContext> GetZoneContext() const { return m_zoneContext; }
+
 	void setContext(rcContext* ctx) { m_ctx = ctx; }
 
 	void handleDebug();
@@ -90,7 +91,6 @@ public:
 	void handleRender(const glm::mat4& viewModelProjMtx, const glm::ivec4& viewport);
 	void handleUpdate(float dt);
 	void handleRenderOverlay();
-	void handleGeometryChanged(InputGeom* geom);
 	void handleClick(const glm::vec3& p, bool shift);
 
 	void GetTilePos(const glm::vec3& pos, int& tx, int& ty);
@@ -114,9 +114,6 @@ public:
 	float getTotalBuildTimeMS() const { return m_totalBuildTimeMs; }
 
 	void setOutputPath(const char* output_path);
-
-	InputGeom* getInputGeom() { return m_geom; }
-
 	std::shared_ptr<NavMesh> GetNavMesh() const { return m_navMesh; }
 
 	void setTool(Tool* tool);
@@ -161,7 +158,6 @@ private:
 	glm::ivec4 m_viewport;
 	NavMeshConfig m_config;
 
-	InputGeom* m_geom = nullptr;
 	std::unique_ptr<ZoneRenderManager> m_renderManager;
 
 	std::shared_ptr<NavMesh> m_navMesh;
@@ -169,6 +165,8 @@ private:
 
 	std::unique_ptr<Tool> m_tool;
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
+
+	std::shared_ptr<ZoneContext> m_zoneContext;
 
 	// we don't own this
 	rcContext* m_ctx = nullptr;
