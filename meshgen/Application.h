@@ -154,12 +154,11 @@ private:
 	bool m_zoneLoaded = false;
 	bool m_showZonePickerDialog = false;
 	bool m_showSettingsDialog = false;
-	bool m_showDemo = false;
-	bool m_showTools = true;
-	bool m_showDebug = false;
-	bool m_showProperties = true;
 	bool m_showMapAreas = false;
 	bool m_showOverlay = true;
+
+	bool m_showDemo = false;
+	bool m_showMetricsWindow = false;
 	
 	// Keyboard speed adjustment
 	float m_camMoveSpeed = 250.0f;

@@ -846,7 +846,7 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 	m_ctx->stopTimer(RC_TIMER_TEMP);
 
 	int totalTime = m_ctx->getAccumulatedTime(RC_TIMER_TEMP);
-	m_totalBuildTimeMs = totalTime / 1000.0f;
+	m_totalBuildTimeMs = static_cast<float>(totalTime) / 1000.0f;
 
 	duLogBuildTimes(*m_ctx, totalTime);
 

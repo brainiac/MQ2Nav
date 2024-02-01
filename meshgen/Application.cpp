@@ -366,14 +366,6 @@ bool Application::HandleEvents()
 					SaveMesh();
 					break;
 
-				case SDLK_p:
-					m_showProperties = !m_showProperties;
-					break;
-
-				case SDLK_t:
-					m_showTools = !m_showTools;
-					break;
-
 				case SDLK_COMMA:
 					m_showSettingsDialog = true;
 					break;
@@ -602,8 +594,8 @@ void Application::UpdateImGui()
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Show ImGui Demo", 0, m_showDemo))
-				m_showDemo = !m_showDemo;
+			ImGui::MenuItem("Show ImGui Demo", nullptr, &m_showDemo);
+			ImGui::MenuItem("Show ImGui Metrics/Debugger", nullptr, &m_showMetricsWindow);
 
 			ImGui::EndMenu();
 		}
@@ -689,6 +681,10 @@ void Application::UpdateImGui()
 	if (m_showDemo)
 	{
 		ImGui::ShowDemoWindow(&m_showDemo);
+	}
+	if (m_showMetricsWindow)
+	{
+		ImGui::ShowMetricsWindow(&m_showMetricsWindow);
 	}
 
 	m_panelManager->OnImGuiRender();
