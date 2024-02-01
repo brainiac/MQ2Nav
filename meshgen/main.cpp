@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
 
 	while (true)
 	{
-		if (!app.update())
+		if (!app.Update())
 			break;
 	}
 

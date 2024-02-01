@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\dependencies\im3d\im3d.cpp" />
+    <ClCompile Include="BackgroundTaskManager.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
@@ -44,13 +45,16 @@
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="ToolsPanel.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
+    <ClCompile Include="ZoneContext.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
     <ClCompile Include="ZoneRenderManager.cpp" />
+    <ClCompile Include="ZoneResourceManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\dependencies\im3d\im3d.h" />
     <ClInclude Include="..\dependencies\im3d\im3d_config.h" />
     <ClInclude Include="..\dependencies\im3d\im3d_math.h" />
+    <ClInclude Include="BackgroundTaskManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
@@ -87,6 +91,8 @@
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="ToolsPanel.h" />
     <ClInclude Include="WaypointsTool.h" />
+    <ClInclude Include="ZoneContext.h" />
+    <ClInclude Include="ZoneResourceManager.h" />
     <ClInclude Include="ZonePicker.h" />
     <ClInclude Include="ZoneRenderManager.h" />
   </ItemGroup>

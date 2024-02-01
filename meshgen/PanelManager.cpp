@@ -2,10 +2,14 @@
 #include "pch.h"
 #include "PanelManager.h"
 
+#include <ranges>
+
 #include "meshgen/ApplicationConfig.h"
 #include <mq/base/Config.h>
 
 #include "imgui_internal.h"
+
+#include <fmt/format.h>
 
 PanelWindow::PanelWindow(std::string_view panelName, std::string_view settingsName)
 	: panelName(panelName)
@@ -164,9 +168,19 @@ void PanelManager::AddDockingLayout(DockingLayout&& layout)
 	m_dockingLayouts.push_back(std::move(layout));
 }
 
+void PanelManager::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
+{
+	m_zoneContext = zoneContext;
+
+	for (auto& panel : m_panels | std::views::values)
+	{
+		panel->SetZoneContext(zoneContext);
+	}
+}
+
 void PanelManager::OnImGuiRender()
 {
-	for (auto& [_, panel] : m_panels)
+	for (auto& panel : m_panels | std::views::values)
 	{
 		bool changed = false;
 
@@ -180,6 +194,40 @@ void PanelManager::OnImGuiRender()
 		if (changed)
 		{
 			panel->SetIsOpen(panel->isOpen);
+		}
+	}
+
+	// Display stored popups
+	for (auto iter = begin(m_popups); iter != end(m_popups);)
+	{
+		PopupNotification& notif = *iter;
+
+		if (!notif.shown)
+		{
+			notif.shown = true;
+			ImGui::OpenPopup(notif.titleAndId.c_str());
+		}
+
+		bool show;
+		if (notif.modal)
+			show = ImGui::BeginPopupModal(notif.titleAndId.c_str());
+		else
+			show = ImGui::BeginPopup(notif.titleAndId.c_str());
+
+		if (show)
+		{
+			ImGui::Text("%s", notif.text.c_str());
+
+			if (ImGui::Button("Close"))
+				ImGui::CloseCurrentPopup();
+
+			ImGui::EndPopup();
+
+			++iter;
+		}
+		else
+		{
+			iter = m_popups.erase(iter);
 		}
 	}
 }
@@ -256,4 +304,14 @@ void PanelManager::DoLayoutsMenu()
 			m_resetLayout = true;
 		}
 	}
+}
+
+void PanelManager::ShowNotificationDialog(std::string_view title, std::string_view contents, bool modal)
+{
+	m_popups.emplace_back(
+		fmt::format("{}##{}", title, m_nextPopupId++),
+		std::string(contents),
+		modal,
+		false
+	);
 }

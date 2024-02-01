@@ -6,6 +6,7 @@
 #include <imgui/imgui.h>
 #include <unordered_map>
 
+class ZoneContext;
 
 class PanelWindow
 {
@@ -16,6 +17,8 @@ public:
 	void Initialize();
 
 	virtual void OnImGuiRender(bool* p_open) = 0;
+
+	virtual void SetZoneContext(const std::shared_ptr<ZoneContext>& context) {}
 
 	void SetIsOpen(bool open);
 
@@ -63,17 +66,23 @@ struct DockingLayout
 	bool isDefault = false;
 };
 
+struct PopupNotification
+{
+	std::string titleAndId;
+	std::string text;
+	bool modal;
+	bool shown;
+};
+
 class PanelManager
 {
 public:
 	PanelManager();
 	~PanelManager();
 
-	void PrepareDockSpace();
-
-	void OnImGuiRender();
-
 	void AddDockingLayout(DockingLayout&& layout);
+
+	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
 
 	template <typename T, typename... Args>
 	std::shared_ptr<T> AddPanel(Args&&... args)
@@ -86,6 +95,8 @@ public:
 		assert(!m_panels.contains(hash));
 		m_panelsSorted.push_back(hash);
 		m_panels.emplace(hash, panel);
+
+		panel->SetZoneContext(m_zoneContext);
 
 		return panel;
 	}
@@ -105,6 +116,9 @@ public:
 		return iter->second;
 	}
 
+	void PrepareDockSpace();
+	void OnImGuiRender();
+
 	ImGuiID GetMainDockSpaceID() const { return m_dockspaceID; }
 
 	// Focus panel by its ID.
@@ -115,6 +129,8 @@ public:
 	// TODO: Temporary menu to get things working
 	void DoWindowMenu();
 	void DoLayoutsMenu();
+
+	void ShowNotificationDialog(std::string_view title, std::string_view contents, bool modal = true);
 
 private:
 	void ApplyDockLayout();
@@ -132,4 +148,10 @@ private:
 
 	// IDs of all docknodes
 	std::unordered_map<std::string, ImGuiID> m_dockspaceIDs;
+
+	// List of popups
+	std::vector<PopupNotification> m_popups;
+	int m_nextPopupId = 1;
+
+	std::shared_ptr<ZoneContext> m_zoneContext;
 };

@@ -11,6 +11,8 @@
 #include <memory>
 #include <string>
 
+class Application;
+
 struct IMAGEDATA
 {
 	int width, height, bits;
@@ -21,18 +23,21 @@ struct IMAGEDATA
 class ZonePicker
 {
 public:
-	ZonePicker(const ApplicationConfig& eqConfig, bool batchMode = false);
+	ZonePicker(Application* app);
 	~ZonePicker();
 
-	bool Show();
+	void Show();
+	void Draw();
+	void Close();
 
-	bool ShouldLoadNavMesh() const { return m_loadNavMesh; }
-	std::string GetSelectedZone() const { return m_selectedZone; }
+	bool IsShowing() const { return m_isShowing; }
 
 private:
 	bool DrawExpansionGroup(const ApplicationConfig::Expansion& expansion, bool showExpansions);
+	void LoadZones();
+	void ClearZones();
 
-	const ApplicationConfig& m_eqConfig;
+	Application* m_app;
 
 	// Mapping of Zones to Expansions
 	struct MapInfo
@@ -43,16 +48,15 @@ private:
 	};
 	std::vector<MapInfo> m_allMaps;
 
-	std::string m_eqDirectory;
 	char m_filterText[64] = { 0 };
-
-	std::string m_selectedZone;
 
 	bool m_loadNavMesh = true;
 	bool m_showExpansionButtons = true;
-	bool m_batchMode = false;
-	int m_selectedExpansion = -1;
 	bool m_isShowing = true;
+	bool m_setFocus = false;
+	bool m_loaded = false;
+	int m_selectedExpansion = -1;
+	bool m_showNextDraw = false;
 
 	std::vector<bgfx::TextureHandle> m_textures;
 };

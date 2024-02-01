@@ -23,6 +23,7 @@
 #include <mutex>
 #include <thread>
 
+class BackgroundTaskManager;
 class RecastContext;
 class InputGeom;
 class NavMeshTool;
@@ -30,6 +31,7 @@ class ZonePicker;
 class ImportExportSettingsDialog;
 class rcContext;
 class PanelManager;
+class ZoneContext;
 
 // TEMP
 class PropertiesPanel;
@@ -48,17 +50,15 @@ public:
 
 	bool Initialize(int argc, const char* const* argv);
 	int Shutdown();
-
-	bool update();
-
-	rcContext& GetContext() { return *m_rcContext; }
+	bool Update();
 
 	//------------------------------------------------------------------------
 
-	void ShowSettingsDialog();
-
 	void PushEvent(const std::function<void()>& cb);
 
+	void BeginLoadZone(const std::string& shortName, bool loadMesh);
+
+	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
 
 private:
 	bool InitSystem();
@@ -72,9 +72,6 @@ private:
 	// Reset the camera to the starting point
 	void ResetCamera();
 
-	// Get the filename of the mesh that would be used to save/open based on current zone
-	std::string GetMeshFilename();
-
 	// Menu Item Handling
 	void OpenMesh();
 	void SaveMesh();
@@ -87,9 +84,7 @@ private:
 
 	void DrawAreaTypesEditor();
 	void ShowImportExportSettingsDialog(bool import);
-
-	void DrawZonePickerDialog();
-	void ShowZonePickerDialog();
+	void ShowSettingsDialog();
 
 	void UpdateViewport();
 
@@ -123,21 +118,13 @@ private:
 	// UI Panel Manager
 	std::unique_ptr<PanelManager> m_panelManager;
 
-
-	float m_progress = 0.0f;
-	std::string m_activityMessage;
-
-	bool m_showLog = false;
-	bool m_showFailedToOpenDialog = false;
+	// ImGui Ini file.
+	std::string m_iniFile;
 
 	uint64_t m_lastTime = 0;
 	float m_time = 0.0f;
 	float m_timeDelta = 0;
 	float m_timeAccumulator = 0;
-
-	// mesh hittest
-	bool m_mposSet = false;
-	glm::vec3 m_mpos;
 
 	// events
 	glm::ivec2 m_mousePos;
@@ -145,38 +132,23 @@ private:
 	bool m_rotate = false;
 	bool m_done = false;
 
-	// log window
-	float m_lastScrollPosition = 1.0, m_lastScrollPositionMax = 1.0;
-
 	// maps display
-	std::map<std::string, bool> m_expansionExpanded;
 	std::string m_zoneDisplayName;
 	bool m_zoneLoaded = false;
-	bool m_showZonePickerDialog = false;
 	bool m_showSettingsDialog = false;
 	bool m_showMapAreas = false;
 	bool m_showOverlay = true;
-
 	bool m_showDemo = false;
 	bool m_showMetricsWindow = false;
 	
-	// Keyboard speed adjustment
-	float m_camMoveSpeed = 250.0f;
-
 	// zone to load on next pass
 	std::string m_nextZoneToLoad;
 	bool m_loadMeshOnZone = false;
 
-	std::string m_iniFile;
-
-	bool m_showFailedToLoadZone = false;
-	std::string m_failedZoneMsg;
-
-	// current navmesh build worker thread
-	std::thread m_buildThread;
-
+	std::unique_ptr<BackgroundTaskManager> m_backgroundTaskManager;
 	std::unique_ptr<ZonePicker> m_zonePicker;
 	std::unique_ptr<ImportExportSettingsDialog> m_importExportSettings;
+	std::shared_ptr<ZoneContext> m_zoneContext;
 
 	std::vector<std::function<void()>> m_callbackQueue;
 	std::mutex m_callbackMutex;

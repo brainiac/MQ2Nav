@@ -9,9 +9,12 @@
 #include <mq/base/String.h>
 #include <imgui.h>
 
+#include "Application.h"
 #include "ResourceManager.h"
 
 #define EXPANSION_BUTTONS 1
+
+static constexpr const char* s_dialogName = "Open Zone##ZonePicker";
 
 //----------------------------------------------------------------------------
 
@@ -95,12 +98,22 @@ std::pair<int, ImVec2> FindExpansionImage(int expansion, bool active)
 	return { info.fileIndex, pos };
 }
 
-ZonePicker::ZonePicker(const ApplicationConfig& eqConfig, bool batchMode)
-	: m_eqConfig(eqConfig)
-	, m_eqDirectory(eqConfig.GetEverquestPath())
-	, m_batchMode(batchMode)
+ZonePicker::ZonePicker(Application* app)
+	: m_app(app)
 {
-	auto& mapList = m_eqConfig.GetMapList();
+}
+
+ZonePicker::~ZonePicker()
+{
+	ClearZones();
+}
+
+void ZonePicker::LoadZones()
+{
+	if (m_loaded)
+		return;
+
+	auto& mapList = g_config.GetMapList();
 	for (const auto& [exp, maps] : mapList)
 	{
 		for (const auto& map : maps)
@@ -109,9 +122,11 @@ ZonePicker::ZonePicker(const ApplicationConfig& eqConfig, bool batchMode)
 		}
 	}
 
+	std::string eqDirectory = g_config.GetEverquestPath();
+
 	for (const auto& expansionFile : ExpansionLogoFiles)
 	{
-		std::string path = m_eqDirectory + "\\" + expansionFile.filename;
+		std::string path = eqDirectory + "\\" + expansionFile.filename;
 
 		bgfx::TextureHandle texture = g_resourceMgr->LoadTexture(path.c_str());
 		m_textures.push_back(texture);
@@ -126,15 +141,23 @@ ZonePicker::ZonePicker(const ApplicationConfig& eqConfig, bool batchMode)
 	{
 		PopulateExpansionLogoImages();
 	}
+
+	m_loaded = true;
 }
 
-ZonePicker::~ZonePicker()
+void ZonePicker::ClearZones()
 {
 	for (const auto& texture : m_textures)
 	{
 		if (isValid(texture))
 			bgfx::destroy(texture);
 	}
+
+	m_allMaps.clear();
+	m_textures.clear();
+	m_selectedExpansion = -1;
+	m_loaded = false;
+	m_filterText[0] = 0;
 }
 
 static bool ExpansionButton(bgfx::TextureHandle texture, const ImVec2& pos)
@@ -143,19 +166,21 @@ static bool ExpansionButton(bgfx::TextureHandle texture, const ImVec2& pos)
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
 
-	bool result = ImGui::ImageButton("##ExpansionButton", texture,
+	if (ImGui::ImageButton("##ExpansionButton", texture,
 		ExpansionLogoSize,
 		ImVec2(pos.x / 512.0f, pos.y / 512.0f),
-		ImVec2((pos.x + ExpansionLogoSize.x) / 512.0f, (pos.y + ExpansionLogoSize.y) / 512.0f));
+		ImVec2((pos.x + ExpansionLogoSize.x) / 512.0f, (pos.y + ExpansionLogoSize.y) / 512.0f)))
+	{
+		ImGui::PopStyleColor(3);
+		return true;
+	}
 
 	ImGui::PopStyleColor(3);
-	return result;
+	return false;
 }
 
 bool ZonePicker::DrawExpansionGroup(const ApplicationConfig::Expansion& expansion, bool showExpansions)
 {
-	bool result = false;
-
 	for (const auto& zonePair : expansion.second)
 	{
 		const std::string& longName = zonePair.first;
@@ -183,29 +208,42 @@ bool ZonePicker::DrawExpansionGroup(const ApplicationConfig::Expansion& expansio
 
 		if (selected)
 		{
-			m_selectedZone = zonePair.second;
-			result = true;
-			break;
+			m_app->BeginLoadZone(zonePair.second, m_loadNavMesh);
+			return true;
 		}
 	}
 
-	return result;
+	return false;
 }
 
-bool ZonePicker::Show()
+void ZonePicker::Show()
 {
-	bool result = false;
-	bool focus = false;
+	m_showNextDraw = true;
+}
 
-	const char* dialogName = "Open Zone";
+void ZonePicker::Close()
+{
+	m_isShowing = false;
 
-	if (m_isShowing)
+	ClearZones();
+}
+
+void ZonePicker::Draw()
+{
+	if (!m_isShowing && !m_showNextDraw) return;
+	bool closeWindow = false;
+
+	if (m_showNextDraw)
 	{
-		focus = true;
-		m_isShowing = false;
+		ImGui::OpenPopup(s_dialogName);
+		m_isShowing = true;
+		m_setFocus = true;
+		m_showNextDraw = false;
+	}
 
+	if (m_setFocus)
+	{
 		ImGui::SetNextWindowFocus();
-		ImGui::OpenPopup(dialogName);
 	}
 
 	float width = 900;
@@ -219,20 +257,26 @@ bool ZonePicker::Show()
 
 	ImGui::SetNextWindowPos(ImVec2(xPos, yPos), ImGuiCond_Always);
 	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
-	const auto& mapList = m_eqConfig.GetMapList();
+	const auto& mapList = g_config.GetMapList();
+	bool open = m_isShowing;
 
-	bool show = true;
-
-	if (ImGui::BeginPopupModal(dialogName, &show,
+	if (ImGui::BeginPopupModal(s_dialogName, &open,
 		ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse))
 	{
+		LoadZones();
+
 		ImGui::Text("Select a zone or type to filter by name");
 
 		bool selectSingle = false;
 		ImGui::PushItemWidth(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x);
 		if (ImGui::InputText("##ZonePicker", m_filterText, 64, ImGuiInputTextFlags_EnterReturnsTrue))
 			selectSingle = true;
-		if (focus) ImGui::SetKeyboardFocusHere(-1);
+
+		if (m_setFocus)
+		{
+			ImGui::SetKeyboardFocusHere(-1);
+			m_setFocus = false;
+		}
 
 		ImGui::PopItemWidth();
 
@@ -285,7 +329,7 @@ bool ZonePicker::Show()
 						if (ImGui::TreeNode(expansionName.c_str()))
 						{
 							if (DrawExpansionGroup(expansionInfo, true))
-								result = true;
+								closeWindow = true;
 
 							ImGui::TreePop();
 						}
@@ -296,7 +340,7 @@ bool ZonePicker::Show()
 					const ApplicationConfig::Expansion& expansion = mapList[m_selectedExpansion];
 
 					if (DrawExpansionGroup(expansion, true))
-						result = true;
+						closeWindow = true;
 				}
 
 				ImGui::PopID();
@@ -336,9 +380,8 @@ bool ZonePicker::Show()
 						ImGui::PopID();
 						if (selected)
 						{
-							m_selectedZone = shortName;
-							result = true;
-							break;
+							m_app->BeginLoadZone(shortName, m_loadNavMesh);
+							closeWindow = true;
 						}
 					}
 					count++;
@@ -346,8 +389,8 @@ bool ZonePicker::Show()
 
 				if (count == 1 && selectSingle)
 				{
-					m_selectedZone = lastZone;
-					result = true;
+					m_app->BeginLoadZone(lastZone, m_loadNavMesh);
+					closeWindow = true;
 				}
 
 				ImGui::PopID();
@@ -357,20 +400,30 @@ bool ZonePicker::Show()
 		}
 
 		ImGui::PushItemWidth(350);
-		if (ImGui::Button("Cancel") || result) {
+		if (ImGui::Button("Cancel") || closeWindow)
+		{
 			m_filterText[0] = 0;
-			result = true;
+			m_isShowing = false;
+			closeWindow = true;
 		}
+
 		ImGui::PopItemWidth();
 
 		ImGui::SameLine();
 		ImGui::Checkbox("Load Navmesh if available", &m_loadNavMesh);
 
-
 		ImGui::EndPopup();
 	}
+	else
+	{
+		closeWindow = true;
+	}
 
-	if (!show) result = true;
-
-	return result;
+	if (closeWindow || !open)
+	{
+		m_isShowing = false;
+		m_setFocus = false;
+		// Allow us to reload maps after closing
+		ClearZones();
+	}
 }

@@ -3,6 +3,7 @@
 //
 
 #include "meshgen/Application.h"
+#include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/DebugPanel.h"
 #include "meshgen/InputGeom.h"
 #include "meshgen/Logging.h"
@@ -55,6 +56,7 @@ Application::Application()
 
 	g_render = new RenderManager();
 	g_resourceMgr = new ResourceManager();
+	m_backgroundTaskManager = std::make_unique<BackgroundTaskManager>(this);
 }
 
 Application::~Application()
@@ -82,8 +84,9 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 
 	m_navMesh = std::make_shared<NavMesh>(g_config.GetOutputPath(), startingZone);
 	m_meshTool = std::make_unique<NavMeshTool>(m_navMesh);
-
 	m_rcContext = std::make_unique<RecastContext>();
+
+	m_zonePicker = std::make_unique<ZonePicker>(this);
 
 	m_meshTool->setContext(m_rcContext.get());
 	m_meshTool->setOutputPath(g_config.GetOutputPath().c_str());
@@ -116,8 +119,6 @@ bool Application::InitSystem()
 		::MessageBoxA(nullptr, szMessage, "Error Starting Engine", MB_OK | MB_ICONERROR);
 		return false;
 	}
-
-	//SDL_GetWindowPosition(m_window, &x, &y);
 
 	if (!g_render->Initialize(m_windowRect.z, m_windowRect.w, m_window))
 		return false;
@@ -202,6 +203,7 @@ void Application::InitImGui()
 
 int Application::Shutdown()
 {
+	m_backgroundTaskManager->Stop();
 	Halt();
 
 	m_panelManager->Shutdown();
@@ -217,7 +219,7 @@ int Application::Shutdown()
 	return 0;
 }
 
-bool Application::update()
+bool Application::Update()
 {
 	if (m_done)
 		return false;
@@ -344,8 +346,8 @@ bool Application::HandleEvents()
 			{
 				if (m_meshTool->isBuildingTiles())
 					Halt();
-				else if (m_showZonePickerDialog)
-					m_showZonePickerDialog = false;
+				else if (m_zonePicker->IsShowing())
+					m_zonePicker->Close();
 			}
 
 			if (ImGui::GetIO().WantTextInput)
@@ -357,7 +359,7 @@ bool Application::HandleEvents()
 				switch (event.key.keysym.sym)
 				{
 				case SDLK_o:
-					ShowZonePickerDialog();
+					m_zonePicker->Show();
 					break;
 				case SDLK_l:
 					OpenMesh();
@@ -407,26 +409,10 @@ bool Application::HandleEvents()
 					// Hit test mesh.
 					if (float t; m_geom->raycastMesh(rayStart, rayEnd, t))
 					{
+						bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
+
 						glm::vec3 pos = rayStart + (rayEnd - rayStart) * t;
-
-						if (SDL_GetModState() & KMOD_CTRL)
-						{
-							m_mposSet = true;
-							m_mpos = pos;
-						}
-						else
-						{
-							bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
-
-							m_meshTool->handleClick(pos, shift);
-						}
-					}
-					else
-					{
-						if (SDL_GetModState() & KMOD_CTRL)
-						{
-							m_mposSet = false;
-						}
+						m_meshTool->handleClick(pos, shift);
 					}
 				}
 			}
@@ -465,6 +451,7 @@ bool Application::HandleEvents()
 			break;
 
 		case SDL_QUIT:
+			m_backgroundTaskManager->Stop();
 			Halt();
 			m_done = true;
 			break;
@@ -505,15 +492,6 @@ void Application::UpdateImGui()
 {
 	m_panelManager->PrepareDockSpace();
 
-	if (!m_activityMessage.empty())
-	{
-		mq::imgui::RenderTextCentered(
-			ImVec2(static_cast<float>(m_windowRect.z / 2), static_cast<float>(m_windowRect.w / 2)),
-			ImColor(255, 255, 255, 128), m_activityMessage.c_str(), m_progress);
-	}
-
-	m_showFailedToOpenDialog = false;
-
 	if (ImGui::BeginMainMenuBar())
 	{
 		if (ImGui::BeginMenu("File"))
@@ -521,7 +499,7 @@ void Application::UpdateImGui()
 			if (ImGui::MenuItem("Open Zone", "Ctrl+O", nullptr,
 				!m_meshTool->isBuildingTiles()))
 			{
-				ShowZonePickerDialog();
+				m_zonePicker->Show();
 			}
 
 			ImGui::Separator();
@@ -602,7 +580,7 @@ void Application::UpdateImGui()
 		ImGui::EndMainMenuBar();
 	}
 
-	DrawZonePickerDialog();
+	m_zonePicker->Draw();
 
 	if (m_showOverlay)
 	{
@@ -640,30 +618,6 @@ void Application::UpdateImGui()
 			ImGui::TextColored(ImColor(255, 255, 255, 128), msg);
 		}
 		ImGui::End();
-	}
-
-	if (m_showFailedToOpenDialog)
-		ImGui::OpenPopup("Failed To Open");
-	if (ImGui::BeginPopupModal("Failed To Open"))
-	{
-		m_showFailedToOpenDialog = false;
-		ImGui::Text("Failed to open mesh.");
-		if (ImGui::Button("Close"))
-			ImGui::CloseCurrentPopup();
-
-		ImGui::EndPopup();
-	}
-
-	if (m_showFailedToLoadZone)
-		ImGui::OpenPopup("Failed To Open Zone");
-	if (ImGui::BeginPopupModal("Failed To Open Zone"))
-	{
-		m_showFailedToLoadZone = false;
-
-		ImGui::Text("%s", m_failedZoneMsg.c_str());
-		if (ImGui::Button("Close"))
-			ImGui::CloseCurrentPopup();
-		ImGui::EndPopup();
 	}
 
 	ShowSettingsDialog();
@@ -712,7 +666,10 @@ void Application::OpenMesh()
 
 	if (m_navMesh->LoadNavMeshFile() != NavMesh::LoadResult::Success)
 	{
-		m_showFailedToOpenDialog = true;
+		m_panelManager->ShowNotificationDialog(
+			"Failed To Open",
+			"Failed to open mesh."
+		);
 	}
 }
 
@@ -779,39 +736,6 @@ void Application::ShowSettingsDialog()
 			ImGui::CloseCurrentPopup();
 
 		ImGui::EndPopup();
-	}
-}
-
-void Application::DrawZonePickerDialog()
-{
-	if (m_meshTool->isBuildingTiles())
-	{
-		m_showZonePickerDialog = false;
-	}
-
-	if (m_showZonePickerDialog)
-	{
-		if (m_zonePicker->Show())
-		{
-			m_loadMeshOnZone = m_zonePicker->ShouldLoadNavMesh();
-			m_nextZoneToLoad = m_zonePicker->GetSelectedZone();
-			m_showZonePickerDialog = false;
-		}
-	}
-
-	if (!m_showZonePickerDialog && m_zonePicker)
-	{
-		m_zonePicker.reset();
-	}
-}
-
-void Application::ShowZonePickerDialog()
-{
-	m_showZonePickerDialog = true;
-
-	if (!m_zonePicker)
-	{
-		m_zonePicker = std::make_unique<ZonePicker>(g_config);
 	}
 }
 
@@ -1025,14 +949,6 @@ void Application::ResetCamera()
 	}
 }
 
-std::string Application::GetMeshFilename()
-{
-	std::stringstream ss;
-	ss << g_config.GetOutputPath() << "\\" << m_zoneShortname << ".navmesh";
-
-	return ss.str();
-}
-
 void Application::Halt()
 {
 	m_meshTool->CancelBuildAllTiles();
@@ -1042,6 +958,7 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 {
 	std::unique_lock<std::mutex> lock(m_renderMutex);
 
+	m_backgroundTaskManager->StopZoneTasks();
 	Halt();
 
 	std::string eqPath = g_config.GetEverquestPath();
@@ -1063,12 +980,11 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 
 	if (!ptr->loadGeometry(std::move(geomLoader), m_rcContext.get()))
 	{
-		m_showFailedToLoadZone = true;
+		m_panelManager->ShowNotificationDialog(
+			"Failed To Open Zone",
+			fmt::format("Failed to load zone: {} ({})", g_config.GetLongNameForShortName(zoneShortName), zoneShortName)
+		);
 
-		std::stringstream ss;
-		ss << "Failed to load zone: " << g_config.GetLongNameForShortName(zoneShortName);
-
-		m_failedZoneMsg = ss.str();
 		m_geom.reset();
 
 		m_navMesh->ResetNavMesh();
@@ -1083,7 +999,6 @@ void Application::LoadGeometry(const std::string& zoneShortName, bool loadMesh)
 	m_zoneLongname = g_config.GetLongNameForShortName(m_zoneShortname);
 
 	m_zoneDisplayName = fmt::format("{} ({})", m_zoneLongname, m_zoneShortname);
-	m_expansionExpanded.clear();
 
 	// Update the window title
 	std::string windowTitle = fmt::format("MacroQuest NavMesh Generator - {}", m_zoneDisplayName);
@@ -1104,6 +1019,19 @@ void Application::PushEvent(const std::function<void()>& cb)
 {
 	std::unique_lock<std::mutex> lock(m_callbackMutex);
 	m_callbackQueue.push_back(cb);
+}
+
+void Application::BeginLoadZone(const std::string& shortName, bool loadMesh)
+{
+	m_loadMeshOnZone = loadMesh;
+	m_nextZoneToLoad = shortName;
+}
+
+void Application::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
+{
+	m_zoneContext = zoneContext;
+
+	m_panelManager->SetZoneContext(zoneContext);
 }
 
 bool Application::HandleCallbacks()
