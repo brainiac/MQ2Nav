@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "ZoneContext.h"
 
+#include "meshgen/Application.h"
 #include "meshgen/ApplicationConfig.h"
 #include "meshgen/ChunkyTriMesh.h"
 #include "meshgen/MapGeometryLoader.h"
@@ -11,9 +12,13 @@
 
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
+#include <taskflow/taskflow.hpp>
 
-ZoneContext::ZoneContext(std::string_view zoneShortName)
-	: m_zoneShortName(zoneShortName)
+#include "BackgroundTaskManager.h"
+
+ZoneContext::ZoneContext(Application* app, std::string_view zoneShortName)
+	: m_app(app)
+	, m_zoneShortName(zoneShortName)
 {
 	// Get the long name from the application config
 	m_zoneLongName = g_config.GetLongNameForShortName(m_zoneShortName);
@@ -201,4 +206,143 @@ bool ZoneContext::RaycastMesh(const glm::vec3& src, const glm::vec3& dest, float
 	}
 
 	return hit;
+}
+
+//========================================================================
+
+void ZoneContext::SetProgress(const ProgressState& progress)
+{
+	std::unique_lock lock(m_mutex);
+
+	if (m_progress.Combine(progress))
+	{
+		SPDLOG_INFO("SetProgressState display={} text={} value={}",
+			m_progress.display.value_or(false),
+			m_progress.text.value_or(std::string()),
+			m_progress.value.value_or(0.0f));
+	}
+}
+
+ProgressState ZoneContext::GetProgress() const
+{
+	std::unique_lock lock(m_mutex);
+	return m_progress;
+}
+
+void ZoneContext::SetResultState(const ResultState& state)
+{
+	std::unique_lock lock(m_mutex);
+	m_resultState = state;
+}
+
+ResultState ZoneContext::GetResultState() const
+{
+	std::unique_lock lock(m_mutex);
+	return m_resultState;
+}
+
+tf::Taskflow ZoneContext::BuildInitialTaskflow(bool autoloadMesh)
+{
+	// Start the task
+	tf::Taskflow taskflow;
+
+	auto sharedThis = shared_from_this();
+
+	m_resultState = {
+		.phase = LoadingPhase::LoadZone,
+		.success = false,
+		.message = ""
+	};
+
+	// Task to load the zone data from the game files
+	auto loadZoneTask = taskflow.emplace([sharedThis]() -> int
+		{
+			sharedThis->m_loading = true;
+
+			// Start the progress
+			sharedThis->SetProgress({
+				.display = true,
+				.text = fmt::format("Loading {}...", sharedThis->GetShortName()),
+				.value = 0.0f
+			});
+
+			ResultState ls;
+			ls.success = sharedThis->LoadZone();
+			ls.phase = LoadingPhase::LoadZone;
+			if (!ls.success)
+				ls.message = fmt::format("Failed to load zone: '{}'", sharedThis->GetShortName());
+			sharedThis->SetResultState(ls);
+			return ls.success ? 1 : 0;
+		}).name("loadZone");
+
+	// Task to build the triangle mesh / perform spatial partitioning
+	auto buildPartitioning = taskflow.emplace([sharedThis, app = m_app]()
+		{
+			// Start the progress
+			sharedThis->SetProgress({
+				.display = true,
+				.text = fmt::format("Generating spatial partitioning..."),
+				.value = 50.0f
+			});
+
+			ResultState ls;
+			ls.success = sharedThis->BuildTriangleMesh();
+			ls.phase = LoadingPhase::BuildTriangleMesh;
+			if (!ls.success)
+				ls.message = fmt::format("Failed to build triangle mesh: '{}'", sharedThis->GetShortName());
+			sharedThis->SetResultState(ls);
+
+			// If load succeeded, we can submit the zone context at this time.
+			if (ls.success)
+			{
+				app->GetBackgroundTaskManager()->PostToMainThread([app, sharedThis]()
+					{
+						app->FinishLoading(sharedThis, true, false);
+					});
+			}
+
+			return ls.success ? 1 : 0;
+		}).name("buildPartitioning");
+
+	// Task to handle failure at any stage.
+	auto failureTask = taskflow.emplace([sharedThis, app = m_app]()
+		{
+			sharedThis->SetProgress({ .display = false });
+			sharedThis->m_loading = false;
+
+			ResultState rs = sharedThis->GetResultState();
+			app->GetBackgroundTaskManager()->PostToMainThread([app, rs, sharedThis]()
+				{
+					if (rs.phase == LoadingPhase::LoadZone || rs.phase == LoadingPhase::BuildTriangleMesh)
+						app->ShowNotificationDialog("Failed to load zone", rs.message);
+					else
+						app->ShowNotificationDialog("Failed to build navigation mesh", rs.message);
+
+					app->FinishLoading(sharedThis, false, true);
+				});
+
+		}).name("failure");
+
+	auto finishedTask = taskflow.emplace([sharedThis, app = m_app]()
+		{
+			sharedThis->SetProgress({ .display = false });
+
+			sharedThis->m_loading = false;
+			sharedThis->m_loadingMesh = false;
+
+			app->GetBackgroundTaskManager()->PostToMainThread([app, sharedThis]()
+				{
+					app->FinishLoading(sharedThis, true, true);
+				});
+			
+		}).name("success");
+
+	loadZoneTask.precede(failureTask, buildPartitioning);
+
+	//if (autoloadMesh)
+	{
+		buildPartitioning.precede(failureTask, finishedTask);
+	}
+
+	return taskflow;
 }

@@ -17,9 +17,8 @@ public:
 
 	void Stop();
 	void StopZoneTasks();
-
-	// TODO: Should this live here, or somewhere else?
-	void BeginZoneLoad(const std::shared_ptr<ZoneContext>& zoneContext);
+	
+	void AddZoneTask(tf::Taskflow&& tf);
 	
 private:
 	Application* m_app;

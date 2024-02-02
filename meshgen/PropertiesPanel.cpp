@@ -6,6 +6,7 @@
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/RenderManager.h"
 #include "meshgen/ZoneContext.h"
+#include "imgui/fonts/IconsFontAwesome.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -31,37 +32,21 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 		else
 			ImGui::TextColored(ImColor(0, 255, 0), "%s", m_zoneContext->GetDisplayName().c_str());
 
-		ImGui::Separator();
-
-		Camera* camera = g_render->GetCamera();
-
-		glm::vec3 cameraPos = to_eq_coord(camera->GetPosition());
-		if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
+		if (auto loadingCtx = m_app->GetLoadingZoneContext())
 		{
-			camera->SetPosition(from_eq_coord(cameraPos));
-		}
+			ProgressState state = loadingCtx->GetProgress();
 
-		float angle[2] = { camera->GetHorizontalAngle(), camera->GetVerticalAngle() };
-		if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
-		{
-			camera->SetHorizontalAngle(angle[0]);
-			camera->SetVerticalAngle(angle[1]);
-		}
-
-		float fov = camera->GetFieldOfView();
-		if (ImGui::DragFloat("FOV", &fov))
-		{
-			camera->SetFieldOfView(fov);
-		}
-
-		float ratio = camera->GetAspectRatio();
-		if (ImGui::DragFloat("Aspect Ratio", &ratio, 0.1f))
-		{
-			camera->SetAspectRatio(ratio);
+			if (state.display.value_or(false))
+			{
+				ImGui::TextColored(ImColor(255, 255, 0), "%s", state.text.value_or("").c_str());
+				ImGui::ProgressBar(state.value.value_or(0.0f));
+			}
 		}
 
 		if (m_zoneContext)
 		{
+			ImGui::Separator();
+
 			auto* loader = m_zoneContext->GetMeshLoader();
 
 			if (loader->HasDynamicObjects())
@@ -79,7 +64,6 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 					ImGui::EndTooltip();
 				}
 			}
-
 			ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
 
 			if (m_app->m_navMesh->IsNavMeshLoaded())
@@ -88,6 +72,37 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 				if (ImGui::Button((const char*)ICON_FA_FLOPPY_O " Save"))
 					m_app->SaveMesh();
 			}
+
+			ImGui::Separator();
+
+			// TODO: Move these to somewhere else?
+			Camera* camera = g_render->GetCamera();
+
+			glm::vec3 cameraPos = to_eq_coord(camera->GetPosition());
+			if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
+			{
+				camera->SetPosition(from_eq_coord(cameraPos));
+			}
+
+			float angle[2] = { camera->GetHorizontalAngle(), camera->GetVerticalAngle() };
+			if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
+			{
+				camera->SetHorizontalAngle(angle[0]);
+				camera->SetVerticalAngle(angle[1]);
+			}
+
+			//float fov = camera->GetFieldOfView();
+			//if (ImGui::DragFloat("FOV", &fov))
+			//{
+			//	camera->SetFieldOfView(fov);
+			//}
+
+			//float ratio = camera->GetAspectRatio();
+			//if (ImGui::DragFloat("Aspect Ratio", &ratio, 0.1f))
+			//{
+			//	camera->SetAspectRatio(ratio);
+			//}
+
 		}
 	}
 

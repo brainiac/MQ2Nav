@@ -1,10 +1,13 @@
 
 #pragma once
 
+#include <optional>
+
 #include "meshgen/Hash.h"
 
 #include <imgui/imgui.h>
 #include <unordered_map>
+#include <mutex>
 
 class ZoneContext;
 
@@ -130,10 +133,14 @@ public:
 	void DoWindowMenu();
 	void DoLayoutsMenu();
 
+	// Show a modal popup
 	void ShowNotificationDialog(std::string_view title, std::string_view contents, bool modal = true);
 
 private:
 	void ApplyDockLayout();
+	void UpdatePopups();
+
+	std::mutex m_mutex;
 
 	// List of all of our panels
 	std::unordered_map<size_t, std::shared_ptr<PanelWindow>> m_panels;

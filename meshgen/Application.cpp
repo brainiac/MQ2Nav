@@ -34,6 +34,7 @@
 
 #include <filesystem>
 #include <sstream>
+#include <eqlib/eqstd/memory.h>
 
 #include "ZoneContext.h"
 
@@ -47,6 +48,8 @@ Application::Application()
 	Logging::Initialize();
 	g_config.Initialize();
 	Logging::InitSecondStage(this);
+
+	//_putenv("TF_ENABLE_PROFILER=taskflow.json");
 
 	SPDLOG_INFO("EverQuest Path: {}", g_config.GetEverquestPath());
 	SPDLOG_INFO("MacroQuest Path: {} IsValid={}", g_config.GetMacroQuestPath(), g_config.IsMacroQuestPathValid());
@@ -950,12 +953,21 @@ void Application::BeginLoadZone(const std::string& shortName, bool loadMesh)
 	m_backgroundTaskManager->StopZoneTasks();
 	Halt();
 
-	//SetZoneContext(nullptr);
+	std::shared_ptr<ZoneContext> zoneContext = std::make_shared<ZoneContext>(this, shortName);
+	m_loadingZoneContext = zoneContext;
 
-	std::shared_ptr<ZoneContext> zoneContext = std::make_shared<ZoneContext>(shortName);
-	zoneContext->SetAutoloadMesh(loadMesh);
+	m_backgroundTaskManager->AddZoneTask(zoneContext->BuildInitialTaskflow(loadMesh));
+}
 
-	m_backgroundTaskManager->BeginZoneLoad(zoneContext);
+void Application::FinishLoading(const std::shared_ptr<ZoneContext>& context, bool success, bool clearLoading)
+{
+	if (success)
+	{
+		SetZoneContext(context);
+	}
+
+	if (clearLoading && m_loadingZoneContext == context)
+		m_loadingZoneContext.reset();
 }
 
 void Application::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
@@ -988,26 +1000,11 @@ void Application::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext
 
 		ResetCamera();
 
-		if (m_zoneContext->GetAutoloadMesh())
+		//if (m_zoneContext->GetAutoloadMesh())
 		{
 			m_navMesh->LoadNavMeshFile();
 		}
 	}
-}
-
-void Application::SetProgressDisplay(bool display)
-{
-	SPDLOG_INFO("SetProgressDisplay(todo): {}", display);
-}
-
-void Application::SetProgressText(const std::string& text)
-{
-	SPDLOG_INFO("SetProgressText(todo): {}", text);
-}
-
-void Application::SetProgressValue(float value)
-{
-	SPDLOG_INFO("SetProgressValue(todo): {}", value);
 }
 
 void Application::ShowNotificationDialog(const std::string& title, const std::string& message, bool modal)

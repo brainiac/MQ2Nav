@@ -5,6 +5,7 @@
 #include "meshgen/Application.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/ZoneContext.h"
+#include "imgui/fonts/IconsMaterialDesign.h"
 
 
 ToolsPanel::ToolsPanel(Application* app)

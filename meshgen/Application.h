@@ -7,21 +7,16 @@
 #pragma once
 
 #include "meshgen/Camera.h"
-#include "meshgen/ApplicationConfig.h"
 #include "common/NavMesh.h"
-#include "common/Utilities.h"
-#include "imgui/ImGuiUtils.h"
 
 #include <glm/glm.hpp>
 #include <imgui/imgui.h>
 #include <spdlog/spdlog.h>
 
-#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <mutex>
-#include <thread>
 
 class BackgroundTaskManager;
 class RecastContext;
@@ -53,24 +48,25 @@ public:
 	//------------------------------------------------------------------------
 
 	void BeginLoadZone(const std::string& shortName, bool loadMesh);
+	void FinishLoading(const std::shared_ptr<ZoneContext>& context, bool success, bool clearLoading);
 
 	// Set the zone context. This is called when the zone is loaded.
 	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
+	std::shared_ptr<ZoneContext> GetZoneContext() const { return m_zoneContext; }
 
-	// Set progress display text
-	void SetProgressDisplay(bool display);
-	void SetProgressText(const std::string& text);
-	void SetProgressValue(float value);
+	std::shared_ptr<ZoneContext> GetLoadingZoneContext() const { return m_loadingZoneContext; }
+
 
 	void ShowNotificationDialog(const std::string& title, const std::string& message, bool modal = true);
+
+	PanelManager* GetPanelManager() const { return m_panelManager.get(); }
+	BackgroundTaskManager* GetBackgroundTaskManager() const { return m_backgroundTaskManager.get(); }
 
 private:
 	bool InitSystem();
 	void InitImGui();
 	void UpdateImGui();
 
-	// Load a zone's geometry given its shortname.
-	void LoadGeometry(const std::string& zoneShortName, bool loadMesh);
 	void Halt();
 
 	// Reset the camera to the starting point
@@ -84,12 +80,11 @@ private:
 	bool HandleEvents();
 
 	void UpdateCamera();
+	void UpdateViewport();
 
 	void DrawAreaTypesEditor();
 	void ShowImportExportSettingsDialog(bool import);
 	void ShowSettingsDialog();
-
-	void UpdateViewport();
 
 private:
 	HWND              m_hWnd = nullptr;
@@ -138,6 +133,7 @@ private:
 	std::unique_ptr<ZonePicker> m_zonePicker;
 	std::unique_ptr<ImportExportSettingsDialog> m_importExportSettings;
 	std::shared_ptr<ZoneContext> m_zoneContext;
+	std::shared_ptr<ZoneContext> m_loadingZoneContext;
 
 	std::mutex m_callbackMutex;
 };

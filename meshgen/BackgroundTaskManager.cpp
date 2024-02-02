@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "BackgroundTaskManager.h"
 
+#include "PanelManager.h"
 #include "meshgen/Application.h"
 #include "meshgen/ZoneContext.h"
 
@@ -47,59 +48,7 @@ void BackgroundTaskManager::StopZoneTasks()
 {
 }
 
-void BackgroundTaskManager::BeginZoneLoad(const std::shared_ptr<ZoneContext>& zoneContext)
+void BackgroundTaskManager::AddZoneTask(tf::Taskflow&& tf)
 {
-	StopZoneTasks();
-
-	// Start the task
-	tf::Taskflow taskflow;
-
-	taskflow.emplace([zoneContext, this]()
-		{
-			// Start the progress
-			PostToMainThread([app = this->m_app, zoneContext]()
-				{
-					app->SetProgressDisplay(true);
-					app->SetProgressText(fmt::format("Loading {}...", zoneContext->GetShortName()));
-					app->SetProgressValue(0.0f);
-				});
-
-			if (!zoneContext->LoadZone())
-			{
-				PostToMainThread([app = this->m_app, zoneContext]()
-				{
-					app->SetProgressDisplay(false);
-					app->ShowNotificationDialog("Failed To Open Zone",
-						fmt::format("Failed to load zone: '{}'", zoneContext->GetShortName()));
-				});
-
-				return;
-			}
-
-			PostToMainThread([app = this->m_app]()
-				{
-					app->SetProgressText("Building triangle mesh...");
-					app->SetProgressValue(50.0f);
-				});
-
-
-			if (!zoneContext->BuildTriangleMesh())
-			{
-				PostToMainThread([app = this->m_app]()
-					{
-						app->SetProgressDisplay(false);
-						app->ShowNotificationDialog("Failed To Open Zone",
-							"Failed to build triangle mesh");
-					});
-				return;
-			}
-
-			PostToMainThread([app = this->m_app, zoneContext]()
-				{
-					app->SetProgressDisplay(false);
-					app->SetZoneContext(zoneContext);
-				});
-		});
-
-	m_executor.run(std::move(taskflow));
+	m_executor.run(std::move(tf));
 }

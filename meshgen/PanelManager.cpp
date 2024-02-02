@@ -10,6 +10,7 @@
 #include "imgui_internal.h"
 
 #include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 PanelWindow::PanelWindow(std::string_view panelName, std::string_view settingsName)
 	: panelName(panelName)
@@ -178,24 +179,9 @@ void PanelManager::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContex
 	}
 }
 
-void PanelManager::OnImGuiRender()
+void PanelManager::UpdatePopups()
 {
-	for (auto& panel : m_panels | std::views::values)
-	{
-		bool changed = false;
-
-		if (panel->isOpen)
-		{
-			panel->OnImGuiRender(panel->isClosable ? &panel->isOpen : nullptr);
-			if (panel->isClosable && !panel->isOpen)
-				changed = true;
-		}
-
-		if (changed)
-		{
-			panel->SetIsOpen(panel->isOpen);
-		}
-	}
+	std::unique_lock lock(m_mutex);
 
 	// Display stored popups
 	for (auto iter = begin(m_popups); iter != end(m_popups);)
@@ -230,6 +216,28 @@ void PanelManager::OnImGuiRender()
 			iter = m_popups.erase(iter);
 		}
 	}
+}
+
+void PanelManager::OnImGuiRender()
+{
+	for (auto& panel : m_panels | std::views::values)
+	{
+		bool changed = false;
+
+		if (panel->isOpen)
+		{
+			panel->OnImGuiRender(panel->isClosable ? &panel->isOpen : nullptr);
+			if (panel->isClosable && !panel->isOpen)
+				changed = true;
+		}
+
+		if (changed)
+		{
+			panel->SetIsOpen(panel->isOpen);
+		}
+	}
+
+	UpdatePopups();
 }
 
 bool PanelManager::FocusPanel(std::string_view panelName)
@@ -308,6 +316,8 @@ void PanelManager::DoLayoutsMenu()
 
 void PanelManager::ShowNotificationDialog(std::string_view title, std::string_view contents, bool modal)
 {
+	std::unique_lock lock(m_mutex);
+
 	m_popups.emplace_back(
 		fmt::format("{}##{}", title, m_nextPopupId++),
 		std::string(contents),
