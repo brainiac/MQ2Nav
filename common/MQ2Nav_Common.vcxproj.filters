@@ -51,6 +51,9 @@
     <ClInclude Include="Logging.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="proto\NavMeshClient.pb.h">
+      <Filter>Proto Files\Generated Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZoneData.cpp">
@@ -74,9 +77,15 @@
     <ClCompile Include="JsonProto.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="proto\NavMeshClient.pb.cc">
+      <Filter>Proto Files\Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ProtocolBuffer Include="proto\NavMeshFile.proto">
+      <Filter>Proto Files</Filter>
+    </ProtocolBuffer>
+    <ProtocolBuffer Include="proto\NavMeshClient.proto">
       <Filter>Proto Files</Filter>
     </ProtocolBuffer>
   </ItemGroup>
