@@ -1686,6 +1686,24 @@ void MQ2NavigationPlugin::ParseOptions(std::string_view line, int idx, Navigatio
 			{
 				args->tag = value;
 			}
+			else if (key == "searchradius")
+			{
+				options.searchradius = GetIntFromString(value, 0);
+			}
+			else if (key == "searchstartpos")
+			{
+				std::vector <std::string_view> parts = mq::split_view(value, ' ', false);
+				if (parts.size() == 3)
+				{
+					options.searchstartpos = { GetFloatFromString(parts[0], 0), GetFloatFromString(parts[1], 0), GetFloatFromString(parts[2], 0) };
+				}
+				else if (parts.size() == 2)
+				{
+					options.searchstartpos = { GetFloatFromString(parts[0], 0), pLocalPlayer->FloorHeight, GetFloatFromString(parts[2], 0) };
+				}
+				else
+					SPDLOG_ERROR("Invalid argument for searchstartpos: {}", value);
+			}
 		}
 		catch (const std::exception& ex)
 		{

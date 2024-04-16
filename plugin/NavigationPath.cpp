@@ -181,7 +181,7 @@ void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
 
 	m_query.reset();
 
-	m_filter = dtQueryFilter{};
+	m_filter = NavPathFilter{};
 	m_filter.setIncludeFlags(+PolyFlags::All);
 	m_filter.setExcludeFlags(+PolyFlags::Disabled);
 	if (auto* mesh = g_mq2Nav->Get<NavMesh>())
@@ -922,6 +922,26 @@ void NavigationLine::Update()
 	{
 		m_needsUpdate = true;
 	}
+}
+
+bool NavPathFilter::passFilter(const dtPolyRef ref, const dtMeshTile* tile, const dtPoly* poly) const
+{
+	if (m_searchRadius > 0)
+	{
+		glm::vec3 polyCenter = glm::vec3{ 0, 0, 0 };
+
+		for (int i = 0; i < poly->vertCount; ++i)
+		{
+			const float* v = &tile->verts[poly->verts[i] * 3];
+			polyCenter += glm::vec3{ v[0], v[1], v[2] };
+		}
+
+		polyCenter /= poly->vertCount;
+
+		if (distSqr(m_startPos, polyCenter) > (m_searchRadius * m_searchRadius))
+			return false;
+	}
+	return dtQueryFilter::passFilter(ref, tile, poly);
 }
 
 //----------------------------------------------------------------------------
