@@ -91,7 +91,6 @@ struct DestinationInfo
 {
 	std::string command;
 	glm::vec3 eqDestinationPos;
-	glm::vec3 searchStartPos;
 
 	DestinationType type = DestinationType::None;
 
