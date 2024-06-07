@@ -61,15 +61,15 @@ class NavPathFilter : public dtQueryFilter
 {
 private:
 	int m_searchRadius = 0;
-	glm::vec3 m_startPos;
+	glm::vec3 m_searchOrigin;
 
 public:
 	inline NavPathFilter() { };
 	inline virtual ~NavPathFilter() override { };
 	virtual bool passFilter(const dtPolyRef ref, const dtMeshTile* tile, const dtPoly* poly) const override;
-	inline void SetSearchRadius(int radius) { m_searchRadius = radius; }
-	inline int GetSearchRadius() const { return m_searchRadius; }
-	inline void SetStartPos(const glm::vec3& pos) { m_startPos = pos; }
+	void SetSearchRadius(int radius) { m_searchRadius = radius; }
+	//int GetSearchRadius() const { return m_searchRadius; }
+	void SetSearchOrigin(const glm::vec3& pos) { m_searchOrigin = pos; }
 };
 
 class NavigationPath

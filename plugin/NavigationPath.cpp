@@ -330,6 +330,11 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	glm::vec3 spos;
 
 	// TODO: Cache the last known valid starting position to detect when moving off the mesh
+	if (m_destinationInfo && m_destinationInfo->options.searchRadius > 0)
+	{
+		m_filter.SetSearchOrigin(m_destinationInfo->options.searchOrigin);
+		m_filter.SetSearchRadius(m_destinationInfo->options.searchRadius);
+	}
 
 	m_query->findNearestPoly(
 		glm::value_ptr(startPos),
@@ -938,7 +943,7 @@ bool NavPathFilter::passFilter(const dtPolyRef ref, const dtMeshTile* tile, cons
 
 		polyCenter /= poly->vertCount;
 
-		if (distSqr(m_startPos, polyCenter) > (m_searchRadius * m_searchRadius))
+		if (distSqr(m_searchOrigin, polyCenter) > (m_searchRadius * m_searchRadius))
 			return false;
 	}
 	return dtQueryFilter::passFilter(ref, tile, poly);
