@@ -24,6 +24,7 @@ MQ2NavigationType::MQ2NavigationType()
 	TypeMember(PathLength);
 	TypeMember(Setting);
 	TypeMember(Velocity);
+	TypeMember(CurrentPathDistance);
 }
 
 MQ2NavigationType::~MQ2NavigationType()
@@ -59,6 +60,17 @@ bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Ind
 		//Dest.Type = g_mq2NavPathType.get();
 		//Dest.
 		break;
+	case CurrentPathDistance:
+	{
+		auto path = m_nav->GetActivePath();
+		if (path)
+		{
+			Dest.Type = mq::datatypes::pFloatType;
+			Dest.Float = path->GetPathTraversalDistance();
+			return true;
+		}
+		return false;
+	}
 	case Setting:
 		Dest.Type = mq::datatypes::pStringType;
 		if (nav::ReadIniSetting(Index, &DataTypeTemp[0], DataTypeTemp.size()))
