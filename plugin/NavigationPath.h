@@ -57,6 +57,21 @@ private:
 	int alloc = 0;
 };
 
+class NavPathFilter : public dtQueryFilter
+{
+private:
+	int m_searchRadius = 0;
+	glm::vec3 m_searchOrigin;
+
+public:
+	inline NavPathFilter() { };
+	inline virtual ~NavPathFilter() override { };
+	virtual bool passFilter(const dtPolyRef ref, const dtMeshTile* tile, const dtPoly* poly) const override;
+	void SetSearchRadius(int radius) { m_searchRadius = radius; }
+	//int GetSearchRadius() const { return m_searchRadius; }
+	void SetSearchOrigin(const glm::vec3& pos) { m_searchOrigin = pos; }
+};
+
 class NavigationPath
 {
 	friend class NavigationLine;
@@ -176,7 +191,7 @@ private:
 	std::vector<int> m_renderPath;
 	bool m_followingLink = false;
 
-	dtQueryFilter m_filter;
+	NavPathFilter m_filter;
 	glm::vec3 m_extents = { 5, 10, 5 }; // note: X, Z, Y
 
 	mq::Signal<>::ScopedConnection m_navMeshConn;
@@ -257,3 +272,4 @@ private:
 };
 
 extern NavigationLine::LineStyle gNavigationLineStyle;
+
