@@ -778,7 +778,7 @@ void ModelLoader::RenderDoorObjectUI(EQSwitch* door, bool target)
 	ImGui::LabelText("bRemainOpen", "%d", door->bRemainOpen);
 	ImGui::LabelText("bVisible", "%d", door->bVisible);
 	ImGui::LabelText("bHeadingChanged", "%d", door->bHeadingChanged);
-	ImGui::LabelText("bALlowCorpseDrag", "%d", door->bAllowCorpseDrag);
+	ImGui::LabelText("bAllowCorpseDrag", "%d", door->bAllowCorpseDrag);
 	ImGui::LabelText("RealEstateDoorID", "%d", door->RealEstateDoorID);
 
 	if (ImGui::Button("Target"))
