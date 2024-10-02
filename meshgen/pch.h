@@ -5,6 +5,7 @@
 
 #pragma once
 
+#define MQ_BUILD_AS_X64
 #include "targetver.h"
 
 #if !defined(WIN32_LEAN_AND_MEAN)
