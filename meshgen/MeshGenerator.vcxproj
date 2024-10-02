@@ -138,6 +138,7 @@
       <StringPooling>false</StringPooling>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>MQ_BUILD_AS_X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -162,6 +163,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>MQ_BUILD_AS_X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
