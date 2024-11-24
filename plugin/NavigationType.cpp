@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include "NavigationType.h"
+#include "NavigationPath.h"
 
 #include "plugin/MQ2Navigation.h"
 #include "plugin/PluginSettings.h"
@@ -62,11 +63,11 @@ bool MQ2NavigationType::GetMember(MQVarPtr VarPtr, const char* Member, PCHAR Ind
 		break;
 	case CurrentPathDistance:
 	{
-		auto path = m_nav->GetActivePath();
-		if (path)
+		auto m_activePath = m_nav->GetActivePath();
+		if (m_activePath)
 		{
 			Dest.Type = mq::datatypes::pFloatType;
-			Dest.Float = path->GetPathTraversalDistance();
+			Dest.Float = m_activePath->GetPathTraversalDistance();
 			return true;
 		}
 		return false;
