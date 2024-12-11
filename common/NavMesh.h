@@ -251,7 +251,8 @@ private:
 
 	std::shared_ptr<dtNavMesh> m_navMesh;
 	std::shared_ptr<dtNavMeshQuery> m_navMeshQuery;
-	glm::vec3 m_boundsMin, m_boundsMax;
+	glm::vec3 m_boundsMin = { 0, 0, 0 };
+	glm::vec3 m_boundsMax = { 0, 0, 0 };
 	NavMeshConfig m_config;
 
 	// volumes

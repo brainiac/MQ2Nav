@@ -63,7 +63,7 @@ public:
 private:
 	void UpdateCircle();
 
-	glm::vec3 m_position;
+	glm::vec3 m_position = { 0, 0, 0 };
 	float m_radius = 0;
 	bool m_created = false;
 };

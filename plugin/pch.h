@@ -12,6 +12,9 @@
 #if !defined(GLM_FORCE_CTOR_INIT)
 #error Missing GLM_FORCE_CTOR_INIT define!
 #endif
+#if !defined(GLM_ENABLE_EXPERIMENTAL)
+#error Missing GLM_ENABLE_EXPERIMENTAL define!
+#endif
 
 #include <imgui.h>
 #include <fmt/format.h>
