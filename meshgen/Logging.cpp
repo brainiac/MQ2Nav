@@ -13,6 +13,10 @@
 #include <zone-utilities/log/log_base.h>
 #include <zone-utilities/log/log_macros.h>
 
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
 std::shared_ptr<spdlog::logger> g_logger;
 
 //----------------------------------------------------------------------------
@@ -87,6 +91,7 @@ void Logging::Initialize()
 	spdlog::flush_every(std::chrono::seconds{ 5 });
 
 	auto recastLogger = g_logger->clone("Recast");
+	recastLogger->set_level(spdlog::level::trace);
 	spdlog::register_logger(recastLogger);
 
 	auto bgfxLogger = g_logger->clone("bgfx");
@@ -101,9 +106,10 @@ void Logging::Initialize()
 
 void Logging::InitSecondStage(Application* app)
 {
-	std::string logFile = fmt::format("{}\\MeshGenerator.log", g_config.GetLogsPath());
+	fs::path logsPath = g_config.GetLogsPath();
+	fs::path logFile = logsPath / "MeshGenerator.log";
 
-	auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile, true);
+	auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile.string(), true);
 	sink->set_level(spdlog::level::debug);
 	g_logger->sinks().push_back(sink);
 }
@@ -111,7 +117,7 @@ void Logging::InitSecondStage(Application* app)
 void Logging::Shutdown()
 {
 	spdlog::apply_all([](const std::shared_ptr<spdlog::logger>& logger) {
-		std::erase(g_logger->sinks(), g_consoleSink);
+		std::erase(logger->sinks(), g_consoleSink);
 	});
 	g_consoleSink.reset();
 	g_logger.reset();

@@ -20,6 +20,7 @@
 #include <thread>
 #include <agents.h>
 
+class RecastContext;
 class dtNavMesh;
 class dtNavMeshQuery;
 class rcContext;
@@ -86,7 +87,7 @@ public:
 
 	void Reset();
 
-	void setContext(rcContext* ctx) { m_ctx = ctx; }
+	void setContext(RecastContext* ctx) { m_ctx = ctx; }
 
 	void handleDebug();
 	void handleTools();
@@ -171,7 +172,7 @@ private:
 	std::shared_ptr<ZoneContext> m_zoneContext;
 
 	// we don't own this
-	rcContext* m_ctx = nullptr;
+	RecastContext* m_ctx = nullptr;
 
 	int m_maxTiles = 0;
 	int m_maxPolysPerTile = 0;

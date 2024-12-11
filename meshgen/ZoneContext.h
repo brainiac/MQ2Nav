@@ -77,6 +77,9 @@ public:
 	const rcChunkyTriMesh* GetChunkyMesh() { return m_chunkyMesh.get(); }
 	std::shared_ptr<NavMesh> GetNavMesh() { return m_navMesh; }
 
+	RecastContext& GetRcContext() { return *m_rcContext; }
+	const RecastContext& GetRcContext() const { return *m_rcContext; }
+
 	// Navmesh related
 	bool IsNavMeshLoaded() const;// m_navMesh->IsNavMeshLoaded
 	bool IsBuildingNavMesh() const;

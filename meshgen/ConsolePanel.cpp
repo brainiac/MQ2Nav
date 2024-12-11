@@ -11,6 +11,8 @@
 #include <fmt/chrono.h>
 #include <spdlog/spdlog.h>
 
+#include "imgui/ImGuiUtils.h"
+
 //----------------------------------------------------------------------------
 
 static constexpr ImVec4 s_levelColors[spdlog::level::n_levels] = {
@@ -238,7 +240,7 @@ void ConsolePanel::RenderLogs(const ImVec2& size)
 		const float cursorX = ImGui::GetCursorScreenPos().x;
 
 		ImGui::TableSetupColumn("Level", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-		ImGui::TableSetupColumn("Timestamp", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+		ImGui::TableSetupColumn("Timestamp", ImGuiTableColumnFlags_WidthFixed, 105.0f);
 		ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 75.0f);
 		ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
 
@@ -271,6 +273,7 @@ void ConsolePanel::RenderLogs(const ImVec2& size)
 		// Draw contents
 		ImGuiListClipper clipper;
 		clipper.Begin(static_cast<int>(m_filteredMessages.size()));
+		ImGui::PushFont(mq::imgui::ConsoleFont);
 
 		while (clipper.Step())
 		{
@@ -305,16 +308,18 @@ void ConsolePanel::RenderLogs(const ImVec2& size)
 					mq::imgui::ShiftCursorX(4.0f);
 
 					ImGui::Text("%s", Logging::GetLoggingCategoryName(message.category));
-
-					// Message
-					ImGui::TableNextColumn();
-					mq::imgui::ShiftCursorX(4.0f);
-					ImGui::Text("%s", message.message.c_str());
 				}
+
+				// Message
+				ImGui::TableNextColumn();
+				mq::imgui::ShiftCursorX(4.0f);
+				ImGui::TextUnformatted(message.message.c_str());
 
 				ImGui::PopID();
 			}
 		}
+		ImGui::PopFont();
+
 
 		if (m_scrollToBottom)
 		{

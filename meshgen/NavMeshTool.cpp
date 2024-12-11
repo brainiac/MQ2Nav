@@ -785,7 +785,7 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 	if (m_buildingTiles) return;
 	if (!navMesh) return;
 
-	RecastContext::ResetAllTimers();
+	m_zoneContext->GetRcContext().ResetAllTimers();
 
 	// if async, invoke on a new thread
 	if (async)
@@ -866,7 +866,7 @@ void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool 
 	int totalTime = m_ctx->getAccumulatedTime(RC_TIMER_TEMP);
 	m_totalBuildTimeMs = static_cast<float>(totalTime) / 1000.0f;
 
-	duLogBuildTimes(*m_ctx, totalTime);
+	m_ctx->LogBuildTimes(totalTime);
 
 	m_buildingTiles = false;
 }

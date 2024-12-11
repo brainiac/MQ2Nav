@@ -1,7 +1,7 @@
 #pragma once
 
-#include <spdlog/spdlog.h>
 #include <Recast.h>
+#include <memory>
 
 class RecastContext : public rcContext
 {
@@ -9,7 +9,9 @@ public:
 	RecastContext();
 	virtual ~RecastContext() override;
 
-	static void ResetAllTimers();
+	void ResetAllTimers();
+
+	void LogBuildTimes(int totalTimeUsec);
 
 protected:
 	virtual void doResetLog() override {}
@@ -20,5 +22,6 @@ protected:
 	virtual int doGetAccumulatedTime(const rcTimerLabel label) const override;
 
 private:
-	std::shared_ptr<spdlog::logger> m_logger;
+	struct Priv;
+	std::unique_ptr<Priv> m_priv;
 };

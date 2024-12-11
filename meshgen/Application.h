@@ -92,7 +92,7 @@ private:
 	glm::ivec4        m_windowRect = { 0, 0, 0, 0 };
 
 	// The build context. Everything passes this around. We own it.
-	std::unique_ptr<rcContext> m_rcContext;
+	std::unique_ptr<RecastContext> m_rcContext;
 
 	// rendering requires a hold on this lock. Used for updating the
 	// render state from other threads
