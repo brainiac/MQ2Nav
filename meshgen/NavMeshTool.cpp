@@ -35,15 +35,12 @@
 
 //----------------------------------------------------------------------------
 
-NavMeshTool::NavMeshTool(const std::shared_ptr<NavMesh>& navMesh)
-	: m_navMesh(navMesh)
+NavMeshTool::NavMeshTool()
 {
 	resetCommonSettings();
 
 	m_outputPath = new char[MAX_PATH];
 	setTool(new NavMeshTileTool);
-
-	m_logger = spdlog::default_logger()->clone("NavMeshTool");
 
 	m_renderManager = std::make_unique<ZoneRenderManager>();
 	m_renderManager->init();
@@ -53,9 +50,6 @@ NavMeshTool::NavMeshTool(const std::shared_ptr<NavMesh>& navMesh)
 	);
 
 	UpdateTileSizes();
-
-	m_navMeshConn = m_navMesh->OnNavMeshChanged.Connect([this]()
-		{ NavMeshUpdated(); });
 }
 
 NavMeshTool::~NavMeshTool()
@@ -69,14 +63,31 @@ void NavMeshTool::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext
 {
 	m_zoneContext = zoneContext;
 
+	Reset();
+
+	m_renderManager->SetZoneContext(zoneContext);
+
+	if (m_zoneContext)
+	{
+		m_navMesh = m_zoneContext->GetNavMesh();
+		m_navMeshConn = m_navMesh->OnNavMeshChanged.Connect([this]()
+			{ NavMeshUpdated(); });
+
+		NavMeshUpdated();
+	}
+}
+
+void NavMeshTool::Reset()
+{
+	m_navMesh = nullptr;
+	m_navMeshConn.Disconnect();
+
 	if (m_tool)
 	{
 		m_tool->reset();
 	}
-	resetToolStates();
 
-	m_renderManager->SetZoneContext(zoneContext);
-	NavMeshUpdated();
+	resetToolStates();
 }
 
 void NavMeshTool::NavMeshUpdated()
@@ -583,7 +594,7 @@ bool NavMeshTool::BuildMesh()
 {
 	if (!m_zoneContext || !m_zoneContext->GetMeshLoader())
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildTiledNavigation: No vertices and triangles.");
+		SPDLOG_ERROR("buildTiledNavigation: No vertices and triangles.");
 		return false;
 	}
 
@@ -605,7 +616,7 @@ bool NavMeshTool::BuildMesh()
 	status = navMesh->init(&params);
 	if (dtStatusFailed(status))
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildTiledNavigation: Could not init navmesh.");
+		SPDLOG_ERROR("buildTiledNavigation: Could not init navmesh.");
 		return false;
 	}
 
@@ -713,7 +724,7 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 		status = navMesh->init(&params);
 		if (dtStatusFailed(status))
 		{
-			SPDLOG_LOGGER_ERROR(m_logger, "buildTiledNavigation: Could not init navmesh.");
+			SPDLOG_ERROR("buildTiledNavigation: Could not init navmesh.");
 			return;
 		}
 	}
@@ -724,7 +735,7 @@ void NavMeshTool::BuildTile(const glm::vec3& pos)
 
 	m_navMesh->AddTile(data, dataSize, tx, ty);
 
-	SPDLOG_LOGGER_DEBUG(m_logger, "Build Tile ({}, {}):", tx, ty);
+	SPDLOG_DEBUG("Build Tile ({}, {}):", tx, ty);
 }
 
 void NavMeshTool::RebuildTile(
@@ -748,7 +759,7 @@ void NavMeshTool::RebuildTile(
 
 	m_navMesh->AddTile(data, dataSize, tx, ty, tile->header->layer);
 
-	SPDLOG_LOGGER_DEBUG(m_logger, "Rebuild Tile ({}, {}):", tx, ty);
+	SPDLOG_DEBUG("Rebuild Tile ({}, {}):", tx, ty);
 }
 
 void NavMeshTool::RebuildTiles(const std::vector<dtTileRef>& tiles)
@@ -868,7 +879,7 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshTool::rasterizeGeometry(rcConfi
 
 	if (!rcCreateHeightfield(m_ctx, *solid, cfg.width, cfg.height, cfg.bmin, cfg.bmax, cfg.cs, cfg.ch))
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not create solid heightfield.");
+		SPDLOG_ERROR("buildNavigation: Could not create solid heightfield.");
 		return 0;
 	}
 
@@ -922,7 +933,7 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshTool::rasterizeGeometry(rcConfi
 
 	if (!rcBuildCompactHeightfield(m_ctx, cfg.walkableHeight, cfg.walkableClimb, *solid, *chf))
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build compact data.");
+		SPDLOG_ERROR("buildNavigation: Could not build compact data.");
 		return 0;
 	}
 
@@ -939,8 +950,8 @@ unsigned char* NavMeshTool::buildTileMesh(
 {
 	if (!m_zoneContext || !m_zoneContext->IsZoneLoaded() || !m_zoneContext->GetChunkyMesh())
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildTileMesh: Input mesh is not specified.");
-		return 0;
+		SPDLOG_ERROR("buildTileMesh: Input mesh is not specified.");
+		return nullptr;
 	}
 
 	// Init build configuration from GUI
@@ -1001,13 +1012,15 @@ unsigned char* NavMeshTool::buildTileMesh(
 
 	deleting_unique_ptr<rcCompactHeightfield> chf = rasterizeGeometry(cfg);
 	if (!chf)
-		return 0;
+	{
+		return nullptr;
+	}
 
 	// Erode the walkable area by agent radius.
 	if (!rcErodeWalkableArea(m_ctx, cfg.walkableRadius, *chf))
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not erode.");
-		return 0;
+		SPDLOG_ERROR("buildTileMesh: Could not erode.");
+		return nullptr;
 	}
 
 	// Mark areas.
@@ -1052,15 +1065,15 @@ unsigned char* NavMeshTool::buildTileMesh(
 		// Prepare for region partitioning, by calculating distance field along the walkable surface.
 		if (!rcBuildDistanceField(m_ctx, *chf))
 		{
-			SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build distance field.");
-			return 0;
+			SPDLOG_ERROR("buildTileMesh: Could not build distance field.");
+			return nullptr;
 		}
 
 		// Partition the walkable surface into simple regions without holes.
 		if (!rcBuildRegions(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea))
 		{
-			SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build watershed regions.");
-			return 0;
+			SPDLOG_ERROR("buildTileMesh: Could not build watershed regions.");
+			return nullptr;
 		}
 	}
 	else if (m_config.partitionType == PartitionType::MONOTONE)
@@ -1069,8 +1082,8 @@ unsigned char* NavMeshTool::buildTileMesh(
 		// Monotone partitioning does not need distancefield.
 		if (!rcBuildRegionsMonotone(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea))
 		{
-			SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build monotone regions.");
-			return 0;
+			SPDLOG_ERROR("buildTileMesh: Could not build monotone regions.");
+			return nullptr;
 		}
 	}
 	else // PartitionType::LAYERS
@@ -1078,8 +1091,8 @@ unsigned char* NavMeshTool::buildTileMesh(
 		// Partition the walkable surface into simple regions without holes.
 		if (!rcBuildLayerRegions(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea))
 		{
-			SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not build layer regions.");
-			return 0;
+			SPDLOG_ERROR("buildTileMesh: Could not build layer regions.");
+			return nullptr;
 		}
 	}
 
@@ -1087,21 +1100,21 @@ unsigned char* NavMeshTool::buildTileMesh(
 	deleting_unique_ptr<rcContourSet> cset(rcAllocContourSet(), [](rcContourSet* cs) { rcFreeContourSet(cs); });
 	if (!rcBuildContours(m_ctx, *chf, cfg.maxSimplificationError, cfg.maxEdgeLen, *cset))
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not create contours.");
-		return 0;
+		SPDLOG_ERROR("buildTileMesh: Could not create contours.");
+		return nullptr;
 	}
 
 	if (cset->nconts == 0)
 	{
-		return 0;
+		return nullptr;
 	}
 
 	// Build polygon navmesh from the contours.
 	deleting_unique_ptr<rcPolyMesh> pmesh(rcAllocPolyMesh(), [](rcPolyMesh* pm) { rcFreePolyMesh(pm); });
 	if (!rcBuildPolyMesh(m_ctx, *cset, cfg.maxVertsPerPoly, *pmesh))
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could not triangulate contours.");
-		return 0;
+		SPDLOG_ERROR("buildTileMesh: Could not triangulate contours.");
+		return nullptr;
 	}
 
 	// Build detail mesh.
@@ -1110,8 +1123,8 @@ unsigned char* NavMeshTool::buildTileMesh(
 		cfg.detailSampleDist, cfg.detailSampleMaxError,
 		*dmesh))
 	{
-		SPDLOG_LOGGER_ERROR(m_logger, "buildNavigation: Could build polymesh detail.");
-		return 0;
+		SPDLOG_ERROR("buildTileMesh: Could build polymesh detail.");
+		return nullptr;
 	}
 
 	chf.reset();
@@ -1124,9 +1137,9 @@ unsigned char* NavMeshTool::buildTileMesh(
 		if (pmesh->nverts >= 0xffff)
 		{
 			// The vertex indices are ushorts, and cannot point to more than 0xffff vertices.
-			SPDLOG_LOGGER_ERROR(m_logger, "Too many vertices per tile {} (max: {:#x}).",
+			SPDLOG_ERROR("buildTileMesh: Too many vertices per tile {} (max: {:#x}).",
 				pmesh->nverts, (uint16_t)0xffff);
-			return 0;
+			return nullptr;
 		}
 
 		// Update poly flags from areas.
@@ -1168,8 +1181,8 @@ unsigned char* NavMeshTool::buildTileMesh(
 
 		if (!dtCreateNavMeshData(&params, &navData, &navDataSize))
 		{
-			SPDLOG_LOGGER_ERROR(m_logger, "Could not build Detour navmesh.");
-			return 0;
+			SPDLOG_ERROR("buildTileMesh: Could not build Detour navmesh.");
+			return nullptr;
 		}
 	}
 

@@ -66,11 +66,11 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 			}
 			ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
 
-			if (m_app->m_navMesh->IsNavMeshLoaded())
+			if (m_zoneContext->IsNavMeshLoaded())
 			{
 				ImGui::Separator();
 				if (ImGui::Button((const char*)ICON_FA_FLOPPY_O " Save"))
-					m_app->SaveMesh();
+					m_zoneContext->SaveNavMesh();
 			}
 
 			ImGui::Separator();

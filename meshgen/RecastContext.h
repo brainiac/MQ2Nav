@@ -1,5 +1,6 @@
 #pragma once
 
+#include <spdlog/spdlog.h>
 #include <Recast.h>
 
 class RecastContext : public rcContext
@@ -17,4 +18,7 @@ protected:
 	virtual void doStartTimer(const rcTimerLabel label) override;
 	virtual void doStopTimer(const rcTimerLabel label) override;
 	virtual int doGetAccumulatedTime(const rcTimerLabel label) const override;
+
+private:
+	std::shared_ptr<spdlog::logger> m_logger;
 };

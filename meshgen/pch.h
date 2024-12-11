@@ -10,6 +10,9 @@
 #if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 #endif
+#if !defined(GLM_ENABLE_EXPERIMENTAL)
+#error Missing GLM_ENABLE_EXPERIMENTAL define!
+#endif
 
 // Windows Header Files:
 #include <windows.h>

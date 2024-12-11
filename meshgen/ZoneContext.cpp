@@ -2,19 +2,21 @@
 #include "pch.h"
 #include "ZoneContext.h"
 
+#include <bx/debug.h>
+
 #include "meshgen/Application.h"
 #include "meshgen/ApplicationConfig.h"
+#include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/ChunkyTriMesh.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/RecastContext.h"
 #include "meshgen/ZoneResourceManager.h"
+#include "meshgen/NavMeshTool.h"
 #include "common/NavMeshData.h"
 
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
 #include <taskflow/taskflow.hpp>
-
-#include "BackgroundTaskManager.h"
 
 ZoneContext::ZoneContext(Application* app, std::string_view zoneShortName)
 	: m_app(app)
@@ -26,6 +28,9 @@ ZoneContext::ZoneContext(Application* app, std::string_view zoneShortName)
 
 	m_resourceMgr = std::make_unique<ZoneResourceManager>(m_zoneShortName);
 	m_rcContext = std::make_unique<RecastContext>();
+	m_navMesh = std::make_shared<NavMesh>(g_config.GetOutputPath(), m_zoneShortName);
+
+	m_resultState = {.phase = LoadingPhase::LoadZone, .success = false, .message = ""};
 }
 
 ZoneContext::~ZoneContext()
@@ -67,6 +72,38 @@ bool ZoneContext::LoadZone()
 	return true;
 }
 
+bool ZoneContext::LoadNavMesh()
+{
+	if (m_app->m_meshTool->isBuildingTiles())
+		return false;
+
+	// Make sure that the path is up-to-date
+	m_navMesh->SetNavMeshDirectory(g_config.GetOutputPath());
+
+	if (m_navMesh->LoadNavMeshFile() != NavMesh::LoadResult::Success)
+	{
+		m_app->ShowNotificationDialog(
+			"Failed To Open",
+			"Failed to open mesh."
+		);
+
+		return false;
+	}
+
+	return true;
+}
+
+void ZoneContext::SaveNavMesh()
+{
+	if (IsBuildingNavMesh() || !IsNavMeshLoaded())
+		return;
+
+	// Make sure that the path is up-to-date
+	m_navMesh->SetNavMeshDirectory(g_config.GetOutputPath());
+
+	m_app->m_meshTool->SaveNavMesh();
+}
+
 bool ZoneContext::BuildTriangleMesh()
 {
 	assert(m_loader != nullptr);
@@ -87,6 +124,22 @@ bool ZoneContext::BuildTriangleMesh()
 	}
 
 	return true;
+}
+
+bool ZoneContext::IsNavMeshLoaded() const
+{
+	return m_navMesh->IsNavMeshLoaded();
+}
+
+bool ZoneContext::IsBuildingNavMesh() const
+{
+	return m_app->m_meshTool->isBuildingTiles();
+	// return m_buildingNavmesh;
+}
+
+void ZoneContext::ResetNavMesh()
+{
+	m_navMesh->ResetNavMesh();
 }
 
 //========================================================================
@@ -241,10 +294,10 @@ ResultState ZoneContext::GetResultState() const
 	return m_resultState;
 }
 
-tf::Taskflow ZoneContext::BuildInitialTaskflow(bool autoloadMesh)
+tf::Taskflow ZoneContext::BuildInitialTaskflow(bool loadNavMesh, ZoneContextCallback&& callback)
 {
-	// Start the task
 	tf::Taskflow taskflow;
+	taskflow.name("loadZone");
 
 	auto sharedThis = shared_from_this();
 
@@ -276,13 +329,13 @@ tf::Taskflow ZoneContext::BuildInitialTaskflow(bool autoloadMesh)
 		}).name("loadZone");
 
 	// Task to build the triangle mesh / perform spatial partitioning
-	auto buildPartitioning = taskflow.emplace([sharedThis, app = m_app]()
+	auto buildPartitioning = taskflow.emplace([sharedThis, app = m_app, callback]()
 		{
 			// Start the progress
 			sharedThis->SetProgress({
 				.display = true,
 				.text = fmt::format("Generating spatial partitioning..."),
-				.value = 50.0f
+				.value = 0.50f
 			});
 
 			ResultState ls;
@@ -295,53 +348,57 @@ tf::Taskflow ZoneContext::BuildInitialTaskflow(bool autoloadMesh)
 			// If load succeeded, we can submit the zone context at this time.
 			if (ls.success)
 			{
-				app->GetBackgroundTaskManager()->PostToMainThread([app, sharedThis]()
-					{
-						app->FinishLoading(sharedThis, true, false);
-					});
+				callback(LoadingPhase::BuildTriangleMesh, true);
 			}
 
 			return ls.success ? 1 : 0;
 		}).name("buildPartitioning");
 
 	// Task to handle failure at any stage.
-	auto failureTask = taskflow.emplace([sharedThis, app = m_app]()
+	auto failureTask = taskflow.emplace([sharedThis, app = m_app, callback]()
 		{
 			sharedThis->SetProgress({ .display = false });
 			sharedThis->m_loading = false;
 
-			ResultState rs = sharedThis->GetResultState();
-			app->GetBackgroundTaskManager()->PostToMainThread([app, rs, sharedThis]()
-				{
-					if (rs.phase == LoadingPhase::LoadZone || rs.phase == LoadingPhase::BuildTriangleMesh)
-						app->ShowNotificationDialog("Failed to load zone", rs.message);
-					else
-						app->ShowNotificationDialog("Failed to build navigation mesh", rs.message);
-
-					app->FinishLoading(sharedThis, false, true);
-				});
-
+			callback(sharedThis->GetResultState().phase, false);
+	
 		}).name("failure");
 
-	auto finishedTask = taskflow.emplace([sharedThis, app = m_app]()
+	auto successTask = taskflow.emplace([sharedThis, app = m_app, callback]()
 		{
 			sharedThis->SetProgress({ .display = false });
 
 			sharedThis->m_loading = false;
-			sharedThis->m_loadingMesh = false;
+			sharedThis->m_buildingNavmesh = false;
 
-			app->GetBackgroundTaskManager()->PostToMainThread([app, sharedThis]()
-				{
-					app->FinishLoading(sharedThis, true, true);
-				});
+			callback(sharedThis->GetResultState().phase, true);
 			
 		}).name("success");
 
 	loadZoneTask.precede(failureTask, buildPartitioning);
 
-	//if (autoloadMesh)
+	// Either load the mesh or don't.
+	if (loadNavMesh)
 	{
-		buildPartitioning.precede(failureTask, finishedTask);
+		auto loadNavMeshTask = taskflow.emplace([sharedThis]()
+			{
+				sharedThis->m_navMesh->LoadNavMeshFile();
+
+				ResultState ls;
+				ls.success = sharedThis->BuildTriangleMesh();
+				ls.phase = LoadingPhase::BuildTriangleMesh;
+				if (!ls.success)
+					ls.message = fmt::format("Failed to build triangle mesh: '{}'", sharedThis->GetShortName());
+
+				return ls.success ? 1 : 0;
+			}).name("loadNavMesh");
+
+		buildPartitioning.precede(failureTask, loadNavMeshTask);
+		loadNavMeshTask.precede(failureTask, successTask);
+	}
+	else
+	{
+		buildPartitioning.precede(failureTask, successTask);
 	}
 
 	return taskflow;

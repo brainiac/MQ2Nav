@@ -34,8 +34,8 @@ class ToolsPanel;
 class Application
 {
 	friend class DebugPanel;
-	friend class PropertiesPanel;
 	friend class ToolsPanel;
+	friend class ZoneContext;
 
 public:
 	Application();
@@ -97,9 +97,6 @@ private:
 	// rendering requires a hold on this lock. Used for updating the
 	// render state from other threads
 	std::mutex m_renderMutex;
-
-	// The nav mesh object
-	std::shared_ptr<NavMesh> m_navMesh;
 
 	// The mesh tool that we use to build/manipulate the mesh
 	std::unique_ptr<NavMeshTool> m_meshTool;

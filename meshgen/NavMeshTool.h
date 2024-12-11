@@ -78,11 +78,13 @@ struct ToolState
 class NavMeshTool
 {
 public:
-	NavMeshTool(const std::shared_ptr<NavMesh>& navMesh);
+	NavMeshTool();
 	virtual ~NavMeshTool();
 
 	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
 	std::shared_ptr<ZoneContext> GetZoneContext() const { return m_zoneContext; }
+
+	void Reset();
 
 	void setContext(rcContext* ctx) { m_ctx = ctx; }
 
@@ -170,8 +172,6 @@ private:
 
 	// we don't own this
 	rcContext* m_ctx = nullptr;
-
-	std::shared_ptr<spdlog::logger> m_logger;
 
 	int m_maxTiles = 0;
 	int m_maxPolysPerTile = 0;

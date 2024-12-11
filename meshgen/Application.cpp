@@ -82,6 +82,7 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 
 	if (!startingZone.empty())
 	{
+		// Defer loading this zone until we start processing events.
 		m_backgroundTaskManager->PostToMainThread([this, startingZone]()
 			{
 				// Load the zone
@@ -89,8 +90,7 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 			});
 	}
 
-	m_navMesh = std::make_shared<NavMesh>(g_config.GetOutputPath(), startingZone);
-	m_meshTool = std::make_unique<NavMeshTool>(m_navMesh);
+	m_meshTool = std::make_unique<NavMeshTool>();
 	m_rcContext = std::make_unique<RecastContext>();
 
 	m_zonePicker = std::make_unique<ZonePicker>(this);
@@ -512,38 +512,39 @@ void Application::UpdateImGui()
 
 		if (ImGui::BeginMenu("Zone"))
 		{
-			if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr,
-				!m_meshTool->isBuildingTiles()))
+			bool canLoad = m_zoneContext && !m_zoneContext->IsBuildingNavMesh();
+			if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr, canLoad))
 			{
 				OpenMesh();
 			}
-			if (ImGui::MenuItem("Save Mesh", "Ctrl+S", nullptr,
-				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
+
+			bool canUseMesh = m_zoneContext && m_zoneContext->IsNavMeshLoaded() && !m_zoneContext->IsBuildingNavMesh();
+			if (ImGui::MenuItem("Save Mesh", "Ctrl+S", nullptr, canUseMesh))
 			{
 				SaveMesh();
 			}
-			if (ImGui::MenuItem("Reset Mesh", "", nullptr,
-				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
+
+			if (ImGui::MenuItem("Reset Mesh", "", nullptr, canUseMesh))
 			{
-				m_navMesh->ResetNavMesh();
-				m_meshTool->SetZoneContext(m_zoneContext);
+				if (m_zoneContext)
+					m_zoneContext->ResetNavMesh();
+
+				m_meshTool->Reset();
 			}
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Area Types..."))
+			if (ImGui::MenuItem("Area Types...", nullptr, m_zoneContext != nullptr))
 				m_showMapAreas = !m_showMapAreas;
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Export Settings", "", nullptr,
-				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
+			if (ImGui::MenuItem("Export Settings", "", nullptr, canUseMesh))
 			{
 				ShowImportExportSettingsDialog(false);
 			}
 
-			if (ImGui::MenuItem("Import Settings", "", nullptr,
-				!m_meshTool->isBuildingTiles() && m_navMesh->IsNavMeshLoaded()))
+			if (ImGui::MenuItem("Import Settings", "", nullptr, canUseMesh))
 			{
 				ShowImportExportSettingsDialog(true);
 			}
@@ -616,14 +617,15 @@ void Application::UpdateImGui()
 
 	ShowSettingsDialog();
 
+	if (!m_zoneContext && m_importExportSettings)
+		m_importExportSettings.reset();
+
 	if (m_importExportSettings)
 	{
 		bool show = true;
 		m_importExportSettings->Show(&show);
 		if (!show)
-		{
 			m_importExportSettings.reset();
-		}
 	}
 
 	if (m_showDemo)
@@ -637,7 +639,7 @@ void Application::UpdateImGui()
 
 	m_panelManager->OnImGuiRender();
 
-	if (m_showMapAreas)
+	if (m_showMapAreas && m_zoneContext)
 	{
 		ImGui::SetNextWindowSize(ImVec2(440, 400), ImGuiCond_Once);
 
@@ -655,24 +657,18 @@ void Application::UpdateImGui()
 
 void Application::OpenMesh()
 {
-	if (m_meshTool->isBuildingTiles())
-		return;
-
-	if (m_navMesh->LoadNavMeshFile() != NavMesh::LoadResult::Success)
+	if (m_zoneContext)
 	{
-		m_panelManager->ShowNotificationDialog(
-			"Failed To Open",
-			"Failed to open mesh."
-		);
+		m_zoneContext->LoadNavMesh();
 	}
 }
 
 void Application::SaveMesh()
 {
-	if (m_meshTool->isBuildingTiles() || !m_navMesh->IsNavMeshLoaded())
-		return;
-
-	m_meshTool->SaveNavMesh();
+	if (m_zoneContext)
+	{
+		m_zoneContext->SaveNavMesh();
+	}
 }
 
 void Application::ShowSettingsDialog()
@@ -707,7 +703,6 @@ void Application::ShowSettingsDialog()
 		if (ImGui::Button("Change##OutputPath", ImVec2(120, 0)))
 		{
 			g_config.SelectMacroQuestPath();
-			m_navMesh->SetNavMeshDirectory(g_config.GetOutputPath());
 		}
 		ImGui::PopItemWidth();
 
@@ -753,7 +748,10 @@ void Application::UpdateViewport()
 
 void Application::ShowImportExportSettingsDialog(bool import)
 {
-	m_importExportSettings.reset(new ImportExportSettingsDialog(m_navMesh, import));
+	if (m_zoneContext)
+	{
+		m_importExportSettings = std::make_unique<ImportExportSettingsDialog>(m_zoneContext->GetNavMesh(), import);
+	}
 }
 
 static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userIndex = -1)
@@ -764,7 +762,6 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	ImColor col(area.color);
 	int32_t flags32 = area.flags;
 	float cost = area.cost;
-	bool useNewName = false;
 	std::string newName;
 	bool remove = false;
 
@@ -796,6 +793,7 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	strcpy_s(name, area.name.c_str());
 
 	ImGui::PushItemWidth(200);
+	bool useNewName;
 
 	if (builtIn)
 	{
@@ -881,37 +879,43 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 	return remove;
 }
 
+// TODO: Move this into something tied to the zone context.
 void Application::DrawAreaTypesEditor()
 {
+	if (!m_zoneContext)
+		return;
+
+	auto navMesh = m_zoneContext->GetNavMesh();
+
 	ImGui::Columns(5, 0, false);
 
-	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Unwalkable));
-	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Ground));
+	RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Unwalkable));
+	RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Ground));
 	//RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Jump));
-	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Water));
-	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Prefer));
-	RenderAreaType(m_navMesh.get(), m_navMesh->GetPolyArea((uint8_t)PolyArea::Avoid));
+	RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Water));
+	RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Prefer));
+	RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Avoid));
 
 	ImGui::Separator();
 
 	for (uint8_t index = (uint8_t)PolyArea::UserDefinedFirst;
 		index <= (uint8_t)PolyArea::UserDefinedLast; ++index)
 	{
-		const auto& area = m_navMesh->GetPolyArea(index);
+		const auto& area = navMesh->GetPolyArea(index);
 		if (area.valid)
 		{
-			if (RenderAreaType(m_navMesh.get(), area, area.id - (uint8_t)PolyArea::UserDefinedFirst))
-				m_navMesh->RemoveUserDefinedArea(area.id);
+			if (RenderAreaType(navMesh.get(), area, area.id - (uint8_t)PolyArea::UserDefinedFirst))
+				navMesh->RemoveUserDefinedArea(area.id);
 		}
 	}
 
-	uint8_t nextAreaId = m_navMesh->GetFirstUnusedUserDefinedArea();
+	uint8_t nextAreaId = navMesh->GetFirstUnusedUserDefinedArea();
 	if (nextAreaId != 0)
 	{
 		if (ImGui::Button(" + "))
 		{
-			auto area = m_navMesh->GetPolyArea(nextAreaId);
-			m_navMesh->UpdateArea(area);
+			auto area = navMesh->GetPolyArea(nextAreaId);
+			navMesh->UpdateArea(area);
 		}
 	}
 
@@ -956,7 +960,44 @@ void Application::BeginLoadZone(const std::string& shortName, bool loadMesh)
 	std::shared_ptr<ZoneContext> zoneContext = std::make_shared<ZoneContext>(this, shortName);
 	m_loadingZoneContext = zoneContext;
 
-	m_backgroundTaskManager->AddZoneTask(zoneContext->BuildInitialTaskflow(loadMesh));
+	tf::Taskflow loadFlow = zoneContext->BuildInitialTaskflow(loadMesh,
+		[this, zoneContext](LoadingPhase phase, bool result)
+		{
+			GetBackgroundTaskManager()->PostToMainThread(
+				[app = this, zoneContext, phase, result]()
+				{
+					if (phase == LoadingPhase::BuildTriangleMesh && result)
+					{
+						app->FinishLoading(zoneContext, true, false);
+					}
+					else
+					{
+						if (result)
+						{
+							app->FinishLoading(zoneContext, true, true);
+						}
+						else
+						{
+							ResultState rs = zoneContext->GetResultState();
+
+							if (rs.phase == LoadingPhase::LoadZone || rs.phase == LoadingPhase::BuildTriangleMesh)
+								app->ShowNotificationDialog("Failed to load zone", rs.message);
+							else
+								app->ShowNotificationDialog("Failed to build navigation mesh", rs.message);
+
+							app->FinishLoading(zoneContext, false, true);
+						}
+					}
+					
+				});
+		});
+
+	// Log the taskflow for debugging
+	//std::stringstream ss;
+	//taskflow.dump(ss);
+	//bx::debugPrintf("Taskflow: %s", ss.str().c_str());
+
+	m_backgroundTaskManager->AddZoneTask(std::move(loadFlow));
 }
 
 void Application::FinishLoading(const std::shared_ptr<ZoneContext>& context, bool success, bool clearLoading)
@@ -980,8 +1021,6 @@ void Application::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext
 	if (zoneContext == nullptr)
 	{
 		m_zoneLoaded = false;
-
-		m_navMesh->ResetNavMesh();
 		m_meshTool->SetZoneContext(nullptr);
 		m_panelManager->SetZoneContext(zoneContext);
 	}
@@ -995,15 +1034,9 @@ void Application::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext
 		SDL_SetWindowTitle(m_window, windowTitle.c_str());
 
 		m_meshTool->SetZoneContext(m_zoneContext);
-		m_navMesh->SetZoneName(m_zoneContext->GetShortName());
 		m_panelManager->SetZoneContext(m_zoneContext);
 
 		ResetCamera();
-
-		//if (m_zoneContext->GetAutoloadMesh())
-		{
-			m_navMesh->LoadNavMeshFile();
-		}
 	}
 }
 

@@ -75,6 +75,13 @@ public:
 	MapGeometryLoader* GetMeshLoader() { return m_loader.get(); }
 	const MapGeometryLoader* GetMeshLoader() const { return m_loader.get(); }
 	const rcChunkyTriMesh* GetChunkyMesh() { return m_chunkyMesh.get(); }
+	std::shared_ptr<NavMesh> GetNavMesh() { return m_navMesh; }
+
+	// Navmesh related
+	bool IsNavMeshLoaded() const;// m_navMesh->IsNavMeshLoaded
+	bool IsBuildingNavMesh() const;
+
+	void ResetNavMesh(); // m_navMesh->ResetNavMesh
 
 	// Utilities
 	bool RaycastMesh(const glm::vec3& src, const glm::vec3& dest, float& tMin);
@@ -83,10 +90,23 @@ public:
 	// Load/Build routines
 	//
 
-	tf::Taskflow BuildInitialTaskflow(bool autoloadMesh);
+	using ZoneContextCallback = std::function<void(
+		LoadingPhase phase,
+		bool result
+	)>;
+
+	tf::Taskflow BuildInitialTaskflow(
+		bool loadNavMesh,
+		ZoneContextCallback&& callback);
 
 	// Load zone data from EQ folder
 	bool LoadZone();
+
+	// Load navmesh for this zone
+	bool LoadNavMesh();
+
+	// Save navmesh for this zone
+	void SaveNavMesh();
 
 	// Generate chunky triangle mesh
 	bool BuildTriangleMesh();
@@ -113,7 +133,7 @@ private:
 	glm::vec3   m_meshBMin, m_meshBMax;  // bounds of the currently loaded zone
 	bool        m_zoneLoaded = false;
 	std::atomic_bool m_loading = false;
-	std::atomic_bool m_loadingMesh = false;
+	std::atomic_bool m_buildingNavmesh = false;
 	ProgressState m_progress;
 	ResultState m_resultState;
 };

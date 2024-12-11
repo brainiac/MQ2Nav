@@ -9,7 +9,6 @@
 // We only have one of these, and we use it from multiple threads, so we need to
 // get a little creative to support timings across these threads.
 
-static std::shared_ptr<spdlog::logger> s_logger;
 std::mutex s_mutex;
 
 struct ThreadData
@@ -41,12 +40,12 @@ static ThreadData& GetThreadData()
 
 RecastContext::RecastContext()
 {
-	s_logger = Logging::GetLogger(LoggingCategory::Recast);
+	m_logger = Logging::GetLogger(LoggingCategory::Recast);
 }
 
 RecastContext::~RecastContext()
 {
-	s_logger.reset();
+	m_logger.reset();
 	s_threadData.clear();
 }
 
@@ -57,18 +56,21 @@ void RecastContext::ResetAllTimers()
 
 void RecastContext::doLog(rcLogCategory category, const char* message, int length)
 {
+	if (!m_logger)
+		return;
+
 	switch (category)
 	{
 	case RC_LOG_PROGRESS:
-		s_logger->trace(std::string_view(message, length));
+		m_logger->trace(std::string_view(message, length));
 		break;
 
 	case RC_LOG_WARNING:
-		s_logger->warn(std::string_view(message, length));
+		m_logger->warn(std::string_view(message, length));
 		break;
 
 	case RC_LOG_ERROR:
-		s_logger->error(std::string_view(message, length));
+		m_logger->error(std::string_view(message, length));
 		break;
 	}
 }
