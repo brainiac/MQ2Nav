@@ -39,7 +39,6 @@ NavMeshTool::NavMeshTool()
 {
 	resetCommonSettings();
 
-	m_outputPath = new char[MAX_PATH];
 	setTool(new NavMeshTileTool);
 
 	m_renderManager = std::make_unique<ZoneRenderManager>();
@@ -54,7 +53,6 @@ NavMeshTool::NavMeshTool()
 
 NavMeshTool::~NavMeshTool()
 {
-	delete[] m_outputPath;
 }
 
 //----------------------------------------------------------------------------
@@ -73,6 +71,8 @@ void NavMeshTool::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext
 		m_navMeshConn = m_navMesh->OnNavMeshChanged.Connect([this]()
 			{ NavMeshUpdated(); });
 
+		m_navMeshBuilder = std::make_shared<NavMeshBuilder>(m_zoneContext);
+
 		NavMeshUpdated();
 	}
 }
@@ -81,6 +81,7 @@ void NavMeshTool::Reset()
 {
 	m_navMesh = nullptr;
 	m_navMeshConn.Disconnect();
+	m_navMeshBuilder.reset();
 
 	if (m_tool)
 	{
@@ -120,11 +121,15 @@ void NavMeshTool::NavMeshUpdated()
 	initToolStates();
 }
 
-void NavMeshTool::getTileStatistics(int& width, int& height, int& maxTiles) const
+void NavMeshTool::GetTileStatistics(int& width, int& height) const
 {
 	width = m_tilesWidth;
 	height = m_tilesHeight;
-	maxTiles = m_maxTiles;
+}
+
+int NavMeshTool::GetTilesBuilt() const
+{
+	return m_navMeshBuilder ? m_navMeshBuilder->GetTilesBuilt() : 0;
 }
 
 void NavMeshTool::UpdateTileSizes()
@@ -139,30 +144,23 @@ void NavMeshTool::UpdateTileSizes()
 		m_tilesWidth = (gw + ts - 1) / ts;
 		m_tilesHeight = (gh + ts - 1) / ts;
 		m_tilesCount = m_tilesWidth * m_tilesHeight;
-
-#ifdef DT_POLYREF64
-		int tileBits = DT_TILE_BITS;
-		int polyBits = DT_POLY_BITS;
-		m_maxTiles = 1 << tileBits;
-		m_maxPolysPerTile = 1 << polyBits;
-#else
-		// Max tiles and max polys affect how the tile IDs are caculated.
-		// There are 22 bits available for identifying a tile and a polygon.
-		int tileBits = rcMin((int)ilog2(nextPow2(m_tilesCount)), 14);
-		if (tileBits > 14) tileBits = 14;
-		int polyBits = 22 - tileBits;
-		m_maxTiles = 1 << tileBits;
-		m_maxPolysPerTile = 1 << polyBits;
-#endif
 	}
 	else
 	{
-		m_maxTiles = 0;
-		m_maxPolysPerTile = 0;
 		m_tilesWidth = 0;
 		m_tilesHeight = 0;
 		m_tilesCount = 0;
 	}
+}
+
+bool NavMeshTool::IsBuildingTiles() const
+{
+	return m_navMeshBuilder && m_navMeshBuilder->IsBuildingTiles();
+}
+
+float NavMeshTool::GetTotalBuildTimeMS() const
+{
+	return m_navMeshBuilder ? m_navMeshBuilder->GetTotalBuildTimeMS() : 0.f;
 }
 
 void NavMeshTool::handleDebug()
@@ -288,17 +286,6 @@ void NavMeshTool::handleTools()
 		int tt = m_tilesWidth * m_tilesHeight;
 
 		ImVec4 col = ImColor(255, 255, 255);
-#ifndef DT_POLYREF64
-		if (tt > m_maxTiles) {
-			col = ImColor(255, 0, 0);
-		}
-		ImGui::TextColored(col, "Tile Limit: %d", m_maxTiles);
-		ImGui::SameLine();
-		col = ImColor(0, 255, 0);
-		if (tt > m_maxTiles) {
-			col = ImColor(255, 0, 0);
-		}
-#endif
 		ImGui::TextColored(col, "%d Tiles (%d x %d)", tt, m_tilesWidth, m_tilesHeight);
 
 		ImGui::SameLine(ImGui::GetContentRegionAvail().x - 100);
@@ -592,35 +579,17 @@ void NavMeshTool::handleRenderOverlay()
 
 bool NavMeshTool::BuildMesh()
 {
-	if (!m_zoneContext || !m_zoneContext->GetMeshLoader())
+	if (!m_navMeshBuilder)
 	{
-		SPDLOG_ERROR("buildTiledNavigation: No vertices and triangles.");
+		SPDLOG_ERROR("NavMeshTool::BuildMesh(): No navmesh builder");
 		return false;
 	}
 
-	std::shared_ptr<dtNavMesh> navMesh(dtAllocNavMesh(),
-		[](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
+	m_navMeshBuilder->SetNavMesh(m_zoneContext->GetNavMesh());
+	m_navMeshBuilder->SetConfig(m_config);
 
-	m_navMesh->SetNavMesh(navMesh, false);
-
-	dtNavMeshParams params;
-	glm::vec3 boundsMin = m_navMesh->GetNavMeshBoundsMin();
-	rcVcopy(params.orig, glm::value_ptr(boundsMin));
-	params.tileWidth = m_config.tileSize * m_config.cellSize;
-	params.tileHeight = m_config.tileSize * m_config.cellSize;
-	params.maxTiles = m_tilesWidth * m_tilesHeight;
-	params.maxPolys = m_maxPolysPerTile * params.maxTiles;
-
-	dtStatus status;
-
-	status = navMesh->init(&params);
-	if (dtStatusFailed(status))
-	{
-		SPDLOG_ERROR("buildTiledNavigation: Could not init navmesh.");
+	if (!m_navMeshBuilder->BuildNavMesh([](bool) {}))
 		return false;
-	}
-
-	BuildAllTiles(navMesh);
 
 	if (m_tool)
 	{
@@ -662,17 +631,8 @@ void NavMeshTool::RemoveAllTiles()
 
 void NavMeshTool::CancelBuildAllTiles(bool wait)
 {
-	if (m_buildingTiles)
-		m_cancelTiles = true;
-
-	if (wait && m_buildThread.joinable())
-		m_buildThread.join();
-}
-
-void NavMeshTool::setOutputPath(const char* output_path)
-{
-	strcpy(m_outputPath, output_path);
-	CreateDirectory(output_path, nullptr);
+	if (m_navMeshBuilder)
+		m_navMeshBuilder->CancelBuild(wait);
 }
 
 void NavMeshTool::resetCommonSettings()
@@ -684,90 +644,30 @@ void NavMeshTool::resetCommonSettings()
 
 void NavMeshTool::BuildTile(const glm::vec3& pos)
 {
-	if (!m_zoneContext) return;
-
-	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
-	const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
-
-	const float ts = m_config.tileSize * m_config.cellSize;
-	const int tx = (int)((pos[0] - bmin[0]) / ts);
-	const int ty = (int)((pos[2] - bmin[2]) / ts);
-
-	glm::vec3 tileBmin, tileBmax;
-	tileBmin[0] = bmin[0] + tx * ts;
-	tileBmin[1] = bmin[1];
-	tileBmin[2] = bmin[2] + ty * ts;
-
-	tileBmax[0] = bmin[0] + (tx + 1)*ts;
-	tileBmax[1] = bmax[1];
-	tileBmax[2] = bmin[2] + (ty + 1)*ts;
-
-	m_ctx->resetLog();
-	auto offMeshConnections = m_navMesh->CreateOffMeshConnectionBuffer();
-
-	std::shared_ptr<dtNavMesh> navMesh = m_navMesh->GetNavMesh();
-	if (!navMesh)
+	if (!m_navMeshBuilder)
 	{
-		navMesh = std::shared_ptr<dtNavMesh>(dtAllocNavMesh(), [](dtNavMesh* ptr) { dtFreeNavMesh(ptr); });
-
-		m_navMesh->SetNavMesh(navMesh, false);
-
-		dtNavMeshParams params;
-		rcVcopy(params.orig, glm::value_ptr(bmin));
-		params.tileWidth = m_config.tileSize * m_config.cellSize;
-		params.tileHeight = m_config.tileSize * m_config.cellSize;
-		params.maxTiles = m_tilesWidth * m_tilesHeight;
-		params.maxPolys = m_maxPolysPerTile * params.maxTiles;
-
-		dtStatus status;
-
-		status = navMesh->init(&params);
-		if (dtStatusFailed(status))
-		{
-			SPDLOG_ERROR("buildTiledNavigation: Could not init navmesh.");
-			return;
-		}
+		SPDLOG_ERROR("NavMeshTool::BuildMesh(): No navmesh builder");
+		return;
 	}
 
-	int dataSize = 0;
-	unsigned char* data = buildTileMesh(tx, ty, glm::value_ptr(tileBmin),
-		glm::value_ptr(tileBmax), offMeshConnections, dataSize);
+	m_navMeshBuilder->SetNavMesh(m_zoneContext->GetNavMesh());
+	m_navMeshBuilder->SetConfig(m_config);
 
-	m_navMesh->AddTile(data, dataSize, tx, ty);
-
-	SPDLOG_DEBUG("Build Tile ({}, {}):", tx, ty);
-}
-
-void NavMeshTool::RebuildTile(
-	const std::shared_ptr<OffMeshConnectionBuffer> connBuffer,
-	dtTileRef tileRef)
-{
-	if (!m_zoneContext) return;
-	const auto& navMesh = m_navMesh->GetNavMesh();
-	if (!navMesh) return;
-
-	const dtMeshTile* tile = navMesh->getTileByRef(tileRef);
-	if (!tile || !tile->header) return;
-
-	auto bmin = tile->header->bmin;
-	auto bmax = tile->header->bmax;
-	int tx = tile->header->x;
-	int ty = tile->header->y;
-
-	int dataSize = 0;
-	unsigned char* data = buildTileMesh(tx, ty, bmin, bmax, connBuffer, dataSize);
-
-	m_navMesh->AddTile(data, dataSize, tx, ty, tile->header->layer);
-
-	SPDLOG_DEBUG("Rebuild Tile ({}, {}):", tx, ty);
+	m_navMeshBuilder->BuildTile(pos);
 }
 
 void NavMeshTool::RebuildTiles(const std::vector<dtTileRef>& tiles)
 {
-	auto connBuffer = m_navMesh->CreateOffMeshConnectionBuffer();
+	if (!m_navMeshBuilder)
+	{
+		SPDLOG_ERROR("NavMeshTool::RebuildTiles(): No navmesh builder");
+		return;
+	}
 
-	for (dtTileRef tileRef : tiles)
-		RebuildTile(connBuffer, tileRef);
+	m_navMeshBuilder->SetNavMesh(m_zoneContext->GetNavMesh());
+	m_navMeshBuilder->SetConfig(m_config);
+
+	m_navMeshBuilder->RebuildTiles(tiles);
 }
 
 void NavMeshTool::SaveNavMesh()
@@ -779,419 +679,6 @@ void NavMeshTool::SaveNavMesh()
 	m_navMesh->SaveNavMeshFile();
 }
 
-void NavMeshTool::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async)
-{
-	if (!m_zoneContext) return;
-	if (m_buildingTiles) return;
-	if (!navMesh) return;
-
-	m_zoneContext->GetRcContext().ResetAllTimers();
-
-	// if async, invoke on a new thread
-	if (async)
-	{
-		if (m_buildThread.joinable())
-			m_buildThread.join();
-
-		m_buildThread = std::thread([this, navMesh]()
-			{
-				BuildAllTiles(navMesh, false);
-			});
-		return;
-	}
-
-	m_buildingTiles = true;
-	m_cancelTiles = false;
-
-	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
-	const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
-	int gw = 0, gh = 0;
-	rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
-	const int ts = (int)m_config.tileSize;
-	const int tw = (gw + ts - 1) / ts;
-	const int th = (gh + ts - 1) / ts;
-	const float tcs = m_config.tileSize * m_config.cellSize;
-
-	m_tilesBuilt = 0;
-
-	auto offMeshConnections = m_navMesh->CreateOffMeshConnectionBuffer();
-
-	// Start the build process.
-	m_ctx->startTimer(RC_TIMER_TEMP);
-
-	concurrency::task_group tasks;
-	for (int x = 0; x < tw; x++)
-	{
-		for (int y = 0; y < th; y++)
-		{
-			tasks.run([this, x, y, &bmin, &bmax, tcs, offMeshConnections]()
-				{
-					if (m_cancelTiles)
-						return;
-
-					++m_tilesBuilt;
-
-					glm::vec3 tileBmin, tileBmax;
-					tileBmin[0] = bmin[0] + x * tcs;
-					tileBmin[1] = bmin[1];
-					tileBmin[2] = bmin[2] + y * tcs;
-
-					tileBmax[0] = bmin[0] + (x + 1)*tcs;
-					tileBmax[1] = bmax[1];
-					tileBmax[2] = bmin[2] + (y + 1)*tcs;
-
-					int dataSize = 0;
-					uint8_t* data = buildTileMesh(x, y, glm::value_ptr(tileBmin),
-						glm::value_ptr(tileBmax), offMeshConnections, dataSize);
-
-					if (data)
-					{
-						TileDataPtr tileData = std::make_shared<TileData>();
-						tileData->data = data;
-						tileData->length = dataSize;
-						tileData->x = x;
-						tileData->y = y;
-
-						asend(m_builtTileData, tileData);
-					}
-				});
-		}
-	}
-
-	tasks.wait();
-
-	// Start the build process.
-	m_ctx->stopTimer(RC_TIMER_TEMP);
-
-	int totalTime = m_ctx->getAccumulatedTime(RC_TIMER_TEMP);
-	m_totalBuildTimeMs = static_cast<float>(totalTime) / 1000.0f;
-
-	m_ctx->LogBuildTimes(totalTime);
-
-	m_buildingTiles = false;
-}
-
-deleting_unique_ptr<rcCompactHeightfield> NavMeshTool::rasterizeGeometry(rcConfig& cfg) const
-{
-	// Allocate voxel heightfield where we rasterize our input data to.
-	deleting_unique_ptr<rcHeightfield> solid(rcAllocHeightfield(),
-		[](rcHeightfield* hf) { rcFreeHeightField(hf); });
-
-	if (!rcCreateHeightfield(m_ctx, *solid, cfg.width, cfg.height, cfg.bmin, cfg.bmax, cfg.cs, cfg.ch))
-	{
-		SPDLOG_ERROR("buildNavigation: Could not create solid heightfield.");
-		return 0;
-	}
-
-	MapGeometryLoader* loader = m_zoneContext->GetMeshLoader();
-
-	const float* verts = loader->getVerts();
-	const int nverts = loader->getVertCount();
-	const rcChunkyTriMesh* chunkyMesh = m_zoneContext->GetChunkyMesh();
-
-	// Allocate array that can hold triangle flags.
-	// If you have multiple meshes you need to process, allocate
-	// and array which can hold the max number of triangles you need to process.
-
-	std::unique_ptr<unsigned char[]> triareas(new unsigned char[chunkyMesh->maxTrisPerChunk]);
-
-	float tbmin[2], tbmax[2];
-	tbmin[0] = cfg.bmin[0];
-	tbmin[1] = cfg.bmin[2];
-	tbmax[0] = cfg.bmax[0];
-	tbmax[1] = cfg.bmax[2];
-	int cid[512];// TODO: Make grow when returning too many items.
-	const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
-	if (!ncid)
-		return 0;
-
-	for (int i = 0; i < ncid; ++i)
-	{
-		const rcChunkyTriMeshNode& node = chunkyMesh->nodes[cid[i]];
-		const int* ctris = &chunkyMesh->tris[node.i * 3];
-		const int nctris = node.n;
-
-		memset(triareas.get(), 0, nctris * sizeof(unsigned char));
-		rcMarkWalkableTriangles(m_ctx, cfg.walkableSlopeAngle,
-			verts, nverts, ctris, nctris, triareas.get());
-
-		rcRasterizeTriangles(m_ctx, verts, nverts, ctris, triareas.get(), nctris, *solid, cfg.walkableClimb);
-	}
-
-	// Once all geometry is rasterized, we do initial pass of filtering to
-	// remove unwanted overhangs caused by the conservative rasterization
-	// as well as filter spans where the character cannot possibly stand.
-	rcFilterLowHangingWalkableObstacles(m_ctx, cfg.walkableClimb, *solid);
-	rcFilterLedgeSpans(m_ctx, cfg.walkableHeight, cfg.walkableClimb, *solid);
-	rcFilterWalkableLowHeightSpans(m_ctx, cfg.walkableHeight, *solid);
-
-	// Compact the heightfield so that it is faster to handle from now on.
-	// This will result more cache coherent data as well as the neighbours
-	// between walkable cells will be calculated.
-	deleting_unique_ptr<rcCompactHeightfield> chf(rcAllocCompactHeightfield(),
-		[](rcCompactHeightfield* hf) { rcFreeCompactHeightfield(hf); });
-
-	if (!rcBuildCompactHeightfield(m_ctx, cfg.walkableHeight, cfg.walkableClimb, *solid, *chf))
-	{
-		SPDLOG_ERROR("buildNavigation: Could not build compact data.");
-		return 0;
-	}
-
-	return std::move(chf);
-}
-
-unsigned char* NavMeshTool::buildTileMesh(
-	const int tx,
-	const int ty,
-	const float* bmin,
-	const float* bmax,
-	const std::shared_ptr<OffMeshConnectionBuffer>& offMeshConnections,
-	int& dataSize) const
-{
-	if (!m_zoneContext || !m_zoneContext->IsZoneLoaded() || !m_zoneContext->GetChunkyMesh())
-	{
-		SPDLOG_ERROR("buildTileMesh: Input mesh is not specified.");
-		return nullptr;
-	}
-
-	// Init build configuration from GUI
-	rcConfig cfg;
-
-	memset(&cfg, 0, sizeof(cfg));
-	cfg.cs = m_config.cellSize;
-	cfg.ch = m_config.cellHeight;
-	cfg.walkableSlopeAngle = m_config.agentMaxSlope;
-	cfg.walkableHeight = (int)ceilf(m_config.agentHeight / cfg.ch);
-	cfg.walkableClimb = (int)floorf(m_config.agentMaxClimb / cfg.ch);
-	cfg.walkableRadius = (int)ceilf(m_config.agentRadius / cfg.cs);
-	cfg.maxEdgeLen = (int)(m_config.edgeMaxLen / m_config.cellSize);
-	cfg.maxSimplificationError = m_config.edgeMaxError;
-	cfg.minRegionArea = (int)rcSqr(m_config.regionMinSize);		// Note: area = size*size
-	cfg.mergeRegionArea = (int)rcSqr(m_config.regionMergeSize);	// Note: area = size*size
-	cfg.maxVertsPerPoly = (int)m_config.vertsPerPoly;
-	cfg.tileSize = (int)m_config.tileSize;
-	cfg.borderSize = cfg.walkableRadius + 3; // Reserve enough padding.
-	cfg.width = cfg.tileSize + cfg.borderSize * 2;
-	cfg.height = cfg.tileSize + cfg.borderSize * 2;
-	cfg.detailSampleDist = m_config.detailSampleDist < 0.9f ? 0 : m_config.cellSize * m_config.detailSampleDist;
-	cfg.detailSampleMaxError = m_config.cellHeight * m_config.detailSampleMaxError;
-
-	// Expand the heighfield bounding box by border size to find the extents of geometry we need to build this tile.
-	//
-	// This is done in order to make sure that the navmesh tiles connect correctly at the borders,
-	// and the obstacles close to the border work correctly with the dilation process.
-	// No polygons (or contours) will be created on the border area.
-	//
-	// IMPORTANT!
-	//
-	//   :''''''''':
-	//   : +-----+ :
-	//   : |     | :
-	//   : |     |<--- tile to build
-	//   : |     | :
-	//   : +-----+ :<-- geometry needed
-	//   :.........:
-	//
-	// You should use this bounding box to query your input geometry.
-	//
-	// For example if you build a navmesh for terrain, and want the navmesh tiles to match the terrain tile size
-	// you will need to pass in data from neighbour terrain tiles too! In a simple case, just pass in all the 8 neighbours,
-	// or use the bounding box below to only pass in a sliver of each of the 8 neighbours.
-	rcVcopy(cfg.bmin, bmin);
-	rcVcopy(cfg.bmax, bmax);
-	cfg.bmin[0] -= cfg.borderSize*cfg.cs;
-	cfg.bmin[2] -= cfg.borderSize*cfg.cs;
-	cfg.bmax[0] += cfg.borderSize*cfg.cs;
-	cfg.bmax[2] += cfg.borderSize*cfg.cs;
-
-	// Reset build times gathering.
-	m_ctx->resetTimers();
-
-	// Start the build process.
-	m_ctx->startTimer(RC_TIMER_TOTAL);
-
-	deleting_unique_ptr<rcCompactHeightfield> chf = rasterizeGeometry(cfg);
-	if (!chf)
-	{
-		return nullptr;
-	}
-
-	// Erode the walkable area by agent radius.
-	if (!rcErodeWalkableArea(m_ctx, cfg.walkableRadius, *chf))
-	{
-		SPDLOG_ERROR("buildTileMesh: Could not erode.");
-		return nullptr;
-	}
-
-	// Mark areas.
-	const auto& volumes = m_navMesh->GetConvexVolumes();
-	for (const auto& vol : volumes)
-	{
-		rcMarkConvexPolyArea(m_ctx, glm::value_ptr(vol->verts[0]), static_cast<int>(vol->verts.size()),
-			vol->hmin, vol->hmax, static_cast<uint8_t>(vol->areaType), *chf);
-	}
-
-	// Mark doors.
-
-
-	// Partition the heightfield so that we can use simple algorithm later to triangulate the walkable areas.
-	// There are 3 martitioning methods, each with some pros and cons:
-	// 1) Watershed partitioning
-	//   - the classic Recast partitioning
-	//   - creates the nicest tessellation
-	//   - usually slowest
-	//   - partitions the heightfield into nice regions without holes or overlaps
-	//   - the are some corner cases where this method creates produces holes and overlaps
-	//      - holes may appear when a small obstacles is close to large open area (triangulation can handle this)
-	//      - overlaps may occur if you have narrow spiral corridors (i.e stairs), this make triangulation to fail
-	//   * generally the best choice if you precompute the nacmesh, use this if you have large open areas
-	// 2) Monotone partioning
-	//   - fastest
-	//   - partitions the heightfield into regions without holes and overlaps (guaranteed)
-	//   - creates long thin polygons, which sometimes causes paths with detours
-	//   * use this if you want fast navmesh generation
-	// 3) Layer partitoining
-	//   - quite fast
-	//   - partitions the heighfield into non-overlapping regions
-	//   - relies on the triangulation code to cope with holes (thus slower than monotone partitioning)
-	//   - produces better triangles than monotone partitioning
-	//   - does not have the corner cases of watershed partitioning
-	//   - can be slow and create a bit ugly tessellation (still better than monotone)
-	//     if you have large open areas with small obstacles (not a problem if you use tiles)
-	//   * good choice to use for tiled navmesh with medium and small sized tiles
-
-	if (m_config.partitionType == PartitionType::WATERSHED)
-	{
-		// Prepare for region partitioning, by calculating distance field along the walkable surface.
-		if (!rcBuildDistanceField(m_ctx, *chf))
-		{
-			SPDLOG_ERROR("buildTileMesh: Could not build distance field.");
-			return nullptr;
-		}
-
-		// Partition the walkable surface into simple regions without holes.
-		if (!rcBuildRegions(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea))
-		{
-			SPDLOG_ERROR("buildTileMesh: Could not build watershed regions.");
-			return nullptr;
-		}
-	}
-	else if (m_config.partitionType == PartitionType::MONOTONE)
-	{
-		// Partition the walkable surface into simple regions without holes.
-		// Monotone partitioning does not need distancefield.
-		if (!rcBuildRegionsMonotone(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea))
-		{
-			SPDLOG_ERROR("buildTileMesh: Could not build monotone regions.");
-			return nullptr;
-		}
-	}
-	else // PartitionType::LAYERS
-	{
-		// Partition the walkable surface into simple regions without holes.
-		if (!rcBuildLayerRegions(m_ctx, *chf, cfg.borderSize, cfg.minRegionArea))
-		{
-			SPDLOG_ERROR("buildTileMesh: Could not build layer regions.");
-			return nullptr;
-		}
-	}
-
-	// Create contours.
-	deleting_unique_ptr<rcContourSet> cset(rcAllocContourSet(), [](rcContourSet* cs) { rcFreeContourSet(cs); });
-	if (!rcBuildContours(m_ctx, *chf, cfg.maxSimplificationError, cfg.maxEdgeLen, *cset))
-	{
-		SPDLOG_ERROR("buildTileMesh: Could not create contours.");
-		return nullptr;
-	}
-
-	if (cset->nconts == 0)
-	{
-		return nullptr;
-	}
-
-	// Build polygon navmesh from the contours.
-	deleting_unique_ptr<rcPolyMesh> pmesh(rcAllocPolyMesh(), [](rcPolyMesh* pm) { rcFreePolyMesh(pm); });
-	if (!rcBuildPolyMesh(m_ctx, *cset, cfg.maxVertsPerPoly, *pmesh))
-	{
-		SPDLOG_ERROR("buildTileMesh: Could not triangulate contours.");
-		return nullptr;
-	}
-
-	// Build detail mesh.
-	deleting_unique_ptr<rcPolyMeshDetail> dmesh(rcAllocPolyMeshDetail(), [](rcPolyMeshDetail* pm) { rcFreePolyMeshDetail(pm); });
-	if (!rcBuildPolyMeshDetail(m_ctx, *pmesh, *chf,
-		cfg.detailSampleDist, cfg.detailSampleMaxError,
-		*dmesh))
-	{
-		SPDLOG_ERROR("buildTileMesh: Could build polymesh detail.");
-		return nullptr;
-	}
-
-	chf.reset();
-	cset.reset();
-
-	unsigned char* navData = 0;
-	int navDataSize = 0;
-	if (cfg.maxVertsPerPoly <= DT_VERTS_PER_POLYGON)
-	{
-		if (pmesh->nverts >= 0xffff)
-		{
-			// The vertex indices are ushorts, and cannot point to more than 0xffff vertices.
-			SPDLOG_ERROR("buildTileMesh: Too many vertices per tile {} (max: {:#x}).",
-				pmesh->nverts, (uint16_t)0xffff);
-			return nullptr;
-		}
-
-		// Update poly flags from areas.
-		for (int i = 0; i < pmesh->npolys; ++i)
-		{
-			if (pmesh->areas[i] >= RC_WALKABLE_AREA)
-				pmesh->areas[i] = static_cast<uint8_t>(PolyArea::Ground);
-
-			pmesh->flags[i] = m_navMesh->GetPolyArea(pmesh->areas[i]).flags;
-		}
-
-		dtNavMeshCreateParams params;
-		memset(&params, 0, sizeof(params));
-		params.verts = pmesh->verts;
-		params.vertCount = pmesh->nverts;
-		params.polys = pmesh->polys;
-		params.polyAreas = pmesh->areas;
-		params.polyFlags = pmesh->flags;
-		params.polyCount = pmesh->npolys;
-		params.nvp = pmesh->nvp;
-		params.detailMeshes = dmesh->meshes;
-		params.detailVerts = dmesh->verts;
-		params.detailVertsCount = dmesh->nverts;
-		params.detailTris = dmesh->tris;
-		params.detailTriCount = dmesh->ntris;
-
-		offMeshConnections->UpdateNavMeshCreateParams(params);
-		params.walkableHeight = m_config.agentHeight;
-		params.walkableRadius = m_config.agentRadius;
-		params.walkableClimb = m_config.agentMaxClimb;
-		params.tileX = tx;
-		params.tileY = ty;
-		params.tileLayer = 0;
-		rcVcopy(params.bmin, pmesh->bmin);
-		rcVcopy(params.bmax, pmesh->bmax);
-		params.cs = cfg.cs;
-		params.ch = cfg.ch;
-		params.buildBvTree = true;
-
-		if (!dtCreateNavMeshData(&params, &navData, &navDataSize))
-		{
-			SPDLOG_ERROR("buildTileMesh: Could not build Detour navmesh.");
-			return nullptr;
-		}
-	}
-
-	m_ctx->stopTimer(RC_TIMER_TOTAL);
-
-	dataSize = navDataSize;
-	return navData;
-}
-
 unsigned int NavMeshTool::GetColorForPoly(const dtPoly* poly)
 {
 	if (poly)
@@ -1201,7 +688,6 @@ unsigned int NavMeshTool::GetColorForPoly(const dtPoly* poly)
 
 	return 0;
 }
-
 
 //----------------------------------------------------------------------------
 
@@ -1251,11 +737,8 @@ void NavMeshTool::handleUpdate(float dt)
 		}
 	}
 
-	TileDataPtr data;
-	while (concurrency::try_receive(m_builtTileData, data))
-	{
-		m_navMesh->AddTile(data->data, data->length, data->x, data->y);
-	}
+	if (m_navMeshBuilder)
+		m_navMeshBuilder->Update();
 }
 
 void NavMeshTool::initToolStates()

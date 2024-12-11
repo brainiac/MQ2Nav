@@ -74,7 +74,7 @@ bool ZoneContext::LoadZone()
 
 bool ZoneContext::LoadNavMesh()
 {
-	if (m_app->m_meshTool->isBuildingTiles())
+	if (m_app->m_meshTool->IsBuildingTiles())
 		return false;
 
 	// Make sure that the path is up-to-date
@@ -133,7 +133,7 @@ bool ZoneContext::IsNavMeshLoaded() const
 
 bool ZoneContext::IsBuildingNavMesh() const
 {
-	return m_app->m_meshTool->isBuildingTiles();
+	return m_app->m_meshTool->IsBuildingTiles();
 	// return m_buildingNavmesh;
 }
 

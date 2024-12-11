@@ -24,16 +24,16 @@ void ToolsPanel::OnImGuiRender(bool* p_open)
 	{
 		if (m_zoneContext && m_zoneContext->IsZoneLoaded())
 		{
-			if (m_app->m_meshTool->isBuildingTiles())
+			if (m_app->m_meshTool->IsBuildingTiles())
 			{
-				int tw, th, tm;
-				m_app->m_meshTool->getTileStatistics(tw, th, tm);
+				int tw, th;
+				m_app->m_meshTool->GetTileStatistics(tw, th);
 				int tt = tw * th;
 
-				float percent = (float)m_app->m_meshTool->getTilesBuilt() / (float)tt;
+				float percent = (float)m_app->m_meshTool->GetTilesBuilt() / (float)tt;
 
 				char szProgress[256];
-				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_app->m_meshTool->getTilesBuilt(), tt, percent * 100);
+				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_app->m_meshTool->GetTilesBuilt(), tt, percent * 100);
 
 				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
 

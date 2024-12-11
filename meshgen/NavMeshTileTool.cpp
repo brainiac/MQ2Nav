@@ -39,7 +39,7 @@ void NavMeshTileTool::handleMenu()
 			m_meshTool->RemoveAllTiles();
 	}
 
-	float totalBuildTime = m_meshTool->getTotalBuildTimeMS();
+	float totalBuildTime = m_meshTool->GetTotalBuildTimeMS();
 	if (totalBuildTime > 0)
 		ImGui::Text("Build Time: %.1fms", totalBuildTime);
 }

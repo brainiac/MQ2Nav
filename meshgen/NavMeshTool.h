@@ -20,6 +20,8 @@
 #include <thread>
 #include <agents.h>
 
+#include "common/NavMeshBuilder.h"
+
 class RecastContext;
 class dtNavMesh;
 class dtNavMeshQuery;
@@ -87,8 +89,6 @@ public:
 
 	void Reset();
 
-	void setContext(RecastContext* ctx) { m_ctx = ctx; }
-
 	void handleDebug();
 	void handleTools();
 	void handleRender(const glm::mat4& viewModelProjMtx, const glm::ivec4& viewport);
@@ -100,23 +100,22 @@ public:
 
 	bool BuildMesh();
 	void BuildTile(const glm::vec3& pos);
+	void RebuildTiles(const std::vector<dtTileRef>& tiles);
+	void CancelBuildAllTiles(bool wait = true);
+
 	void RemoveTile(const glm::vec3& pos);
 	void RemoveAllTiles();
 
-	void BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async = true);
-	void CancelBuildAllTiles(bool wait = true);
-	void UpdateTileSizes();
-	void RebuildTiles(const std::vector<dtTileRef>& tiles);
-
 	void SaveNavMesh();
 
-	bool isBuildingTiles() const { return m_buildingTiles; }
+	void UpdateTileSizes();
 
-	void getTileStatistics(int& width, int& height, int& maxTiles) const;
-	int getTilesBuilt() const { return m_tilesBuilt; }
-	float getTotalBuildTimeMS() const { return m_totalBuildTimeMs; }
+	bool IsBuildingTiles() const;
+	float GetTotalBuildTimeMS() const;
 
-	void setOutputPath(const char* output_path);
+	void GetTileStatistics(int& width, int& height) const;
+	int GetTilesBuilt() const;
+
 	std::shared_ptr<NavMesh> GetNavMesh() const { return m_navMesh; }
 
 	void setTool(Tool* tool);
@@ -132,25 +131,11 @@ public:
 	const glm::mat4& GetViewModelProjMtx() const { return m_viewModelProjMtx; }
 
 private:
-	deleting_unique_ptr<rcCompactHeightfield> rasterizeGeometry(rcConfig& cfg) const;
-
 	void resetCommonSettings();
 
 	void initToolStates();
 	void resetToolStates();
 	void renderToolStates();
-
-	void RebuildTile(
-		const std::shared_ptr<OffMeshConnectionBuffer> connBuffer,
-		dtTileRef tileRef);
-
-	unsigned char* buildTileMesh(
-		const int tx,
-		const int ty,
-		const float* bmin,
-		const float* bmax,
-		const std::shared_ptr<OffMeshConnectionBuffer>& connBuffer,
-		int& dataSize) const;
 
 	void NavMeshUpdated();
 
@@ -170,34 +155,11 @@ private:
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
 
 	std::shared_ptr<ZoneContext> m_zoneContext;
-
-	// we don't own this
-	RecastContext* m_ctx = nullptr;
-
-	int m_maxTiles = 0;
-	int m_maxPolysPerTile = 0;
-
-	char* m_outputPath = nullptr;
-	float m_totalBuildTimeMs = 0.f;
+	std::shared_ptr<NavMeshBuilder> m_navMeshBuilder;
 
 	int m_tilesWidth = 0;
 	int m_tilesHeight = 0;
 	int m_tilesCount = 0;
-	std::atomic<int> m_tilesBuilt = 0;
-	std::atomic<bool> m_buildingTiles = false;
-	std::atomic<bool> m_cancelTiles = false;
-	std::thread m_buildThread;
-
-	struct TileData
-	{
-		unsigned char* data = 0;
-		int length = 0;
-		int x = 0;
-		int y = 0;
-	};
-
-	using TileDataPtr = std::shared_ptr<TileData>;
-	concurrency::unbounded_buffer<TileDataPtr> m_builtTileData;
 
 	bool m_drawInputGeometry = true;
 	bool m_drawNavMeshBVTree = false;

@@ -146,7 +146,7 @@
     <ClInclude Include="Logging.h" />
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NavMeshData.h" />
-    <ClInclude Include="NavMeshFactory.h" />
+    <ClInclude Include="NavMeshBuilder.h" />
     <ClInclude Include="NavModule.h" />
     <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="Utilities.h" />
@@ -157,7 +157,7 @@
     <ClCompile Include="JsonProto.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NavMeshData.cpp" />
-    <ClCompile Include="NavMeshFactory.cpp" />
+    <ClCompile Include="NavMeshBuilder.cpp" />
     <ClCompile Include="proto\NavMeshFile.pb.cc">
       <DisableSpecificWarnings>4244;4256</DisableSpecificWarnings>
     </ClCompile>

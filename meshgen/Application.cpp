@@ -95,9 +95,6 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 
 	m_zonePicker = std::make_unique<ZonePicker>(this);
 
-	m_meshTool->setContext(m_rcContext.get());
-	m_meshTool->setOutputPath(g_config.GetOutputPath().c_str());
-
 	return true;
 }
 
@@ -231,7 +228,7 @@ bool Application::Update()
 
 	// fractional time since last update
 	uint64_t time = SDL_GetTicks64();
-	m_timeDelta = (time / m_lastTime) / 1000.0f;
+	m_timeDelta = (time - m_lastTime) / 1000.0f;
 	m_lastTime = time;
 	m_time += m_timeDelta;
 
@@ -338,7 +335,7 @@ bool Application::HandleEvents()
 		case SDL_KEYDOWN:
 			if (event.key.keysym.sym == SDLK_ESCAPE)
 			{
-				if (m_meshTool->isBuildingTiles())
+				if (m_meshTool->IsBuildingTiles())
 					Halt();
 				else if (m_zonePicker->IsShowing())
 					m_zonePicker->Close();
@@ -491,7 +488,7 @@ void Application::UpdateImGui()
 		if (ImGui::BeginMenu("File"))
 		{
 			if (ImGui::MenuItem("Open Zone", "Ctrl+O", nullptr,
-				!m_meshTool->isBuildingTiles()))
+				!m_meshTool->IsBuildingTiles()))
 			{
 				m_zonePicker->Show();
 			}
