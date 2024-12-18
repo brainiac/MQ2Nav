@@ -296,7 +296,7 @@ void ConsolePanel::RenderLogs(const ImVec2& size)
 					mq::imgui::ShiftCursorX(4.0f);
 
 					auto levelSV = spdlog::level::level_string_views[message.level];
-					ImGui::Text("%c%.*s", ::toupper(levelSV[0]), levelSV.size() - 1, levelSV.data() + 1);
+					ImGui::Text("%c%.*s", ::toupper(levelSV[0]), static_cast<int>(levelSV.size()) - 1, levelSV.data() + 1);
 
 					// Timestamp
 					ImGui::TableNextColumn();

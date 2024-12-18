@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-class Application;
+class Editor;
 class NavMesh;
 struct ConvexVolume;
 class MapGeometryLoader;
@@ -47,6 +47,7 @@ enum class LoadingPhase
 {
 	LoadZone,
 	BuildTriangleMesh,
+	LoadNavMesh,
 	BuildNavMesh,
 };
 
@@ -60,7 +61,7 @@ struct ResultState
 class ZoneContext : public std::enable_shared_from_this<ZoneContext>
 {
 public:
-	ZoneContext(Application* app, std::string_view zoneShortName);
+	ZoneContext(Editor* editor, std::string_view zoneShortName);
 	~ZoneContext();
 
 	// Accessors
@@ -122,7 +123,8 @@ public:
 
 private:
 	mutable std::mutex m_mutex;
-	Application* m_app;
+
+	Editor*                              m_editor;
 	std::unique_ptr<ZoneResourceManager> m_resourceMgr;
 	std::unique_ptr<RecastContext>       m_rcContext;
 	std::unique_ptr<MapGeometryLoader>   m_loader;

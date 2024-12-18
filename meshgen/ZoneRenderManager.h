@@ -10,7 +10,6 @@
 class ZoneContext;
 class ZoneInputGeometryRender;
 class ZoneNavMeshRender;
-class ZoneNavMeshTileRender;
 struct NavMeshConfig;
 class NavMesh;
 class dtNavMeshQuery;

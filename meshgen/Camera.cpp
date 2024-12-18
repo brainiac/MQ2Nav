@@ -1,3 +1,7 @@
+//
+// Camera.cpp
+//
+
 #include "pch.h"
 #include "Camera.h"
 
@@ -5,10 +9,22 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.inl>
 
-Camera::Camera()
+Camera::Camera(float fov, uint32_t viewportWidth, uint32_t viewportHeight, float nearPlane, float farPlane)
+	: m_projMtx(glm::perspectiveFov(glm::radians(fov), static_cast<float>(viewportWidth),
+		static_cast<float>(viewportHeight), nearPlane, farPlane))
+	, m_viewportWidth(viewportWidth)
+	, m_viewportHeight(viewportHeight)
+	, m_fov(fov)
+	, m_nearPlane(nearPlane)
+	, m_farPlane(farPlane)
 {
 	for (int i = 0; i < CameraDir_Count; ++i)
 		m_dirs[i] = 0.0f;
+}
+
+Camera::Camera()
+	: Camera(50, 1280, 720, 1.0f, 1000.0f)
+{	
 }
 
 Camera::~Camera()
@@ -19,12 +35,12 @@ void Camera::UpdateMouseLook(int deltaX, int deltaY)
 {
 	if (deltaX != 0)
 	{
-		m_horizontalAngle += m_mouseSpeed * static_cast<float>(deltaX);
+		m_yawAngle += m_mouseSpeed * static_cast<float>(deltaX);
 	}
 
 	if (deltaY != 0)
 	{
-		m_verticalAngle -= m_mouseSpeed * static_cast<float>(deltaY);
+		m_pitchAngle -= m_mouseSpeed * static_cast<float>(deltaY);
 	}
 }
 
@@ -32,13 +48,13 @@ void Camera::Update(float deltaTime)
 {
 	bool changed = false;
 
-	if (m_horizontalAngle != m_lastHorizontalAngle || m_verticalAngle != m_lastVerticalAngle)
+	if (m_yawAngle != m_lastYawAngle || m_pitchAngle != m_lastPitchAngle)
 	{
-		m_lastHorizontalAngle = m_horizontalAngle;
-		m_lastVerticalAngle = m_verticalAngle;
+		m_lastYawAngle = m_yawAngle;
+		m_lastPitchAngle = m_pitchAngle;
 
-		float angleX = glm::radians(m_horizontalAngle);
-		float angleY = glm::radians(180 - m_verticalAngle);
+		float angleX = glm::radians(m_yawAngle);
+		float angleY = glm::radians(180 - m_pitchAngle);
 
 		m_direction = {
 			glm::cos(angleY) * glm::sin(angleX),
@@ -101,27 +117,22 @@ void Camera::Update(float deltaTime)
 		m_up = glm::cross(m_right, m_direction);
 
 		m_viewMtx = glm::lookAtLH(m_eye, m_at, m_up);
-		m_projMtx = glm::perspective(glm::radians(m_fov), m_aspectRatio, m_nearPlane, m_farPlane);
 
 		m_viewProjMtx = m_projMtx * m_viewMtx;
 		m_dirty = false;
 	}
 }
 
+void Camera::SetPerspectiveProjectionMatrix(float fov, float width, float height, float nearPlane, float farPlane)
+{
+	m_projMtx = glm::perspectiveFov(glm::radians(fov), width, height, nearPlane, farPlane);
+}
+
+
 void Camera::SetPosition(const glm::vec3& position)
 {
 	m_eye = position;
 	m_dirty = true;
-}
-
-void Camera::SetHorizontalAngle(float angle)
-{
-	m_horizontalAngle = angle;
-}
-
-void Camera::SetVerticalAngle(float angle)
-{
-	m_verticalAngle = angle;
 }
 
 void Camera::SetKeyState(uint32_t key, bool down)

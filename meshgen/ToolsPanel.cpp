@@ -2,15 +2,15 @@
 #include "pch.h"
 #include "ToolsPanel.h"
 
-#include "meshgen/Application.h"
+#include "meshgen/Editor.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/ZoneContext.h"
 #include "imgui/fonts/IconsMaterialDesign.h"
 
 
-ToolsPanel::ToolsPanel(Application* app)
+ToolsPanel::ToolsPanel(Editor* editor)
 	: PanelWindow("Tools", "ToolsPanel")
-	, m_app(app)
+	, m_editor(editor)
 {
 }
 
@@ -20,29 +20,31 @@ ToolsPanel::~ToolsPanel()
 
 void ToolsPanel::OnImGuiRender(bool* p_open)
 {
+	auto& meshTool = m_editor->GetMeshTool();
+
 	if (ImGui::Begin(panelName.c_str(), p_open))
 	{
 		if (m_zoneContext && m_zoneContext->IsZoneLoaded())
 		{
-			if (m_app->m_meshTool->IsBuildingTiles())
+			if (meshTool.IsBuildingTiles())
 			{
 				int tw, th;
-				m_app->m_meshTool->GetTileStatistics(tw, th);
+				meshTool.GetTileStatistics(tw, th);
 				int tt = tw * th;
 
-				float percent = (float)m_app->m_meshTool->GetTilesBuilt() / (float)tt;
+				float percent = (float)meshTool.GetTilesBuilt() / (float)tt;
 
 				char szProgress[256];
-				sprintf_s(szProgress, "%d of %d (%.2f%%)", m_app->m_meshTool->GetTilesBuilt(), tt, percent * 100);
+				sprintf_s(szProgress, "%d of %d (%.2f%%)", meshTool.GetTilesBuilt(), tt, percent * 100);
 
 				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
 
 				if (ImGui::Button((const char*)ICON_MD_CANCEL " Stop"))
-					m_app->m_meshTool->CancelBuildAllTiles();
+					meshTool.CancelBuildAllTiles();
 			}
 			else
 			{
-				m_app->m_meshTool->handleTools();
+				meshTool.handleTools();
 			}
 		}
 		else

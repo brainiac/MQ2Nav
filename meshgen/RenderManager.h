@@ -1,11 +1,10 @@
 
 #pragma once
 
-#include "Camera.h"
-
 #include <bgfx/bgfx.h>
 
 class BgfxCallback;
+class Camera;
 
 class RenderManager
 {
@@ -16,10 +15,11 @@ public:
 	bool Initialize(int width, int height, SDL_Window* window);
 	void Shutdown();
 
-	void BeginFrame(float timeDelta);
+	void BeginFrame(float timeDelta, const Camera& camera);
 	void EndFrame();
 
-	Camera* GetCamera() const { return m_camera.get(); }
+	void BeginImGui(float timeDelta, const Camera& camera);
+
 	const glm::ivec4& GetViewport() const { return m_viewport; }
 
 	const glm::vec3& GetCursorRayStart() const { return m_cursorRayStart; }
@@ -32,14 +32,13 @@ public:
 	const glm::ivec2& GetMousePos() const { return m_mousePos; }
 
 private:
-	void Im3D_NewFrame(float timeDelta);
+	void Im3D_NewFrame(float timeDelta, const Camera& camera);
 	void Im3D_DrawText();
 
 	std::unique_ptr<BgfxCallback> m_callback;
 	int                     m_windowWidth = 0;
 	int                     m_windowHeight = 0;
 	SDL_Window*             m_window = nullptr;
-	std::unique_ptr<Camera> m_camera = nullptr;
 	uint32_t                m_bgfxDebug;
 	uint32_t                m_bgfxResetFlags;
 	const bgfx::Caps*       m_bgfxCaps = nullptr;

@@ -2,12 +2,12 @@
 #include "pch.h"
 #include "DebugPanel.h"
 
-#include "meshgen/Application.h"
+#include "meshgen/Editor.h"
 #include "meshgen/NavMeshTool.h"
 
-DebugPanel::DebugPanel(Application* app)
+DebugPanel::DebugPanel(Editor* editor)
 	: PanelWindow("Debug", "DebugPanel")
-	, m_app(app)
+	, m_editor(editor)
 {
 }
 
@@ -17,9 +17,11 @@ DebugPanel::~DebugPanel()
 
 void DebugPanel::OnImGuiRender(bool* p_open)
 {
+	auto& meshTool = m_editor->GetMeshTool();
+
 	if (ImGui::Begin(panelName.c_str(), p_open))
 	{
-		m_app->m_meshTool->handleDebug();
+		meshTool.handleDebug();
 	}
 
 	ImGui::End();

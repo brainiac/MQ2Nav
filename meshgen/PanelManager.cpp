@@ -2,8 +2,6 @@
 #include "pch.h"
 #include "PanelManager.h"
 
-#include <ranges>
-
 #include "meshgen/ApplicationConfig.h"
 #include <mq/base/Config.h>
 
@@ -11,6 +9,7 @@
 
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
+#include <ranges>
 
 PanelWindow::PanelWindow(std::string_view panelName, std::string_view settingsName)
 	: panelName(panelName)

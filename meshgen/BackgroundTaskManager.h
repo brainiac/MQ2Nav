@@ -9,7 +9,7 @@ class ZoneContext;
 class BackgroundTaskManager
 {
 public:
-	explicit BackgroundTaskManager(Application* app, int N = std::thread::hardware_concurrency());
+	explicit BackgroundTaskManager(int N = std::thread::hardware_concurrency());
 	~BackgroundTaskManager();
 
 	void Process();
@@ -21,7 +21,6 @@ public:
 	void AddZoneTask(tf::Taskflow&& tf);
 	
 private:
-	Application* m_app;
 	tf::Executor m_executor;
 	std::mutex m_callbackMutex;
 	std::vector<std::function<void()>> m_callbackQueue;

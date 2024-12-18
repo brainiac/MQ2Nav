@@ -3,20 +3,20 @@
 
 #include "meshgen/PanelManager.h"
 
-class Application;
+class Editor;
 class ZoneContext;
 
 class ToolsPanel : public PanelWindow
 {
 public:
 
-	ToolsPanel(Application* app);
+	ToolsPanel(Editor* app);
 	~ToolsPanel() override;
 
 	void OnImGuiRender(bool* p_open) override;
 	void SetZoneContext(const std::shared_ptr<ZoneContext>& context) override;
 
 private:
-	Application* m_app;
+	Editor* m_editor;
 	std::shared_ptr<ZoneContext> m_zoneContext;
 };

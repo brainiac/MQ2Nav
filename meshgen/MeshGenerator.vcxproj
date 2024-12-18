@@ -19,13 +19,14 @@
     <ClCompile Include="ApplicationConfig.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="DebugPanel.cpp" />
+    <ClCompile Include="Editor.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
+    <ClCompile Include="imgui\fonts\IconsLucide.h_lucide.ttf.cpp" />
     <ClCompile Include="imgui\imgui_impl.cpp" />
     <ClCompile Include="imgui\imgui_impl_bgfx.cpp" />
     <ClCompile Include="imgui\imgui_impl_sdl2.cpp" />
     <ClCompile Include="Logging.cpp" />
     <ClCompile Include="ConsolePanel.cpp" />
-    <ClCompile Include="Main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
     <ClCompile Include="NavMeshInfoTool.cpp" />
     <ClCompile Include="NavMeshTool.cpp" />
@@ -42,6 +43,7 @@
     <ClCompile Include="RecastContext.cpp" />
     <ClCompile Include="RenderManager.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
+    <ClCompile Include="SettingsDialog.cpp" />
     <ClCompile Include="ToolsPanel.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
     <ClCompile Include="ZoneContext.cpp" />
@@ -59,8 +61,11 @@
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="ApplicationConfig.h" />
     <ClInclude Include="DebugPanel.h" />
+    <ClInclude Include="Editor.h" />
     <ClInclude Include="Hash.h" />
     <ClInclude Include="ImGuiWidgets.h" />
+    <ClInclude Include="imgui\fonts\IconsLucide.h" />
+    <ClInclude Include="imgui\fonts\IconsLucide.h_lucide.ttf.h" />
     <ClInclude Include="imgui\fs_imgui.bin.h" />
     <ClInclude Include="imgui\fs_imgui_image.bin.h" />
     <ClInclude Include="imgui\imgui_impl.h" />
@@ -87,6 +92,8 @@
     <ClInclude Include="RenderManager.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ResourceManager.h" />
+    <ClInclude Include="Scene.h" />
+    <ClInclude Include="SettingsDialog.h" />
     <ClInclude Include="ToolsPanel.h" />
     <ClInclude Include="WaypointsTool.h" />
     <ClInclude Include="ZoneContext.h" />

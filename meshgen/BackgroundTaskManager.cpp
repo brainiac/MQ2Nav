@@ -6,9 +6,8 @@
 #include "meshgen/Application.h"
 #include "meshgen/ZoneContext.h"
 
-BackgroundTaskManager::BackgroundTaskManager(Application* app, int N)
-	: m_app(app)
-	, m_executor(N)
+BackgroundTaskManager::BackgroundTaskManager(int N)
+	: m_executor(N)
 {
 }
 

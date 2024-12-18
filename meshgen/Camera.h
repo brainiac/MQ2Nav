@@ -1,7 +1,10 @@
+//
+// Camera.h
+//
+
 #pragma once
 
 #include <glm/glm.hpp>
-#include <SDL2/SDL_events.h>
 
 enum CameraKeyState
 {
@@ -32,27 +35,55 @@ class Camera
 {
 public:
 	Camera();
+	Camera(float fov, uint32_t viewportWidth, uint32_t viewportHeight, float nearPlane, float farPlane);
 	~Camera();
 
 	void SetPosition(const glm::vec3& position);
 	glm::vec3 GetPosition() const { return m_eye; }
 
-	void SetHorizontalAngle(float angle);
-	float GetHorizontalAngle() const { return m_horizontalAngle; }
+	void SetYaw(float angle) { m_yawAngle = angle; }
+	float GetYaw() const { return m_yawAngle; }
 
-	void SetVerticalAngle(float angle);
-	float GetVerticalAngle() const { return m_verticalAngle; }
+	void SetPitch(float angle) { m_pitchAngle = angle; }
+	float GetPitch() const { return m_pitchAngle; }
 
-	void SetFieldOfView(float fov) { m_fov = fov; m_dirty = true; }
+	void SetFieldOfView(float fov)
+	{
+		if (m_fov == fov)
+			return;
+		SetPerspectiveProjectionMatrix(fov, static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight), m_nearPlane, m_farPlane);
+		m_fov = fov;
+	}
 	float GetFieldOfView() const { return m_fov; }
 
-	void SetAspectRatio(float aspectRatio) { if (m_aspectRatio != aspectRatio) { m_aspectRatio = aspectRatio; m_dirty = true; } }
-	float GetAspectRatio() const { return m_aspectRatio; }
+	void SetViewportSize(uint32_t width, uint32_t height)
+	{
+		if (m_viewportWidth == width && m_viewportHeight == height)
+			return;
 
-	void SetNearClipPlane(float nearPlane) { m_nearPlane = nearPlane; m_dirty = true; }
+		SetPerspectiveProjectionMatrix(m_fov, static_cast<float>(width), static_cast<float>(height), m_nearPlane, m_farPlane);
+		m_viewportWidth = width;
+		m_viewportHeight = height;
+	}
+	glm::ivec2 GetViewportSize() const { return { m_viewportWidth, m_viewportHeight }; }
+
+	void SetNearClipPlane(float nearPlane)
+	{
+		if (m_nearPlane == nearPlane)
+			return;
+
+		SetPerspectiveProjectionMatrix(m_fov, static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight), nearPlane, m_farPlane);
+		m_nearPlane = nearPlane;
+	}
 	float GetNearClipPlane() const { return m_nearPlane; }
 
-	void SetFarClipPlane(float farPlane) { m_farPlane = farPlane; m_dirty = true; }
+	void SetFarClipPlane(float farPlane)
+	{
+		if (m_farPlane == farPlane)
+			return;
+		SetPerspectiveProjectionMatrix(m_fov, static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight), m_nearPlane, farPlane);
+		m_farPlane = farPlane;
+	}
 	float GetFarClipPlane() const { return m_farPlane; }
 
 	void SetKeyState(uint32_t key, bool down);
@@ -73,9 +104,12 @@ public:
 	const glm::vec3& GetRight() const { return m_right; }
 
 private:
+	void SetPerspectiveProjectionMatrix(float fov, float width, float height, float nearPlane, float farPlane);
+
+private:
 	glm::vec3 m_direction;
 	glm::vec3 m_right;
-
+	
 	glm::vec3 m_eye;
 	glm::vec3 m_at;
 	glm::vec3 m_up;
@@ -84,20 +118,22 @@ private:
 	bool m_moving = false;
 
 	glm::mat4 m_viewMtx;
-	glm::mat4 m_projMtx;
 	glm::mat4 m_viewProjMtx;
-	float m_aspectRatio = 1.0f;
+
+	glm::mat4 m_projMtx;
+	uint32_t m_viewportWidth;
+	uint32_t m_viewportHeight;
 	float m_fov = 50;
 	float m_nearPlane = 1.0f;
 	float m_farPlane = 1000.0f;
 
 	// rotational angle, in degrees
-	float m_horizontalAngle = 0.0f;
-	float m_verticalAngle = 0.0f;
+	float m_yawAngle = 0.0f;
+	float m_pitchAngle = 0.0f;
 
 	// last rotational angle
-	float m_lastHorizontalAngle = 0.0f;
-	float m_lastVerticalAngle = 0.0f;
+	float m_lastYawAngle = 0.0f;
+	float m_lastPitchAngle = 0.0f;
 
 	float m_mouseSpeed = 0.25f;
 	float m_moveSpeed = 250.0f;

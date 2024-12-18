@@ -6,7 +6,6 @@
 
 #include "meshgen/Application.h"
 #include "meshgen/ApplicationConfig.h"
-#include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/ChunkyTriMesh.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/RecastContext.h"
@@ -18,8 +17,10 @@
 #include <spdlog/spdlog.h>
 #include <taskflow/taskflow.hpp>
 
-ZoneContext::ZoneContext(Application* app, std::string_view zoneShortName)
-	: m_app(app)
+#include "Editor.h"
+
+ZoneContext::ZoneContext(Editor* editor, std::string_view zoneShortName)
+	: m_editor(editor)
 	, m_zoneShortName(zoneShortName)
 {
 	// Get the long name from the application config
@@ -74,7 +75,9 @@ bool ZoneContext::LoadZone()
 
 bool ZoneContext::LoadNavMesh()
 {
-	if (m_app->m_meshTool->IsBuildingTiles())
+	auto& meshTool = m_editor->GetMeshTool();
+
+	if (meshTool.IsBuildingTiles())
 		return false;
 
 	// Make sure that the path is up-to-date
@@ -82,7 +85,7 @@ bool ZoneContext::LoadNavMesh()
 
 	if (m_navMesh->LoadNavMeshFile() != NavMesh::LoadResult::Success)
 	{
-		m_app->ShowNotificationDialog(
+		m_editor->ShowNotificationDialog(
 			"Failed To Open",
 			"Failed to open mesh."
 		);
@@ -101,7 +104,9 @@ void ZoneContext::SaveNavMesh()
 	// Make sure that the path is up-to-date
 	m_navMesh->SetNavMeshDirectory(g_config.GetOutputPath());
 
-	m_app->m_meshTool->SaveNavMesh();
+	auto& meshTool = m_editor->GetMeshTool();
+
+	meshTool.SaveNavMesh();
 }
 
 bool ZoneContext::BuildTriangleMesh()
@@ -133,7 +138,9 @@ bool ZoneContext::IsNavMeshLoaded() const
 
 bool ZoneContext::IsBuildingNavMesh() const
 {
-	return m_app->m_meshTool->IsBuildingTiles();
+	auto& meshTool = m_editor->GetMeshTool();
+
+	return meshTool.IsBuildingTiles();
 	// return m_buildingNavmesh;
 }
 
@@ -329,12 +336,12 @@ tf::Taskflow ZoneContext::BuildInitialTaskflow(bool loadNavMesh, ZoneContextCall
 		}).name("loadZone");
 
 	// Task to build the triangle mesh / perform spatial partitioning
-	auto buildPartitioning = taskflow.emplace([sharedThis, app = m_app, callback]()
+	auto buildPartitioning = taskflow.emplace([sharedThis, callback]()
 		{
 			// Start the progress
 			sharedThis->SetProgress({
 				.display = true,
-				.text = fmt::format("Generating spatial partitioning..."),
+				.text = fmt::format("Generating triangle mesh..."),
 				.value = 0.50f
 			});
 
@@ -348,14 +355,14 @@ tf::Taskflow ZoneContext::BuildInitialTaskflow(bool loadNavMesh, ZoneContextCall
 			// If load succeeded, we can submit the zone context at this time.
 			if (ls.success)
 			{
-				callback(LoadingPhase::BuildTriangleMesh, true);
+				callback(ls.phase, true);
 			}
 
 			return ls.success ? 1 : 0;
 		}).name("buildPartitioning");
 
 	// Task to handle failure at any stage.
-	auto failureTask = taskflow.emplace([sharedThis, app = m_app, callback]()
+	auto failureTask = taskflow.emplace([sharedThis, callback]()
 		{
 			sharedThis->SetProgress({ .display = false });
 			sharedThis->m_loading = false;
@@ -364,7 +371,7 @@ tf::Taskflow ZoneContext::BuildInitialTaskflow(bool loadNavMesh, ZoneContextCall
 	
 		}).name("failure");
 
-	auto successTask = taskflow.emplace([sharedThis, app = m_app, callback]()
+	auto successTask = taskflow.emplace([sharedThis, callback]()
 		{
 			sharedThis->SetProgress({ .display = false });
 
@@ -382,13 +389,22 @@ tf::Taskflow ZoneContext::BuildInitialTaskflow(bool loadNavMesh, ZoneContextCall
 	{
 		auto loadNavMeshTask = taskflow.emplace([sharedThis]()
 			{
-				sharedThis->m_navMesh->LoadNavMeshFile();
+				// Start the progress
+				sharedThis->SetProgress({
+					.display = true,
+					.text = fmt::format("Loading navmesh...", sharedThis->GetShortName()),
+					.value = 0.9f
+				});
+
+				auto result = sharedThis->m_navMesh->LoadNavMeshFile();
 
 				ResultState ls;
-				ls.success = sharedThis->BuildTriangleMesh();
-				ls.phase = LoadingPhase::BuildTriangleMesh;
+				ls.phase = LoadingPhase::LoadNavMesh;
+				ls.success = result == NavMesh::LoadResult::Success || result == NavMesh::LoadResult::MissingFile; // Missing file is not an error
 				if (!ls.success)
-					ls.message = fmt::format("Failed to build triangle mesh: '{}'", sharedThis->GetShortName());
+					ls.message = fmt::format("Failed to load nav mesh: '{}'", sharedThis->GetShortName());
+
+				sharedThis->SetResultState(ls);
 
 				return ls.success ? 1 : 0;
 			}).name("loadNavMesh");

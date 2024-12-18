@@ -48,6 +48,12 @@
     <Filter Include="Source Files\panels">
       <UniqueIdentifier>{382d7c8e-aee7-4272-b129-b634fde0e9aa}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\imgui\fonts">
+      <UniqueIdentifier>{97a4d13d-c442-4b55-a6da-a092201afc7f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\imgui\fonts">
+      <UniqueIdentifier>{90e9f03c-f8a2-4a2d-8e5e-717d76900123}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -63,9 +69,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Application.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ZonePicker.cpp">
@@ -151,6 +154,15 @@
     </ClCompile>
     <ClCompile Include="ZoneResourceManager.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Editor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SettingsDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui\fonts\IconsLucide.h_lucide.ttf.cpp">
+      <Filter>Source Files\imgui\fonts</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -282,6 +294,21 @@
     </ClInclude>
     <ClInclude Include="BackgroundTaskManager.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Editor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SettingsDialog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\fonts\IconsLucide.h">
+      <Filter>Header Files\imgui\fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui\fonts\IconsLucide.h_lucide.ttf.h">
+      <Filter>Header Files\imgui\fonts</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

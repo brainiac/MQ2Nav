@@ -33,6 +33,8 @@
 #include <agents.h>
 #include <complex>
 
+#include "BackgroundTaskManager.h"
+
 //----------------------------------------------------------------------------
 
 NavMeshTool::NavMeshTool()
@@ -69,7 +71,12 @@ void NavMeshTool::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext
 	{
 		m_navMesh = m_zoneContext->GetNavMesh();
 		m_navMeshConn = m_navMesh->OnNavMeshChanged.Connect([this]()
-			{ NavMeshUpdated(); });
+		{
+			Application::Get().GetBackgroundTaskManager().PostToMainThread([this]()
+				{
+					NavMeshUpdated();
+				});
+		});
 
 		m_navMeshBuilder = std::make_shared<NavMeshBuilder>(m_zoneContext);
 

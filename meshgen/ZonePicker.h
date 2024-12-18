@@ -9,9 +9,8 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
-
-class Application;
 
 struct IMAGEDATA
 {
@@ -23,21 +22,24 @@ struct IMAGEDATA
 class ZonePicker
 {
 public:
-	ZonePicker(Application* app);
+	ZonePicker() = default;
 	~ZonePicker();
 
 	void Show();
-	void Draw();
 	void Close();
 
+	// Draw the picker. Returns true if a map was selected
+	bool Draw();
+
 	bool IsShowing() const { return m_isShowing; }
+
+	bool ShouldLoadNavMesh() const { return m_loadNavMesh; }
+	const std::string& GetSelectedZone() const { return m_selectedZone; }
 
 private:
 	bool DrawExpansionGroup(const ApplicationConfig::Expansion& expansion, bool showExpansions);
 	void LoadZones();
 	void ClearZones();
-
-	Application* m_app;
 
 	// Mapping of Zones to Expansions
 	struct MapInfo
@@ -59,4 +61,5 @@ private:
 	bool m_showNextDraw = false;
 
 	std::vector<bgfx::TextureHandle> m_textures;
+	std::string m_selectedZone;
 };

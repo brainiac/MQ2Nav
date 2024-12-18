@@ -2,8 +2,9 @@
 #include "pch.h"
 #include "RenderManager.h"
 
-#include "meshgen/ZoneRenderManager.h"
+#include "meshgen/Camera.h"
 #include "meshgen/Logging.h"
+#include "meshgen/ZoneRenderManager.h"
 
 #include "mq/base/Color.h"
 #include "imgui/imgui_impl.h"
@@ -143,7 +144,6 @@ RenderManager::RenderManager()
 	: m_bgfxDebug(BGFX_DEBUG_TEXT)
 	, m_bgfxResetFlags(BGFX_RESET_MSAA_X4)
 {
-	m_camera = std::make_unique<Camera>();
 	m_callback = std::make_unique<BgfxCallback>();
 }
 
@@ -204,16 +204,17 @@ void RenderManager::Shutdown()
 	bgfx::shutdown();
 }
 
-void RenderManager::BeginFrame(float timeDelta)
+void RenderManager::BeginFrame(float timeDelta, const Camera& camera)
 {
-	ImGui_Impl_NewFrame();
-	Im3D_NewFrame(timeDelta);
+	auto& viewMtx = camera.GetViewMtx();
+	auto& projMtx = camera.GetProjMtx();
 
-	bgfx::setViewTransform(0, glm::value_ptr(m_camera->GetViewMtx()), glm::value_ptr(m_camera->GetProjMtx()));
-	m_cursorRayStart = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 0.0f), m_camera->GetViewMtx(), m_camera->GetProjMtx(), m_viewport);
-	m_cursorRayEnd   = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), m_camera->GetViewMtx(), m_camera->GetProjMtx(), m_viewport);
+	bgfx::setViewTransform(0, glm::value_ptr(viewMtx), glm::value_ptr(projMtx));
 
-	m_viewModelProjMtx = m_camera->GetViewProjMtx();
+	m_cursorRayStart = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 0.0f), viewMtx, projMtx, m_viewport);
+	m_cursorRayEnd   = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), viewMtx, projMtx, m_viewport);
+
+	m_viewModelProjMtx =camera.GetViewProjMtx();
 
 	bgfx::touch(m_viewId);
 }
@@ -227,6 +228,12 @@ void RenderManager::EndFrame()
 
 	// Advance to next frame. Rendering thread will be kicked to process submitted rendering primitives.
 	bgfx::frame();
+}
+
+void RenderManager::BeginImGui(float timeDelta, const Camera& camera)
+{
+	ImGui_Impl_NewFrame();
+	Im3D_NewFrame(timeDelta, camera);
 }
 
 void RenderManager::Im3D_DrawText()
@@ -301,17 +308,17 @@ void RenderManager::Im3D_DrawText()
 	}
 }
 
-void RenderManager::Im3D_NewFrame(float timeDelta)
+void RenderManager::Im3D_NewFrame(float timeDelta, const Camera& camera)
 {
 	Im3d::AppData& ad = Im3d::GetAppData();
 
 	ad.m_deltaTime = timeDelta;
 	ad.m_viewportSize = Im3d::Vec2(static_cast<float>(m_viewport.z), static_cast<float>(m_viewport.w));
-	ad.m_viewOrigin = m_camera->GetPosition();
-	ad.m_viewDirection = m_camera->GetDirection();
+	ad.m_viewOrigin = camera.GetPosition();
+	ad.m_viewDirection = camera.GetDirection();
 	ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
 	ad.m_projOrtho = false;
-	ad.m_projScaleY = glm::tan(glm::radians(m_camera->GetFieldOfView()) * 0.5f) * 2.0f;
+	ad.m_projScaleY = glm::tan(glm::radians(camera.GetFieldOfView()) * 0.5f) * 2.0f;
 
 	ad.m_cursorRayOrigin = m_cursorRayStart;
 	ad.m_cursorRayDirection = glm::normalize(m_cursorRayEnd - m_cursorRayStart);
@@ -338,10 +345,6 @@ void RenderManager::Im3D_NewFrame(float timeDelta)
 void RenderManager::SetViewport(const glm::ivec2& origin, const glm::ivec2& size)
 {
 	m_viewport = { origin.x, origin.y, size.x, size.y };
-
-	float aspectRatio = static_cast<float>(m_viewport.z) / static_cast<float>(m_viewport.w);
-
-	m_camera->SetAspectRatio(aspectRatio);
 
 	bgfx::setViewRect(m_viewId, static_cast<uint16_t>(m_viewport.x), static_cast<uint16_t>(m_viewport.y),
 		static_cast<uint16_t>(m_viewport.z), static_cast<uint16_t>(m_viewport.w));

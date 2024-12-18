@@ -2,7 +2,7 @@
 #include "pch.h"
 #include "PropertiesPanel.h"
 
-#include "meshgen/Application.h"
+#include "meshgen/Editor.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/RenderManager.h"
 #include "meshgen/ZoneContext.h"
@@ -10,9 +10,9 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-PropertiesPanel::PropertiesPanel(Application* app)
+PropertiesPanel::PropertiesPanel(Editor* editor)
 	: PanelWindow("Properties", "PropertiesPane")
-	, m_app(app)
+	, m_editor(editor)
 {
 }
 
@@ -27,12 +27,7 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 	if (ImGui::Begin(panelName.c_str(), p_open))
 	{
 		// show zone name
-		if (!m_zoneContext || !m_zoneContext->IsZoneLoaded())
-			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
-		else
-			ImGui::TextColored(ImColor(0, 255, 0), "%s", m_zoneContext->GetDisplayName().c_str());
-
-		if (auto loadingCtx = m_app->GetLoadingZoneContext())
+		if (auto loadingCtx = m_editor->GetLoadingZoneContext())
 		{
 			ProgressState state = loadingCtx->GetProgress();
 
@@ -42,6 +37,10 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 				ImGui::ProgressBar(state.value.value_or(0.0f));
 			}
 		}
+		else if (!m_zoneContext || !m_zoneContext->IsZoneLoaded())
+			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
+		else
+			ImGui::TextColored(ImColor(0, 255, 0), "%s", m_zoneContext->GetDisplayName().c_str());
 
 		if (m_zoneContext)
 		{
@@ -76,19 +75,19 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 			ImGui::Separator();
 
 			// TODO: Move these to somewhere else?
-			Camera* camera = g_render->GetCamera();
+			Camera& camera = m_editor->GetCamera();
 
-			glm::vec3 cameraPos = to_eq_coord(camera->GetPosition());
+			glm::vec3 cameraPos = to_eq_coord(camera.GetPosition());
 			if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
 			{
-				camera->SetPosition(from_eq_coord(cameraPos));
+				camera.SetPosition(from_eq_coord(cameraPos));
 			}
 
-			float angle[2] = { camera->GetHorizontalAngle(), camera->GetVerticalAngle() };
+			float angle[2] = { camera.GetYaw(), camera.GetPitch() };
 			if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
 			{
-				camera->SetHorizontalAngle(angle[0]);
-				camera->SetVerticalAngle(angle[1]);
+				camera.SetYaw(angle[0]);
+				camera.SetPitch(angle[1]);
 			}
 
 			//float fov = camera->GetFieldOfView();

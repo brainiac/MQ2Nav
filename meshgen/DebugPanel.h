@@ -3,16 +3,16 @@
 
 #include "meshgen/PanelManager.h"
 
-class Application;
+class Editor;
 
 class DebugPanel : public PanelWindow
 {
 public:
-	DebugPanel(Application* app);
+	DebugPanel(Editor* app);
 	virtual ~DebugPanel() override;
 
 	virtual void OnImGuiRender(bool* p_open) override;
 
 private:
-	Application* m_app;
+	Editor* m_editor;
 };
