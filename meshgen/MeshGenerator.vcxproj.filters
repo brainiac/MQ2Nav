@@ -164,6 +164,18 @@
     <ClCompile Include="imgui\fonts\IconsLucide.h_lucide.ttf.cpp">
       <Filter>Source Files\imgui\fonts</Filter>
     </ClCompile>
+    <ClCompile Include="SelectionManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneHierarchyPanel.cpp">
+      <Filter>Source Files\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="Entity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapGeometryLoader.h">
@@ -310,6 +322,21 @@
     <ClInclude Include="imgui\fonts\IconsLucide.h_lucide.ttf.h">
       <Filter>Header Files\imgui\fonts</Filter>
     </ClInclude>
+    <ClInclude Include="Entity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Components.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneHierarchyPanel.h">
+      <Filter>Header Files\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="SelectionManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="meshgen.natvis">
@@ -388,6 +415,9 @@
     </None>
     <None Include="imgui\vs_imgui.sc">
       <Filter>Resource Files\engine\imgui</Filter>
+    </None>
+    <None Include="Entity.inl">
+      <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
 </Project>

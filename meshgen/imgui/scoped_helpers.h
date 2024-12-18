@@ -75,6 +75,34 @@ private:
 	int m_count;
 };
 
+class ScopedFont
+{
+public:
+	ScopedFont(const ScopedFont& other) = delete;
+	ScopedFont& operator=(const ScopedFont& other) = delete;
 
+	explicit ScopedFont(ImFont* font) { ImGui::PushFont(font); }
+	~ScopedFont() { ImGui::PopFont(); }
+};
+
+class ScopedID
+{
+public:
+	ScopedID(const ScopedID& other) = delete;
+	ScopedID& operator=(const ScopedID& other) = delete;
+
+	template <typename T> explicit ScopedID(T id) { ImGui::PushID(id); }
+	~ScopedID() { ImGui::PopID(); }
+};
+
+class ScopedDisable
+{
+public:
+	ScopedDisable(const ScopedDisable& other) = delete;
+	ScopedDisable& operator=(const ScopedDisable& other) = delete;
+
+	explicit ScopedDisable(bool disabled) { ImGui::BeginDisabled(disabled); }
+	~ScopedDisable() { ImGui::EndDisabled(); }
+};
 
 } // namespace mq.imgui

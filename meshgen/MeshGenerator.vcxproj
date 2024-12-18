@@ -20,6 +20,7 @@
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="DebugPanel.cpp" />
     <ClCompile Include="Editor.cpp" />
+    <ClCompile Include="Entity.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
     <ClCompile Include="imgui\fonts\IconsLucide.h_lucide.ttf.cpp" />
     <ClCompile Include="imgui\imgui_impl.cpp" />
@@ -43,6 +44,9 @@
     <ClCompile Include="RecastContext.cpp" />
     <ClCompile Include="RenderManager.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
+    <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="SceneHierarchyPanel.cpp" />
+    <ClCompile Include="SelectionManager.cpp" />
     <ClCompile Include="SettingsDialog.cpp" />
     <ClCompile Include="ToolsPanel.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
@@ -58,10 +62,12 @@
     <ClInclude Include="BackgroundTaskManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
+    <ClInclude Include="Components.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="ApplicationConfig.h" />
     <ClInclude Include="DebugPanel.h" />
     <ClInclude Include="Editor.h" />
+    <ClInclude Include="Entity.h" />
     <ClInclude Include="Hash.h" />
     <ClInclude Include="ImGuiWidgets.h" />
     <ClInclude Include="imgui\fonts\IconsLucide.h" />
@@ -79,6 +85,7 @@
     <ClInclude Include="Logging.h" />
     <ClInclude Include="ConsolePanel.h" />
     <ClInclude Include="MapGeometryLoader.h" />
+    <ClInclude Include="Math.h" />
     <ClInclude Include="NavMeshInfoTool.h" />
     <ClInclude Include="NavMeshTool.h" />
     <ClInclude Include="NavMeshPruneTool.h" />
@@ -93,6 +100,8 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="SceneHierarchyPanel.h" />
+    <ClInclude Include="SelectionManager.h" />
     <ClInclude Include="SettingsDialog.h" />
     <ClInclude Include="ToolsPanel.h" />
     <ClInclude Include="WaypointsTool.h" />
@@ -143,6 +152,7 @@
     <None Include="engine\debugdraw\vs_debugdraw_lines.sc" />
     <None Include="engine\debugdraw\vs_debugdraw_lines_stipple.sc" />
     <None Include="engine\shaderlib.sh" />
+    <None Include="Entity.inl" />
     <None Include="imgui\fs_imgui.sc" />
     <None Include="imgui\fs_imgui_image.sc" />
     <None Include="imgui\vs_imgui.sc" />
