@@ -25,7 +25,7 @@ void NavMeshTileTool::reset()
 
 void NavMeshTileTool::handleMenu()
 {
-	if (ImGui::Button((const char*)ICON_MD_BUILD " Build Mesh"))
+	if (ImGui::Button(ICON_MD_BUILD " Build Mesh"))
 	{
 		if (m_meshTool)
 			m_meshTool->BuildMesh();
@@ -33,7 +33,7 @@ void NavMeshTileTool::handleMenu()
 
 	ImGui::SameLine();
 
-	if (ImGui::Button((const char*)ICON_MD_DELETE_FOREVER "Remove All"))
+	if (ImGui::Button(ICON_MD_DELETE_FOREVER "Remove All"))
 	{
 		if (m_meshTool)
 			m_meshTool->RemoveAllTiles();

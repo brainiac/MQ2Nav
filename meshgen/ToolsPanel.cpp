@@ -39,7 +39,7 @@ void ToolsPanel::OnImGuiRender(bool* p_open)
 
 				ImGui::ProgressBar(percent, ImVec2(-1, 0), szProgress);
 
-				if (ImGui::Button((const char*)ICON_MD_CANCEL " Stop"))
+				if (ImGui::Button(ICON_MD_CANCEL " Stop"))
 					meshTool.CancelBuildAllTiles();
 			}
 			else

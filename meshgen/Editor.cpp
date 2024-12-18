@@ -516,13 +516,13 @@ void Editor::UI_DrawToolbar()
 			//
 
 			// Open Zone
-			if (ToolbarButton((char*)ICON_MD_PUBLIC "##OpenZone", "Open Zone", isBlocked, mq::imgui::LargeTextFont))
+			if (ToolbarButton(ICON_MD_PUBLIC "##OpenZone", "Open Zone", isBlocked, mq::imgui::LargeTextFont))
 			{
 				ShowZonePicker();
 			}
 
 			// Settings
-			if (ToolbarButton((char*)ICON_LC_SETTINGS "##Settings2", "Settings"))
+			if (ToolbarButton(ICON_LC_SETTINGS "##Settings2", "Settings"))
 			{
 				ShowSettingsDialog();
 			}
@@ -534,13 +534,13 @@ void Editor::UI_DrawToolbar()
 			//
 
 			// Load Mesh
-			if (ToolbarButton((char*)ICON_LC_FOLDER_OPEN "##OpenMesh", "Open Mesh", isBlocked || !m_zoneContext))
+			if (ToolbarButton(ICON_LC_FOLDER_OPEN "##OpenMesh", "Open Mesh", isBlocked || !m_zoneContext))
 			{
 				OpenMesh();
 			}
 
 			// Save
-			if (ToolbarButton((char*)ICON_LC_SAVE "##SaveMesh", "Save Mesh", isBlocked || !m_zoneContext || !m_zoneContext->IsNavMeshLoaded()))
+			if (ToolbarButton(ICON_LC_SAVE "##SaveMesh", "Save Mesh", isBlocked || !m_zoneContext || !m_zoneContext->IsNavMeshLoaded()))
 			{
 				SaveMesh();
 			}
@@ -584,7 +584,7 @@ void Editor::UI_DrawToolbar()
 			}
 
 			// Current Position
-			ToolbarIconText((char*)ICON_MD_EXPLORE, "Camera position", mq::imgui::LargeTextFont);
+			ToolbarIconText(ICON_MD_EXPLORE, "Camera position", mq::imgui::LargeTextFont);
 			{
 				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 4));
 

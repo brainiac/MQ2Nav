@@ -231,11 +231,6 @@ bool ToolButton(const char* text, const char* tooltip, bool active)
 	return result;
 }
 
-bool ToolButton(const char8_t* icon, const char* tooltip, bool active)
-{
-	return ToolButton(reinterpret_cast<const char*>(icon), tooltip, active);
-}
-
 void NavMeshTool::handleTools()
 {
 	ToolType type = !m_tool ? ToolType::NONE : m_tool->type();
