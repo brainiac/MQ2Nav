@@ -312,8 +312,8 @@ void ConvexVolumeTool::handleMenu()
 
 		m_state->m_modified |= AreaTypeCombo(navMesh.get(), &m_state->m_editVolume.areaType);
 
-		m_state->m_modified |= ImGui::InputFloat("Hieght Min", &m_state->m_editVolume.hmin, 1.0, 10.0, "%.1f");
-		m_state->m_modified |= ImGui::InputFloat("Hieght Max", &m_state->m_editVolume.hmax, 1.0, 10.0, "%.1f");
+		m_state->m_modified |= ImGui::InputFloat("Height Min", &m_state->m_editVolume.hmin, 1.0, 10.0, "%.1f");
+		m_state->m_modified |= ImGui::InputFloat("Height Max", &m_state->m_editVolume.hmax, 1.0, 10.0, "%.1f");
 
 		if (m_state->m_modified && ImGui::Button("Save Changes"))
 		{
