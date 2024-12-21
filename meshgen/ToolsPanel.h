@@ -4,7 +4,7 @@
 #include "meshgen/PanelManager.h"
 
 class Editor;
-class ZoneContext;
+class NavMeshProject;
 
 class ToolsPanel : public PanelWindow
 {
@@ -14,9 +14,7 @@ public:
 	~ToolsPanel() override;
 
 	void OnImGuiRender(bool* p_open) override;
-	void SetZoneContext(const std::shared_ptr<ZoneContext>& context) override;
 
 private:
 	Editor* m_editor;
-	std::shared_ptr<ZoneContext> m_zoneContext;
 };

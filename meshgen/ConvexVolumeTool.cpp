@@ -1,15 +1,17 @@
 //
 // ConvexVolumeTool.cpp
 //
+
+#include "pch.h"
+#include "common/Utilities.h"
+#include "im3d/im3d.h"
+#include "imgui/ImGuiUtils.h"
 #include "meshgen/ConvexVolumeTool.h"
 #include "meshgen/ImGuiWidgets.h"
 #include "meshgen/NavMeshTool.h"
-#include "common/Utilities.h"
-#include "imgui/ImGuiUtils.h"
+#include "meshgen/ZoneRenderManager.h"
 
 #include <Recast.h>
-#include <RecastDebugDraw.h>
-#include <DetourDebugDraw.h>
 
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -337,6 +339,50 @@ void ConvexVolumeTool::handleMenu()
 	else
 	{
 		m_state->m_currentVolumeId = 0;
+	}
+
+	if (m_state->m_currentVolumeId != 0)
+	{
+		//static Im3d::Mat4 transform(1.0f);
+		//// Context-global gizmo modes are set via actions in the AppData::m_keyDown but could also be modified via a GUI as follows:
+		//int gizmoMode = (int)Im3d::GetContext().m_gizmoMode;
+		//ImGui::Checkbox("Local (Ctrl+L)", &Im3d::GetContext().m_gizmoLocal);
+		//ImGui::SameLine();
+		//ImGui::RadioButton("Translate (Ctrl+T)", &gizmoMode, Im3d::GizmoMode_Translation);
+		//ImGui::SameLine();
+		//ImGui::RadioButton("Rotate (Ctrl+R)", &gizmoMode, Im3d::GizmoMode_Rotation);
+		//ImGui::SameLine();
+		//ImGui::RadioButton("Scale (Ctrl+S)", &gizmoMode, Im3d::GizmoMode_Scale);
+		//Im3d::GetContext().m_gizmoMode = (Im3d::GizmoMode)gizmoMode;
+
+		//// The ID passed to Gizmo() should be unique during a frame - to create gizmos in a loop use PushId()/PopId().
+		//if (Im3d::Gizmo("GizmoUnified", transform))
+		//{
+		//	// if Gizmo() returns true, the transform was modified
+		//	switch (Im3d::GetContext().m_gizmoMode)
+		//	{
+		//	case Im3d::GizmoMode_Translation:
+		//	{
+		//		Im3d::Vec3 pos = transform.getTranslation();
+		//		ImGui::Text("Position: %.3f, %.3f, %.3f", pos.x, pos.y, pos.z);
+		//		break;
+		//	}
+		//	case Im3d::GizmoMode_Rotation:
+		//	{
+		//		Im3d::Vec3 euler = Im3d::ToEulerXYZ(transform.getRotation());
+		//		ImGui::Text("Rotation: %.3f, %.3f, %.3f", Im3d::Degrees(euler.x), Im3d::Degrees(euler.y), Im3d::Degrees(euler.z));
+		//		break;
+		//	}
+		//	case Im3d::GizmoMode_Scale:
+		//	{
+		//		Im3d::Vec3 scale = transform.getScale();
+		//		ImGui::Text("Scale: %.3f, %.3f, %.3f", scale.x, scale.y, scale.z);
+		//		break;
+		//	}
+		//	default: break;
+		//	};
+
+		//}
 	}
 }
 

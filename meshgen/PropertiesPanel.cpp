@@ -2,10 +2,11 @@
 #include "pch.h"
 #include "PropertiesPanel.h"
 
+#include "common/MathUtil.h"
 #include "meshgen/Editor.h"
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/RenderManager.h"
-#include "meshgen/ZoneContext.h"
+#include "meshgen/ZoneProject.h"
 #include "imgui/fonts/IconsFontAwesome.h"
 
 #include <glm/gtc/type_ptr.hpp>
@@ -26,10 +27,12 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 
 	if (ImGui::Begin(panelName.c_str(), p_open))
 	{
-		// show zone name
-		if (auto loadingCtx = m_editor->GetLoadingZoneContext())
+		auto project = m_editor->GetProject();
+
+		// Show zone name or loading progress... (maybe convert to dialog?)
+		if (project->IsZoneLoading())
 		{
-			ProgressState state = loadingCtx->GetProgress();
+			ProgressState state = project->GetProgress();
 
 			if (state.display.value_or(false))
 			{
@@ -37,16 +40,16 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 				ImGui::ProgressBar(state.value.value_or(0.0f));
 			}
 		}
-		else if (!m_zoneContext || !m_zoneContext->IsZoneLoaded())
+		else if (!project->IsZoneLoaded())
 			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
 		else
-			ImGui::TextColored(ImColor(0, 255, 0), "%s", m_zoneContext->GetDisplayName().c_str());
+			ImGui::TextColored(ImColor(0, 255, 0), "%s", project->GetDisplayName().c_str());
 
-		if (m_zoneContext)
+		if (project->IsZoneLoaded())
 		{
 			ImGui::Separator();
 
-			auto* loader = m_zoneContext->GetMeshLoader();
+			auto* loader = project->GetMeshLoader();
 
 			if (loader->HasDynamicObjects())
 				ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
@@ -65,11 +68,12 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 			}
 			ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
 
-			if (m_zoneContext->IsNavMeshLoaded())
+			if (project->IsNavMeshReady())
 			{
+				// TODO: Can remove, have it on the toolbar
 				ImGui::Separator();
-				if (ImGui::Button((const char*)ICON_FA_FLOPPY_O " Save"))
-					m_zoneContext->SaveNavMesh();
+				if (ImGui::Button(ICON_FA_FLOPPY_O " Save"))
+					project->SaveNavMesh();
 			}
 
 			ImGui::Separator();
@@ -106,12 +110,4 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 	}
 
 	ImGui::End();
-}
-
-void PropertiesPanel::SetZoneContext(const std::shared_ptr<ZoneContext>& context)
-{
-	if (m_zoneContext == context)
-		return;
-
-	m_zoneContext = context;
 }

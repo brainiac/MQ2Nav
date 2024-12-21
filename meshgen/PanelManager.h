@@ -9,7 +9,9 @@
 #include <unordered_map>
 #include <mutex>
 
-class ZoneContext;
+
+class ZoneProject;
+class NavMeshProject;
 
 class PanelWindow
 {
@@ -21,7 +23,8 @@ public:
 
 	virtual void OnImGuiRender(bool* p_open) = 0;
 
-	virtual void SetZoneContext(const std::shared_ptr<ZoneContext>& context) {}
+	virtual void OnProjectChanged(const std::shared_ptr<ZoneProject>& zoneProject) {}
+	virtual void OnNavMeshProjectChanged(const std::shared_ptr<NavMeshProject>& navMeshProject) {}
 
 	void SetIsOpen(bool open);
 
@@ -77,6 +80,9 @@ struct PopupNotification
 	bool shown;
 };
 
+template <typename T>
+concept IsPanel = std::is_base_of_v<PanelWindow, T>;
+
 class PanelManager
 {
 public:
@@ -85,9 +91,10 @@ public:
 
 	void AddDockingLayout(DockingLayout&& layout);
 
-	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
+	void OnProjectChanged(const std::shared_ptr<ZoneProject>& zoneProject);
+	void OnNavMeshProjectChanged(const std::shared_ptr<NavMeshProject>& navMeshProject);
 
-	template <typename T, typename... Args>
+	template <IsPanel T, typename... Args>
 	std::shared_ptr<T> AddPanel(Args&&... args)
 	{
 		static_assert(std::is_base_of_v<PanelWindow, T>, "AddPanel requries a type that inherits from PanelWindow");
@@ -98,8 +105,6 @@ public:
 		assert(!m_panels.contains(hash));
 		m_panelsSorted.push_back(hash);
 		m_panels.emplace(hash, panel);
-
-		panel->SetZoneContext(m_zoneContext);
 
 		return panel;
 	}
@@ -159,6 +164,4 @@ private:
 	// List of popups
 	std::vector<PopupNotification> m_popups;
 	int m_nextPopupId = 1;
-
-	std::shared_ptr<ZoneContext> m_zoneContext;
 };

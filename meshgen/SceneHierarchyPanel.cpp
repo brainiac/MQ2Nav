@@ -18,8 +18,3 @@ SceneHierarchyPanel::~SceneHierarchyPanel()
 void SceneHierarchyPanel::OnImGuiRender(bool* p_open)
 {
 }
-
-void SceneHierarchyPanel::SetScene(const std::shared_ptr<Scene>& scene)
-{
-	m_scene = scene;
-}

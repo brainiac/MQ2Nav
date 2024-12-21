@@ -40,6 +40,8 @@
 #include <shlobj.h>
 #include <Shlwapi.h>
 
+#include <fmt/format.h>
+
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>

@@ -2,17 +2,18 @@
 // NavMeshPruneTool.cpp
 //
 
+#include "common/NavMeshData.h"
 #include "meshgen/NavMeshPruneTool.h"
 #include "meshgen/NavMeshTool.h"
-#include "common/NavMeshData.h"
+#include "meshgen/ZoneRenderManager.h"
 
-#include <DetourNavMesh.h>
-#include <DetourCommon.h>
 #include <DetourAssert.h>
+#include <DetourCommon.h>
 #include <DetourDebugDraw.h>
+#include <DetourNavMesh.h>
 
-#include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <imgui.h>
 
 #include <vector>
 
@@ -212,7 +213,7 @@ void NavMeshPruneTool::handleClick(const glm::vec3& p, bool /*shift*/)
 {
 	if (!m_meshTool)
 		return;
-	if (m_meshTool->GetZoneContext())
+	if (!m_meshTool->GetNavMesh())
 		return;
 	auto nav = m_meshTool->GetNavMesh()->GetNavMesh();
 	if (!nav) return;

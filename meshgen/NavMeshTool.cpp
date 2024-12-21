@@ -12,25 +12,21 @@
 #include "meshgen/OffMeshConnectionTool.h"
 #include "meshgen/RecastContext.h"
 #include "meshgen/WaypointsTool.h"
-#include "meshgen/ZoneContext.h"
+#include "meshgen/ZoneProject.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
 #include "common/proto/NavMeshFile.pb.h"
 #include "imgui/ImGuiUtils.h"
 #include "imgui/fonts/IconsMaterialDesign.h"
+#include "meshgen/ZoneRenderManager.h"
 
 #include <Recast.h>
-#include <RecastDump.h>
 #include <DetourCommon.h>
 #include <DetourDebugDraw.h>
 #include <DetourNavMesh.h>
-#include <DetourNavMeshBuilder.h>
 
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
-#include <ppl.h>
-#include <agents.h>
 #include <complex>
 
 #include "BackgroundTaskManager.h"
@@ -39,16 +35,7 @@
 
 NavMeshTool::NavMeshTool()
 {
-	resetCommonSettings();
-
 	setTool(new NavMeshTileTool);
-
-	m_renderManager = std::make_unique<ZoneRenderManager>();
-	m_renderManager->init();
-	m_renderManager->SetNavMeshConfig(&m_config);
-	m_renderManager->GetNavMeshRender()->SetFlags(
-		ZoneNavMeshRender::DRAW_TILES | ZoneNavMeshRender::DRAW_TILE_BOUNDARIES | ZoneNavMeshRender::DRAW_CLOSED_LIST
-	);
 
 	UpdateTileSizes();
 }
@@ -59,36 +46,53 @@ NavMeshTool::~NavMeshTool()
 
 //----------------------------------------------------------------------------
 
-void NavMeshTool::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
+void NavMeshTool::OnProjectChanged(const std::shared_ptr<ZoneProject>& project)
 {
-	m_zoneContext = zoneContext;
-
 	Reset();
 
-	m_renderManager->SetZoneContext(zoneContext);
+	m_zoneProj = project;
+}
 
-	if (m_zoneContext)
+void NavMeshTool::OnNavMeshProjectChanged(const std::shared_ptr<NavMeshProject>& navMeshProj)
+{
+	if (navMeshProj)
 	{
-		m_navMesh = m_zoneContext->GetNavMesh();
-		m_navMeshConn = m_navMesh->OnNavMeshChanged.Connect([this]()
-		{
-			Application::Get().GetBackgroundTaskManager().PostToMainThread([this]()
-				{
-					NavMeshUpdated();
-				});
-		});
+		m_navMeshProj = navMeshProj;
+		m_navMesh = m_navMeshProj->GetNavMesh();
 
-		m_navMeshBuilder = std::make_shared<NavMeshBuilder>(m_zoneContext);
+		// TODO: Refactor how changes are sent through the system (threading...)
+		m_navMeshConn = m_navMesh->OnNavMeshChanged.Connect([this]()
+			{
+				Application::Get().GetBackgroundTaskManager().PostToMainThread([this]()
+					{
+						NavMeshUpdated();
+					});
+			});
+
 
 		NavMeshUpdated();
+	}
+	else if (m_navMeshProj)
+	{
+		m_navMeshProj = nullptr;
+		m_navMeshConn.Disconnect();
+		m_navMesh.reset();
+
+		if (m_tool)
+		{
+			m_tool->reset();
+		}
+
+		resetToolStates();
 	}
 }
 
 void NavMeshTool::Reset()
 {
-	m_navMesh = nullptr;
+	m_navMesh.reset();
+	m_navMeshProj.reset();
 	m_navMeshConn.Disconnect();
-	m_navMeshBuilder.reset();
+	m_zoneProj.reset();
 
 	if (m_tool)
 	{
@@ -100,54 +104,24 @@ void NavMeshTool::Reset()
 
 void NavMeshTool::NavMeshUpdated()
 {
-	if (!m_navMesh->IsNavMeshLoadedFromDisk())
-	{
-		if (m_zoneContext)
-		{
-			// reset to default
-			m_navMesh->SetNavMeshBounds(
-				m_zoneContext->GetMeshBoundsMin(),
-				m_zoneContext->GetMeshBoundsMax());
-		}
-
-		m_navMesh->GetNavMeshConfig() = m_config;
-	}
-	else
-	{
-		m_config = m_navMesh->GetNavMeshConfig();
-	}
-
 	if (m_tool)
 	{
 		m_tool->init(this);
 	}
 
-	m_renderManager->GetNavMeshRender()->SetNavMesh(m_navMesh);
-	m_renderManager->GetNavMeshRender()->Build();
-
 	initToolStates();
-}
-
-void NavMeshTool::GetTileStatistics(int& width, int& height) const
-{
-	width = m_tilesWidth;
-	height = m_tilesHeight;
-}
-
-int NavMeshTool::GetTilesBuilt() const
-{
-	return m_navMeshBuilder ? m_navMeshBuilder->GetTilesBuilt() : 0;
 }
 
 void NavMeshTool::UpdateTileSizes()
 {
 	if (m_navMesh)
 	{
+		auto& config = m_navMeshProj->GetNavMeshConfig();
 		glm::vec3 bmin, bmax;
 		m_navMesh->GetNavMeshBounds(bmin, bmax);
 		int gw = 0, gh = 0;
-		rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
-		const int ts = (int)m_config.tileSize;
+		rcCalcGridSize(&bmin[0], &bmax[0], config.cellSize, &gw, &gh);
+		const int ts = (int)config.tileSize;
 		m_tilesWidth = (gw + ts - 1) / ts;
 		m_tilesHeight = (gh + ts - 1) / ts;
 		m_tilesCount = m_tilesWidth * m_tilesHeight;
@@ -160,41 +134,34 @@ void NavMeshTool::UpdateTileSizes()
 	}
 }
 
-bool NavMeshTool::IsBuildingTiles() const
-{
-	return m_navMeshBuilder && m_navMeshBuilder->IsBuildingTiles();
-}
-
-float NavMeshTool::GetTotalBuildTimeMS() const
-{
-	return m_navMeshBuilder ? m_navMeshBuilder->GetTotalBuildTimeMS() : 0.f;
-}
-
 void NavMeshTool::handleDebug()
 {
-	if (m_zoneContext)
+	if (m_zoneProj)
 	{
 		ImGui::Checkbox("Draw Input Geometry", &m_drawInputGeometry);
 
-		uint32_t flags = m_renderManager->GetNavMeshRender()->GetFlags();
+		// TODO: Extract these to app settings
+		auto renderManager = m_zoneProj->GetRenderManager();
+
+		uint32_t flags = renderManager->GetNavMeshRender()->GetFlags();
 		if (ImGui::CheckboxFlags("Draw Tiles", &flags, ZoneNavMeshRender::DRAW_TILES))
-			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+			renderManager->GetNavMeshRender()->SetFlags(flags);
 		if (ImGui::CheckboxFlags("Draw Tile Boundaries", &flags, ZoneNavMeshRender::DRAW_TILE_BOUNDARIES))
-			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+			renderManager->GetNavMeshRender()->SetFlags(flags);
 		if (ImGui::CheckboxFlags("Draw Polygon Boundaries", &flags, ZoneNavMeshRender::DRAW_POLY_BOUNDARIES))
-			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+			renderManager->GetNavMeshRender()->SetFlags(flags);
 		if (ImGui::CheckboxFlags("Draw Polygon Vertices", &flags, ZoneNavMeshRender::DRAW_POLY_VERTICES))
-			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+			renderManager->GetNavMeshRender()->SetFlags(flags);
 		if (ImGui::CheckboxFlags("Draw Closed List", &flags, ZoneNavMeshRender::DRAW_CLOSED_LIST))
-			m_renderManager->GetNavMeshRender()->SetFlags(flags);
+			renderManager->GetNavMeshRender()->SetFlags(flags);
 
 		ImGui::Checkbox("Draw Grid", &m_drawGrid);
 
-		float pointSize = m_renderManager->GetNavMeshRender()->GetPointSize();
+		float pointSize = renderManager->GetNavMeshRender()->GetPointSize();
 		if (ImGui::DragFloat("PointSize", &pointSize, 0.01f, 0, 10, "%.2f"))
 		{
-			m_renderManager->SetPointSize(pointSize);
-			m_renderManager->GetNavMeshRender()->SetPointSize(pointSize);
+			renderManager->SetPointSize(pointSize);
+			renderManager->GetNavMeshRender()->SetPointSize(pointSize);
 		}
 	
 		ImGui::Checkbox("Draw BV Tree", &m_drawNavMeshBVTree);
@@ -293,35 +260,38 @@ void NavMeshTool::handleTools()
 		ImGui::SameLine(ImGui::GetContentRegionAvail().x - 100);
 		if (ImGuiEx::ColoredButton("Reset Settings", ImVec2(100, 0), 0.0))
 		{
-			m_config = NavMeshConfig{};
+			m_navMeshProj->ResetNavMeshConfig();
 		}
+
+		auto& config = m_navMeshProj->GetNavMeshConfig();
 
 		if (ImGui::TreeNodeEx("Tiling", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
 		{
 
-			ImGui::SliderFloat("Tile Size", &m_config.tileSize, 16.0f, 1024.0f, "%.0f");
+			ImGui::SliderFloat("Tile Size", &config.tileSize, 16.0f, 1024.0f, "%.0f");
 
 			UpdateTileSizes();
 
-			ImGui::SliderFloat("Cell Size", &m_config.cellSize, 0.1f, 1.0f);
-			ImGui::SliderFloat("Cell Height", &m_config.cellHeight, 0.1f, 1.0f);
-		}
-		if (ImGui::TreeNodeEx("Agent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
-		{
-			ImGui::SliderFloat("Height", &m_config.agentHeight, 0.1f, 15.0f, "%.1f");
-			ImGui::SliderFloat("Radius", &m_config.agentRadius, 0.1f, 15.0f, "%.1f");
-			ImGui::SliderFloat("Max Climb", &m_config.agentMaxClimb, 0.1f, 15.0f, "%.1f");
-			ImGui::SliderFloat("Max Slope", &m_config.agentMaxSlope, 0.0f, 90.0f, "%.1f");
+			ImGui::SliderFloat("Cell Size", &config.cellSize, 0.1f, 1.0f);
+			ImGui::SliderFloat("Cell Height", &config.cellHeight, 0.1f, 1.0f);
 		}
 
-		if (m_zoneContext &&
+		if (ImGui::TreeNodeEx("Agent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
+		{
+			ImGui::SliderFloat("Height", &config.agentHeight, 0.1f, 15.0f, "%.1f");
+			ImGui::SliderFloat("Radius", &config.agentRadius, 0.1f, 15.0f, "%.1f");
+			ImGui::SliderFloat("Max Climb", &config.agentMaxClimb, 0.1f, 15.0f, "%.1f");
+			ImGui::SliderFloat("Max Slope", &config.agentMaxSlope, 0.0f, 90.0f, "%.1f");
+		}
+
+		if (m_zoneProj &&
 			ImGui::TreeNodeEx("Bounding Box", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen))
 		{
 			glm::vec3 min, max;
 			m_navMesh->GetNavMeshBounds(min, max);
 
-			glm::vec3 bmin = m_zoneContext->GetMeshBoundsMin();
-			glm::vec3 bmax = m_zoneContext->GetMeshBoundsMax();
+			glm::vec3 bmin = m_zoneProj->GetMeshBoundsMin();
+			glm::vec3 bmax = m_zoneProj->GetMeshBoundsMax();
 
 			ImGui::SliderFloat("Min X", &min.x, bmin.x, bmax.x, "%.1f");
 			ImGui::SliderFloat("Min Y", &min.y, bmin.y, bmax.y, "%.1f");
@@ -353,8 +323,8 @@ void NavMeshTool::handleTools()
 				"    be merged with larger regions.";
 			mq::imgui::HelpMarker(RegionHelp, 600.0f, mq::imgui::ConsoleFont);
 
-			ImGui::SliderFloat("Min Region Size", &m_config.regionMinSize, 0.0f, 150.0f, "%.0f");
-			ImGui::SliderFloat("Merged Region Size", &m_config.regionMergeSize, 0.0f, 150.0f, "%.0f");
+			ImGui::SliderFloat("Min Region Size", &config.regionMinSize, 0.0f, 150.0f, "%.0f");
+			ImGui::SliderFloat("Merged Region Size", &config.regionMergeSize, 0.0f, 150.0f, "%.0f");
 
 			// Partitioning
 			ImGui::Text("Partitioning");
@@ -391,7 +361,7 @@ void NavMeshTool::handleTools()
 			mq::imgui::HelpMarker(PartitioningHelp, 600.0f, mq::imgui::ConsoleFont);
 
 			const char *partition_types[] = { "Watershed", "Monotone", "Layers" };
-			ImGui::Combo("Partition Type", (int*)&m_config.partitionType, partition_types, 3);
+			ImGui::Combo("Partition Type", (int*)&config.partitionType, partition_types, 3);
 
 			// Polygonization
 			ImGui::Text("Polygonization");
@@ -407,9 +377,9 @@ void NavMeshTool::handleTools()
 				"    contour to polygon conversion process.\n";
 			mq::imgui::HelpMarker(PolygonizationHelp, 600.0f, mq::imgui::ConsoleFont);
 
-			ImGui::SliderFloat("Max Edge Length", &m_config.edgeMaxLen, 0.0f, 50.0f, "%.0f");
-			ImGui::SliderFloat("Max Edge Error", &m_config.edgeMaxError, 0.1f, 3.0f, "%.1f");
-			ImGui::SliderFloat("Verts Per Poly", &m_config.vertsPerPoly, 3.0f, 12.0f, "%.0f");
+			ImGui::SliderFloat("Max Edge Length", &config.edgeMaxLen, 0.0f, 50.0f, "%.0f");
+			ImGui::SliderFloat("Max Edge Error", &config.edgeMaxError, 0.1f, 3.0f, "%.1f");
+			ImGui::SliderFloat("Verts Per Poly", &config.vertsPerPoly, 3.0f, 12.0f, "%.0f");
 
 			// Detail Mesh
 			ImGui::Text("Detail Mesh");
@@ -423,27 +393,33 @@ void NavMeshTool::handleTools()
 				"    heightfield data. (for height detail only).\n";
 			mq::imgui::HelpMarker(DetailMeshHelp, 600.0f, mq::imgui::ConsoleFont);
 
-			ImGui::SliderFloat("Sample Distance", &m_config.detailSampleDist, 0.0f, 0.9f, "%.2f");
-			ImGui::SliderFloat("Max Sample Error", &m_config.detailSampleMaxError, 0.0f, 100.0f, "%.1f");
+			ImGui::SliderFloat("Sample Distance", &config.detailSampleDist, 0.0f, 0.9f, "%.2f");
+			ImGui::SliderFloat("Max Sample Error", &config.detailSampleMaxError, 0.0f, 100.0f, "%.1f");
 		}
 	}
 }
 
 void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ivec4& viewport)
 {
+	// TODO: Remove all this from tool
+
+
 	m_viewModelProjMtx = viewModelProjMtx;
 	m_viewport = viewport;
 
-	if (!m_zoneContext || !m_zoneContext->IsZoneLoaded())
+	if (!m_zoneProj || !m_zoneProj->IsZoneLoaded())
 		return;
 
 	m_navMesh->SendEventIfDirty();
 
-	ZoneRenderDebugDraw dd(m_renderManager.get());
+	auto renderManager = m_zoneProj->GetRenderManager();
+	auto& config = m_navMeshProj->GetNavMeshConfig();
+
+	ZoneRenderDebugDraw dd(renderManager.get());
 
 	if (m_drawInputGeometry)
 	{
-		m_renderManager->GetInputGeoRender()->Render();
+		renderManager->GetInputGeoRender()->Render();
 	}
 
 	dd.depthMask(false);
@@ -458,10 +434,10 @@ void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ive
 
 		// Tiling grid.
 		int gw = 0, gh = 0;
-		rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
-		const int tw = (gw + (int)m_config.tileSize - 1) / (int)m_config.tileSize;
-		const int th = (gh + (int)m_config.tileSize - 1) / (int)m_config.tileSize;
-		const float s = m_config.tileSize * m_config.cellSize;
+		rcCalcGridSize(&bmin[0], &bmax[0], config.cellSize, &gw, &gh);
+		const int tw = (gw + (int)config.tileSize - 1) / (int)config.tileSize;
+		const int th = (gh + (int)config.tileSize - 1) / (int)config.tileSize;
+		const float s = config.tileSize * config.cellSize;
 		duDebugDrawGridXZ(&dd, bmin[0], bmin[1], bmin[2], tw, th, s, duRGBA(0, 0, 0, 64), 1.0f);
 	}
 	if (m_navMesh->IsNavMeshLoaded())
@@ -471,7 +447,7 @@ void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ive
 
 		if (navMesh && navQuery)
 		{
-			m_renderManager->GetNavMeshRender()->Render();
+			renderManager->GetNavMeshRender()->Render();
 
 			if (m_drawNavMeshBVTree)
 				duDebugDrawNavMeshBVTree(&dd, *navMesh);
@@ -488,7 +464,7 @@ void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ive
 		m_tool->handleRender();
 	renderToolStates();
 
-	m_renderManager->Render();
+	renderManager->Render();
 }
 
 void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
@@ -579,18 +555,69 @@ void NavMeshTool::handleRenderOverlay()
 	}
 }
 
+void NavMeshTool::GetTilePos(const glm::vec3& pos, int& tx, int& ty)
+{
+	if (!m_zoneProj) return;
+
+	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
+	auto& config = m_navMeshProj->GetNavMeshConfig();
+
+	const float ts = config.tileSize * config.cellSize;
+	tx = (int)((pos[0] - bmin[0]) / ts);
+	ty = (int)((pos[2] - bmin[2]) / ts);
+}
+
+void NavMeshTool::RemoveTile(const glm::vec3& pos)
+{
+	if (!m_navMeshProj) return;
+
+	m_navMeshProj->RemoveTile(pos);
+}
+
+void NavMeshTool::RemoveAllTiles()
+{
+	if (!m_navMeshProj) return;
+
+	m_navMeshProj->RemoveAllTiles();
+}
+
+//----------------------------------------------------------------------------
+
+float NavMeshTool::GetLastBuildTime() const
+{
+	if (!m_navMeshProj)
+		return 0.0f;
+
+	auto navMeshBuilder = m_navMeshProj->GetBuilder();
+	if (!navMeshBuilder)
+		return 0.0f;
+
+	return navMeshBuilder->GetLastBuildTimeMS();
+}
+
 bool NavMeshTool::BuildMesh()
 {
-	if (!m_navMeshBuilder)
+	auto navMeshBuilder = m_navMeshProj->GetBuilder();
+	if (!navMeshBuilder)
 	{
 		SPDLOG_ERROR("NavMeshTool::BuildMesh(): No navmesh builder");
 		return false;
 	}
 
-	m_navMeshBuilder->SetNavMesh(m_zoneContext->GetNavMesh());
-	m_navMeshBuilder->SetConfig(m_config);
+	// Note: this is called on the builder thread
+	auto callback = [](bool success, float elapsedTime)
+		{
+			if (success)
+			{
+				SPDLOG_INFO("NavMeshTool::BuildMesh(): NavMesh built in {} ms", elapsedTime);
+			}
+			else
+			{
+				SPDLOG_ERROR("NavMeshTool::BuildMesh(): Failed to build NavMesh");
+			}
+		};
 
-	if (!m_navMeshBuilder->BuildNavMesh([](bool) {}))
+	if (!navMeshBuilder->BuildNavMesh(callback))
 		return false;
 
 	if (m_tool)
@@ -603,82 +630,28 @@ bool NavMeshTool::BuildMesh()
 	return true;
 }
 
-void NavMeshTool::GetTilePos(const glm::vec3& pos, int& tx, int& ty)
-{
-	if (!m_zoneContext) return;
-
-	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
-
-	const float ts = m_config.tileSize * m_config.cellSize;
-	tx = (int)((pos[0] - bmin[0]) / ts);
-	ty = (int)((pos[2] - bmin[2]) / ts);
-}
-
-void NavMeshTool::RemoveTile(const glm::vec3& pos)
-{
-	if (!m_zoneContext) return;
-
-	auto navMesh = m_navMesh->GetNavMesh();
-	if (!navMesh) return;
-
-	glm::ivec2 tilePos = m_navMesh->GetTilePos(pos);
-
-	m_navMesh->RemoveTileAt(tilePos.x, tilePos.y);
-}
-
-void NavMeshTool::RemoveAllTiles()
-{
-	m_navMesh->RemoveAllTiles();
-}
-
-void NavMeshTool::CancelBuildAllTiles(bool wait)
-{
-	if (m_navMeshBuilder)
-		m_navMeshBuilder->CancelBuild(wait);
-}
-
-void NavMeshTool::resetCommonSettings()
-{
-	m_config = NavMeshConfig{};
-}
-
-//----------------------------------------------------------------------------
-
 void NavMeshTool::BuildTile(const glm::vec3& pos)
 {
-	if (!m_navMeshBuilder)
+	auto navMeshBuilder = m_navMeshProj->GetBuilder();
+	if (!navMeshBuilder)
 	{
 		SPDLOG_ERROR("NavMeshTool::BuildMesh(): No navmesh builder");
 		return;
 	}
 
-	m_navMeshBuilder->SetNavMesh(m_zoneContext->GetNavMesh());
-	m_navMeshBuilder->SetConfig(m_config);
-
-	m_navMeshBuilder->BuildTile(pos);
+	navMeshBuilder->BuildTile(pos);
 }
 
 void NavMeshTool::RebuildTiles(const std::vector<dtTileRef>& tiles)
 {
-	if (!m_navMeshBuilder)
+	auto navMeshBuilder = m_navMeshProj->GetBuilder();
+	if (!navMeshBuilder)
 	{
 		SPDLOG_ERROR("NavMeshTool::RebuildTiles(): No navmesh builder");
 		return;
 	}
 
-	m_navMeshBuilder->SetNavMesh(m_zoneContext->GetNavMesh());
-	m_navMeshBuilder->SetConfig(m_config);
-
-	m_navMeshBuilder->RebuildTiles(tiles);
-}
-
-void NavMeshTool::SaveNavMesh()
-{
-	// update nav mesh config with current settings
-	m_navMesh->GetNavMeshConfig() = m_config;
-
-	// save everything out
-	m_navMesh->SaveNavMeshFile();
+	navMeshBuilder->RebuildTiles(tiles);
 }
 
 unsigned int NavMeshTool::GetColorForPoly(const dtPoly* poly)
@@ -738,9 +711,6 @@ void NavMeshTool::handleUpdate(float dt)
 			p.second->handleUpdate(dt);
 		}
 	}
-
-	if (m_navMeshBuilder)
-		m_navMeshBuilder->Update();
 }
 
 void NavMeshTool::initToolStates()

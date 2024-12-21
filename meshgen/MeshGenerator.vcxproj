@@ -29,6 +29,7 @@
     <ClCompile Include="Logging.cpp" />
     <ClCompile Include="ConsolePanel.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
+    <ClCompile Include="NavMeshBuilder.cpp" />
     <ClCompile Include="NavMeshInfoTool.cpp" />
     <ClCompile Include="NavMeshTool.cpp" />
     <ClCompile Include="NavMeshPruneTool.cpp" />
@@ -50,7 +51,7 @@
     <ClCompile Include="SettingsDialog.cpp" />
     <ClCompile Include="ToolsPanel.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
-    <ClCompile Include="ZoneContext.cpp" />
+    <ClCompile Include="ZoneProject.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
     <ClCompile Include="ZoneRenderManager.cpp" />
     <ClCompile Include="ZoneResourceManager.cpp" />
@@ -85,7 +86,7 @@
     <ClInclude Include="Logging.h" />
     <ClInclude Include="ConsolePanel.h" />
     <ClInclude Include="MapGeometryLoader.h" />
-    <ClInclude Include="Math.h" />
+    <ClInclude Include="NavMeshBuilder.h" />
     <ClInclude Include="NavMeshInfoTool.h" />
     <ClInclude Include="NavMeshTool.h" />
     <ClInclude Include="NavMeshPruneTool.h" />
@@ -105,7 +106,7 @@
     <ClInclude Include="SettingsDialog.h" />
     <ClInclude Include="ToolsPanel.h" />
     <ClInclude Include="WaypointsTool.h" />
-    <ClInclude Include="ZoneContext.h" />
+    <ClInclude Include="ZoneProject.h" />
     <ClInclude Include="ZoneResourceManager.h" />
     <ClInclude Include="ZonePicker.h" />
     <ClInclude Include="ZoneRenderManager.h" />

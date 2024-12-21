@@ -1,8 +1,10 @@
 #include "ZoneRenderManager.h"
 
+#include <math.h>
+
 #include "meshgen/MapGeometryLoader.h"
 #include "meshgen/ResourceManager.h"
-#include "meshgen/ZoneContext.h"
+#include "meshgen/ZoneProject.h"
 #include "common/NavMeshData.h"
 #include "common/NavMesh.h"
 #include "im3d/im3d_math.h"
@@ -11,6 +13,7 @@
 #include <recast/DebugUtils/Include/DebugDraw.h>
 #include <recast/Detour/Include/DetourNavMeshQuery.h>
 #include <imgui/imgui.h>
+
 
 ZoneRenderManager* g_zoneRenderManager = nullptr;
 
@@ -50,6 +53,9 @@ struct ZoneRenderShared
 
 	void init()
 	{
+		if (m_initialized)
+			return;
+
 		DebugDrawGridTexturedVertex::init();
 		DebugDrawPolyVertex::init();
 		DebugDrawQuadTemplateVertex::init();
@@ -122,6 +128,8 @@ struct ZoneRenderShared
 			bgfx::destroy(m_quadIB);
 			bgfx::destroy(m_pointsProgram);
 		}
+
+		m_initialized = false;
 	}
 };
 
@@ -302,7 +310,8 @@ static void Im3d_Draw(const Im3d::DrawList& drawList)
 
 //============================================================================
 
-ZoneRenderManager::ZoneRenderManager()
+ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
+	: m_project(project)
 {
 	m_zoneInputGeometry = new ZoneInputGeometryRender(this);
 	m_navMeshRender = new ZoneNavMeshRender(this);
@@ -326,12 +335,12 @@ ZoneRenderManager::~ZoneRenderManager()
 	g_zoneRenderManager = nullptr;
 }
 
-void ZoneRenderManager::init()
+void ZoneRenderManager::InitShared()
 {
 	s_shared.init();
 }
 
-void ZoneRenderManager::shutdown()
+void ZoneRenderManager::ShutdownShared()
 {
 	s_shared.shutdown();
 }
@@ -370,15 +379,14 @@ void ZoneRenderManager::DestroyObjects()
 	m_lastTrisIndicesSize = 0;
 }
 
-void ZoneRenderManager::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
+void ZoneRenderManager::OnNavMeshChanged(const std::shared_ptr<NavMeshProject>& navMesh)
 {
-	m_zoneContext = zoneContext;
-	m_zoneInputGeometry->SetZoneContext(zoneContext);
+	m_navMeshRender->SetNavMesh(navMesh);
 }
 
-void ZoneRenderManager::SetNavMeshConfig(const NavMeshConfig* config)
+void ZoneRenderManager::Rebuild()
 {
-	m_meshConfig = config;
+	m_zoneInputGeometry->Rebuild();
 }
 
 void ZoneRenderManager::Render()
@@ -497,28 +505,38 @@ ZoneInputGeometryRender::~ZoneInputGeometryRender()
 {
 }
 
-void ZoneInputGeometryRender::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
+void ZoneInputGeometryRender::Rebuild()
 {
-	if (m_zoneContext == zoneContext)
-		return;
-
-	m_zoneContext = zoneContext;
-
 	DestroyObjects();
 
-	if (m_zoneContext)
-	{
-		CreateObjects();
-	}
+	CreateObjects();
 }
 
 void ZoneInputGeometryRender::CreateObjects()
 {
-	auto loader = m_zoneContext->GetMeshLoader();
-	const NavMeshConfig* config = m_mgr->GetNavMeshConfig();
+	auto project = m_mgr->GetZone();
+	if (!project->IsZoneLoaded())
+	{
+		return;
+	}
+
+	auto loader = project->GetMeshLoader();
+
+	// Check to see if we have a mesh config, otherwise we'll use defaults.
+	const NavMeshConfig* config = nullptr;
+
+	if (auto navMesh = m_mgr->GetNavMesh())
+	{
+		config = &navMesh->GetNavMeshConfig();
+	}
+	else
+	{
+		static NavMeshConfig defaultConfig;
+
+		config = &defaultConfig;
+	}
 
 	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(loader->getVerts());
-	const int numVerts = loader->getVertCount();
 	const int* tris = loader->getTris();
 	const float* normals = loader->getNormals();
 	const int ntris = loader->getTriCount();
@@ -620,13 +638,22 @@ ZoneNavMeshRender::~ZoneNavMeshRender()
 {
 }
 
-void ZoneNavMeshRender::SetNavMesh(const std::shared_ptr<NavMesh>& navMesh)
+void ZoneNavMeshRender::SetNavMesh(const std::shared_ptr<NavMeshProject>& navMesh)
 {
 	if (m_navMesh == navMesh)
 		return;
 
+
+	m_navMeshConn.Disconnect();
 	m_navMesh = navMesh;
 	m_dirty = true;
+
+	if (m_navMesh)
+	{
+		m_navMeshConn = m_navMesh->GetNavMesh()->OnNavMeshChanged.Connect([this]() {
+			m_dirty = true;
+		});
+	}
 }
 
 void ZoneNavMeshRender::SetNavMeshQuery(const dtNavMeshQuery* query)
@@ -724,21 +751,21 @@ void ZoneNavMeshRender::DestroyObjects()
 
 void ZoneNavMeshRender::Build()
 {
-	std::shared_ptr<dtNavMesh> navMesh = m_navMesh->GetNavMesh();
-	if (!navMesh)
-	{
+	if (!m_navMesh)
 		return;
-	}
+	auto navMesh = m_navMesh->GetNavMesh();
+	if (!navMesh)
+		return;
 
-	m_query = m_navMesh->GetNavMeshQuery().get();
+	m_query = navMesh->GetNavMeshQuery().get();
 
 	DestroyObjects();
 
-	auto& mutex = m_navMesh->GetTileMutex();
+	auto& mutex = navMesh->GetTileMutex();
 	std::unique_lock lock(mutex);
 
 	const dtNavMeshQuery* q = m_flags & DRAW_CLOSED_LIST ? m_query : nullptr;
-	const dtNavMesh& mesh = *m_navMesh->GetNavMesh();
+	const dtNavMesh& mesh = *navMesh->GetNavMesh();
 
 	// Build navmesh tiles
 	std::vector<DebugDrawPolyVertex> navMeshTileVertices;
@@ -1067,9 +1094,9 @@ void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& ve
 
 uint32_t ZoneNavMeshRender::PolyToCol(const dtPoly* poly)
 {
-	if (poly)
+	if (auto navMesh = m_navMesh->GetNavMesh(); poly && navMesh)
 	{
-		return m_navMesh->GetPolyArea(poly->getArea()).color;
+		return navMesh->GetPolyArea(poly->getArea()).color;
 	}
 
 	return 0;

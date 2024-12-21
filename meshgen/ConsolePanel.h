@@ -90,8 +90,12 @@ private:
 		return true;
 	}
 
+	void UpdateMessagesFromQueue();
+
+	mutable std::mutex m_mutex;
 	std::shared_ptr<ConsoleLogSink> m_sink;
 	std::deque<ConsoleMessage> m_messages;
+	std::vector<ConsoleMessage> m_queuedMessages;
 	ImGuiTextFilter m_filter;
 	uint8_t m_categoryMask = 0xf7; // bgfx off by default
 	uint8_t m_levelMask = 0xfe;  // trace off by default

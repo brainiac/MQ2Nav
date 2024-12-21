@@ -80,31 +80,48 @@ ConsolePanel::~ConsolePanel()
 
 void ConsolePanel::AddLog(const spdlog::details::log_msg& message)
 {
-	m_messages.emplace_back(
+	std::unique_lock lock(m_mutex);
+
+	m_queuedMessages.emplace_back(
 		message.time,
 		Logging::GetLoggingCategory(
 			std::string_view(message.logger_name.data(), message.logger_name.size())),
 		message.level,
 		std::string_view(message.payload.data(), message.payload.size())
 	);
-
-	const ConsoleMessage& newMsg = m_messages.back();
-	if (MessageMatchesFilter(newMsg))
-		m_filteredMessages.push_back(m_messages.size() - 1);
 }
 
 void ConsolePanel::AddLog(ConsoleMessage&& message)
 {
-	m_messages.push_back(std::move(message));
+	std::unique_lock lock(m_mutex);
+	m_queuedMessages.push_back(std::move(message));
+}
 
-	const ConsoleMessage& newMsg = m_messages.back();
-	if (MessageMatchesFilter(newMsg))
-		m_filteredMessages.push_back(m_messages.size() - 1);
+void ConsolePanel::UpdateMessagesFromQueue()
+{
+	assert(Application::IsMainThread());
+
+	std::unique_lock lock(m_mutex);
+	if (m_queuedMessages.empty())
+		return;
+
+	for (auto&& message : m_queuedMessages)
+	{
+		m_messages.push_back(std::move(message));
+
+		const ConsoleMessage& newMsg = m_messages.back();
+		if (MessageMatchesFilter(newMsg))
+			m_filteredMessages.push_back(m_messages.size() - 1);
+	}
+
+	m_queuedMessages.clear();
 }
 
 void ConsolePanel::OnImGuiRender(bool* p_open)
 {
 	ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+
+	UpdateMessagesFromQueue();
 
 	if (ImGui::Begin(panelName.c_str(), p_open))
 	{

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "meshgen/ZoneRenderManager.h"
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
+#include "meshgen/NavMeshBuilder.h"
 
 #include <DebugDraw.h>
 #include <DetourNavMesh.h>
@@ -20,15 +20,15 @@
 #include <thread>
 #include <agents.h>
 
-#include "common/NavMeshBuilder.h"
 
-class RecastContext;
 class dtNavMesh;
 class dtNavMeshQuery;
-class rcContext;
-
-class NavMeshTool;
 class NavMeshLoader;
+class NavMeshProject;
+class NavMeshTool;
+class rcContext;
+class RecastContext;
+class ZoneProject;
 
 namespace spdlog {
 	class logger;
@@ -84,8 +84,8 @@ public:
 	NavMeshTool();
 	virtual ~NavMeshTool();
 
-	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
-	std::shared_ptr<ZoneContext> GetZoneContext() const { return m_zoneContext; }
+	void OnProjectChanged(const std::shared_ptr<ZoneProject>& project);
+	void OnNavMeshProjectChanged(const std::shared_ptr<NavMeshProject>& navMeshCtx);
 
 	void Reset();
 
@@ -101,20 +101,13 @@ public:
 	bool BuildMesh();
 	void BuildTile(const glm::vec3& pos);
 	void RebuildTiles(const std::vector<dtTileRef>& tiles);
-	void CancelBuildAllTiles(bool wait = true);
 
 	void RemoveTile(const glm::vec3& pos);
 	void RemoveAllTiles();
 
-	void SaveNavMesh();
-
 	void UpdateTileSizes();
 
-	bool IsBuildingTiles() const;
-	float GetTotalBuildTimeMS() const;
-
-	void GetTileStatistics(int& width, int& height) const;
-	int GetTilesBuilt() const;
+	float GetLastBuildTime() const;
 
 	std::shared_ptr<NavMesh> GetNavMesh() const { return m_navMesh; }
 
@@ -124,42 +117,35 @@ public:
 
 	unsigned int GetColorForPoly(const dtPoly* poly);
 
-	ZoneRenderManager* GetRenderManager() { return m_renderManager.get(); }
-
 	glm::ivec2 Project(const glm::vec3& point) const;
 	const glm::ivec4& GetViewport() const { return m_viewport; }
 	const glm::mat4& GetViewModelProjMtx() const { return m_viewModelProjMtx; }
 
 private:
-	void resetCommonSettings();
-
 	void initToolStates();
 	void resetToolStates();
 	void renderToolStates();
 
 	void NavMeshUpdated();
-
 	void drawConvexVolumes(duDebugDraw* dd);
 
 private:
 	glm::mat4 m_viewModelProjMtx;
 	glm::ivec4 m_viewport;
-	NavMeshConfig m_config;
 
-	std::unique_ptr<ZoneRenderManager> m_renderManager;
-
-	std::shared_ptr<NavMesh> m_navMesh;
 	mq::Signal<>::ScopedConnection m_navMeshConn;
 
 	std::unique_ptr<Tool> m_tool;
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
 
-	std::shared_ptr<ZoneContext> m_zoneContext;
-	std::shared_ptr<NavMeshBuilder> m_navMeshBuilder;
+	std::shared_ptr<ZoneProject> m_zoneProj;
+	std::shared_ptr<NavMeshProject> m_navMeshProj;
+	std::shared_ptr<NavMesh> m_navMesh;
 
 	int m_tilesWidth = 0;
 	int m_tilesHeight = 0;
 	int m_tilesCount = 0;
+	float m_lastBuildTime = 0.0f;
 
 	bool m_drawInputGeometry = true;
 	bool m_drawNavMeshBVTree = false;

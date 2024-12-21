@@ -3,8 +3,6 @@
 
 #include <taskflow/taskflow.hpp>
 
-class Application;
-class ZoneContext;
 
 class BackgroundTaskManager
 {
@@ -16,9 +14,11 @@ public:
 	void PostToMainThread(std::function<void()> cb);
 
 	void Stop();
-	void StopZoneTasks();
 	
-	void AddZoneTask(tf::Taskflow&& tf);
+	auto RunTask(tf::Taskflow&& tf)
+	{
+		return m_executor.run(std::move(tf));
+	}
 	
 private:
 	tf::Executor m_executor;

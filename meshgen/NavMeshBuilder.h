@@ -1,22 +1,22 @@
 
 #pragma once
 
-#include <agents.h>
-
-#include "NavMeshData.h"
+#include "common/NavMesh.h"
+#include "common/Utilities.h"
+#include "common/NavMeshData.h"
+#include "DetourNavMesh.h"
 
 #include <taskflow/taskflow.hpp>
 #include <memory>
+#include <agents.h>
 
-#include "DetourNavMesh.h"
-#include "NavMesh.h"
-#include "Utilities.h"
 
-class RecastContext;
-struct rcConfig;
-struct rcCompactHeightfield;
 class NavMesh;
-class ZoneContext;
+class NavMeshProject;
+class RecastContext;
+class ZoneProject;
+struct rcCompactHeightfield;
+struct rcConfig;
 
 class NavMeshBuildData
 {
@@ -28,36 +28,35 @@ public:
 class NavMeshBuilder
 {
 public:
-	NavMeshBuilder(const std::shared_ptr<ZoneContext>& zoneContext);
+	NavMeshBuilder(const std::shared_ptr<NavMeshProject>& navMeshProj);
 	~NavMeshBuilder();
 
-	void SetNavMesh(const std::shared_ptr<NavMesh>& navMesh);
-	void SetConfig(const NavMeshConfig& config);
-
-	float GetTotalBuildTimeMS() const { return m_totalBuildTimeMs; }
 	bool IsBuildingTiles() const { return m_buildingTiles; }
+
+	float GetLastBuildTimeMS() const { return m_totalBuildTimeMs; }
 	int GetTilesBuilt() const { return m_tilesBuilt; }
+	int GetTileCount() const { return m_tilesWidth * m_tilesHeight; }
 
 	void Update();
 
-	using BuildCallback = std::function<void(bool result)>;
+	using BuildCallback = std::function<void(bool result, float elapsedTime)>;
 
-	bool BuildNavMesh(BuildCallback&& callback);
+	bool BuildNavMesh(BuildCallback callback);
+	bool BuildTile(const glm::vec3& pos);
+	bool RebuildTiles(const std::vector<dtTileRef>& tiles);
 
 	void CancelBuild(bool wait);
 
-	void BuildTile(const glm::vec3& pos);
-	void BuildAllTiles(
-		const std::shared_ptr<dtNavMesh>& navMesh, bool async);
-
-	void RebuildTiles(const std::vector<dtTileRef>& tiles);
-
 private:
+	bool Prepare();
 	void UpdateTileSizes();
 	std::shared_ptr<NavMeshBuildData> CreateBuildData() const;
+	bool BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async,
+		BuildCallback callback);
 
-	void RebuildTile(
-		const std::shared_ptr<NavMeshBuildData>& buildData,
+	std::shared_ptr<NavMeshProject> GetNavMeshProject() const { return m_navMeshProj.lock(); }
+
+	bool RebuildTile(const std::shared_ptr<NavMeshBuildData>& buildData,
 		dtTileRef tileRef);
 
 	unsigned char* BuildTileMesh(
@@ -83,8 +82,7 @@ private:
 	using TileDataPtr = std::shared_ptr<TileData>;
 	Concurrency::unbounded_buffer<TileDataPtr> m_builtTileData;
 
-
-	std::shared_ptr<ZoneContext> m_zoneContext;
+	std::weak_ptr<NavMeshProject> m_navMeshProj;
 	std::shared_ptr<NavMesh> m_navMesh;
 	NavMeshConfig m_config;
 	int m_tilesWidth = 0;

@@ -1,58 +1,28 @@
 
 #include "NavMeshBuilder.h"
+#include "common/NavMesh.h"
+#include "common/Utilities.h"
+#include "meshgen/ChunkyTriMesh.h"
+#include "meshgen/MapGeometryLoader.h"
+#include "meshgen/RecastContext.h"
+#include "meshgen/ZoneProject.h"
+
+#include "DetourNavMeshBuilder.h"
+#include "Recast.h"
 
 #include <ppl.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
 
-#include "DetourNavMeshBuilder.h"
-#include "NavMesh.h"
-#include "Recast.h"
-#include "Utilities.h"
-#include "meshgen/ChunkyTriMesh.h"
-#include "meshgen/MapGeometryLoader.h"
-#include "meshgen/RecastContext.h"
-#include "meshgen/ZoneContext.h"
 
-NavMeshBuilder::NavMeshBuilder(const std::shared_ptr<ZoneContext>& zoneContext)
-	: m_zoneContext(zoneContext)
+NavMeshBuilder::NavMeshBuilder(const std::shared_ptr<NavMeshProject>& navMeshProj)
+	: m_navMeshProj(navMeshProj)
 {
 }
 
 NavMeshBuilder::~NavMeshBuilder()
 {
 	CancelBuild(true);
-}
-
-void NavMeshBuilder::SetNavMesh(const std::shared_ptr<NavMesh>& navMesh)
-{
-	m_navMesh = navMesh;
-}
-
-void NavMeshBuilder::SetConfig(const NavMeshConfig& config)
-{
-	m_config = config;
-
-	UpdateTileSizes();
-}
-
-void NavMeshBuilder::UpdateTileSizes()
-{
-	glm::vec3 bmin, bmax;
-	m_navMesh->GetNavMeshBounds(bmin, bmax);
-
-	int gw = 0, gh = 0;
-	rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
-
-	const int ts = static_cast<int>(m_config.tileSize);
-	m_tilesWidth = (gw + ts - 1) / ts;
-	m_tilesHeight = (gh + ts - 1) / ts;
-	m_tilesCount = m_tilesWidth * m_tilesHeight;
-
-	int tileBits = DT_TILE_BITS;
-	int polyBits = DT_POLY_BITS;
-	m_maxTiles = 1 << tileBits;
-	m_maxPolysPerTile = 1 << polyBits;
 }
 
 std::shared_ptr<NavMeshBuildData> NavMeshBuilder::CreateBuildData() const
@@ -75,13 +45,59 @@ void NavMeshBuilder::Update()
 	}
 }
 
-bool NavMeshBuilder::BuildNavMesh(BuildCallback&& callback)
+bool NavMeshBuilder::Prepare()
 {
-	if (!m_zoneContext->GetMeshLoader())
+	auto navMeshProj = GetNavMeshProject();
+	if (!navMeshProj)
 	{
-		SPDLOG_ERROR("NavMeshBuilder::BuildNavMesh: No vertices and triangles.");
+		SPDLOG_ERROR("NavMeshBuilder::Prepare: Navmesh project went away...");
 		return false;
 	}
+
+	auto zoneProj = navMeshProj->GetZoneProject();
+	if (!zoneProj || !zoneProj->GetMeshLoader())
+	{
+		SPDLOG_ERROR("NavMeshBuilder::Prepare: No vertices and triangles.");
+		return false;
+	}
+
+	m_navMesh = navMeshProj->GetNavMesh();
+	if (!m_navMesh)
+	{
+		SPDLOG_ERROR("NavMeshBuilder::Prepare: No navmesh!");
+		return false;
+	}
+
+	m_config = navMeshProj->GetNavMeshConfig();
+	UpdateTileSizes();
+
+	return true;
+}
+
+void NavMeshBuilder::UpdateTileSizes()
+{
+	glm::vec3 bmin, bmax;
+	m_navMesh->GetNavMeshBounds(bmin, bmax);
+
+	int gw = 0, gh = 0;
+	rcCalcGridSize(&bmin[0], &bmax[0], m_config.cellSize, &gw, &gh);
+
+	const int ts = static_cast<int>(m_config.tileSize);
+	m_tilesWidth = (gw + ts - 1) / ts;
+	m_tilesHeight = (gh + ts - 1) / ts;
+	m_tilesCount = m_tilesWidth * m_tilesHeight;
+
+	int tileBits = DT_TILE_BITS;
+	int polyBits = DT_POLY_BITS;
+	m_maxTiles = 1 << tileBits;
+	m_maxPolysPerTile = 1 << polyBits;
+}
+
+
+bool NavMeshBuilder::BuildNavMesh(BuildCallback callback)
+{
+	if (!Prepare())
+		return false;
 
 	dtNavMeshParams params;
 	glm::vec3 boundsMin = m_navMesh->GetNavMeshBoundsMin();
@@ -102,27 +118,15 @@ bool NavMeshBuilder::BuildNavMesh(BuildCallback&& callback)
 	m_oldMesh = m_navMesh->GetNavMesh();
 	m_navMesh->SetNavMesh(navMesh, false);
 
-	BuildAllTiles(navMesh, true);
+	BuildAllTiles(navMesh, true, std::move(callback));
 
 	return true;
 }
 
-void NavMeshBuilder::CancelBuild(bool wait)
+bool NavMeshBuilder::BuildTile(const glm::vec3& pos)
 {
-	if (m_buildingTiles)
-		m_cancelTiles = true;
-	if (wait && m_buildThread.joinable())
-		m_buildThread.join();
-	if (m_oldMesh && m_navMesh)
-	{
-		m_navMesh->SetNavMesh(m_oldMesh, false);
-		m_oldMesh.reset();
-	}
-}
-
-void NavMeshBuilder::BuildTile(const glm::vec3& pos)
-{
-	if (!m_zoneContext) return;
+	if (!Prepare())
+		return false;
 
 	const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
 	const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
@@ -161,8 +165,8 @@ void NavMeshBuilder::BuildTile(const glm::vec3& pos)
 		status = navMesh->init(&params);
 		if (dtStatusFailed(status))
 		{
-			SPDLOG_ERROR("buildTiledNavigation: Could not init navmesh.");
-			return;
+			SPDLOG_ERROR("NavMeshBuilder::BuildTile: Could not init navmesh.");
+			return false;
 		}
 	}
 
@@ -172,14 +176,14 @@ void NavMeshBuilder::BuildTile(const glm::vec3& pos)
 
 	m_navMesh->AddTile(data, dataSize, tx, ty);
 
-	SPDLOG_DEBUG("Build Tile ({}, {}):", tx, ty);
+	SPDLOG_DEBUG("Build Tile: ({}, {})", tx, ty);
+	return true;
 }
 
-void NavMeshBuilder::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async)
+bool NavMeshBuilder::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bool async, BuildCallback callback)
 {
-	if (!m_zoneContext) return;
-	if (m_buildingTiles) return;
-	if (!navMesh) return;
+	if (m_buildingTiles) return false;
+	if (!navMesh) return false;
 
 	// if async, invoke on a new thread
 	if (async)
@@ -187,11 +191,12 @@ void NavMeshBuilder::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bo
 		if (m_buildThread.joinable())
 			m_buildThread.join();
 
-		m_buildThread = std::thread([this, navMesh]()
+		m_buildThread = std::thread([this, navMesh, callback = std::move(callback)]()
 			{
-				BuildAllTiles(navMesh, false);
+				BuildAllTiles(navMesh, false, std::move(callback));
 			});
-		return;
+	
+		return true;
 	}
 
 	m_buildingTiles = true;
@@ -265,16 +270,21 @@ void NavMeshBuilder::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bo
 
 	m_buildingTiles = false;
 	m_oldMesh.reset();
+
+	if (callback)
+		callback(true, m_totalBuildTimeMs);
+
+	return true;
 }
 
-void NavMeshBuilder::RebuildTile(const std::shared_ptr<NavMeshBuildData>& buildData, dtTileRef tileRef)
+bool NavMeshBuilder::RebuildTile(const std::shared_ptr<NavMeshBuildData>& buildData, dtTileRef tileRef)
 {
-	if (!m_navMesh) return;
-	const auto& navMesh = m_navMesh->GetNavMesh();
-	if (!navMesh) return;
+	if (!Prepare())
+		return false;
 
+	auto navMesh = m_navMesh->GetNavMesh();
 	const dtMeshTile* tile = navMesh->getTileByRef(tileRef);
-	if (!tile || !tile->header) return;
+	if (!tile || !tile->header) return false;
 
 	auto bmin = tile->header->bmin;
 	auto bmax = tile->header->bmax;
@@ -287,15 +297,38 @@ void NavMeshBuilder::RebuildTile(const std::shared_ptr<NavMeshBuildData>& buildD
 	m_navMesh->AddTile(data, dataSize, tx, ty, tile->header->layer);
 
 	SPDLOG_DEBUG("Rebuild Tile ({}, {}):", tx, ty);
+	return true;
 }
 
-void NavMeshBuilder::RebuildTiles(const std::vector<dtTileRef>& tiles)
+bool NavMeshBuilder::RebuildTiles(const std::vector<dtTileRef>& tiles)
 {
+	if (!Prepare())
+		return false;
+
 	auto buildData = CreateBuildData();
+	bool result = true;
 
 	for (dtTileRef tileRef : tiles)
 	{
-		RebuildTile(buildData, tileRef);
+		if (!RebuildTile(buildData, tileRef))
+			result = false;
+	}
+
+	return result;
+}
+
+void NavMeshBuilder::CancelBuild(bool wait)
+{
+	if (m_buildingTiles)
+		m_cancelTiles = true;
+
+	if (wait && m_buildThread.joinable())
+		m_buildThread.join();
+
+	if (m_oldMesh && m_navMesh)
+	{
+		m_navMesh->SetNavMesh(m_oldMesh, false);
+		m_oldMesh.reset();
 	}
 }
 
@@ -303,6 +336,20 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshBuilder::RasterizeGeometry(
 	std::shared_ptr<NavMeshBuildData> buildData,
 	rcConfig& cfg) const
 {
+	auto navMeshProj = GetNavMeshProject();
+	if (!navMeshProj)
+	{
+		SPDLOG_ERROR("NavMeshBuilder::RasterizeGeometry: No navmesh project went away...");
+		return nullptr;
+	}
+
+	auto zoneProj = navMeshProj->GetZoneProject();
+	if (!zoneProj || !zoneProj->GetMeshLoader())
+	{
+		SPDLOG_ERROR("NavMeshBuilder::RasterizeGeometry: No input geometry");
+		return nullptr;
+	}
+
 	// Allocate voxel heightfield where we rasterize our input data to.
 	deleting_unique_ptr<rcHeightfield> solid(rcAllocHeightfield(),
 		[](rcHeightfield* hf) { rcFreeHeightField(hf); });
@@ -312,14 +359,14 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshBuilder::RasterizeGeometry(
 	if (!rcCreateHeightfield(&ctx, *solid, cfg.width, cfg.height, cfg.bmin, cfg.bmax, cfg.cs, cfg.ch))
 	{
 		SPDLOG_ERROR("NavMeshBuilder::RasterizeGeometry: Could not create solid heightfield.");
-		return 0;
+		return nullptr;
 	}
 
-	MapGeometryLoader* loader = m_zoneContext->GetMeshLoader();
+	MapGeometryLoader* loader = zoneProj->GetMeshLoader();
 
 	const float* verts = loader->getVerts();
 	const int nverts = loader->getVertCount();
-	const rcChunkyTriMesh* chunkyMesh = m_zoneContext->GetChunkyMesh();
+	const rcChunkyTriMesh* chunkyMesh = zoneProj->GetChunkyMesh();
 
 	// Allocate array that can hold triangle flags.
 	// If you have multiple meshes you need to process, allocate
@@ -380,9 +427,18 @@ unsigned char* NavMeshBuilder::BuildTileMesh(
 	const std::shared_ptr<NavMeshBuildData>& buildData,
 	int& dataSize) const
 {
-	if (!m_zoneContext || !m_zoneContext->IsZoneLoaded() || !m_zoneContext->GetChunkyMesh())
+	// Get the input geometry
+	auto navMeshProj = GetNavMeshProject();
+	if (!navMeshProj)
 	{
-		SPDLOG_ERROR("NavMeshBuilder::BuildTileMesh: Input mesh is not specified.");
+		SPDLOG_ERROR("NavMeshBuilder::BuildTileMesh: Navmesh project went away...");
+		return nullptr;
+	}
+
+	auto zoneProj = navMeshProj->GetZoneProject();
+	if (!zoneProj || !zoneProj->GetMeshLoader())
+	{
+		SPDLOG_ERROR("NavMeshBuilder::BuildTileMesh: No input geometry");
 		return nullptr;
 	}
 

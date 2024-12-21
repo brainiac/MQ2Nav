@@ -37,6 +37,8 @@ public:
 
 	BackgroundTaskManager& GetBackgroundTaskManager() const { return *m_backgroundTaskManager.get(); }
 
+	static bool IsMainThread();
+
 	void SetWindowTitle(const std::string& title);
 
 private:

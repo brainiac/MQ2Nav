@@ -5,6 +5,7 @@
 #include "pch.h"
 #include "Editor.h"
 
+#include "common/MathUtil.h"
 #include "meshgen/Application.h"
 #include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/ConsolePanel.h"
@@ -13,10 +14,13 @@
 #include "meshgen/PanelManager.h"
 #include "meshgen/PropertiesPanel.h"
 #include "meshgen/RenderManager.h"
+#include "meshgen/Scene.h"
+#include "meshgen/SelectionManager.h"
 #include "meshgen/SettingsDialog.h"
 #include "meshgen/ToolsPanel.h"
-#include "meshgen/ZoneContext.h"
 #include "meshgen/ZonePicker.h"
+#include "meshgen/ZoneProject.h"
+#include "meshgen/ZoneRenderManager.h"
 
 #include "imgui/fonts/IconsLucide.h"
 #include "imgui/fonts/IconsMaterialDesign.h"
@@ -25,6 +29,7 @@
 #include "imgui_internal.h"
 
 #include <glm/gtc/type_ptr.hpp>
+
 
 
 Editor::Editor()
@@ -37,6 +42,8 @@ Editor::~Editor()
 
 void Editor::OnInit()
 {
+	m_selectionMgr = std::make_unique<SelectionManager>();
+
 	m_panelManager = std::make_unique<PanelManager>();
 	m_panelManager->AddPanel<PropertiesPanel>(this);
 	m_panelManager->AddPanel<ConsolePanel>();
@@ -74,33 +81,31 @@ void Editor::OnInit()
 		.layoutName = "Test Layout",
 	});
 
-	//auto& arguments = 
-	//std::string startingZone;
-	//if (argc > 1)
-	//	startingZone = argv[1];
-
-	//if (!startingZone.empty())
-	//{
-	//	// Defer loading this zone until we start processing events.
-	//	m_backgroundTaskManager->PostToMainThread([this, startingZone]()
-	//		{
-	//			// Load the zone
-	//			BeginLoadZone(startingZone, true);
-	//		});
-	//}
 
 	m_meshTool = std::make_unique<NavMeshTool>();
 	m_zonePicker = std::make_unique<ZonePicker>();
+
+	// Parse arguments and see if we have something to load right away
+	const auto& arguments = Application::Get().GetArgs();
+	if (arguments.size() > 1)
+	{
+		std::string startingZone = arguments[1];
+
+		if (!startingZone.empty())
+		{
+			// Open new project with this starting zone
+			OpenProject(startingZone, true);
+		}
+	}
+	else
+	{
+		CreateEmptyProject();
+	}
 }
 
 void Editor::OnShutdown()
 {
-	Halt();
-
-	if (m_meshTool)
-	{
-		m_meshTool->GetRenderManager()->DestroyObjects();
-	}
+	CloseProject();
 
 	m_panelManager->Shutdown();
 	m_zonePicker.reset();
@@ -122,6 +127,8 @@ void Editor::OnUpdate(float timeStep)
 	}
 
 	UpdateCamera(timeStep);
+
+	m_project->OnUpdate(timeStep);
 
 	m_meshTool->handleRender(m_camera.GetViewProjMtx(), g_render->GetViewport());
 }
@@ -160,10 +167,15 @@ void Editor::OnKeyDown(const SDL_KeyboardEvent& event)
 {
 	if (event.keysym.sym == SDLK_ESCAPE)
 	{
-		if (m_meshTool->IsBuildingTiles())
-			Halt();
-		else if (m_zonePicker->IsShowing())
+		if (m_project && m_project->IsBusy())
+		{
+			m_project->CancelTasks();
+		}
+
+		if (m_zonePicker->IsShowing())
+		{
 			m_zonePicker->Close();
+		}
 	}
 
 	if (ImGui::GetIO().WantTextInput)
@@ -178,10 +190,10 @@ void Editor::OnKeyDown(const SDL_KeyboardEvent& event)
 			m_zonePicker->Show();
 			break;
 		case SDLK_l:
-			OpenMesh();
+			m_project->LoadNavMesh();
 			break;
 		case SDLK_s:
-			SaveMesh();
+			m_project->SaveNavMesh();
 			break;
 
 		case SDLK_COMMA:
@@ -214,14 +226,13 @@ void Editor::OnMouseDown(const SDL_MouseButtonEvent& event)
 	}
 	else if (event.button == SDL_BUTTON_LEFT)
 	{
-		// Hit test mesh.
-		if (m_zoneContext)
+		// Hit test zone geo mesh.
+		if (m_project->IsZoneLoaded())
 		{
-			const glm::vec3& rayStart = g_render->GetCursorRayStart();
-			const glm::vec3& rayEnd = g_render->GetCursorRayEnd();
+			auto [rayStart, rayEnd] = CastRay(static_cast<float>(m_viewportMouse.x), static_cast<float>(m_viewportMouse.y));
 
 			// Hit test mesh.
-			if (float t; m_zoneContext->RaycastMesh(rayStart, rayEnd, t))
+			if (float t; m_project->RaycastMesh(rayStart, rayEnd, t))
 			{
 				bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
 
@@ -249,10 +260,21 @@ void Editor::OnMouseUp(const SDL_MouseButtonEvent& event)
 
 void Editor::OnMouseMotion(const SDL_MouseMotionEvent& event)
 {
-	g_render->SetMousePosition(glm::ivec2{ event.x, event.y });
-
 	m_mousePos.x = event.x;
 	m_mousePos.y = event.y;
+
+	// Update mouse position inside viewport
+	{
+		int mouseX = m_mousePos.x;
+		int mouseY = m_mousePos.y - m_viewport.y;
+
+		mouseY = (m_viewport.w - 1 - mouseY) + m_viewport.y;
+
+		if (mouseY < 0)
+			mouseY = 0;
+
+		m_viewportMouse = { mouseX, mouseY };
+	}
 
 	auto& io = ImGui::GetIO();
 
@@ -272,33 +294,26 @@ void Editor::OnMouseMotion(const SDL_MouseMotionEvent& event)
 
 void Editor::OnWindowSizeChanged(const SDL_WindowEvent& event)
 {
-	m_windowSize = { event.data1, event.data2 };
 }
 
 void Editor::UI_UpdateViewport()
 {
 	ImGuiContext* ctx = ImGui::GetCurrentContext();
+	ImVec2 viewportPos = ImGui::GetWindowContentRegionMin();
+	ImVec2 viewportSize = ImGui::GetWindowContentRegionMax();
 
 	if (ImGuiDockNode* dockNode = ImGui::DockContextFindNodeByID(ctx, m_panelManager->GetMainDockSpaceID()))
 	{
 		ImGuiDockNode* centralNode = dockNode->CentralNode;
 
-		m_camera.SetViewportSize(static_cast<uint32_t>(centralNode->Size.x), static_cast<uint32_t>(centralNode->Size.y));
-		g_render->SetViewport({ centralNode->Pos.x, centralNode->Pos.y }, { centralNode->Size.x, centralNode->Size.y });
+		viewportPos = centralNode->Pos;
+		viewportSize = centralNode->Size;
 	}
-	else
-	{
-		if (m_windowSize.x == 0 && m_windowSize.y == 0)
-		{
-			auto viewportSize = ImGui::GetContentRegionAvail();
 
-			g_render->SetViewport({ 0, 0 }, { viewportSize.x, viewportSize.y });
-		}
-		else
-		{
-			g_render->SetViewport({ 0, 0 }, m_windowSize);
-		}
-	}
+	m_viewport = { viewportPos.x, viewportPos.y, viewportSize.x, viewportSize.y };
+
+	m_camera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
+	g_render->SetViewport({ viewportPos.x, viewportPos.y }, { viewportSize.x, viewportSize.y });
 }
 
 void Editor::UI_DrawMainMenuBar()
@@ -329,29 +344,28 @@ void Editor::UI_DrawMainMenuBar()
 
 		if (ImGui::BeginMenu("Zone"))
 		{
-			bool canLoad = m_zoneContext && !m_zoneContext->IsBuildingNavMesh();
+			bool canLoad = !m_project->IsBusy();
 			if (ImGui::MenuItem("Load Mesh", "Ctrl+L", nullptr, canLoad))
 			{
-				OpenMesh();
+				m_project->LoadNavMesh();
 			}
 
-			bool canUseMesh = m_zoneContext && m_zoneContext->IsNavMeshLoaded() && !m_zoneContext->IsBuildingNavMesh();
+			bool canUseMesh = !m_project->IsBusy() && m_project->IsNavMeshReady();
 			if (ImGui::MenuItem("Save Mesh", "Ctrl+S", nullptr, canUseMesh))
 			{
-				SaveMesh();
+				m_project->SaveNavMesh();
 			}
+
 
 			if (ImGui::MenuItem("Reset Mesh", "", nullptr, canUseMesh))
 			{
-				if (m_zoneContext)
-					m_zoneContext->ResetNavMesh();
-
+				m_project->ResetNavMesh();
 				m_meshTool->Reset();
 			}
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Area Types...", nullptr, m_zoneContext != nullptr))
+			if (ImGui::MenuItem("Area Types...", nullptr, m_project->IsNavMeshReady()))
 				m_showMapAreas = !m_showMapAreas;
 
 			ImGui::Separator();
@@ -534,15 +548,15 @@ void Editor::UI_DrawToolbar()
 			//
 
 			// Load Mesh
-			if (ToolbarButton(ICON_LC_FOLDER_OPEN "##OpenMesh", "Open Mesh", isBlocked || !m_zoneContext))
+			if (ToolbarButton(ICON_LC_FOLDER_OPEN "##OpenMesh", "Open Mesh", isBlocked || !m_project->IsZoneLoaded()))
 			{
-				OpenMesh();
+				m_project->LoadNavMesh();
 			}
 
 			// Save
-			if (ToolbarButton(ICON_LC_SAVE "##SaveMesh", "Save Mesh", isBlocked || !m_zoneContext || !m_zoneContext->IsNavMeshLoaded()))
+			if (ToolbarButton(ICON_LC_SAVE "##SaveMesh", "Save Mesh", isBlocked || m_project->IsZoneLoaded() || !m_project->IsNavMeshReady()))
 			{
-				SaveMesh();
+				m_project->SaveNavMesh();
 			}
 
 			ToolbarSeparator();
@@ -572,15 +586,12 @@ void Editor::UI_DrawToolbar()
 
 			// show zone name
 			{
-				if (!m_zoneContext || !m_zoneContext->IsZoneLoaded())
-				{
-					if (m_loadingZoneContext)
-						ImGui::TextColored(ImColor(255, 255, 0), "Loading %s...", m_loadingZoneContext->GetShortName().c_str());
-					else
-						ImGui::TextColored(ImColor(255, 255, 255), "No zone loaded");
-				}
+				if (m_project->IsZoneLoading())
+					ImGui::TextColored(ImColor(255, 255, 0), "Loading %s...", m_project->GetShortName().c_str());
+				else if (!m_project->IsZoneLoaded())
+					ImGui::TextColored(ImColor(255, 255, 255), "No zone loaded");
 				else
-					ImGui::TextColored(ImColor(0, 255, 0), "%s", m_zoneContext->GetShortName().c_str());
+					ImGui::TextColored(ImColor(0, 255, 0), "%s", m_project->GetShortName().c_str());
 			}
 
 			// Current Position
@@ -607,7 +618,7 @@ void Editor::UI_DrawZonePicker()
 {
 	if (m_zonePicker->Draw())
 	{
-		OpenZone(m_zonePicker->GetSelectedZone(), m_zonePicker->ShouldLoadNavMesh());
+		OpenProject(m_zonePicker->GetSelectedZone(), m_zonePicker->ShouldLoadNavMesh());
 	}
 }
 
@@ -713,7 +724,7 @@ void Editor::UI_DrawOverlayText()
 
 void Editor::UI_DrawImportExportSettingsDialog()
 {
-	if (m_importExportSettings && !m_zoneContext)
+	if (m_importExportSettings && !m_project->IsNavMeshReady())
 	{
 		m_importExportSettings.reset();
 	}
@@ -854,15 +865,15 @@ static bool RenderAreaType(NavMesh* navMesh, const PolyAreaType& area, int userI
 
 void Editor::UI_DrawAreaTypesEditor()
 {
-	if (m_showMapAreas && m_zoneContext)
+	if (m_showMapAreas && m_project->IsNavMeshReady())
 	{
 		ImGui::SetNextWindowSize(ImVec2(440, 400), ImGuiCond_Once);
 
 		if (ImGui::Begin("Area Types", &m_showMapAreas))
 		{
-			auto navMesh = m_zoneContext->GetNavMesh();
+			auto navMesh = m_project->GetNavMesh();
 
-			ImGui::Columns(5, 0, false);
+			ImGui::Columns(5, "##AreaTypes", false);
 
 			RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Unwalkable));
 			RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Ground));
@@ -904,7 +915,7 @@ void Editor::UI_DrawAreaTypesEditor()
 
 bool Editor::IsBlockingOperationActive()
 {
-	return m_meshTool && m_meshTool->IsBuildingTiles();
+	return m_project && m_project->IsBusy();
 }
 
 void Editor::ShowNotificationDialog(const std::string& title, const std::string& message, bool modal)
@@ -924,146 +935,93 @@ void Editor::ShowSettingsDialog()
 
 void Editor::ShowImportExportSettingsDialog(bool import)
 {
-	if (m_zoneContext)
+	if (auto navMesh = m_project->GetNavMesh())
 	{
-		m_importExportSettings = std::make_unique<ImportExportSettingsDialog>(m_zoneContext->GetNavMesh(), import);
+		m_importExportSettings = std::make_unique<ImportExportSettingsDialog>(navMesh, import);
 	}
 }
 
-void Editor::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
+void Editor::SetProject(const std::shared_ptr<ZoneProject>& zoneProject)
 {
-	if (m_zoneContext == zoneContext)
-		return;
+	m_project = zoneProject;
 
-	m_zoneContext = zoneContext;
+	// Update the window title
+	std::string windowTitle = fmt::format("MacroQuest NavMesh Generator - {}", m_project->GetDisplayName());
+	Application::Get().SetWindowTitle(windowTitle);
+	m_selectionMgr->Clear();
 
-	if (zoneContext == nullptr)
-	{
-		m_meshTool->SetZoneContext(nullptr);
-		m_panelManager->SetZoneContext(zoneContext);
-	}
-	else
-	{
-		// Update the window title
-		std::string windowTitle = fmt::format("MacroQuest NavMesh Generator - {}",
-			m_zoneContext->GetDisplayName());
-		Application::Get().SetWindowTitle(windowTitle);
+	m_panelManager->OnProjectChanged(m_project);
+	m_meshTool->OnProjectChanged(m_project);
 
-		m_meshTool->SetZoneContext(m_zoneContext);
-		m_panelManager->SetZoneContext(m_zoneContext);
-
-		ResetCamera();
-	}
+	SetNavMeshProject(m_project->GetNavMeshProject());
 }
 
-void Editor::OpenZone(const std::string& shortZoneName, bool loadMesh)
+void Editor::SetNavMeshProject(const std::shared_ptr<NavMeshProject>& navMeshProject)
 {
-	// FIXME
-	Application::Get().GetBackgroundTaskManager().StopZoneTasks();
-
-	Halt();
-
-	std::shared_ptr<ZoneContext> zoneContext = std::make_shared<ZoneContext>(this, shortZoneName);
-	m_loadingZoneContext = zoneContext;
-
-	auto finishLoading = [this, zoneContext](bool success, bool clearLoading)
-		{
-			if (success)
-			{
-				SetZoneContext(zoneContext);
-			}
-
-			if (clearLoading && m_loadingZoneContext == zoneContext)
-			{
-				m_loadingZoneContext.reset();
-			}
-		};
-
-	tf::Taskflow loadFlow = zoneContext->BuildInitialTaskflow(loadMesh,
-		[this, zoneContext, finishLoading](LoadingPhase phase, bool result)
-		{
-			Application::Get().GetBackgroundTaskManager().PostToMainThread(
-				[app = this, zoneContext, phase, result, finishLoading]()
-				{
-					if (phase == LoadingPhase::BuildTriangleMesh && result)
-					{
-						finishLoading(true, false);
-					}
-					else
-					{
-						if (result)
-						{
-							finishLoading(true, true);
-						}
-						else
-						{
-							ResultState rs = zoneContext->GetResultState();
-
-							if (rs.phase == LoadingPhase::LoadZone || rs.phase == LoadingPhase::BuildTriangleMesh)
-								app->ShowNotificationDialog("Failed to load zone", rs.message);
-							else
-								app->ShowNotificationDialog("Failed to build navigation mesh", rs.message);
-
-							finishLoading(false, true);
-						}
-					}
-				});
-		});
-
-	// Log the taskflow for debugging
-	//std::stringstream ss;
-	//taskflow.dump(ss);
-	//bx::debugPrintf("Taskflow: %s", ss.str().c_str());
-
-	Application::Get().GetBackgroundTaskManager().AddZoneTask(std::move(loadFlow));
+	m_panelManager->OnNavMeshProjectChanged(navMeshProject);
+	m_meshTool->OnNavMeshProjectChanged(navMeshProject);
 }
 
-void Editor::OpenMesh()
+void Editor::CreateEmptyProject()
 {
-	if (m_zoneContext)
+	if (m_project)
 	{
-		m_zoneContext->LoadNavMesh();
+		CloseProject();
 	}
+
+	SetProject(std::make_shared<ZoneProject>(this, "No Zone"));
+	m_camera = Camera();
 }
 
-void Editor::SaveMesh()
+void Editor::OpenProject(const std::string& name, bool loadMesh)
 {
-	if (m_zoneContext)
-	{
-		m_zoneContext->SaveNavMesh();
-	}
+	CloseProject();
+
+	m_project = std::make_shared<ZoneProject>(this, name);
+	m_project->LoadZone(loadMesh);
 }
 
-void Editor::Halt()
+void Editor::CloseProject()
 {
-	if (m_meshTool)
+	// Save?
+
+	SetNavMeshProject(nullptr);
+
+	m_selectionMgr->Clear();
+
+	m_panelManager->OnProjectChanged(nullptr);
+	m_meshTool->OnProjectChanged(nullptr);
+
+	if (m_project)
 	{
-		m_meshTool->CancelBuildAllTiles();
+		m_project->OnShutdown();
 	}
+
+	m_project.reset();
 }
 
-void Editor::ResetCamera()
+void Editor::OnProjectLoaded(const std::shared_ptr<ZoneProject>& project)
 {
-	if (m_zoneContext)
-	{
-		const glm::vec3& bmin = m_zoneContext->GetMeshBoundsMin();
-		const glm::vec3& bmax = m_zoneContext->GetMeshBoundsMax();
+	SetProject(project);
 
-		// Reset camera and fog to match the mesh bounds.
-		float camr = glm::distance(bmax, bmin) / 2;
+	// Reset the camera
+	const glm::vec3& bmin = m_project->GetMeshBoundsMin();
+	const glm::vec3& bmax = m_project->GetMeshBoundsMax();
 
-		m_camera.SetFarClipPlane(camr * 3);
+	// Reset camera and fog to match the mesh bounds.
+	float camr = glm::distance(bmax, bmin) / 2;
 
-		glm::vec3 cam = {
-			(bmax[0] + bmin[0]) / 2 + camr,
-			(bmax[1] + bmin[1]) / 2 + camr,
-			(bmax[2] + bmin[2]) / 2 + camr
-		};
+	m_camera.SetFarClipPlane(camr * 3);
 
-		m_camera.SetPosition(cam);
-		m_camera.SetYaw(-45);
-		m_camera.SetPitch(45);
-	}
+	glm::vec3 cam = {
+		(bmax[0] + bmin[0]) / 2 + camr,
+		(bmax[1] + bmin[1]) / 2 + camr,
+		(bmax[2] + bmin[2]) / 2 + camr
+	};
+
+	m_camera.SetPosition(cam);
+	m_camera.SetYaw(-45);
+	m_camera.SetPitch(45);
 }
 
 void Editor::UpdateCamera(float timeStep)
@@ -1086,4 +1044,15 @@ void Editor::UpdateCamera(float timeStep)
 	}
 
 	m_camera.Update(timeStep);
+}
+
+std::tuple<glm::vec3, glm::vec3> Editor::CastRay(float mx, float my)
+{
+	auto& viewMtx = m_camera.GetViewMtx();
+	auto& projMtx = m_camera.GetProjMtx();
+
+	glm::vec3 rayStart = glm::unProject(glm::vec3(mx, my, 0.0f), viewMtx, projMtx, m_viewport);
+	glm::vec3 rayEnd = glm::unProject(glm::vec3(mx, my, 1.0f), viewMtx, projMtx, m_viewport);
+
+	return { rayStart, rayEnd };
 }

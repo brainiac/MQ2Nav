@@ -155,7 +155,6 @@ bool RenderManager::Initialize(int width, int height, SDL_Window* window)
 {
 	m_windowWidth = width;
 	m_windowHeight = height;
-	m_window = window;
 
 	bgfx::Init init;
 	init.type = bgfx::RendererType::Direct3D11;
@@ -186,8 +185,6 @@ bool RenderManager::Initialize(int width, int height, SDL_Window* window)
 
 	SetViewport({ 0, 0 }, { m_windowWidth, m_windowHeight });
 
-	ZoneRenderManager::init();
-
 	bgfx::frame();
 
 	return true;
@@ -195,7 +192,7 @@ bool RenderManager::Initialize(int width, int height, SDL_Window* window)
 
 void RenderManager::Shutdown()
 {
-	ZoneRenderManager::shutdown();
+	ZoneRenderManager::ShutdownShared();
 
 	// shutdown ImGui
 	ImGui_Impl_Shutdown();
@@ -206,16 +203,12 @@ void RenderManager::Shutdown()
 
 void RenderManager::BeginFrame(float timeDelta, const Camera& camera)
 {
+	m_viewModelProjMtx = camera.GetViewProjMtx();
+
 	auto& viewMtx = camera.GetViewMtx();
 	auto& projMtx = camera.GetProjMtx();
 
 	bgfx::setViewTransform(0, glm::value_ptr(viewMtx), glm::value_ptr(projMtx));
-
-	m_cursorRayStart = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 0.0f), viewMtx, projMtx, m_viewport);
-	m_cursorRayEnd   = glm::unProject(glm::vec3(m_mousePos.x, m_mousePos.y, 1.0f), viewMtx, projMtx, m_viewport);
-
-	m_viewModelProjMtx =camera.GetViewProjMtx();
-
 	bgfx::touch(m_viewId);
 }
 
@@ -320,8 +313,9 @@ void RenderManager::Im3D_NewFrame(float timeDelta, const Camera& camera)
 	ad.m_projOrtho = false;
 	ad.m_projScaleY = glm::tan(glm::radians(camera.GetFieldOfView()) * 0.5f) * 2.0f;
 
-	ad.m_cursorRayOrigin = m_cursorRayStart;
-	ad.m_cursorRayDirection = glm::normalize(m_cursorRayEnd - m_cursorRayStart);
+	// TODO: Fix picking
+	//ad.m_cursorRayOrigin = m_cursorRayStart;
+	//ad.m_cursorRayDirection = glm::normalize(m_cursorRayEnd - m_cursorRayStart);
 
 	bool ctrlDown = (SDL_GetModState() & KMOD_CTRL) != 0;
 
@@ -356,17 +350,4 @@ void RenderManager::SetWindowSize(int width, int height)
 	m_windowHeight = height;
 
 	bgfx::reset(m_windowWidth, m_windowHeight, m_bgfxResetFlags);
-}
-
-void RenderManager::SetMousePosition(const glm::ivec2& mousePos)
-{
-	int mouseX = mousePos.x;
-	int mouseY = mousePos.y - m_viewport.y;
-
-	mouseY = (m_viewport.w - 1 - mouseY) + m_viewport.y;
-
-	if (mouseY < 0)
-		mouseY = 0;
-
-	m_mousePos = { mouseX, mouseY };
 }

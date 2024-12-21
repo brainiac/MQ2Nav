@@ -38,6 +38,8 @@ namespace fs = std::filesystem;
 
 Application* Application::instance = nullptr;
 
+static std::thread::id main_thread_id;
+
 Application::Application()
 {
 	Logging::Initialize();
@@ -45,6 +47,7 @@ Application::Application()
 	Logging::InitSecondStage(this);
 
 	instance = this;
+	main_thread_id = std::this_thread::get_id();
 
 	//_putenv("TF_ENABLE_PROFILER=taskflow.json");
 
@@ -73,6 +76,12 @@ Application::~Application()
 	Logging::Shutdown();
 
 	instance = nullptr;
+}
+
+/* static */
+bool Application::IsMainThread()
+{
+	return std::this_thread::get_id() == main_thread_id;
 }
 
 int Application::Run(int argc, const char* const* argv)

@@ -6,15 +6,19 @@
 #include <recast/DebugUtils/Include/DebugDraw.h>
 #include <recast/Detour/Include/DetourNavMesh.h>
 #include <unordered_map>
+#include <mq/base/Signal.h>
 
-class ZoneContext;
+class dtNavMesh;
+class dtNavMeshQuery;
+class NavMesh;
+class NavMeshProject;
 class ZoneInputGeometryRender;
 class ZoneNavMeshRender;
-struct NavMeshConfig;
-class NavMesh;
-class dtNavMeshQuery;
-class dtNavMesh;
+class ZoneProject;
+class ZoneRenderDebugDraw;
 struct dtMeshTile;
+struct NavMeshConfig;
+
 
 struct DebugDrawGridTexturedVertex
 {
@@ -114,29 +118,29 @@ struct DebugDrawPointVertex
 	inline static bgfx::VertexLayout ms_layout;
 };
 
-class ZoneRenderDebugDraw;
-
 class ZoneRenderManager
 {
 	friend ZoneRenderDebugDraw;
 
 public:
-	ZoneRenderManager();
+	ZoneRenderManager(ZoneProject* project);
 	~ZoneRenderManager();
 
-	static void init();
-	static void shutdown();
+	static void InitShared();
+	static void ShutdownShared();
 
 	void DestroyObjects();
 	void Render();
 
-	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
+	void Rebuild();
 
-	void SetNavMeshConfig(const NavMeshConfig* config);
-	const NavMeshConfig* GetNavMeshConfig() const { return m_meshConfig; }
+	void OnNavMeshChanged(const std::shared_ptr<NavMeshProject>& navMesh);
+
+	std::shared_ptr<NavMeshProject> GetNavMesh() const { return m_navMesh; }
 
 	ZoneNavMeshRender* GetNavMeshRender() { return m_navMeshRender; }
 	ZoneInputGeometryRender* GetInputGeoRender() { return m_zoneInputGeometry; }
+	ZoneProject* GetZone() const { return m_project; }
 
 	float GetPointSize() const {
 		return m_pointSize;
@@ -146,10 +150,11 @@ public:
 	}
 
 private:
-	std::shared_ptr<ZoneContext> m_zoneContext;
+	ZoneProject* m_project;
+	std::shared_ptr<NavMeshProject> m_navMesh;
+
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
-	const NavMeshConfig* m_meshConfig = nullptr;
 	float m_pointSize = 0.5f;
 
 	std::vector<DebugDrawPointVertex> m_points;
@@ -204,14 +209,13 @@ private:
 	int m_numVertices = 0;
 };
 
-
 class ZoneInputGeometryRender
 {
 public:
 	explicit ZoneInputGeometryRender(ZoneRenderManager* manager);
 	~ZoneInputGeometryRender();
 
-	void SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext);
+	void Rebuild();
 
 	void Render();
 	void DestroyObjects();
@@ -220,7 +224,6 @@ private:
 	void CreateObjects();
 
 	ZoneRenderManager* m_mgr;
-	std::shared_ptr<ZoneContext> m_zoneContext;
 
 	bgfx::VertexBufferHandle m_vbh = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_ibh = BGFX_INVALID_HANDLE;
@@ -257,8 +260,8 @@ public:
 		TileGrid = 4,
 	};
 
-	void SetNavMesh(const std::shared_ptr<NavMesh>& navMesh);
-	NavMesh* GetNavMesh() const { return m_navMesh.get(); }
+	void SetNavMesh(const std::shared_ptr<NavMeshProject>& navMesh);
+	NavMeshProject* GetNavMesh() const { return m_navMesh.get(); }
 
 	void SetNavMeshQuery(const dtNavMeshQuery* query);
 
@@ -291,11 +294,12 @@ private:
 
 	ZoneRenderManager* m_mgr;
 
-	std::shared_ptr<NavMesh> m_navMesh;
+	std::shared_ptr<NavMeshProject> m_navMesh;
 	const dtNavMeshQuery* m_query = nullptr;
 	uint32_t m_flags = 0;
 	bool m_dirty = false;
 	float m_pointSize = 0.5f;
+	mq::Signal<>::ScopedConnection m_navMeshConn;
 
 	bgfx::VertexBufferHandle m_tilePolysVB = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_indexBuffer = BGFX_INVALID_HANDLE;

@@ -142,11 +142,12 @@
   <ItemGroup>
     <ClInclude Include="Enum.h" />
     <ClInclude Include="FindPattern.h" />
+    <ClInclude Include="Formatters.h" />
     <ClInclude Include="JsonProto.h" />
     <ClInclude Include="Logging.h" />
+    <ClInclude Include="MathUtil.h" />
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NavMeshData.h" />
-    <ClInclude Include="NavMeshBuilder.h" />
     <ClInclude Include="NavModule.h" />
     <ClInclude Include="proto\NavMeshFile.pb.h" />
     <ClInclude Include="Utilities.h" />
@@ -157,7 +158,6 @@
     <ClCompile Include="JsonProto.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NavMeshData.cpp" />
-    <ClCompile Include="NavMeshBuilder.cpp" />
     <ClCompile Include="proto\NavMeshFile.pb.cc">
       <DisableSpecificWarnings>4244;4256</DisableSpecificWarnings>
     </ClCompile>

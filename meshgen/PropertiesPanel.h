@@ -3,6 +3,7 @@
 #include "meshgen/PanelManager.h"
 
 class Editor;
+class ZoneScene;
 
 class PropertiesPanel : public PanelWindow
 {
@@ -11,10 +12,7 @@ public:
 	~PropertiesPanel() override;
 
 	void OnImGuiRender(bool* p_open) override;
-	void SetZoneContext(const std::shared_ptr<ZoneContext>& context) override;
 
 private:
 	Editor* m_editor;
-	std::shared_ptr<ZoneContext> m_zoneContext;
-	std::string m_loadedName;
 };

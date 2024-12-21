@@ -2,8 +2,9 @@
 // NavMeshTileTool.cpp
 //
 
+#include "pch.h"
 #include "meshgen/NavMeshTileTool.h"
-
+#include "meshgen/ZoneRenderManager.h"
 #include "imgui/ImGuiUtils.h"
 #include "imgui/fonts/IconsMaterialDesign.h"
 
@@ -11,6 +12,7 @@
 #include <imgui.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
 
 void NavMeshTileTool::init(NavMeshTool* meshTool)
 {
@@ -39,7 +41,7 @@ void NavMeshTileTool::handleMenu()
 			m_meshTool->RemoveAllTiles();
 	}
 
-	float totalBuildTime = m_meshTool->GetTotalBuildTimeMS();
+	float totalBuildTime = m_meshTool->GetLastBuildTime();
 	if (totalBuildTime > 0)
 		ImGui::Text("Build Time: %.1fms", totalBuildTime);
 }

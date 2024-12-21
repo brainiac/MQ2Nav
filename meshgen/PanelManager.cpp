@@ -168,15 +168,22 @@ void PanelManager::AddDockingLayout(DockingLayout&& layout)
 	m_dockingLayouts.push_back(std::move(layout));
 }
 
-void PanelManager::SetZoneContext(const std::shared_ptr<ZoneContext>& zoneContext)
+void PanelManager::OnProjectChanged(const std::shared_ptr<ZoneProject>& zoneProject)
 {
-	m_zoneContext = zoneContext;
-
 	for (auto& panel : m_panels | std::views::values)
 	{
-		panel->SetZoneContext(zoneContext);
+		panel->OnProjectChanged(zoneProject);
 	}
 }
+
+void PanelManager::OnNavMeshProjectChanged(const std::shared_ptr<NavMeshProject>& navMeshProject)
+{
+	for (auto& panel : m_panels | std::views::values)
+	{
+		panel->OnNavMeshProjectChanged(navMeshProject);
+	}
+}
+
 
 void PanelManager::UpdatePopups()
 {

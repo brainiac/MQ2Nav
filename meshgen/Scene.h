@@ -8,14 +8,17 @@
 
 #include <entt/entity/registry.hpp>
 
+class Entity;
 class Camera;
 class Renderer;
 
 class Scene
 {
+	friend class Entity;
+
 public:
 	explicit Scene(const std::string& name);
-	~Scene();
+	virtual ~Scene();
 
 	const std::string GetName() const { return m_name; }
 	void SetName(const std::string& name) { m_name = name; }
@@ -41,6 +44,7 @@ public:
 	void ParentEntity(Entity entity, Entity parent);
 	void UnparentEntity(Entity entity, bool convertToWorldspace = true);
 
+protected:
 	entt::entity m_sceneEntity = entt::null;
 	entt::registry m_registry;
 
