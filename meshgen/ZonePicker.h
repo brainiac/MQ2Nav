@@ -37,7 +37,6 @@ public:
 	const std::string& GetSelectedZone() const { return m_selectedZone; }
 
 private:
-	bool DrawExpansionGroup(const ApplicationConfig::Expansion& expansion, bool showExpansions);
 	void LoadZones();
 	void ClearZones();
 
@@ -50,6 +49,10 @@ private:
 	};
 	std::vector<MapInfo> m_allMaps;
 
+	bool DrawZoneList(const char* str_id, std::ranges::input_range auto&& input_range,
+		bool enterPressed, int* baseIndex = nullptr);
+	void CheckSelection();
+
 	char m_filterText[64] = { 0 };
 
 	bool m_loadNavMesh = true;
@@ -57,9 +60,15 @@ private:
 	bool m_isShowing = true;
 	bool m_setFocus = false;
 	bool m_loaded = false;
-	int m_selectedExpansion = -1;
 	bool m_showNextDraw = false;
 
 	std::vector<bgfx::TextureHandle> m_textures;
+
+	int m_selectedExpansion = -1;
 	std::string m_selectedZone;
+	int m_selectedIndex = -1;
+	int m_lastSelectedIndex = -1;
+	int m_lastItemCount = -1;
+	bool m_foundSelected = false;
+	std::pair<bool, int> m_toggleTreeNodeState = { false, -1 };
 };

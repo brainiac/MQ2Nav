@@ -53,7 +53,6 @@ public:
 	bool GetUseMaxExtents() const { return m_useMaxExtents; }
 	void SetUseMaxExtents(bool use);
 
-
 	// loaded maps, keyed by their expansion group. Data is loaded from Zones.ini
 	using ZoneNamePair = std::pair<std::string /*shortName*/, std::string /*longName*/>;
 	using ZoneList = std::set<ZoneNamePair>;

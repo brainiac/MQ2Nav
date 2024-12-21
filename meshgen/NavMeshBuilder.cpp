@@ -47,6 +47,8 @@ void NavMeshBuilder::Update()
 
 bool NavMeshBuilder::Prepare()
 {
+	if (m_buildingTiles) return false;
+
 	auto navMeshProj = GetNavMeshProject();
 	if (!navMeshProj)
 	{
@@ -92,7 +94,6 @@ void NavMeshBuilder::UpdateTileSizes()
 	m_maxTiles = 1 << tileBits;
 	m_maxPolysPerTile = 1 << polyBits;
 }
-
 
 bool NavMeshBuilder::BuildNavMesh(BuildCallback callback)
 {
@@ -270,6 +271,7 @@ bool NavMeshBuilder::BuildAllTiles(const std::shared_ptr<dtNavMesh>& navMesh, bo
 
 	m_buildingTiles = false;
 	m_oldMesh.reset();
+	m_navMesh->GetNavMeshConfig() = m_config;
 
 	if (callback)
 		callback(true, m_totalBuildTimeMs);

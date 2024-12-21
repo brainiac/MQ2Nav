@@ -70,16 +70,39 @@ bool NavMeshProject::LoadNavMesh(bool allowMissing)
 	auto result = m_navMesh->LoadNavMeshFile();
 
 	// Missing file is OK if we allow it.
-	if (result != NavMesh::LoadResult::Success
-		|| (!allowMissing && result == NavMesh::LoadResult::MissingFile))
+	if (result != NavMesh::LoadResult::Success && (!allowMissing || result != NavMesh::LoadResult::MissingFile))
 	{
-		m_editor->ShowNotificationDialog(
-			"Failed To Open",
-			"Failed to open navmesh."
-		);
+		std::string failedReason;
 
+		switch (result)
+		{
+		case NavMesh::LoadResult::MissingFile:
+			failedReason = "No navmesh file found";
+			break;
+		case NavMesh::LoadResult::Corrupt:
+			failedReason = "Navmesh file is corrupt";
+			break;
+		case NavMesh::LoadResult::VersionMismatch:
+			failedReason = "Navmesh file is not compatible with this version";
+			break;
+		case NavMesh::LoadResult::ZoneMismatch:
+			failedReason = "Navmesh file is for the wrong zone";
+			break;
+		case NavMesh::LoadResult::OutOfMemory:
+			failedReason = "Ran out of memory!";
+			break;
+		default:
+			failedReason = fmt::format("Failed to load navmesh ({})", static_cast<int>(result));
+			break;
+		}
+
+		SPDLOG_ERROR("Failed to load navmesh: {}", failedReason);
+
+		m_editor->ShowNotificationDialog("Failed To Open Navmesh", failedReason);
 		return false;
 	}
+
+	m_navMeshConfig = m_navMesh->GetNavMeshConfig();
 
 	return true;
 }
@@ -87,14 +110,27 @@ bool NavMeshProject::LoadNavMesh(bool allowMissing)
 bool NavMeshProject::SaveNavMesh()
 {
 	if (IsBuilding() || !IsLoaded())
+	{
+		SPDLOG_DEBUG("Cannot save navmesh right now");
 		return false;
+	}
 
 	// Make sure that the path is up-to-date
 	m_navMesh->SetNavMeshDirectory(g_config.GetOutputPath());
 
 	// Save config to navmesh? Or did we already do that when we built it?
+	bool success = m_navMesh->SaveNavMeshFile();
 
-	return m_navMesh->SaveNavMeshFile();
+	if (success)
+	{
+		SPDLOG_INFO("Navmesh saved: {}", m_navMesh->GetDataFileName());
+	}
+	else
+	{
+		SPDLOG_ERROR("Failed to save navmesh: {}", m_navMesh->GetDataFileName());
+	}
+
+	return success;
 }
 
 bool NavMeshProject::IsLoaded() const
@@ -166,10 +202,7 @@ ZoneProject::~ZoneProject()
 
 void ZoneProject::OnUpdate(float timeStep)
 {
-	if (m_navMeshProj)
-	{
-		m_navMeshProj->OnUpdate(timeStep);
-	}
+	m_navMeshProj->OnUpdate(timeStep);
 }
 
 void ZoneProject::OnShutdown()
@@ -344,7 +377,7 @@ tf::Taskflow ZoneProject::BuildLoadZoneTaskflow(bool loadNavMesh, ZoneContextCal
 			});
 
 			// Do the work.
-			if (sharedThis->LoadNavMesh(true))
+			if (sharedThis->GetNavMeshProject()->LoadNavMesh(true))
 			{
 				return 1; // proceed to next step
 			}
@@ -426,28 +459,26 @@ bool ZoneProject::BuildTriangleMesh()
 
 void ZoneProject::ResetNavMesh()
 {
-	if (m_navMeshProj)
-	{
-		m_navMeshProj->ResetNavMesh();
-	}
+	if (IsBusy() || !IsNavMeshReady())
+		return;
+
+	m_navMeshProj->ResetNavMesh();
 }
 
 bool ZoneProject::LoadNavMesh(bool allowMissing)
 {
-	if (m_navMeshProj)
-	{
-		return m_navMeshProj->LoadNavMesh(allowMissing);
-	}
-	return false;
+	if (IsBusy())
+		return false;
+
+	return m_navMeshProj->LoadNavMesh(allowMissing);
 }
 
 bool ZoneProject::SaveNavMesh()
 {
-	if (m_navMeshProj)
-	{
-		return m_navMeshProj->SaveNavMesh();
-	}
-	return false;
+	if (IsBusy() || !IsNavMeshReady())
+		return false;
+
+	return m_navMeshProj->SaveNavMesh();
 }
 
 bool ZoneProject::IsNavMeshReady() const
@@ -600,10 +631,10 @@ void ZoneProject::SetProgress(const ProgressState& progress)
 
 	if (m_progress.Combine(progress))
 	{
-		SPDLOG_INFO("SetProgressState display={} text={} progress={:.0f}%",
-			m_progress.display.value_or(false),
-			m_progress.text.value_or(std::string()),
-			m_progress.value.value_or(0.0f) * 100);
+		//SPDLOG_INFO("SetProgressState display={} text={} progress={:.0f}%",
+		//	m_progress.display.value_or(false),
+		//	m_progress.text.value_or(std::string()),
+		//	m_progress.value.value_or(0.0f) * 100);
 	}
 }
 

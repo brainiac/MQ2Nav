@@ -200,6 +200,8 @@ void PanelManager::UpdatePopups()
 			ImGui::OpenPopup(notif.titleAndId.c_str());
 		}
 
+		ImGui::SetNextWindowSizeConstraints(ImVec2(400, 60), ImVec2(FLT_MAX, FLT_MAX));
+
 		bool show;
 		if (notif.modal)
 			show = ImGui::BeginPopupModal(notif.titleAndId.c_str());

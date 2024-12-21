@@ -256,7 +256,7 @@ void ConsolePanel::RenderLogs(const ImVec2& size)
 	{
 		const float cursorX = ImGui::GetCursorScreenPos().x;
 
-		ImGui::TableSetupColumn("Level", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+		ImGui::TableSetupColumn("Level", ImGuiTableColumnFlags_WidthFixed, 63.0f);
 		ImGui::TableSetupColumn("Timestamp", ImGuiTableColumnFlags_WidthFixed, 105.0f);
 		ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 75.0f);
 		ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);

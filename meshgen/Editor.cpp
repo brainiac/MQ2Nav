@@ -323,9 +323,14 @@ void Editor::UI_DrawMainMenuBar()
 		if (ImGui::BeginMenu("File"))
 		{
 			if (ImGui::MenuItem("Open Zone", "Ctrl+O", nullptr,
-				!IsBlockingOperationActive()))
+				!m_project->IsBusy()))
 			{
 				ShowZonePicker();
+			}
+			if (ImGui::MenuItem("Close Zone", nullptr, nullptr,
+				!m_project->IsBusy() && m_project->IsZoneLoaded()))
+			{
+				CreateEmptyProject();
 			}
 
 			ImGui::Separator();
@@ -439,9 +444,17 @@ static bool ToolbarButton(const char* text, const char* tooltip = nullptr, bool 
 	float cursorY = ImGui::GetCursorPosY();
 	ImGui::SetCursorPosY(3);
 
-	ImGui::PushFont(font ? font : LCIconFontLarge);
-	bool pressed = ImGui::Button(text, buttonSize);
-	ImGui::PopFont();
+	bool pressed;
+
+	{
+		mq::imgui::ScopedColorStack colorStack(
+			ImGuiCol_Text, (selected || disabled) ? IM_COL32(255, 255, 255, 255) : IM_COL32(104, 184, 255, 255)
+		);
+
+		ImGui::PushFont(font ? font : LCIconFontLarge);
+		pressed = ImGui::Button(text, buttonSize);
+		ImGui::PopFont();
+	}
 
 	if (tooltip)
 		ImGui::SetItemTooltip("%s", tooltip);
@@ -517,7 +530,7 @@ void Editor::UI_DrawToolbar()
 		ImGuiStyleVar_FrameBorderSize, 1.0f
 	);
 
-	bool isBlocked = IsBlockingOperationActive();
+	bool isBlocked = m_project->IsBusy();
 
 	if (draw)
 	{
@@ -554,7 +567,7 @@ void Editor::UI_DrawToolbar()
 			}
 
 			// Save
-			if (ToolbarButton(ICON_LC_SAVE "##SaveMesh", "Save Mesh", isBlocked || m_project->IsZoneLoaded() || !m_project->IsNavMeshReady()))
+			if (ToolbarButton(ICON_LC_SAVE "##SaveMesh", "Save Mesh", isBlocked || !m_project->IsZoneLoaded() || !m_project->IsNavMeshReady()))
 			{
 				m_project->SaveNavMesh();
 			}
@@ -910,12 +923,6 @@ void Editor::UI_DrawAreaTypesEditor()
 
 		ImGui::End();
 	}
-}
-
-
-bool Editor::IsBlockingOperationActive()
-{
-	return m_project && m_project->IsBusy();
 }
 
 void Editor::ShowNotificationDialog(const std::string& title, const std::string& message, bool modal)

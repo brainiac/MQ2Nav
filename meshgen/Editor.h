@@ -68,8 +68,6 @@ private:
 
 	std::tuple<glm::vec3, glm::vec3> CastRay(float mx, float my);
 
-	bool IsBlockingOperationActive();
-
 	void ShowZonePicker();
 	void ShowSettingsDialog();
 	void ShowImportExportSettingsDialog(bool import);
