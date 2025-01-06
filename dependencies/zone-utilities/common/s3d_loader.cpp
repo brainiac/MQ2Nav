@@ -17,16 +17,16 @@ void decode_s3d_string(char* str, size_t len)
 	}
 }
 
-S3DLoader::S3DLoader()
+WLDLoader::WLDLoader()
 {
 }
 
-S3DLoader::~S3DLoader()
+WLDLoader::~WLDLoader()
 {
 	Reset();
 }
 
-void S3DLoader::Reset()
+void WLDLoader::Reset()
 {
 	if (m_stringPool)
 	{
@@ -45,7 +45,7 @@ void S3DLoader::Reset()
 	m_objects.clear();
 }
 
-bool S3DLoader::Init(PFS::Archive* archive, const std::string& wld_name)
+bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 {
 	if (archive == nullptr || wld_name.empty())
 	{
@@ -54,6 +54,9 @@ bool S3DLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 
 	m_archive = archive;
 	m_fileName = wld_name;
+
+	if (!archive->Exists(wld_name))
+		return false; // no error log if file doesn't exist.
 
 	// This will whole the entire contents of the .wld file
 	m_wldFileContents = m_archive->Get(wld_name, m_wldFileSize);
@@ -132,9 +135,9 @@ bool S3DLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 		}
 
 		// Read the tag
-		if (type == WLD_DEFAULT_PALLETE_FILE || type == WLD_WORLD_USERDATA)
+		if (type == WLD_DEFAULT_PALLETE_FILE || type == WLD_WORLD_USERDATA || type == WLD_CONSTANT_AMBIENT)
 		{
-			eqLogMessage(LogWarn, "Unable to read tag ID (%d) type (%d).", index);
+			eqLogMessage(LogWarn, "Unable to read tag ID (%d) type (%d).", index, type);
 		}
 		else
 		{
@@ -160,10 +163,14 @@ bool S3DLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 		return false;
 	}
 
-	return ParseWLDObjects();
+	if (!ParseWLDObjects())
+		return false;
+
+	m_valid = true;
+	return true;
 }
 
-uint32_t S3DLoader::GetObjectIndexFromID(int nID, uint32_t currID)
+uint32_t WLDLoader::GetObjectIndexFromID(int nID, uint32_t currID)
 {
 	if (nID >= 0)
 	{
@@ -200,7 +207,7 @@ uint32_t S3DLoader::GetObjectIndexFromID(int nID, uint32_t currID)
 	return 0;
 }
 
-bool S3DLoader::ParseWLDFile(S3DLoader& loader,
+bool WLDLoader::ParseWLDFile(WLDLoader& loader,
 	const std::string& file_name, const std::string& wld_name)
 {
 	EQEmu::PFS::Archive archive;
@@ -219,7 +226,7 @@ bool S3DLoader::ParseWLDFile(S3DLoader& loader,
 	return true;
 }
 
-bool S3DLoader::ParseWLDObjects()
+bool WLDLoader::ParseWLDObjects()
 {
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{

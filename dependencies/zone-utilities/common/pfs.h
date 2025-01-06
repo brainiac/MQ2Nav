@@ -17,12 +17,14 @@ public:
 
 	bool Open();
 	bool Open(uint32_t date);
-	bool Open(std::string filename);
-	bool Save(std::string filename);
+	bool Open(const std::string& filename);
+	bool Save(const std::string& filename);
 	void Close();
 
 	bool Get(std::string filename, std::vector<char>& buf);
 	std::unique_ptr<uint8_t[]> Get(std::string filename, uint32_t& size);
+
+	const std::string& GetFileName() const { return m_filename; }
 
 	bool Set(std::string filename, const std::vector<char>& buf);
 	bool Delete(std::string filename);
@@ -39,6 +41,7 @@ private:
 	std::map<std::string, uint32_t> m_files_uncompressed_size;
 	bool m_footer;
 	uint32_t m_footer_date;
+	std::string m_filename;
 };
 
 } // namespace EQEmu::PFS

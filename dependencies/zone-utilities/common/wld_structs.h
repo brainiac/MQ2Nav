@@ -39,6 +39,19 @@ enum WLDOBJ_LIGHTOPT
 	WLD_OBJ_LIGHTOPT_HAVECOLORS                      = 0x0010,
 };
 
+// flags for region objects
+enum WLDOBJ_REGOPT
+{
+	WLD_OBJ_REGOPT_HAVESPHERE                        = 0x0001,
+	WLD_OBJ_REGOPT_HAVEREVERBVOLUME                  = 0x0002,
+	WLD_OBJ_REGOPT_HAVEREVERBOFFSET                  = 0x0004,
+	WLD_OBJ_REGOPT_REGIONFOG                         = 0x0008,
+	WLD_OBJ_REGOPT_ENCODEDVISIBILITY                 = 0x0020,
+	WLD_OBJ_REGOPT_HAVEREGIONDMSPRITE                = 0x0040,
+	WLD_OBJ_REGOPT_ENCODEDVISIBILITY2                = 0x0080,
+	WLD_OBJ_REGOPT_HAVEREGIONDMSPRITEDEF             = 0x0100,
+};
+
 enum ECollisionVolumeType
 {
 	eCollisionVolumeNone,
@@ -46,6 +59,11 @@ enum ECollisionVolumeType
 	eCollisionVolumeSphere,
 	eCollisionVolumeDag,
 	eCollisionVolumeBox,
+};
+
+enum S3D_FACEFLAGS
+{
+	S3D_FACEFLAG_PASSABLE = 0x10
 };
 
 struct SLocation

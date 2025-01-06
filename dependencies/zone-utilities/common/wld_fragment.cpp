@@ -12,7 +12,7 @@
 namespace EQEmu::S3D {
 
 // WLD_BITMAP_INFO
-WLDFragment03::WLDFragment03(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment03::WLDFragment03(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -36,7 +36,7 @@ WLDFragment03::WLDFragment03(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment04::WLDFragment04(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment04::WLDFragment04(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -69,7 +69,7 @@ WLDFragment04::WLDFragment04(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment05::WLDFragment05(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment05::WLDFragment05(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -79,7 +79,7 @@ WLDFragment05::WLDFragment05(S3DLoader* loader, S3DFileObject* obj)
 	def_id = loader->GetObjectIndexFromID(inst->definition_id);
 }
 
-WLDFragment10::WLDFragment10(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment10::WLDFragment10(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -166,7 +166,7 @@ WLDFragment10::WLDFragment10(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment11::WLDFragment11(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment11::WLDFragment11(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -175,7 +175,7 @@ WLDFragment11::WLDFragment11(S3DLoader* loader, S3DFileObject* obj)
 	def_id = header->definition_id;
 }
 
-WLDFragment12::WLDFragment12(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment12::WLDFragment12(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -206,7 +206,7 @@ WLDFragment12::WLDFragment12(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment13::WLDFragment13(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment13::WLDFragment13(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -215,7 +215,7 @@ WLDFragment13::WLDFragment13(S3DLoader* loader, S3DFileObject* obj)
 	def_id = header->track_id;
 }
 
-WLDFragment14::WLDFragment14(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment14::WLDFragment14(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -249,7 +249,7 @@ WLDFragment14::WLDFragment14(S3DLoader* loader, S3DFileObject* obj)
 	// remaining data is "userdata" but is never set, so don't bother to read for it.
 }
 
-WLDFragment15::WLDFragment15(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment15::WLDFragment15(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -262,7 +262,7 @@ WLDFragment15::WLDFragment15(S3DLoader* loader, S3DFileObject* obj)
 		reader.skip<uint32_t>();
 
 	placeable = std::make_shared<Placeable>();
-	placeable->model_name = loader->GetString(header->actor_def_id);
+	placeable->tag = loader->GetString(header->actor_def_id);
 	actor_def_id = header->actor_def_id;
 	collision_volume_id = header->collision_volume_id;
 
@@ -271,14 +271,14 @@ WLDFragment15::WLDFragment15(S3DLoader* loader, S3DFileObject* obj)
 		SLocation location;
 		reader.read(location);
 
-		placeable->x = location.x;
-		placeable->y = location.y;
-		placeable->z = location.z;
+		placeable->pos.x = location.x;
+		placeable->pos.y = location.y;
+		placeable->pos.z = location.z;
 
 		constexpr float EQ_TO_DEG = 360.0f / 512.0f;
-		placeable->rotate_x = location.roll * EQ_TO_DEG;
-		placeable->rotate_y = location.pitch * EQ_TO_DEG;
-		placeable->rotate_z = location.heading * EQ_TO_DEG;
+		placeable->rotate.x = location.roll * EQ_TO_DEG;
+		placeable->rotate.y = location.pitch * EQ_TO_DEG;
+		placeable->rotate.z = location.heading * EQ_TO_DEG;
 	}
 
 	if (header->flags & WLD_OBJ_ACTOROPT_HAVEBOUNDINGRADIUS)
@@ -291,9 +291,9 @@ WLDFragment15::WLDFragment15(S3DLoader* loader, S3DFileObject* obj)
 		reader.read(scale_factor);
 	}
 
-	placeable->scale_x = scale_factor;
-	placeable->scale_y = scale_factor;
-	placeable->scale_z = scale_factor;
+	placeable->scale.x = scale_factor;
+	placeable->scale.y = scale_factor;
+	placeable->scale.z = scale_factor;
 
 	if (header->flags & WLD_OBJ_ACTOROPT_HAVEDMRGBTRACK)
 	{
@@ -301,7 +301,7 @@ WLDFragment15::WLDFragment15(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment1B::WLDFragment1B(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment1B::WLDFragment1B(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -350,7 +350,7 @@ WLDFragment1B::WLDFragment1B(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment1C::WLDFragment1C(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment1C::WLDFragment1C(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -359,7 +359,7 @@ WLDFragment1C::WLDFragment1C(S3DLoader* loader, S3DFileObject* obj)
 	light_id = header->definition_id;
 }
 
-WLDFragment21::WLDFragment21(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment21::WLDFragment21(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -381,16 +381,79 @@ WLDFragment21::WLDFragment21(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment22::WLDFragment22(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment22::WLDFragment22(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_REGION>();
 
-	// TODO
+	ambient_light_index = loader->GetObjectIndexFromID(header->ambient_light_id);
+
+	if (header->num_vis_nodes > 0)
+	{
+		reader.skip<WLD_OBJ_XYZ>(header->num_vis_nodes);
+		reader.skip<uint32_t>(header->num_vis_nodes * 4);
+	}
+
+	if (header->flags & WLD_OBJ_REGOPT_ENCODEDVISIBILITY)
+	{
+		encoded_visibility_type = 1;
+	}
+	else if (header->flags & WLD_OBJ_REGOPT_ENCODEDVISIBILITY2)
+	{
+		encoded_visibility_type = 2;
+	}
+	else
+	{
+		encoded_visibility_type = 0;
+	}
+
+	range = reader.read<uint16_t>();
+
+	if (encoded_visibility_type != 2)
+	{
+		reader.skip<uint16_t>(range);
+	}
+	else
+	{
+		reader.skip<uint8_t>(range);
+	}
+
+	if (header->flags & WLD_OBJ_REGOPT_HAVESPHERE)
+	{
+		reader.read(sphere_center);
+		reader.read(sphere_radius);
+	}
+
+	if (header->flags & WLD_OBJ_REGOPT_HAVEREVERBVOLUME)
+	{
+		reader.skip<uint32_t>();
+	}
+
+	if (header->flags & WLD_OBJ_REGOPT_HAVEREVERBOFFSET)
+	{
+		reader.skip<uint32_t>();
+	}
+
+	uint32_t udSize = reader.read<uint32_t>();
+	if (udSize > 0)
+	{
+		reader.skip<uint8_t>(udSize);
+	}
+
+	if (header->flags & WLD_OBJ_REGOPT_HAVEREGIONDMSPRITE)
+	{
+		region_sprite_index = (int)loader->GetObjectIndexFromID(reader.read<uint32_t>());
+	}
+
+	if (header->flags & WLD_OBJ_REGOPT_HAVEREGIONDMSPRITEDEF)
+	{
+		region_sprite_index = (int)loader->GetObjectIndexFromID(reader.read<uint32_t>());
+		region_sprite_is_def = true;
+	}
 }
 
-WLDFragment28::WLDFragment28(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment28::WLDFragment28(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -414,7 +477,7 @@ WLDFragment28::WLDFragment28(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment29::WLDFragment29(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment29::WLDFragment29(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -438,7 +501,7 @@ WLDFragment29::WLDFragment29(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment2D::WLDFragment2D(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment2D::WLDFragment2D(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -448,7 +511,7 @@ WLDFragment2D::WLDFragment2D(S3DLoader* loader, S3DFileObject* obj)
 }
 
 // WLD_OBJ_MATERIALDEFINITION_TYPE
-WLDFragment30::WLDFragment30(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment30::WLDFragment30(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -497,7 +560,7 @@ WLDFragment30::WLDFragment30(S3DLoader* loader, S3DFileObject* obj)
 }
 
 // WLD_OBJ_MATERIALPALETTE_TYPE
-WLDFragment31::WLDFragment31(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment31::WLDFragment31(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -520,7 +583,7 @@ WLDFragment31::WLDFragment31(S3DLoader* loader, S3DFileObject* obj)
 	}
 }
 
-WLDFragment36::WLDFragment36(S3DLoader* loader, S3DFileObject* obj)
+WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
 	ReadBuffer reader(obj->data, obj->size);
@@ -532,7 +595,7 @@ WLDFragment36::WLDFragment36(S3DLoader* loader, S3DFileObject* obj)
 	float scale = 1.0f / (float)(1 << header->scale);
 
 	std::shared_ptr<Geometry> model = std::make_shared<Geometry>();
-	model->name = obj->tag;
+	model->tag = obj->tag;
 
 	S3DFileObject& frag = loader->GetObjectFromID(header->material_palette_id);
 	if (frag.type == WLD_OBJ_MATERIALPALETTE_TYPE)

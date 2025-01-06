@@ -536,10 +536,11 @@ void ZoneInputGeometryRender::CreateObjects()
 		config = &defaultConfig;
 	}
 
-	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(loader->getVerts());
-	const int* tris = loader->getTris();
-	const float* normals = loader->getNormals();
-	const int ntris = loader->getTriCount();
+	auto& collisionMesh = loader->GetCollisionMesh();
+	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(collisionMesh.getVerts());
+	const int* tris = collisionMesh.getTris();
+	const float* normals = collisionMesh.getNormals();
+	const int ntris = collisionMesh.getTriCount();
 	const float texScale = 1.0f / (config->cellSize * 10.0f);
 	const float walkableThr = cosf(config->agentMaxSlope / 180.0f * DU_PI);
 	const uint32_t unwalkable = duRGBA(192, 128, 0, 255);

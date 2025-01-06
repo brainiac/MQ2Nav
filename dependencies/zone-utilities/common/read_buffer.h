@@ -180,12 +180,12 @@ public:
 	}
 
 	template <typename T>
-	bool skip()
+	bool skip(uint32_t count = 1)
 	{
 		static_assert(std::is_standard_layout<T>::value,
 			"ReadBuffer::skip<T>() only works on pod and string types.");
 	
-		return skip(sizeof(T));
+		return skip(sizeof(T) * count);
 	}
 
 	std::span<const uint8_t> span() const

@@ -1,22 +1,19 @@
-#include "eqg_v4_loader.h"
-#include <algorithm>
-#include <cctype>
 #include "eqg_structs.h"
 #include "safe_alloc.h"
-#include "eqg_model_loader.h"
+#include "eqg_loader.h"
 #include "string_util.h"
 #include "log_macros.h"
 
-EQEmu::EQG4Loader::EQG4Loader() {
-}
+#include <algorithm>
+#include <cctype>
 
-EQEmu::EQG4Loader::~EQG4Loader() {
-}
+namespace EQEmu {
 
-bool EQEmu::EQG4Loader::Load(std::string file, std::shared_ptr<EQG::Terrain> &terrain)
+bool EQG4Loader::Load(std::string file, std::shared_ptr<EQG::Terrain>& terrain)
 {
-	EQEmu::PFS::Archive archive;
-	if (!archive.Open(file + ".eqg")) {
+	PFS::Archive archive;
+	if (!archive.Open(file + ".eqg"))
+	{
 		eqLogMessage(LogTrace, "Failed to open %s.eqg as an eqgv4 file because the file does not exist.", file.c_str());
 		return false;
 	}
@@ -26,15 +23,21 @@ bool EQEmu::EQG4Loader::Load(std::string file, std::shared_ptr<EQG::Terrain> &te
 	std::vector<std::string> files;
 	archive.GetFilenames("zon", files);
 
-	if (files.size() == 0) {
-		if (GetZon(file + ".zon", zon)) {
+	if (files.size() == 0)
+	{
+		if (GetZon(file + ".zon", zon))
+		{
 			zon_found = true;
 		}
 	}
-	else {
-		for(auto &f : files) {
-			if(archive.Get(f, zon)) {
-				if(zon[0] == 'E' && zon[1] == 'Q' && zon[2] == 'T' && zon[3] == 'Z' && zon[4] == 'P') {
+	else
+	{
+		for (auto& f : files)
+		{
+			if (archive.Get(f, zon))
+			{
+				if (zon[0] == 'E' && zon[1] == 'Q' && zon[2] == 'T' && zon[3] == 'Z' && zon[4] == 'P')
+				{
 					zon_found = true;
 					break;
 				}
@@ -42,19 +45,23 @@ bool EQEmu::EQG4Loader::Load(std::string file, std::shared_ptr<EQG::Terrain> &te
 		}
 	}
 
-	if (!zon_found) {
+	if (!zon_found)
+	{
 		eqLogMessage(LogError, "Failed to open %s.eqg because the %s.zon file could not be found.", file.c_str(), file.c_str());
 		return false;
 	}
 
 	eqLogMessage(LogTrace, "Parsing zone file.");
+
 	terrain.reset(new EQG::Terrain());
-	if (!ParseZon(zon, terrain->GetOpts())) {
+	if (!ParseZon(zon, terrain->GetOpts()))
+	{
 		return false;
 	}
 
 	eqLogMessage(LogTrace, "Parsing zone data file.");
-	if(!ParseZoneDat(archive, terrain)) {
+	if (!ParseZoneDat(archive, terrain))
+	{
 		return false;
 	}
 
@@ -99,9 +106,9 @@ float HeightWithinQuad(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4, f
 		c = p4;
 	}
 
-	n.x = (b.y - a.y)*(c.z - a.z) - (b.z - a.z)*(c.y - a.y);
-	n.y = (b.z - a.z)*(c.x - a.x) - (b.x - a.x)*(c.z - a.z);
-	n.z = (b.x - a.x)*(c.y - a.y) - (b.y - a.y)*(c.x - a.x);
+	n.x = (b.y - a.y) * (c.z - a.z) - (b.z - a.z) * (c.y - a.y);
+	n.y = (b.z - a.z) * (c.x - a.x) - (b.x - a.x) * (c.z - a.z);
+	n.z = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
 
 	float len = sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
 
@@ -112,10 +119,13 @@ float HeightWithinQuad(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4, f
 	return (((n.x) * (x - a.x) + (n.y) * (y - a.y)) / -n.z) + a.z;
 }
 
-bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_ptr<EQG::Terrain> &terrain) {
+bool EQG4Loader::ParseZoneDat(PFS::Archive& archive, std::shared_ptr<EQG::Terrain>& terrain)
+{
 	std::string filename = terrain->GetOpts().name + ".dat";
 	std::vector<char> buffer;
-	if(!archive.Get(filename, buffer)) {
+
+	if (!archive.Get(filename, buffer))
+	{
 		eqLogMessage(LogError, "Failed to open %s.", filename.c_str());
 		return false;
 	}
@@ -140,7 +150,8 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 	terrain->SetUnitsPerVertex(terrain->GetOpts().units_per_vert);
 
 	eqLogMessage(LogTrace, "Parsing zone terrain tiles.");
-	for(uint32_t i = 0; i < tile_count; ++i) {
+	for (uint32_t i = 0; i < tile_count; ++i)
+	{
 		std::shared_ptr<EQG::TerrainTile> tile(new EQG::TerrainTile());
 		terrain->AddTile(tile);
 
@@ -150,7 +161,7 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 
 		float tile_start_y = zone_min_y + (tile_lng - 100000 - terrain->GetOpts().min_lng) * terrain->GetOpts().units_per_vert * terrain->GetOpts().quads_per_tile;
 		float tile_start_x = zone_min_x + (tile_lat - 100000 - terrain->GetOpts().min_lat) * terrain->GetOpts().units_per_vert * terrain->GetOpts().quads_per_tile;
-	
+
 		bool floats_all_the_same = true;
 		tile->GetFloats().resize(vert_count);
 		tile->GetColors().resize(vert_count);
@@ -158,30 +169,35 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 		tile->GetFlags().resize(quad_count);
 
 		double current_avg = 0.0;
-		for (uint32_t j = 0; j < vert_count; ++j) {
+		for (uint32_t j = 0; j < vert_count; ++j)
+		{
 			SafeVarAllocParse(float, t);
 			tile->GetFloats()[j] = t;
 
-			if ((j > 0) && (tile->GetFloats()[j] != tile->GetFloats()[0])) {
+			if ((j > 0) && (tile->GetFloats()[j] != tile->GetFloats()[0]))
+			{
 				floats_all_the_same = false;
 			}
 		}
 
-		for (uint32_t j = 0; j < vert_count; ++j) {
+		for (uint32_t j = 0; j < vert_count; ++j)
+		{
 			SafeVarAllocParse(uint32_t, color);
 			tile->GetColors()[j] = color;
 		}
 
-		for (uint32_t j = 0; j < vert_count; ++j) {
+		for (uint32_t j = 0; j < vert_count; ++j)
+		{
 			SafeVarAllocParse(uint32_t, color);
 			tile->GetColors2()[j] = color;
 		}
 
-		for (uint32_t j = 0; j < quad_count; ++j) {
+		for (uint32_t j = 0; j < quad_count; ++j)
+		{
 			SafeVarAllocParse(uint8_t, flag);
 			tile->GetFlags()[j] = flag;
 
-			if(flag & 0x01)
+			if (flag & 0x01)
 				floats_all_the_same = false;
 		}
 
@@ -195,9 +211,11 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 		idx -= sizeof(int32_t);
 		SafeVarAllocParse(float, unk_unk2);
 
-		if (unk_unk > 0) {
+		if (unk_unk > 0)
+		{
 			SafeVarAllocParse(int8_t, unk_byte);
-			if(unk_byte > 0) {
+			if (unk_byte > 0)
+			{
 				SafeVarAllocParse(float, f1);
 				SafeVarAllocParse(float, f2);
 				SafeVarAllocParse(float, f3);
@@ -208,12 +226,14 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 		}
 
 		SafeVarAllocParse(uint32_t, layer_count);
-		if (layer_count > 0) {
+		if (layer_count > 0)
+		{
 			SafeStringAllocParse(base_material);
 			//tile.SetBaseMaterial(base_material);
 
 			uint32_t overlay_count = 0;
-			for (uint32_t layer = 1; layer < layer_count; ++layer) {
+			for (uint32_t layer = 1; layer < layer_count; ++layer)
+			{
 				SafeStringAllocParse(material);
 
 				SafeVarAllocParse(uint32_t, detail_mask_dim);
@@ -234,7 +254,8 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 		}
 
 		SafeVarAllocParse(uint32_t, single_placeable_count);
-		for(uint32_t j = 0; j < single_placeable_count; ++j) {
+		for (uint32_t j = 0; j < single_placeable_count; ++j)
+		{
 			SafeStringAllocParse(model_name);
 			std::transform(model_name.begin(), model_name.end(), model_name.begin(), ::tolower);
 
@@ -254,24 +275,28 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 			SafeVarAllocParse(float, scale_x);
 			SafeVarAllocParse(float, scale_y);
 			SafeVarAllocParse(float, scale_z);
-		
+
 			SafeVarAllocParse(uint8_t, unk);
 
-			if(header.unk000 & 2) {
+			if (header.unk000 & 2)
+			{
 				idx += sizeof(uint32_t);
 			}
 
-			if(terrain->GetModels().count(model_name) == 0) {
-				EQGModelLoader model_loader;
+			if (terrain->GetModels().count(model_name) == 0)
+			{
 				std::shared_ptr<EQG::Geometry> m(new EQG::Geometry());
 				m->SetName(model_name);
-				if (model_loader.Load(archive, model_name + ".mod", m)) {
+				if (LoadEQGModel(archive, model_name + ".mod", m))
+				{
 					terrain->GetModels()[model_name] = m;
 				}
-				else if (model_loader.Load(archive, model_name, m)) {
+				else if (LoadEQGModel(archive, model_name, m))
+				{
 					terrain->GetModels()[model_name] = m;
 				}
-				else {
+				else
+				{
 					m->GetMaterials().clear();
 					m->GetPolygons().clear();
 					m->GetVertices().clear();
@@ -279,28 +304,28 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 				}
 			}
 
-			std::shared_ptr<Placeable> p(new Placeable());
+			std::shared_ptr<Placeable> p = std::make_shared<Placeable>();
 			p->SetName(model_name);
 			p->SetFileName(model_name);
-			p->SetLocation(0.0f, 0.0f, 0.0f);
+			p->SetPosition(0.0f, 0.0f, 0.0f);
 			p->SetRotation(rot_x, rot_y, rot_z);
 			p->SetScale(scale_x, scale_y, scale_z);
 
 			//There's a lot of work with offsets here =/
 			std::shared_ptr<PlaceableGroup> pg(new PlaceableGroup());
 			pg->SetFromTOG(false);
-			pg->SetLocation(x, y, z);
+			pg->SetPosition(x, y, z);
 
 			float terrain_height = 0.0f;
 			float adjusted_x = x;
 			float adjusted_y = y;
 
-			if(adjusted_x < 0)
+			if (adjusted_x < 0)
 				adjusted_x = adjusted_x + (-(int)(adjusted_x / (terrain->GetOpts().units_per_vert * terrain->GetOpts().quads_per_tile)) + 1) * (terrain->GetOpts().units_per_vert * terrain->GetOpts().quads_per_tile);
 			else
 				adjusted_x = fmod(adjusted_x, terrain->GetOpts().units_per_vert * terrain->GetOpts().quads_per_tile);
 
-			if(adjusted_y < 0)
+			if (adjusted_y < 0)
 				adjusted_y = adjusted_y + (-(int)(adjusted_y / (terrain->GetOpts().units_per_vert * terrain->GetOpts().quads_per_tile)) + 1) * (terrain->GetOpts().units_per_vert * terrain->GetOpts().quads_per_tile);
 			else
 				adjusted_y = fmod(adjusted_y, terrain->GetOpts().units_per_vert * terrain->GetOpts().quads_per_tile);
@@ -318,10 +343,10 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 			glm::vec3 p2(p1.x + terrain->GetOpts().units_per_vert, p1.y, quad_vertex2Z);
 			glm::vec3 p3(p1.x + terrain->GetOpts().units_per_vert, p1.y + terrain->GetOpts().units_per_vert, quad_vertex3Z);
 			glm::vec3 p4(p1.x, p1.y + terrain->GetOpts().units_per_vert, quad_vertex4Z);
-			
+
 			terrain_height = HeightWithinQuad(p1, p2, p3, p4, adjusted_y, adjusted_x);
 
-			pg->SetTileLocation(tile_start_y, tile_start_x, terrain_height);
+			pg->SetTilePosition(tile_start_y, tile_start_x, terrain_height);
 			pg->SetRotation(0.0f, 0.0f, 0.0f);
 			pg->SetScale(1.0f, 1.0f, 1.0f);
 			pg->AddPlaceable(p);
@@ -443,20 +468,21 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 			SafeVarAllocParse(float, z_adjust);
 
 			std::vector<char> tog_buffer;
-			if(!archive.Get(tog_name + ".tog", tog_buffer))
+			if (!archive.Get(tog_name + ".tog", tog_buffer))
 			{
 				eqLogMessage(LogWarn, "Failed to load tog file %s.tog.", tog_name.c_str());
 				continue;
-			} else {
+			}
+			else {
 				eqLogMessage(LogTrace, "Loaded tog file %s.tog.", tog_name.c_str());
 			}
 
 			std::shared_ptr<PlaceableGroup> pg(new PlaceableGroup());
 			pg->SetFromTOG(true);
-			pg->SetLocation(x, y, z + (scale_z * z_adjust));
+			pg->SetPosition(x, y, z + (scale_z * z_adjust));
 			pg->SetRotation(rot_x, rot_y, rot_z);
 			pg->SetScale(scale_x, scale_y, scale_z);
-			pg->SetTileLocation(tile_start_y, tile_start_x, 0.0f);
+			pg->SetTilePosition(tile_start_y, tile_start_x, 0.0f);
 
 			std::vector<std::string> tokens;
 			std::shared_ptr<Placeable> p;
@@ -475,17 +501,21 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 					std::string model_name = tokens[k + 1];
 					std::transform(model_name.begin(), model_name.end(), model_name.begin(), ::tolower);
 
-					if (terrain->GetModels().count(model_name) == 0) {
-						EQGModelLoader model_loader;
+					if (terrain->GetModels().count(model_name) == 0)
+					{
 						std::shared_ptr<EQG::Geometry> m(new EQG::Geometry());
 						m->SetName(model_name);
-						if (model_loader.Load(archive, model_name + ".mod", m)) {
+
+						if (LoadEQGModel(archive, model_name + ".mod", m))
+						{
 							terrain->GetModels()[model_name] = m;
 						}
-						else if (model_loader.Load(archive, model_name, m)) {
+						else if (LoadEQGModel(archive, model_name, m))
+						{
 							terrain->GetModels()[model_name] = m;
 						}
-						else {
+						else
+						{
 							m->GetMaterials().clear();
 							m->GetPolygons().clear();
 							m->GetVertices().clear();
@@ -502,7 +532,7 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 						break;
 					}
 
-					p->SetLocation(std::stof(tokens[k + 1]), std::stof(tokens[k + 2]), std::stof(tokens[k + 3]));
+					p->SetPosition(std::stof(tokens[k + 1]), std::stof(tokens[k + 2]), std::stof(tokens[k + 3]));
 					k += 4;
 				}
 				else if (token.compare("*ROTATION") == 0) {
@@ -539,9 +569,9 @@ bool EQEmu::EQG4Loader::ParseZoneDat(EQEmu::PFS::Archive &archive, std::shared_p
 	return true;
 }
 
-bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_ptr<EQG::Terrain> &terrain) {
+bool EQG4Loader::ParseWaterDat(PFS::Archive& archive, std::shared_ptr<EQG::Terrain>& terrain) {
 	std::vector<char> wat;
-	if(!archive.Get("water.dat", wat)) {
+	if (!archive.Get("water.dat", wat)) {
 		return false;
 	}
 
@@ -559,7 +589,7 @@ bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_
 			++i;
 		}
 		else if (token.compare("*END_SHEET") == 0) {
-			if(ws) {
+			if (ws) {
 				eqLogMessage(LogTrace, "Adding finite water sheet.");
 				terrain->AddWaterSheet(ws);
 			}
@@ -569,7 +599,7 @@ bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_
 		else if (token.compare("*WATERSHEETDATA") == 0) {
 			ws.reset(new EQG::WaterSheet());
 			ws->SetTile(true);
-		
+
 			++i;
 		}
 		else if (token.compare("*ENDWATERSHEETDATA") == 0) {
@@ -577,7 +607,7 @@ bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_
 				eqLogMessage(LogTrace, "Adding infinite water sheet.");
 				terrain->AddWaterSheet(ws);
 			}
-		
+
 			++i;
 		}
 		else if (token.compare("*INDEX") == 0) {
@@ -598,7 +628,8 @@ bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_
 			ws->SetMinX(min_x);
 
 			i += 2;
-		} else if (token.compare("*MINY") == 0) {
+		}
+		else if (token.compare("*MINY") == 0) {
 			if (i + 1 >= tokens.size()) {
 				break;
 			}
@@ -607,7 +638,8 @@ bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_
 			ws->SetMinY(min_y);
 
 			i += 2;
-		} else if (token.compare("*MAXX") == 0) {
+		}
+		else if (token.compare("*MAXX") == 0) {
 			if (i + 1 >= tokens.size()) {
 				break;
 			}
@@ -616,7 +648,8 @@ bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_
 			ws->SetMaxX(max_x);
 
 			i += 2;
-		} else if (token.compare("*MAXY") == 0) {
+		}
+		else if (token.compare("*MAXY") == 0) {
 			if (i + 1 >= tokens.size()) {
 				break;
 			}
@@ -625,7 +658,8 @@ bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_
 			ws->SetMaxY(max_y);
 
 			i += 2;
-		} else if (token.compare("*ZHEIGHT") == 0) {
+		}
+		else if (token.compare("*ZHEIGHT") == 0) {
 			if (i + 1 >= tokens.size()) {
 				break;
 			}
@@ -643,17 +677,17 @@ bool EQEmu::EQG4Loader::ParseWaterDat(EQEmu::PFS::Archive &archive, std::shared_
 	return true;
 }
 
-bool EQEmu::EQG4Loader::ParseInvwDat(EQEmu::PFS::Archive &archive, std::shared_ptr<EQG::Terrain> &terrain) {
+bool EQG4Loader::ParseInvwDat(PFS::Archive& archive, std::shared_ptr<EQG::Terrain>& terrain) {
 	std::vector<char> invw;
 	if (!archive.Get("invw.dat", invw)) {
 		return false;
 	}
 
-	char *buf = &invw[0];
+	char* buf = &invw[0];
 	uint32_t count = *(uint32_t*)buf;
 	buf += sizeof(uint32_t);
 
-	for(uint32_t i = 0; i < count; ++i) {
+	for (uint32_t i = 0; i < count; ++i) {
 		std::string name = buf;
 		buf += name.length() + 1;
 
@@ -665,10 +699,10 @@ bool EQEmu::EQG4Loader::ParseInvwDat(EQEmu::PFS::Archive &archive, std::shared_p
 
 		std::shared_ptr<EQG::InvisWall> w(new EQG::InvisWall());
 		w->SetName(name);
-		auto &verts = w->GetVerts();
+		auto& verts = w->GetVerts();
 
 		verts.resize(vert_count);
-		for(uint32_t j = 0; j < vert_count; ++j) {
+		for (uint32_t j = 0; j < vert_count; ++j) {
 			float x = *(float*)buf;
 			buf += sizeof(float);
 
@@ -680,7 +714,7 @@ bool EQEmu::EQG4Loader::ParseInvwDat(EQEmu::PFS::Archive &archive, std::shared_p
 
 			verts[j].x = x;
 			verts[j].y = y;
-			verts[j].z = z;			
+			verts[j].z = z;
 		}
 
 		terrain->AddInvisWall(w);
@@ -689,9 +723,9 @@ bool EQEmu::EQG4Loader::ParseInvwDat(EQEmu::PFS::Archive &archive, std::shared_p
 	return true;
 }
 
-bool EQEmu::EQG4Loader::GetZon(std::string file, std::vector<char> &buffer) {
+bool EQG4Loader::GetZon(std::string file, std::vector<char>& buffer) {
 	buffer.clear();
-	FILE *f = _fsopen(file.c_str(), "rb", _SH_DENYNO);
+	FILE* f = _fsopen(file.c_str(), "rb", _SH_DENYNO);
 	if (f) {
 		fseek(f, 0, SEEK_END);
 		size_t sz = ftell(f);
@@ -717,34 +751,35 @@ bool EQEmu::EQG4Loader::GetZon(std::string file, std::vector<char> &buffer) {
 	return false;
 }
 
-void EQEmu::EQG4Loader::ParseConfigFile(std::vector<char> &buffer, std::vector<std::string> &tokens) {
+void EQG4Loader::ParseConfigFile(std::vector<char>& buffer, std::vector<std::string>& tokens) {
 	tokens.clear();
 	std::string cur;
 	for (size_t i = 0; i < buffer.size(); ++i) {
 		char c = buffer[i];
-		if(c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f') {
-			if(cur.size() > 0) {
+		if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f') {
+			if (cur.size() > 0) {
 				tokens.push_back(cur);
 				cur.clear();
 			}
-		} else {
+		}
+		else {
 			cur.push_back(c);
 		}
 	}
 }
 
-bool EQEmu::EQG4Loader::ParseZon(std::vector<char> &buffer, EQG::Terrain::ZoneOptions &opts) {
+bool EQG4Loader::ParseZon(std::vector<char>& buffer, EQG::Terrain::ZoneOptions& opts) {
 	if (buffer.size() < 5)
 		return false;
 
 	std::vector<std::string> tokens;
 	ParseConfigFile(buffer, tokens);
 
-	if(tokens.size() < 1) {
+	if (tokens.size() < 1) {
 		return false;
 	}
 
-	if(tokens[0].compare("EQTZP") != 0) {
+	if (tokens[0].compare("EQTZP") != 0) {
 		return 0;
 	}
 
@@ -849,3 +884,5 @@ bool EQEmu::EQG4Loader::ParseZon(std::vector<char> &buffer, EQG::Terrain::ZoneOp
 
 	return true;
 }
+
+} // namespace EQEmu

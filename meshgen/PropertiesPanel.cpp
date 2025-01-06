@@ -66,7 +66,9 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 					ImGui::EndTooltip();
 				}
 			}
-			ImGui::Text("Verts: %.1fk Tris: %.1fk", loader->getVertCount() / 1000.0f, loader->getTriCount() / 1000.0f);
+
+			auto& collisionMesh = loader->GetCollisionMesh();
+			ImGui::Text("Collision Mesh Verts: %.1fk Tris: %.1fk", collisionMesh.getVertCount() / 1000.0f, collisionMesh.getTriCount() / 1000.0f);
 
 			if (project->IsNavMeshReady())
 			{

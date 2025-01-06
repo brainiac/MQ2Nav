@@ -366,8 +366,8 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshBuilder::RasterizeGeometry(
 
 	MapGeometryLoader* loader = zoneProj->GetMeshLoader();
 
-	const float* verts = loader->getVerts();
-	const int nverts = loader->getVertCount();
+	const float* verts = loader->GetCollisionMesh(). getVerts();
+	const int nverts = loader->GetCollisionMesh().getVertCount();
 	const rcChunkyTriMesh* chunkyMesh = zoneProj->GetChunkyMesh();
 
 	// Allocate array that can hold triangle flags.

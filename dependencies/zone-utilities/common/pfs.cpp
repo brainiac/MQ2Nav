@@ -60,7 +60,7 @@ bool Archive::Open(uint32_t date)
 	return true;
 }
 
-bool Archive::Open(std::string filename)
+bool Archive::Open(const std::string& filename)
 {
 	Close();
 
@@ -183,10 +183,12 @@ bool Archive::Open(std::string filename)
 		m_footer_date = date;
 	}
 
+	m_filename = filename;
+
 	return true;
 }
 
-bool Archive::Save(std::string filename)
+bool Archive::Save(const std::string& filename)
 {
 	std::vector<char> buffer;
 

@@ -27,16 +27,10 @@
     <ClInclude Include="common\eqg_geometry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="common\eqg_invis_wall.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="common\eqg_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\eqg_material.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\eqg_model_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\eqg_region.h">
@@ -46,15 +40,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\eqg_terrain.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\eqg_terrain_tile.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\eqg_v4_loader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\eqg_water_sheet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\light.h">

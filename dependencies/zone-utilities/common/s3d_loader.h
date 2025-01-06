@@ -17,11 +17,11 @@ namespace EQEmu::S3D {
 
 void decode_s3d_string(char* str, size_t len);
 
-class S3DLoader
+class WLDLoader
 {
 public:
-	S3DLoader();
-	~S3DLoader();
+	WLDLoader();
+	~WLDLoader();
 
 	// Typically, the archive would be <zonename>.s3d and the file would be <zonename>.wld
 	bool Init(PFS::Archive* archive, const std::string& fileName);
@@ -38,15 +38,20 @@ public:
 	uint32_t GetNumObjects() const { return (uint32_t)m_objects.size(); }
 	S3DFileObject& GetObject(uint32_t index) { return m_objects[index]; }
 
+	std::vector<S3D::S3DFileObject>& GetObjectList() { return m_objects; }
+
 	std::string_view GetString(int nID) const
 	{
 		return &m_stringPool[-nID];
 	}
 
-	static bool ParseWLDFile(S3DLoader& loader,
+	static bool ParseWLDFile(WLDLoader& loader,
 		const std::string& file_name, const std::string& wld_name);
 
 	bool IsOldVersion() const { return m_oldVersion; }
+	bool IsValid() const { return m_valid; }
+
+	const std::string& GetFileName() const { return m_fileName; }
 
 private:
 	bool ParseWLDObjects();
@@ -65,7 +70,7 @@ private:
 	char*                      m_stringPool = nullptr;
 	std::vector<S3D::S3DFileObject> m_objects;
 	bool                       m_oldVersion = false;
+	bool                       m_valid = false;
 };
-
 
 } // namespace EQEmu

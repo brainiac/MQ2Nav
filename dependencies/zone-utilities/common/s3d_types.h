@@ -60,17 +60,17 @@ public:
 		uint32_t tex;
 	};
 
-	void SetName(std::string nname) { name = nname; }
+	void SetName(std::string nname) { tag = nname; }
 	void SetTextureBrushSet(std::shared_ptr<TextureBrushSet> tbs) { tex = tbs; }
 
 	std::vector<Vertex>& GetVertices() { return verts; }
 	std::vector<Polygon>& GetPolygons() { return polys; }
-	std::string& GetName() { return name; }
+	std::string& GetName() { return tag; }
 	std::shared_ptr<TextureBrushSet> GetTextureBrushSet() { return tex; }
 
+	std::string tag;
 	std::vector<Vertex> verts;
 	std::vector<Polygon> polys;
-	std::string name;
 	std::shared_ptr<TextureBrushSet> tex;
 };
 

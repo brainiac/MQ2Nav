@@ -416,19 +416,20 @@ bool ZoneProject::LoadZoneData()
 	m_zoneLongName = g_config.GetLongNameForShortName(m_zoneShortName);
 	m_displayName = fmt::format("{} ({})", m_zoneLongName, m_zoneShortName);
 
-	if (!m_loader->load())
+	if (!m_loader->Load())
 	{
 		SPDLOG_ERROR("LoadZone: Failed to load '{}'", m_zoneShortName);
 		return false;
 	}
 
-	if (m_loader->getVerts() == nullptr)
+	if (!m_loader->IsLoaded())
 	{
 		SPDLOG_ERROR("LoadZone: Zone loaded but had no geometry: '{}'", m_zoneShortName);
 		return false;
 	}
 
-	rcCalcBounds(m_loader->getVerts(), m_loader->getVertCount(), &m_meshBMin[0], &m_meshBMax[0]);
+	m_meshBMin = m_loader->GetCollisionMesh().m_boundsMin;
+	m_meshBMax = m_loader->GetCollisionMesh().m_boundsMax;
 
 	m_zoneDataLoaded = true;
 	return true;
@@ -443,9 +444,9 @@ bool ZoneProject::BuildTriangleMesh()
 	m_chunkyMesh = std::make_unique<rcChunkyTriMesh>();
 
 	if (!rcCreateChunkyTriMesh(
-		m_loader->getVerts(),
-		m_loader->getTris(),
-		m_loader->getTriCount(),
+		m_loader->GetCollisionMesh().getVerts(),
+		m_loader->GetCollisionMesh().getTris(),
+		m_loader->GetCollisionMesh().getTriCount(),
 		256,
 		m_chunkyMesh.get()))
 	{
@@ -603,7 +604,7 @@ bool ZoneProject::RaycastMesh(const glm::vec3& src, const glm::vec3& dest, float
 
 	tMin = 1.0f;
 	bool hit = false;
-	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(m_loader->getVerts());
+	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(m_loader->GetCollisionMesh().getVerts());
 
 	for (int i = 0; i < ncid; ++i)
 	{

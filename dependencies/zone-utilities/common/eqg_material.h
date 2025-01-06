@@ -1,15 +1,11 @@
-#ifndef EQEMU_COMMON_EQG_MATERIAL_H
-#define EQEMU_COMMON_EQG_MATERIAL_H
+
+#pragma once
 
 #include <string>
 #include <vector>
-#include <stdint.h>
+#include <cstdint>
 
-namespace EQEmu
-{
-
-namespace EQG
-{
+namespace EQEmu::EQG {
 
 class Material
 {
@@ -23,23 +19,16 @@ public:
 		std::string value_s;
 	};
 
-	Material() { }
-	~Material() { }
-
 	void SetName(std::string n) { name = n; }
 	void SetShader(std::string s) { shader = s; }
-	
-	std::string &GetName() { return name; }
-	std::string &GetShader() { return shader; }
-	std::vector<Property> &GetProperties() { return properties; }
-private:
+
+	std::string& GetName() { return name; }
+	std::string& GetShader() { return shader; }
+	std::vector<Property>& GetProperties() { return properties; }
+
 	std::string name;
 	std::string shader;
 	std::vector<Property> properties;
 };
 
-}
-
-}
-
-#endif
+} // namespace EQEmu::EQG

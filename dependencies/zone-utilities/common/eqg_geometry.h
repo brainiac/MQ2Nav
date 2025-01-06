@@ -1,19 +1,16 @@
-#ifndef EQEMU_EQG_GEOMETRY_H
-#define EQEMU_EQG_GEOMETRY_H
+
+#pragma once
 
 #ifndef GLM_FORCE_RADIANS
 #define GLM_FORCE_RADIANS
 #endif
 
-#include <glm/glm.hpp>
-#include <vector>
 #include "eqg_material.h"
 
-namespace EQEmu
-{
+#include <glm/glm.hpp>
+#include <vector>
 
-namespace EQG
-{
+namespace EQEmu::EQG {
 
 class Geometry
 {
@@ -33,28 +30,21 @@ public:
 		std::string material;
 	};
 
-	Geometry() { }
-	~Geometry() { }
-
-	void AddMaterial(EQG::Material &mat) { mats.push_back(mat); }
-	void AddVertex(Vertex &v) { verts.push_back(v); }
-	void AddPolygon(Polygon &p) { polys.push_back(p); }
+	void AddMaterial(EQG::Material& mat) { mats.push_back(mat); }
+	void AddVertex(Vertex& v) { verts.push_back(v); }
+	void AddPolygon(Polygon& p) { polys.push_back(p); }
 	void SetName(std::string nname) { name = nname; }
-	
+
 	std::string GetMaterialName(int32_t idx) { if (idx < 0 || idx >= (int32_t)mats.size()) { return ""; } return mats[idx].GetName(); }
-	std::vector<EQG::Material> &GetMaterials() { return mats; }
-	std::vector<Vertex> &GetVertices() { return verts; }
-	std::vector<Polygon> &GetPolygons() { return polys; }
-	std::string &GetName() { return name; }
-private:
+	std::vector<EQG::Material>& GetMaterials() { return mats; }
+	std::vector<Vertex>& GetVertices() { return verts; }
+	std::vector<Polygon>& GetPolygons() { return polys; }
+	std::string& GetName() { return name; }
+
 	std::vector<EQG::Material> mats;
 	std::vector<Vertex> verts;
 	std::vector<Polygon> polys;
 	std::string name;
 };
 
-}
-
-}
-
-#endif
+} // namespace EQEmu::EQG

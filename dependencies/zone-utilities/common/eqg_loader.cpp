@@ -1,37 +1,36 @@
+
 #include "eqg_loader.h"
 #include "eqg_structs.h"
 #include "safe_alloc.h"
-#include "eqg_model_loader.h"
 #include "log_macros.h"
 
-EQEmu::EQGLoader::EQGLoader() {
-}
-
-EQEmu::EQGLoader::~EQGLoader() {
-}
-
-bool EQEmu::EQGLoader::Load(std::string file, std::vector<std::shared_ptr<EQG::Geometry>> &models, std::vector<std::shared_ptr<Placeable>> &placeables,
-	std::vector<std::shared_ptr<EQG::Region>> &regions, std::vector<std::shared_ptr<Light>> &lights) {
+namespace EQEmu {
+	
+bool EQGLoader::Load(PFS::Archive* archive, const std::string& file)
+{
 	// find zon file
-	EQEmu::PFS::Archive archive;
-	if(!archive.Open(file + ".eqg")) {
-		eqLogMessage(LogTrace, "Failed to open %s.eqg as a standard eqg file because the file does not exist.", file.c_str());
-		return false;
-	}
+	m_archive = archive;
 
 	std::vector<char> zon;
 	bool zon_found = false;
 	std::vector<std::string> files;
-	archive.GetFilenames("zon", files);
+	m_archive->GetFilenames("zon", files);
 
-	if(files.size() == 0) {
-		if (GetZon(file + ".zon", zon)) {
+	if (files.size() == 0)
+	{
+		if (GetZon(file + ".zon", zon))
+		{
 			zon_found = true;
 		}
-	} else {
-		for(auto &f : files) {
-			if(archive.Get(f, zon)) {
-				if(zon[0] == 'E' && zon[1] == 'Q' && zon[2] == 'T' && zon[3] == 'Z' && zon[4] == 'P') {
+	}
+	else
+	{
+		for (auto& f : files)
+		{
+			if (m_archive->Get(f, zon))
+			{
+				if (zon[0] == 'E' && zon[1] == 'Q' && zon[2] == 'T' && zon[3] == 'Z' && zon[4] == 'P')
+				{
 					eqLogMessage(LogWarn, "Unable to parse the zone file, is a eqgv4.");
 					return false;
 				}
@@ -41,14 +40,17 @@ bool EQEmu::EQGLoader::Load(std::string file, std::vector<std::shared_ptr<EQG::G
 		}
 	}
 
-	if (!zon_found) {
+	if (!zon_found)
+	{
 		eqLogMessage(LogError, "Failed to open %s.eqg because the %s.zon file could not be found.", file.c_str(), file.c_str());
 		return false;
 	}
 
 	eqLogMessage(LogTrace, "Parsing zone file.");
-	if (!ParseZon(archive, zon, models, placeables, regions, lights)) {
-		//if we couldn't parse the zon file then it's probably eqg4
+
+	if (!ParseZon(zon))
+	{
+		// if we couldn't parse the zon file then it's probably eqg4
 		eqLogMessage(LogWarn, "Unable to parse the zone file, probably eqgv4 style file.");
 		return false;
 	}
@@ -56,25 +58,32 @@ bool EQEmu::EQGLoader::Load(std::string file, std::vector<std::shared_ptr<EQG::G
 	return true;
 }
 
-bool EQEmu::EQGLoader::GetZon(std::string file, std::vector<char> &buffer) {
+bool EQGLoader::GetZon(std::string file, std::vector<char>& buffer)
+{
 	buffer.clear();
-	FILE *f = _fsopen(file.c_str(), "rb", _SH_DENYNO);
-	if(f) {
+
+	FILE* f = _fsopen(file.c_str(), "rb", _SH_DENYNO);
+	if (f)
+	{
 		fseek(f, 0, SEEK_END);
 		size_t sz = ftell(f);
 		rewind(f);
 
-		if(sz != 0) {
+		if (sz != 0)
+		{
 			buffer.resize(sz);
 
 			size_t bytes_read = fread(&buffer[0], 1, sz, f);
 
-			if(bytes_read != sz) {
+			if (bytes_read != sz)
+			{
 				fclose(f);
 				return false;
 			}
 			fclose(f);
-		} else {
+		}
+		else
+		{
 			fclose(f);
 			return false;
 		}
@@ -83,8 +92,8 @@ bool EQEmu::EQGLoader::GetZon(std::string file, std::vector<char> &buffer) {
 	return false;
 }
 
-bool EQEmu::EQGLoader::ParseZon(EQEmu::PFS::Archive &archive, std::vector<char> &buffer, std::vector<std::shared_ptr<EQG::Geometry>> &models, std::vector<std::shared_ptr<Placeable>> &placeables,
-	std::vector<std::shared_ptr<EQG::Region>> &regions, std::vector<std::shared_ptr<Light>> &lights) {
+bool EQGLoader::ParseZon(std::vector<char>& buffer)
+{
 	uint32_t idx = 0;
 	SafeStructAllocParse(zon_header, header);
 
@@ -96,29 +105,36 @@ bool EQEmu::EQGLoader::ParseZon(EQEmu::PFS::Archive &archive, std::vector<char> 
 	idx += header->list_length;
 
 	eqLogMessage(LogTrace, "Parsing zone models.");
+
 	std::vector<std::string> model_names;
-	for(uint32_t i = 0; i < header->model_count; ++i) {
+	for (uint32_t i = 0; i < header->model_count; ++i)
+	{
 		SafeVarAllocParse(uint32_t, model);
 
 		std::string mod = &buffer[sizeof(zon_header) + model];
-		for(size_t j = 0; j < mod.length(); ++j) {
-			if(mod[j] == ')')
+		for (size_t j = 0; j < mod.length(); ++j)
+		{
+			if (mod[j] == ')')
 				mod[j] = '_';
 		}
 		model_names.push_back(mod);
 	}
 
-	//Need to load all the models
+	// Need to load all the models
 	eqLogMessage(LogTrace, "Loading zone models.");
-	EQGModelLoader model_loader;
-	for (size_t i = 0; i < model_names.size(); ++i) {
+
+	for (size_t i = 0; i < model_names.size(); ++i)
+	{
 		std::string mod = model_names[i];
 		std::shared_ptr<EQG::Geometry> m(new EQG::Geometry());
 		m->SetName(mod);
-		if(model_loader.Load(archive, mod, m)) {
+
+		if (LoadEQGModel(*m_archive, mod, m))
+		{
 			models.push_back(m);
-		} 
-		else {
+		}
+		else
+		{
 			m->GetMaterials().clear();
 			m->GetPolygons().clear();
 			m->GetVertices().clear();
@@ -126,23 +142,29 @@ bool EQEmu::EQGLoader::ParseZon(EQEmu::PFS::Archive &archive, std::vector<char> 
 		}
 	}
 
-	//load placables
+	// load placables
 	eqLogMessage(LogTrace, "Parsing zone placeables.");
-	float rot_change = 180.0f / 3.14159f;
-	for (uint32_t i = 0; i < header->object_count; ++i) {
+
+	constexpr float rot_change = 180.0f / 3.14159f;
+
+	for (uint32_t i = 0; i < header->object_count; ++i)
+	{
 		SafeStructAllocParse(zon_placable, plac);
 
-		std::shared_ptr<Placeable> p(new Placeable());
+		std::shared_ptr<Placeable> p = std::make_shared<Placeable>();
 		p->SetName(&buffer[sizeof(zon_header) + plac->loc]);
-		if (plac->id >= 0 && plac->id < static_cast<int32_t>(models.size())) {
+
+		if (plac->id >= 0 && plac->id < static_cast<int32_t>(models.size()))
+		{
 			p->SetFileName(model_names[plac->id]);
 		}
 
-		p->SetLocation(plac->x, plac->y, plac->z);
+		p->SetPosition(plac->x, plac->y, plac->z);
 		p->SetRotation(plac->rz * rot_change, plac->ry * rot_change, plac->rx * rot_change);
 		p->SetScale(plac->scale, plac->scale, plac->scale);
 
-		if(header->version > 1) {
+		if (header->version > 1)
+		{
 			//don't know what this is but it relates to the underlying model
 			SafeVarAllocParse(uint32_t, unk_size);
 			idx += (unk_size) * sizeof(uint32_t);
@@ -152,7 +174,9 @@ bool EQEmu::EQGLoader::ParseZon(EQEmu::PFS::Archive &archive, std::vector<char> 
 	}
 
 	eqLogMessage(LogTrace, "Parsing zone regions.");
-	for(uint32_t i = 0; i < header->region_count; ++i) {
+
+	for (uint32_t i = 0; i < header->region_count; ++i)
+	{
 		SafeStructAllocParse(zon_region, reg);
 
 		std::shared_ptr<EQG::Region> region(new EQG::Region());
@@ -166,7 +190,9 @@ bool EQEmu::EQGLoader::ParseZon(EQEmu::PFS::Archive &archive, std::vector<char> 
 	}
 
 	eqLogMessage(LogTrace, "Parsing zone lights.");
-	for(uint32_t i = 0; i < header->light_count; ++i) {
+
+	for (uint32_t i = 0; i < header->light_count; ++i)
+	{
 		SafeStructAllocParse(zon_light, light);
 		std::shared_ptr<Light> l(new Light());
 		l->tag = std::string(&buffer[sizeof(zon_header) + light->loc]);
@@ -179,3 +205,5 @@ bool EQEmu::EQGLoader::ParseZon(EQEmu::PFS::Archive &archive, std::vector<char> 
 
 	return true;
 }
+
+} // namespace EQEmu

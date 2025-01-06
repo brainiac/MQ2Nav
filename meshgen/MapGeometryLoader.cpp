@@ -6,19 +6,22 @@
 
 #include "common/ZoneData.h"
 #include "common/NavMeshData.h"
-
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/quaternion.hpp>
+#include "zone-utilities/log/log_macros.h"
+#include "Recast.h"
 
 #include <rapidjson/document.h>
-#include <zone-utilities/log/log_macros.h>
-#include <zone-utilities/common/compression.h>
 
 #include <filesystem>
 #include <sstream>
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 
 namespace fs = std::filesystem;
+
+constexpr float ROT_RATIO = 3.14159f / 180.0f;
 
 static void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
 {
@@ -39,49 +42,26 @@ static void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
 
 	v = nv;
 }
-static void RotateVertex(glm::vec3& v, const glm::vec3& r)
-{
-	RotateVertex(v, r.x, r.y, r.z);
-}
 
-static void ScaleVertex(glm::vec3& v, float sx, float sy, float sz)
-{
-	v.x = v.x * sx;
-	v.y = v.y * sy;
-	v.z = v.z * sz;
-}
-static void ScaleVertex(glm::vec3& v, const glm::vec3& s)
-{
-	ScaleVertex(v, s.x, s.y, s.z);
-}
+//============================================================================================================
 
-static void TranslateVertex(glm::vec3& v, float tx, float ty, float tz)
-{
-	v.x = v.x + tx;
-	v.y = v.y + ty;
-	v.z = v.z + tz;
-}
-static void TranslateVertex(glm::vec3& v, const glm::vec3& t)
-{
-	TranslateVertex(v, t.x, t.y, t.z);
-}
-
-MapGeometryLoader::MapGeometryLoader(const std::string& zoneShortName,
-	const std::string& everquest_path, const std::string& mesh_path)
-	: m_zoneName(zoneShortName)
-	, m_eqPath(everquest_path)
-	, m_meshPath(mesh_path)
+ZoneCollisionMesh::ZoneCollisionMesh()
 {
 }
 
-MapGeometryLoader::~MapGeometryLoader()
+ZoneCollisionMesh::~ZoneCollisionMesh()
+{
+	clear();
+}
+
+void ZoneCollisionMesh::clear()
 {
 	delete[] m_verts;
 	delete[] m_normals;
 	delete[] m_tris;
 }
 
-void MapGeometryLoader::SetMaxExtents(const std::pair<glm::vec3, glm::vec3>& maxExtents)
+void ZoneCollisionMesh::setMaxExtents(const std::pair<glm::vec3, glm::vec3>& maxExtents)
 {
 	m_maxExtents.first = maxExtents.first.zxy;
 	m_maxExtents.second = maxExtents.second.zxy;
@@ -89,7 +69,7 @@ void MapGeometryLoader::SetMaxExtents(const std::pair<glm::vec3, glm::vec3>& max
 	m_maxExtentsSet = true;
 }
 
-void MapGeometryLoader::addVertex(float x, float y, float z)
+void ZoneCollisionMesh::addVertex(float x, float y, float z)
 {
 	if (m_vertCount + 1 > vcap)
 	{
@@ -107,7 +87,7 @@ void MapGeometryLoader::addVertex(float x, float y, float z)
 	m_vertCount++;
 }
 
-void MapGeometryLoader::addTriangle(int a, int b, int c)
+void ZoneCollisionMesh::addTriangle(int a, int b, int c)
 {
 	if (m_triCount + 1 > tcap)
 	{
@@ -125,311 +105,253 @@ void MapGeometryLoader::addTriangle(int a, int b, int c)
 	m_triCount++;
 }
 
-auto GetTranslation = [](auto obj) -> glm::vec3 {
-	return glm::vec3(obj->GetX(), obj->GetY(), obj->GetZ());
-};
-auto GetScale = [](auto obj) -> glm::vec3 {
-	return glm::vec3(obj->GetScaleX(), obj->GetScaleY(), obj->GetScaleZ());
-};
-auto GetRotation = [](auto obj) -> glm::vec3 {
-	return glm::vec3(obj->GetRotateX(), obj->GetRotateY(), obj->GetRotateZ());
-};
-auto GetRotationRad = [](auto obj) -> glm::vec3 {
-	return glm::vec3(glm::radians(obj->GetRotateX()),
-		glm::radians(obj->GetRotateY()), glm::radians(obj->GetRotateZ()));
-};
-
-bool MapGeometryLoader::load()
+void ZoneCollisionMesh::addTriangle(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3)
 {
-	uint32_t counter = 0;
+	int index = m_vertCount;
 
-	if (!Build())
+	addVertex(v1.y, v1.z, v1.x);
+	addVertex(v2.y, v2.z, v2.x);
+	addVertex(v3.y, v3.z, v3.x);
+
+	addTriangle(index, index + 1, index + 2);
+}
+
+void ZoneCollisionMesh::addTerrain(const TerrainPtr& terrain)
+{
+	const auto& tiles = terrain->GetTiles();
+	uint32_t quads_per_tile = terrain->GetQuadsPerTile();
+	float units_per_vertex = terrain->GetUnitsPerVertex();
+	uint32_t vert_count = ((quads_per_tile + 1) * (quads_per_tile + 1));
+	uint32_t quad_count = (quads_per_tile * quads_per_tile);
+
+	for (uint32_t i = 0; i < tiles.size(); ++i)
 	{
-		return false;
-	}
+		auto& tile = tiles[i];
+		bool flat = tile->IsFlat();
 
-	// load terrain geometry
-	if (terrain)
-	{
-		const auto& tiles = terrain->GetTiles();
-		uint32_t quads_per_tile = terrain->GetQuadsPerTile();
-		float units_per_vertex = terrain->GetUnitsPerVertex();
-		uint32_t vert_count = ((quads_per_tile + 1) * (quads_per_tile + 1));
-		uint32_t quad_count = (quads_per_tile * quads_per_tile);
+		float x = tile->GetX();
+		float y = tile->GetY();
 
-		for (uint32_t i = 0; i < tiles.size(); ++i)
+		if (flat)
 		{
-			auto& tile = tiles[i];
-			bool flat = tile->IsFlat();
+			float z = tile->GetFloats()[0];
 
-			float x = tile->GetX();
-			float y = tile->GetY();
+			// get x,y of corner point for this quad
+			float dt = quads_per_tile * units_per_vertex;
 
-			if (flat)
+			if (ArePointsOutsideExtents(glm::vec3{ y, x, z }))
+				continue;
+
+			int index = m_vertCount;
+
+			addVertex(x, z, y);
+			addVertex(x + dt, z, y);
+			addVertex(x + dt, z, y + dt);
+			addVertex(x, z, y + dt);
+
+			addTriangle(index + 0, index + 2, index + 1);
+			addTriangle(index + 2, index + 0, index + 3);
+		}
+		else
+		{
+			auto& floats = tile->GetFloats();
+			int row_number = -1;
+
+			for (uint32_t quad = 0; quad < quad_count; ++quad)
 			{
-				float z = tile->GetFloats()[0];
+				if (quad % quads_per_tile == 0)
+					++row_number;
 
-				// get x,y of corner point for this quad
-				float dt = quads_per_tile * units_per_vertex;
-
-				if (ArePointsOutsideExtents(glm::vec3{ y, x, z }))
+				if (tile->GetFlags()[quad] & 0x01)
 					continue;
 
-				addVertex(x, z, y);
-				addVertex(x + dt, z, y);
-				addVertex(x + dt, z, y + dt);
-				addVertex(x, z, y + dt);
+				// get x,y of corner point for this quad
+				float _x = x + (row_number * units_per_vertex);
+				float _y = y + (quad % quads_per_tile) * units_per_vertex;
+				float dt = units_per_vertex;
 
-				addTriangle(counter + 0, counter + 2, counter + 1);
-				addTriangle(counter + 2, counter + 0, counter + 3);
+				float z1 = floats[quad + row_number];
+				float z2 = floats[quad + row_number + quads_per_tile + 1];
+				float z3 = floats[quad + row_number + quads_per_tile + 2];
+				float z4 = floats[quad + row_number + 1];
 
-				counter += 4;
-			}
-			else
-			{
-				auto& floats = tile->GetFloats();
-				int row_number = -1;
+				if (ArePointsOutsideExtents(glm::vec3{ _y, _x, z1 }))
+					continue;
 
-				for (uint32_t quad = 0; quad < quad_count; ++quad)
-				{
-					if (quad % quads_per_tile == 0)
-						++row_number;
+				int index = m_vertCount;
 
-					if (tile->GetFlags()[quad] & 0x01)
-						continue;
+				addVertex(_x, z1, _y);
+				addVertex(_x + dt, z2, _y);
+				addVertex(_x + dt, z3, _y + dt);
+				addVertex(_x, z4, _y + dt);
 
-					// get x,y of corner point for this quad
-					float _x = x + (row_number * units_per_vertex);
-					float _y = y + (quad % quads_per_tile) * units_per_vertex;
-					float dt = units_per_vertex;
-
-					float z1 = floats[quad + row_number];
-					float z2 = floats[quad + row_number + quads_per_tile + 1];
-					float z3 = floats[quad + row_number + quads_per_tile + 2];
-					float z4 = floats[quad + row_number + 1];
-
-					if (ArePointsOutsideExtents(glm::vec3{ _y, _x, z1 }))
-						continue;
-
-					addVertex(_x, z1, _y);
-					addVertex(_x + dt, z2, _y);
-					addVertex(_x + dt, z3, _y + dt);
-					addVertex(_x, z4, _y + dt);
-
-					addTriangle(counter + 0, counter + 2, counter + 1);
-					addTriangle(counter + 2, counter + 0, counter + 3);
-
-					counter += 4;
-				}
+				addTriangle(index + 0, index + 2, index + 1);
+				addTriangle(index + 2, index + 0, index + 3);
 			}
 		}
 	}
+}
 
-	for (uint32_t index = 0; index < collide_indices.size(); index += 3)
+void ZoneCollisionMesh::addPolys(const std::vector<glm::vec3>& verts, const std::vector<uint32_t>& indices)
+{
+	for (uint32_t index = 0; index < indices.size(); index += 3)
 	{
-		const glm::vec3& vert1 = collide_verts[collide_indices[index]];
-		const glm::vec3& vert2 = collide_verts[collide_indices[index + 2]];
-		const glm::vec3& vert3 = collide_verts[collide_indices[index + 1]];
+		const glm::vec3& vert1 = verts[indices[index]];
+		const glm::vec3& vert2 = verts[indices[index + 2]];
+		const glm::vec3& vert3 = verts[indices[index + 1]];
 
 		if (ArePointsOutsideExtents(vert1.yxz, vert2.yxz, vert3.yxz))
 			continue;
+
+		int current_index = m_vertCount;
 
 		addVertex(vert1.x, vert1.z, vert1.y);
 		addVertex(vert2.x, vert2.z, vert2.y);
 		addVertex(vert3.x, vert3.z, vert3.y);
 
-		addTriangle(counter, counter + 2, counter + 1);
-		counter += 3;
+		addTriangle(current_index, current_index + 2, current_index + 1);
 	}
+}
 
-	auto isVisible = [](int flags)
+// 0x10 = invisible
+// 0x01 = no collision
+auto isVisible = [](int flags)
 	{
-		return !((flags & 0x01) || (flags & 0x10));
+		bool invisible = (flags & 0x01) || (flags & 0x10);
+
+		return !invisible;
 	};
 
-	// Load models
-	for (auto iter : map_models)
+// or?
+// bool visible = (iter->flags & 0x11) == 0;
+
+void ZoneCollisionMesh::addModel(std::string_view name, const S3DGeometryPtr& model)
+{
+	std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
+
+	for (const auto& vert : model->GetVertices())
 	{
-		std::string name = iter.first;
-		std::shared_ptr<EQEmu::S3D::Geometry> model = iter.second;
-
-		std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
-
-		for (const auto& vert : model->GetVertices())
-		{
-			entry->verts.push_back(vert.pos);
-		}
-
-		for (const auto& poly : model->GetPolygons())
-		{
-			bool visible = isVisible(poly.flags);
-
-			entry->polys.emplace_back(
-				ModelEntry::Poly{ glm::ivec3{poly.verts[0], poly.verts[1], poly.verts[2]},
-					visible, poly.flags });
-		}
-
-		m_models.emplace(std::move(name), std::move(entry));
+		entry->verts.push_back(vert.pos);
 	}
 
-	for (auto iter : map_eqg_models)
+	for (const auto& poly : model->GetPolygons())
 	{
-		bool first = true;
-		std::string name = iter.first;
-		std::shared_ptr<EQEmu::EQG::Geometry> model = iter.second;
-		std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
+		bool visible = isVisible(poly.flags);
 
-		for (const auto& vert : model->GetVertices())
-		{
-			entry->verts.push_back(vert.pos);
-		}
-
-		for (const auto& poly : model->GetPolygons())
-		{
-			// 0x10 = invisible
-			// 0x01 = no collision
-			bool visible = isVisible(poly.flags);
-
-			entry->polys.emplace_back(
-				ModelEntry::Poly{ glm::ivec3{ poly.verts[0], poly.verts[1], poly.verts[2] },
-					visible, poly.flags });
-		}
-
-		m_models.emplace(std::move(name), std::move(entry));
-	}
-
-	auto AddTriangle = [&](glm::vec3 v1, glm::vec3 v2, glm::vec3 v3)
-	{
-		addVertex(v1.y, v1.z, v1.x);
-		addVertex(v2.y, v2.z, v2.x);
-		addVertex(v3.y, v3.z, v3.x);
-
-		addTriangle(counter, counter + 1, counter + 2);
-		counter += 3;
-	};
-
-	for (const auto& obj : map_placeables)
-	{
-		const std::string& name = obj->GetFileName();
-
-		auto modelIter = m_models.find(name);
-		if (modelIter == m_models.end())
-			continue;
-
-		glm::mat4x4 mtx;
-		mtx = glm::translate(mtx, GetTranslation(obj));
-		mtx = glm::scale(mtx, GetScale(obj));
-		mtx *= glm::mat4_cast(glm::quat(GetRotation(obj)));
-
-		// some objects have a really low z, just ignore them.
-		if (obj->GetZ() < -30000 || obj->GetX() > 15000 || obj->GetY() > 15000 || obj->GetZ() > 15000)
-			continue;
-
-		if (IsPointOutsideExtents(glm::vec3{ mtx * glm::vec4{ 0., 0., 0., 1. } }))
-		{
-			eqLogMessage(LogWarn, "Ignoring placement of '%s' at { %.2f %.2f %.2f } due to being outside of max extents",
-				obj->GetFileName().c_str(), obj->GetX(), obj->GetY(), obj->GetZ());
-			continue;
-		}
-
-		const auto& model = modelIter->second;
-		for (const auto& poly : model->polys)
-		{
-			if (!poly.vis)
-				continue;
-
-			glm::vec3 v[3];
-			for (int i = 0; i < 3; i++)
-				v[i] = glm::vec3(mtx * glm::vec4(model->verts[poly.indices[i]], 1));
-
-			AddTriangle(v[0], v[1], v[2]);
-		}
-	}
-
-	for (const auto& group : map_group_placeables)
-	{
-		glm::mat4x4 grp_mat;
-		grp_mat = glm::translate(grp_mat, glm::vec3{ group->GetTileX(), group->GetTileY(), group->GetTileZ() });
-		grp_mat = glm::translate(grp_mat, GetTranslation(group));
-		grp_mat = glm::scale(grp_mat, GetScale(group));
-		grp_mat *= glm::mat4_cast(glm::quat{
-			glm::vec3{ glm::radians(group->GetRotationX()), glm::radians(group->GetRotationY()), glm::radians(group->GetRotationZ()) }
+		entry->polys.emplace_back(
+			ModelEntry::Poly{
+				.indices=glm::ivec3{poly.verts[0], poly.verts[1], poly.verts[2]},
+				.vis=visible,
+				.flags=poly.flags
 			});
-
-		for (const auto& obj : group->GetPlaceables())
-		{
-			const std::string& name = obj->GetFileName();
-
-			auto modelIter = m_models.find(name);
-			if (modelIter == m_models.end())
-				continue;
-
-			glm::mat4x4 mtx;
-			mtx = glm::translate(mtx, GetTranslation(obj));
-			mtx = glm::scale(mtx, GetScale(obj));
-			mtx *= glm::mat4_cast(glm::quat(GetRotationRad(obj)));
-
-			glm::vec3 pos{ grp_mat * mtx * glm::vec4{ 0., 0., 0., 1. } };
-			if (IsPointOutsideExtents(pos))
-			{
-				eqLogMessage(LogWarn, "Ignoring placement of '%s' at { %.2f %.2f %.2f } due to being outside of max extents",
-					obj->GetFileName().c_str(), pos.x, pos.y, pos.z);
-				continue;
-			}
-
-			const auto& model = modelIter->second;
-			for (const auto& poly : model->polys)
-			{
-				if (!poly.vis)
-					continue;
-
-				glm::vec3 v[3];
-				for (int i = 0; i < 3; i++)
-					v[i] = glm::vec3{ grp_mat * mtx * glm::vec4{ model->verts[poly.indices[i]], 1.0 } };
-
-				AddTriangle(v[0], v[1], v[2]);
-			}
-		}
 	}
 
-	//const auto& non_collide_indices = map.GetNonCollideIndices();
+	m_models.emplace(name, std::move(entry));
+}
 
-	//for (uint32_t index = 0; index < non_collide_indices.size(); index += 3, counter += 3)
-	//{
-	//	uint32_t vert_index1 = non_collide_indices[index];
-	//	const glm::vec3& vert1 = map.GetNonCollideVert(vert_index1);
-	//	addVertex(vert1.x, vert1.z, vert1.y, vcap);
+void ZoneCollisionMesh::addModel(std::string_view name, const EQGGeometryPtr& model)
+{
+	std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
 
-	//	uint32_t vert_index2 = non_collide_indices[index + 1];
-	//	const glm::vec3& vert2 = map.GetNonCollideVert(vert_index2);
-	//	addVertex(vert2.x, vert2.z, vert2.y, vcap);
+	for (const auto& vert : model->GetVertices())
+	{
+		entry->verts.push_back(vert.pos);
+	}
 
-	//	uint32_t vert_index3 = non_collide_indices[index + 2];
-	//	const glm::vec3& vert3 = map.GetNonCollideVert(vert_index3);
-	//	addVertex(vert3.x, vert3.z, vert3.y, vcap);
+	for (const auto& poly : model->GetPolygons())
+	{
+		bool visible = isVisible(poly.flags);
 
-	//	addTriangle(counter, counter + 2, counter + 1, tcap);
-	//}
+		entry->polys.emplace_back(
+			ModelEntry::Poly{
+				.indices=glm::ivec3{poly.verts[0], poly.verts[1], poly.verts[2]},
+				.vis=visible,
+				.flags=poly.flags
+			});
+	}
 
-	LoadDoors();
+	m_models.emplace(name, std::move(entry));
+}
 
-	//message = "Calculating Surface Normals...";
+void ZoneCollisionMesh::addModelInstance(const PlaceablePtr& obj, const glm::mat4x4& transform)
+{
+	const std::string& name = obj->GetFileName();
+
+	auto modelIter = m_models.find(name);
+	if (modelIter == m_models.end())
+	{
+		return;
+	}
+
+	// some objects have a really wild position, just ignore them.
+	if (obj->GetZ() < -30000 || obj->GetX() > 15000 || obj->GetY() > 15000 || obj->GetZ() > 15000)
+		return;
+
+	// Get model transform
+	auto mtx = transform * obj->GetTransform();
+
+	if (IsPointOutsideExtents(glm::vec3{ mtx * glm::vec4{ 0., 0., 0., 1. } }))
+	{
+		eqLogMessage(LogWarn, "Ignoring placement of '%s' at { %.2f %.2f %.2f } due to being outside of max extents",
+			obj->GetFileName().c_str(), obj->GetX(), obj->GetY(), obj->GetZ());
+		return;
+	}
+
+	const auto& model = modelIter->second;
+	for (const auto& poly : model->polys)
+	{
+		if (!poly.vis)
+			continue;
+
+		addTriangle(
+			glm::vec3(mtx * glm::vec4(model->verts[poly.indices[0]], 1)),
+			glm::vec3(mtx * glm::vec4(model->verts[poly.indices[1]], 1)),
+			glm::vec3(mtx * glm::vec4(model->verts[poly.indices[2]], 1))
+		);
+	}
+}
+
+void ZoneCollisionMesh::addZoneGeometry(const S3DGeometryPtr& model)
+{
+	auto& mod_polys = model->GetPolygons();
+	auto& mod_verts = model->GetVertices();
+
+	for (uint32_t j = 0; j < mod_polys.size(); ++j)
+	{
+		auto& current_poly = mod_polys[j];
+		auto v1 = mod_verts[current_poly.verts[0]];
+		auto v2 = mod_verts[current_poly.verts[1]];
+		auto v3 = mod_verts[current_poly.verts[2]];
+
+		if ((current_poly.flags & EQEmu::S3D::S3D_FACEFLAG_PASSABLE) == 0)
+		{
+			addTriangle(v1.pos, v2.pos, v3.pos);
+		}
+	}
+}
+
+void ZoneCollisionMesh::finalize()
+{
 	m_normals = new float[m_triCount * 3];
+
 	for (int i = 0; i < m_triCount * 3; i += 3)
 	{
 		const float* v0 = &m_verts[m_tris[i] * 3];
 		const float* v1 = &m_verts[m_tris[i + 1] * 3];
 		const float* v2 = &m_verts[m_tris[i + 2] * 3];
+	
 		float e0[3], e1[3];
 		for (int j = 0; j < 3; ++j)
 		{
 			e0[j] = v1[j] - v0[j];
 			e1[j] = v2[j] - v0[j];
 		}
+
 		float* n = &m_normals[i];
 		n[0] = e0[1] * e1[2] - e0[2] * e1[1];
 		n[1] = e0[2] * e1[0] - e0[0] * e1[2];
 		n[2] = e0[0] * e1[1] - e0[1] * e1[0];
+
 		float d = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
 		if (d > 0)
 		{
@@ -440,7 +362,97 @@ bool MapGeometryLoader::load()
 		}
 	}
 
+	rcCalcBounds(getVerts(), getVertCount(), glm::value_ptr(m_boundsMin), glm::value_ptr(m_boundsMax));
+}
+
+//============================================================================================================
+
+MapGeometryLoader::MapGeometryLoader(const std::string& zoneShortName,
+	const std::string& everquest_path, const std::string& mesh_path)
+	: m_zoneName(zoneShortName)
+	, m_eqPath(everquest_path)
+	, m_meshPath(mesh_path)
+{
+}
+
+MapGeometryLoader::~MapGeometryLoader()
+{
+}
+
+bool MapGeometryLoader::Load()
+{
+	Clear();
+
+	if (!LoadZone())
+	{
+		Clear();
+
+		return false;
+	}
+
+	BuildCollisionMesh();
+
+	m_loaded = true;
 	return true;
+}
+
+void MapGeometryLoader::BuildCollisionMesh()
+{
+	m_collisionMesh.clear();
+
+	// load terrain geometry
+	if (terrain)
+	{
+		m_collisionMesh.addTerrain(terrain);
+	}
+
+	// load s3d zone geometry
+	for (auto& model : map_s3d_geometry)
+	{
+		m_collisionMesh.addZoneGeometry(model);
+	}
+
+	m_collisionMesh.addPolys(collide_verts, collide_indices);
+
+	// Load models
+	for (auto& [name, model] : map_models)
+	{
+		m_collisionMesh.addModel(name, model);
+	}
+
+	for (auto& [name, model] : map_eqg_models)
+	{
+		m_collisionMesh.addModel(name, model);
+	}
+
+	// Add model instances
+
+	glm::mat4x4 identity_mat = glm::identity<glm::mat4x4>();
+
+	// Model instances with identity transform
+	for (const auto& obj : map_placeables)
+	{
+		m_collisionMesh.addModelInstance(obj, identity_mat);
+	}
+
+	// Model instances from a model group with group's transform.
+	for (const auto& group : map_group_placeables)
+	{
+		glm::mat4x4 groupTransform = group->GetTransform();
+
+		for (const auto& obj : group->GetPlaceables())
+		{
+			m_collisionMesh.addModelInstance(obj, groupTransform);
+		}
+	}
+
+	// Add dynamic object instances
+	for (const auto& dynObj : dynamic_map_objects)
+	{
+		m_collisionMesh.addModelInstance(dynObj, identity_mat);
+	}
+
+	m_collisionMesh.finalize();
 }
 
 struct DoorParams
@@ -514,153 +526,363 @@ void MapGeometryLoader::LoadDoors()
 		doors.push_back(params);
 	}
 
-	if (doors.empty()) {
+	if (doors.empty())
+	{
 		m_doorsLoaded = true;
 		return;
 	}
 
-	//
-	// Load the models for that door data
-	//
-
-	ZoneData zoneData(m_eqPath, m_zoneName);
-
-	if (!zoneData.IsLoaded())
-		return;
-
-	uint32_t counter = m_vertCount;
-
-	auto AddTriangle = [&](const glm::mat4x4& matrix, const glm::vec3& v1_, const glm::vec3& v2_, const glm::vec3& v3_)
+	for (DoorParams& params : doors)
 	{
-		glm::vec4 v1 = matrix * glm::vec4(v1_.x, v1_.y, v1_.z, 1.0);
-		glm::vec4 v2 = matrix * glm::vec4(v2_.x, v2_.y, v2_.z, 1.0);
-		glm::vec4 v3 = matrix * glm::vec4(v3_.x, v3_.y, v3_.z, 1.0);
+		std::shared_ptr<EQEmu::Placeable> gen_plac = std::make_shared<EQEmu::Placeable>();
+		gen_plac->SetFileName(params.name);
 
-		addVertex(v1.y, v1.z, v1.x);
-		addVertex(v2.y, v2.z, v2.x);
-		addVertex(v3.y, v3.z, v3.x);
+		glm::vec3 scale;
+		glm::quat rotation;
+		glm::vec3 translation;
+		glm::vec3 skew;
+		glm::vec4 perspective;
+		glm::decompose(params.transform, scale, rotation, translation, skew, perspective);
 
-		addTriangle(counter, counter + 1, counter + 2);
-		counter += 3;
-	};
+		gen_plac->SetPosition(translation);
+		gen_plac->SetRotation(glm::eulerAngles(rotation));
+		gen_plac->SetScale(params.scale * scale);
+		gen_plac->SetName(params.name + "_ACTORDEF");
 
-	// generic lambda for both old and new model types
-	auto addModel = [&](const glm::mat4x4& matrix, float scale, auto modelPtr)
-	{
-		auto verts = modelPtr->GetVertices();
-		auto polys = modelPtr->GetPolygons();
+		dynamic_map_objects.push_back(gen_plac);
 
-		for (auto iter = polys.begin(); iter != polys.end(); ++iter)
-		{
-			bool visible = (iter->flags & 0x11) == 0;
+		glm::vec3 pos = glm::vec3(params.transform[3]);
 
-			if (!visible)
-				continue;
-
-			auto& polygon = *iter;
-			AddTriangle(matrix,
-				scale * verts[polygon.verts[0]].pos,
-				scale * verts[polygon.verts[1]].pos,
-				scale * verts[polygon.verts[2]].pos);
-		}
-
+		eqLogMessage(LogTrace, "Adding placeable from dynamic objects %s at (%f, %f, %f)", params.name.c_str(), pos.x, pos.y, pos.z);
 		++m_dynamicObjects;
-	};
-
-	for (auto iter = doors.begin(); iter != doors.end(); ++iter)
-	{
-		auto& params = *iter;
-
-		if (std::shared_ptr<ModelInfo> mi = zoneData.GetModelInfo(params.name))
-		{
-			glm::mat4x4 matrix = params.transform;
-
-			if (mi->oldModel)
-			{
-				addModel(matrix, params.scale, mi->oldModel);
-			}
-			if (mi->newModel)
-			{
-				addModel(matrix, params.scale, mi->newModel);
-			}
-		}
-		else
-		{
-			eqLogMessage(LogWarn, "Couldn't find model for %s.", params.name.c_str());
-		}
 	}
 }
 
 //============================================================================
 
-bool MapGeometryLoader::Build()
+void MapGeometryLoader::Clear()
 {
-	eqLogMessage(LogInfo, "Attempting to load %s.eqg as a standard eqg.", m_zoneName.c_str());
+	m_collisionMesh.clear();
+	m_doorsLoaded = false;
+	m_loaded = false;
 
+	collide_verts.clear();
+	collide_indices.clear();
+	non_collide_verts.clear();
+	non_collide_indices.clear();
+	current_collide_index = 0;
+	current_non_collide_index = 0;
+	collide_vert_to_index.clear();
+	non_collide_vert_to_index.clear();
+	terrain.reset();
+	map_models.clear();
+	map_anim_models.clear();
+	map_eqg_models.clear();
+
+	map_s3d_model_instances.clear();
+	map_placeables.clear();
+	map_group_placeables.clear();
+	map_s3d_geometry.clear();
+	dynamic_map_objects.clear();
+	m_dynamicObjects = 0;
+	m_hasDynamicObjects = false;
+
+	m_wldLoaders.clear();
+	m_archives.clear();
+}
+
+bool MapGeometryLoader::LoadZone()
+{
+
+	// Load <zonename>_EnvironmentEmitters.txt
+
+	// Check if .eqg file exists
+	std::string filePath = fmt::format("{}\\{}.eqg", m_eqPath, m_zoneName);
+	bool usingEQG = false;
+
+	std::error_code ec;
+	if (fs::exists(filePath, ec))
+	{
+		usingEQG = true;
+		if (!TryLoadEQG())
+		{
+			return false;
+		}
+
+		// Successful EQG Load
+
+		LoadDoors();
+	}
+	else
+	{
+		if (!TryLoadS3D())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool MapGeometryLoader::TryLoadS3D()
+{
 	std::string filePath = m_eqPath + "\\" + m_zoneName;
 
-	EQEmu::EQGLoader eqg;
-	std::vector<std::shared_ptr<EQEmu::EQG::Geometry>> eqg_models;
-	std::vector<std::shared_ptr<EQEmu::Placeable>> eqg_placables;
-	std::vector<std::shared_ptr<EQEmu::EQG::Region>> eqg_regions;
-	std::vector<std::shared_ptr<EQEmu::Light>> eqg_lights;
-	if (eqg.Load(filePath, eqg_models, eqg_placables, eqg_regions, eqg_lights))
-	{
-		return CompileEQG(eqg_models, eqg_placables, eqg_regions, eqg_lights);
-	}
+	eqLogMessage(LogTrace, "Attempting to load %s.s3d as a s3d.", m_zoneName.c_str());
 
-	eqLogMessage(LogInfo, "Attempting to load %s.eqg as a v4 eqg.", m_zoneName.c_str());
-	EQEmu::EQG4Loader eqg4;
-	if (eqg4.Load(filePath, terrain))
+	EQEmu::PFS::Archive* zone_archive = LoadArchive(filePath + ".s3d");
+	if (!zone_archive)
 	{
-		return CompileEQGv4();
-	}
-
-	eqLogMessage(LogInfo, "Attempting to load %s.s3d as a standard s3d.", m_zoneName.c_str());
-
-	EQEmu::PFS::Archive zone_archive;
-	if (!zone_archive.Open(filePath + ".s3d"))
-	{
-		return false;
+		return false; // Zone doesn't exist
 	}
 
 	// Load zone data
-	EQEmu::S3D::S3DLoader zone_loader;
-	if (!zone_loader.Init(&zone_archive, m_zoneName + ".wld"))
+	EQEmu::S3D::WLDLoader* zone_loader = LoadWLD(zone_archive, m_zoneName + ".wld");
+	if (!zone_loader)
 	{
 		return false;
 	}
 
-	// Load object data
-	EQEmu::S3D::S3DLoader zone_object_loader;
-	if (!zone_object_loader.Init(&zone_archive, "objects.wld"))
+	// if poknowledge, load poknowledge_obj3.eqg
+	if (m_zoneName == "poknowledge")
 	{
+		
+	}
+
+	// Load object definitions
+	if (EQEmu::PFS::Archive* object_archive = LoadArchive(filePath + "_obj2.s3d"))
+	{
+		LoadWLD(object_archive, m_zoneName + "_obj2.wld");
+	}
+
+	if (EQEmu::PFS::Archive* object_archive = LoadArchive(filePath + "_obj.s3d"))
+	{
+		LoadWLD(object_archive, m_zoneName + "_obj.wld");
+	}
+
+	if (EQEmu::PFS::Archive* object_archive = LoadArchive(filePath + "_2_obj.s3d"))
+	{
+		LoadWLD(object_archive, m_zoneName + "_2_obj.wld");
+	}
+
+	// If this is LDON zone, load obequip_lexit.s3d
+
+	// Load <zonename>_chr.txt
+	// Load <zonename>_assets.txt
+	LoadAssetsFile();
+
+	// Load object placements
+	LoadWLD(zone_archive, "objects.wld");
+	LoadWLD(zone_archive, "lights.wld");
+
+	LoadDoors();
+
+	return CompileS3D(zone_loader);
+}
+
+bool MapGeometryLoader::TryLoadEQG()
+{
+	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a standard eqg.", m_zoneName.c_str());
+
+	std::string filePath = m_eqPath + "\\" + m_zoneName;
+
+	EQEmu::PFS::Archive* archive = LoadArchive(filePath + ".eqg");
+	if (!archive)
+	{
+		eqLogMessage(LogTrace, "Failed to open %s.eqg as a standard eqg file because the file does not exist.", filePath.c_str());
 		return false;
 	}
 
-	// Load additional object data
-	EQEmu::PFS::Archive object_archive;
-	EQEmu::S3D::S3DLoader object_loader;
-	if (object_archive.Open(filePath + "_obj.s3d"))
+	EQEmu::EQGLoader eqgLoader;
+
+	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a eqg.", m_zoneName.c_str());
+
+	if (eqgLoader.Load(archive, filePath))
 	{
-		if (!object_loader.Init(&object_archive, m_zoneName + "_obj.wld"))
+		eqLogMessage(LogInfo, "Loaded %s.eqg as an eqg", m_zoneName.c_str());
+
+		return CompileEQG(eqgLoader);
+	}
+
+	eqLogMessage(LogTrace, "Attempting to load %s.eqg as a v4 eqg.", m_zoneName.c_str());
+	EQEmu::EQG4Loader eqg4;
+	if (eqg4.Load(filePath, terrain))
+	{
+		eqLogMessage(LogInfo, "Loaded %s.eqg as a v4 eqg", m_zoneName.c_str());
+		return CompileEQGv4();
+	}
+
+	return false;
+}
+
+EQEmu::PFS::Archive* MapGeometryLoader::LoadArchive(const std::string& path)
+{
+	for (const auto& archive : m_archives)
+	{
+		if (path == archive->GetFileName())
+			return archive.get();
+	}
+
+	auto archive = std::make_unique<EQEmu::PFS::Archive>();
+	if (archive->Open(path))
+	{
+		m_archives.push_back(std::move(archive));
+		eqLogMessage(LogInfo, "Loaded archive: %s", fs::path(path).filename().c_str());
+
+		return m_archives.back().get();
+	}
+
+	return nullptr;
+}
+
+EQEmu::S3D::WLDLoader* MapGeometryLoader::LoadWLD(EQEmu::PFS::Archive* archive, const std::string& fileName)
+{
+	for (const auto& loader : m_wldLoaders)
+	{
+		if (fileName == loader->GetFileName())
+			return loader.get();
+	}
+
+	auto loader = std::make_unique<EQEmu::S3D::WLDLoader>();
+	if (!loader->Init(archive, fileName))
+		return nullptr;
+
+	// Load objects from the .wld
+	auto& objectList = loader->GetObjectList();
+	for (auto& obj : objectList)
+	{
+		if (obj.type == EQEmu::S3D::WLD_OBJ_ZONE_TYPE)
 		{
-			object_loader.Reset();
+			EQEmu::S3D::WLDFragment29* frag = static_cast<EQEmu::S3D::WLDFragment29*>(obj.parsed_data);
+			auto region = frag->region;
+
+			eqLogMessage(LogTrace, "Processing zone region '%s' '%s' for s3d.", region->tag.c_str(), region->old_style_tag.c_str());
+		}
+		else if (obj.type == EQEmu::S3D::WLD_OBJ_REGION_TYPE)
+		{
+			// Regions with DMSPRITEDEF2 make up the geometry of the zone
+			EQEmu::S3D::WLDFragment22* region_frag = static_cast<EQEmu::S3D::WLDFragment22*>(obj.parsed_data);
+
+			if (region_frag->region_sprite_index != -1 && region_frag->region_sprite_is_def)
+			{
+				// Get the geometry from this sprite index
+				auto& sprite_obj = loader->GetObject(region_frag->region_sprite_index);
+				if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+				{
+					auto model = static_cast<EQEmu::S3D::WLDFragment36*>(sprite_obj.parsed_data)->geometry;
+
+					map_s3d_geometry.push_back(model);
+				}
+			}
+		}
+		else if (obj.type == EQEmu::S3D::WLD_OBJ_ACTORINSTANCE_TYPE)
+		{
+			EQEmu::S3D::WLDFragment15* frag = static_cast<EQEmu::S3D::WLDFragment15*>(obj.parsed_data);
+			if (!frag->placeable)
+			{
+				eqLogMessage(LogWarn, "Placeable entry was not found for actor tag '%s'.", obj.tag);
+				continue;
+			}
+
+			map_s3d_model_instances.push_back(frag->placeable);
+		}
+		else if (obj.type == EQEmu::S3D::WLD_OBJ_ACTORDEFINITION_TYPE)
+		{
+			std::string_view tag = obj.tag;
+			if (tag.empty())
+				continue;
+
+			EQEmu::S3D::WLDFragment14* obj_frag = static_cast<EQEmu::S3D::WLDFragment14*>(obj.parsed_data);
+			int sprite_id = obj_frag->sprite_id;
+
+			auto& sprite_obj = loader->GetObjectFromID(sprite_id);
+
+			if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+			{
+				EQEmu::S3D::WLDFragment2D* r_frag = static_cast<EQEmu::S3D::WLDFragment2D*>(sprite_obj.parsed_data);
+				auto m_ref = r_frag->sprite_id;
+
+				EQEmu::S3D::WLDFragment36* mod_frag = static_cast<EQEmu::S3D::WLDFragment36*>(loader->GetObjectFromID(m_ref).parsed_data);
+				auto mod = mod_frag->geometry;
+
+				map_models.emplace(tag, mod);
+			}
+			else if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
+			{
+				EQEmu::S3D::WLDFragment11* r_frag = static_cast<EQEmu::S3D::WLDFragment11*>(sprite_obj.parsed_data);
+				auto s_ref = r_frag->def_id;
+
+				EQEmu::S3D::WLDFragment10* skeleton_frag = static_cast<EQEmu::S3D::WLDFragment10*>(loader->GetObjectFromID(s_ref).parsed_data);
+				auto skele = skeleton_frag->track;
+
+				map_anim_models.emplace(tag, skele);
+			}
+		}
+	}
+	
+	m_wldLoaders.push_back(std::move(loader));
+	eqLogMessage(LogInfo, "Loaded wld: %s", fileName.c_str());
+
+	return m_wldLoaders.back().get();
+}
+
+void MapGeometryLoader::LoadAssetsFile()
+{
+	// to try to read an _assets file and load more eqg based data.
+	std::string assets_file = fmt::format("{}\\{}_assets.txt", m_eqPath, m_zoneName);
+	std::vector<std::string> filenames;
+
+	std::error_code ec;
+	if (fs::exists(assets_file, ec))
+	{
+		std::ifstream assets(assets_file.c_str());
+
+		if (assets.is_open())
+		{
+			std::copy(std::istream_iterator<std::string>(assets),
+				std::istream_iterator<std::string>(),
+				std::back_inserter(filenames));
 		}
 	}
 
-	// Load even more object data
-	EQEmu::PFS::Archive object2_archive;
-	EQEmu::S3D::S3DLoader object2_loader;
-	if (object2_archive.Open(filePath + "_2_obj.s3d"))
+	for (const std::string& filename : filenames)
 	{
-		if (!object2_loader.Init(&object2_archive, m_zoneName + "_obj.wld"))
+		std::string asset_file = fmt::format("{}\\{}", m_eqPath, filename);
+		bool loadEQG = true;
+
+		if (!asset_file.ends_with(".eqg"))
 		{
-			object2_loader.Reset();
+			loadEQG = false;
+			asset_file.append(".s3d");
+		}
+
+		if (EQEmu::PFS::Archive* archive = LoadArchive(asset_file))
+		{
+			if (loadEQG)
+			{
+				std::vector<std::string> models;
+
+				if (archive->GetFilenames("mod", models))
+				{
+					for (auto& modelName : models)
+					{
+						EQGGeometryPtr model;
+
+						EQEmu::LoadEQGModel(*archive, modelName, model);
+						if (model)
+						{
+							model->SetName(modelName);
+							map_eqg_models.emplace(modelName, model);
+						}
+					}
+				}
+			}
+			else
+			{
+				LoadWLD(archive, filename + ".wld");
+			}
 		}
 	}
-
-	return CompileS3D(zone_loader, zone_object_loader, object_loader, object2_loader);
 }
 
 void MapGeometryLoader::TraverseBone(
@@ -688,33 +910,29 @@ void MapGeometryLoader::TraverseBone(
 			rot.y = transform.rotation.y / transform.rotation.w;
 			rot.z = transform.rotation.z / transform.rotation.w;
 
-			rot = rot * 3.14159f / 180.0f;
+			rot = rot * ROT_RATIO;
 		}
 	}
 
 	RotateVertex(pos, parent_rot.x, parent_rot.y, parent_rot.z);
 	pos += parent_trans;
-
 	rot += parent_rot;
 
 	if (bone->model)
 	{
-		auto& mod_polys = bone->model->GetPolygons();
-		auto& mod_verts = bone->model->GetVertices();
-
-		if (map_models.contains(bone->model->GetName()))
+		if (!map_models.contains(bone->model->GetName()))
 		{
 			map_models[bone->model->GetName()] = bone->model;
 		}
-
+		
 		std::shared_ptr<EQEmu::Placeable> gen_plac = std::make_shared<EQEmu::Placeable>();
 		gen_plac->SetFileName(bone->model->GetName());
-		gen_plac->SetLocation(pos.x, pos.y, pos.z);
-		gen_plac->SetRotation(rot.x, rot.y, rot.z);
-		gen_plac->SetScale(scale.x, scale.y, scale.z);
+		gen_plac->SetPosition(pos);
+		gen_plac->SetRotation(rot);
+		gen_plac->SetScale(scale);
 		map_placeables.push_back(gen_plac);
 
-		eqLogMessage(LogTrace, "Adding placeable %s at (%f, %f, %f)", bone->model->GetName().c_str(), pos.x, pos.y, pos.z);
+		eqLogMessage(LogTrace, "Adding placeable from bones %s at (%f, %f, %f)", bone->model->GetName().c_str(), pos.x, pos.y, pos.z);
 	}
 
 	for (size_t i = 0; i < bone->children.size(); ++i)
@@ -723,228 +941,83 @@ void MapGeometryLoader::TraverseBone(
 	}
 }
 
-bool MapGeometryLoader::CompileS3D(
-	EQEmu::S3D::S3DLoader& zone_loader,
-	EQEmu::S3D::S3DLoader& zone_object_loader,
-	EQEmu::S3D::S3DLoader& object_loader,
-	EQEmu::S3D::S3DLoader& object2_loader)
+bool MapGeometryLoader::LoadModelInst(const PlaceablePtr& inst)
 {
-	collide_verts.clear();
-	collide_indices.clear();
-	non_collide_verts.clear();
-	non_collide_indices.clear();
-	current_collide_index = 0;
-	current_non_collide_index = 0;
-	collide_vert_to_index.clear();
-	non_collide_vert_to_index.clear();
-	map_models.clear();
-	map_eqg_models.clear();
-	map_placeables.clear();
-
-	//eqLogMessage(LogTrace, "Processing s3d zone geometry fragments.");
-	for (uint32_t i = 0; i < zone_loader.GetNumObjects(); ++i)
+	if (map_models.contains(inst->tag))
 	{
-		auto& obj = zone_loader.GetObject(i);
+		auto model = map_models[inst->tag];
 
-		if (obj.type == EQEmu::S3D::WLD_OBJ_ZONE_TYPE)
-		{
-			EQEmu::S3D::WLDFragment29* frag = static_cast<EQEmu::S3D::WLDFragment29*>(obj.parsed_data);
-			auto region = frag->region;
-
-			eqLogMessage(LogTrace, "Processing zone region '%s' '%s' for s3d.", region->tag.c_str(), region->old_style_tag.c_str());
-
-		}
-		else if (obj.type == EQEmu::S3D::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
-		{
-			EQEmu::S3D::WLDFragment36* frag = static_cast<EQEmu::S3D::WLDFragment36*>(obj.parsed_data);
-			auto model = frag->geometry;
-
-			auto& mod_polys = model->GetPolygons();
-			auto& mod_verts = model->GetVertices();
-
-			for (uint32_t j = 0; j < mod_polys.size(); ++j)
-			{
-				auto& current_poly = mod_polys[j];
-				auto v1 = mod_verts[current_poly.verts[0]];
-				auto v2 = mod_verts[current_poly.verts[1]];
-				auto v3 = mod_verts[current_poly.verts[2]];
-
-				float t = v1.pos.x;
-				v1.pos.x = v1.pos.y;
-				v1.pos.y = t;
-
-				t = v2.pos.x;
-				v2.pos.x = v2.pos.y;
-				v2.pos.y = t;
-
-				t = v3.pos.x;
-				v3.pos.x = v3.pos.y;
-				v3.pos.y = t;
-
-				if (current_poly.flags == 0x10)
-					AddFace(v1.pos, v2.pos, v3.pos, false);
-				else
-					AddFace(v1.pos, v2.pos, v3.pos, true);
-			}
-		}
-	}
-
-	eqLogMessage(LogTrace, "Processing zone placeable fragments.");
-	std::vector<std::pair<std::shared_ptr<EQEmu::Placeable>, std::shared_ptr<EQEmu::S3D::Geometry>>> placables;
-	std::vector<std::pair<std::shared_ptr<EQEmu::Placeable>, std::shared_ptr<EQEmu::S3D::SkeletonTrack>>> placables_skeleton;
-	for (uint32_t i = 0; i < zone_object_loader.GetNumObjects(); ++i)
-	{
-		auto& obj = zone_object_loader.GetObject(i);
-
-		if (obj.type == EQEmu::S3D::WLD_OBJ_ACTORINSTANCE_TYPE)
-		{
-			EQEmu::S3D::WLDFragment15* frag = static_cast<EQEmu::S3D::WLDFragment15*>(obj.parsed_data);
-			auto plac = frag->placeable;
-
-			if (!plac)
-			{
-				eqLogMessage(LogWarn, "Placeable entry was not found.");
-				continue;
-			}
-
-			bool found = false;
-			for (uint32_t o = 0; o < object_loader.GetNumObjects(); ++o)
-			{
-				auto& object = object_loader.GetObject(o);
-
-				if (object.type == EQEmu::S3D::WLD_OBJ_ACTORDEFINITION_TYPE)
-				{
-					auto mod_ref = object.tag;
-
-					if (mod_ref.compare(plac->GetName()) == 0)
-					{
-						found = true;
-						EQEmu::S3D::WLDFragment14* obj_frag = static_cast<EQEmu::S3D::WLDFragment14*>(object.parsed_data);
-						int sprite_id = obj_frag->sprite_id;
-
-						auto& sprite_obj = object_loader.GetObjectFromID(sprite_id);
-
-						if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_DMSPRITEINSTANCE_TYPE)
-						{
-							EQEmu::S3D::WLDFragment2D* r_frag = static_cast<EQEmu::S3D::WLDFragment2D*>(sprite_obj.parsed_data);
-							auto m_ref = r_frag->sprite_id;
-
-							EQEmu::S3D::WLDFragment36* mod_frag = static_cast<EQEmu::S3D::WLDFragment36*>(object_loader.GetObjectFromID(m_ref).parsed_data);
-							auto mod = mod_frag->geometry;
-
-							placables.emplace_back(plac, mod);
-						}
-						else if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
-						{
-							EQEmu::S3D::WLDFragment11* r_frag = static_cast<EQEmu::S3D::WLDFragment11*>(sprite_obj.parsed_data);
-							auto s_ref = r_frag->def_id;
-
-							EQEmu::S3D::WLDFragment10* skeleton_frag = static_cast<EQEmu::S3D::WLDFragment10*>(object_loader.GetObjectFromID(s_ref).parsed_data);
-							auto skele = skeleton_frag->track;
-
-							placables_skeleton.emplace_back(plac, skele);
-						}
-
-						break;
-					}
-				}
-			}
-
-			if (!found)
-			{
-				eqLogMessage(LogWarn, "Could not find model for placeable %s", plac->GetName().c_str());
-			}
-		}
-	}
-
-	eqLogMessage(LogTrace, "Processing s3d placeables.");
-	size_t pl_sz = placables.size();
-	for (size_t i = 0; i < pl_sz; ++i)
-	{
-		auto plac = placables[i].first;
-		auto model = placables[i].second;
-
-		float offset_x = plac->GetX();
-		float offset_y = plac->GetY();
-		float offset_z = plac->GetZ();
-
-		float rot_x = plac->GetRotateX() * 3.14159f / 180.0f;
-		float rot_y = plac->GetRotateY() * 3.14159f / 180.0f;
-		float rot_z = plac->GetRotateZ() * 3.14159f / 180.0f;
-
-		float scale_x = plac->GetScaleX();
-		float scale_y = plac->GetScaleY();
-		float scale_z = plac->GetScaleZ();
-
-		if (map_models.count(model->GetName()) == 0)
+		if (!map_models.contains(model->GetName()))
 		{
 			map_models[model->GetName()] = model;
 		}
-		std::shared_ptr<EQEmu::Placeable> gen_plac(new EQEmu::Placeable());
+
+		// TODO: Push these changes up to the loader. We're making a copy and modifying the data to fix some quirks.
+		std::shared_ptr<EQEmu::Placeable> gen_plac = std::make_shared<EQEmu::Placeable>();
 		gen_plac->SetFileName(model->GetName());
-		gen_plac->SetLocation(offset_x, offset_y, offset_z);
-		//y rotation seems backwards on s3ds, probably cause of the weird coord system they used back then
-		//x rotation might be too but there are literally 0 x rotated placeables in all the s3ds so who knows
-		gen_plac->SetRotation(rot_x, -rot_y, rot_z);
-		gen_plac->SetScale(scale_x, scale_y, scale_z);
+		gen_plac->SetPosition(inst->GetPosition());
+
+		// y rotation seems backwards on s3ds, probably cause of the weird coord system they used back then
+		// x rotation might be too but there are literally 0 x rotated placeables in all the s3ds so who knows
+		gen_plac->SetRotation(inst->GetRotation() * ROT_RATIO);
+		gen_plac->rotate.y = -gen_plac->rotate.y;
+		gen_plac->SetScale(inst->GetScale());
+
 		map_placeables.push_back(gen_plac);
 
-		eqLogMessage(LogTrace, "Adding placeable %s at (%f, %f, %f)", model->GetName().c_str(), offset_x, offset_y, offset_z);
+		eqLogMessage(LogTrace, "Adding model instance '%s' at (%f, %f, %f)", model->GetName().c_str(),
+			gen_plac->pos.x, gen_plac->pos.y, gen_plac->pos.z);
 	}
-
-	eqLogMessage(LogTrace, "Processing s3d animated placeables.");
-	pl_sz = placables_skeleton.size();
-	for (size_t i = 0; i < pl_sz; ++i)
+	else if (map_anim_models.contains(inst->tag))
 	{
-		auto& plac = placables_skeleton[i].first;
+		auto skel = map_anim_models[inst->tag];
 
-		auto& bones = placables_skeleton[i].second->GetBones();
+		auto& bones = skel->GetBones();
 
-		if (bones.size() > 0)
+		if (!bones.empty())
 		{
-			float offset_x = plac->GetX();
-			float offset_y = plac->GetY();
-			float offset_z = plac->GetZ();
-
-			float rot_x = plac->GetRotateX() * 3.14159f / 180.0f;
-			float rot_y = plac->GetRotateY() * 3.14159f / 180.0f;
-			float rot_z = plac->GetRotateZ() * 3.14159f / 180.0f;
-
-			float scale_x = plac->GetScaleX();
-			float scale_y = plac->GetScaleY();
-			float scale_z = plac->GetScaleZ();
-			TraverseBone(bones[0],
-				glm::vec3(offset_x, offset_y, offset_z),
-				glm::vec3(rot_x, rot_y, rot_z),
-				glm::vec3(scale_x, scale_y, scale_z));
+			TraverseBone(bones[0], inst->GetPosition(), inst->GetRotation() * ROT_RATIO, inst->GetScale());
 		}
+	}
+	else
+	{
+		eqLogMessage(LogWarn, "Could not find model for '%s'", inst->tag.c_str());
 	}
 
 	return true;
 }
 
-bool MapGeometryLoader::CompileEQG(
-	std::vector<std::shared_ptr<EQEmu::EQG::Geometry>>& models,
-	std::vector<std::shared_ptr<EQEmu::Placeable>>& placeables,
-	std::vector<std::shared_ptr<EQEmu::EQG::Region>>& regions,
-	std::vector<std::shared_ptr<EQEmu::Light>>& lights)
+
+bool MapGeometryLoader::CompileS3D(EQEmu::S3D::WLDLoader* zone_loader)
 {
-	collide_verts.clear();
-	collide_indices.clear();
-	non_collide_verts.clear();
-	non_collide_indices.clear();
-	current_collide_index = 0;
-	current_non_collide_index = 0;
-	collide_vert_to_index.clear();
-	non_collide_vert_to_index.clear();
-	map_models.clear();
-	map_eqg_models.clear();
-	map_placeables.clear();
+	eqLogMessage(LogTrace, "Processing zone placeable fragments.");
+
+	// OK now put them all together.
+
+	for (auto& inst : map_s3d_model_instances)
+	{
+		LoadModelInst(inst);
+	}
+
+	for (auto& inst : dynamic_map_objects)
+	{
+		LoadModelInst(inst);
+	}
+
+	return true;
+}
+
+bool MapGeometryLoader::CompileEQG(EQEmu::EQGLoader& eqgLoader)
+{
+	std::vector<std::shared_ptr<EQEmu::EQG::Geometry>>& models = eqgLoader.models;
+	std::vector<std::shared_ptr<EQEmu::Placeable>>& placeables = eqgLoader.placeables;
+	std::vector<std::shared_ptr<EQEmu::EQG::Region>>& regions = eqgLoader.regions;
+	std::vector<std::shared_ptr<EQEmu::Light>>& lights = eqgLoader.lights;
 
 	for (uint32_t i = 0; i < placeables.size(); ++i)
 	{
-		std::shared_ptr<EQEmu::Placeable>& plac = placeables[i];
-		std::shared_ptr<EQEmu::EQG::Geometry> model;
+		PlaceablePtr& plac = placeables[i];
+		EQGGeometryPtr model;
 		bool is_ter = false;
 
 		if (plac->GetName().substr(0, 3).compare("TER") == 0
@@ -972,9 +1045,9 @@ bool MapGeometryLoader::CompileEQG(
 		float offset_y = plac->GetY();
 		float offset_z = plac->GetZ();
 
-		float rot_x = plac->GetRotateX() * 3.14159f / 180.0f;
-		float rot_y = plac->GetRotateY() * 3.14159f / 180.0f;
-		float rot_z = plac->GetRotateZ() * 3.14159f / 180.0f;
+		float rot_x = plac->GetRotateX() * ROT_RATIO;
+		float rot_y = plac->GetRotateY() * ROT_RATIO;
+		float rot_z = plac->GetRotateZ() * ROT_RATIO;
 
 		float scale_x = plac->GetScaleX();
 		float scale_y = plac->GetScaleY();
@@ -993,7 +1066,8 @@ bool MapGeometryLoader::CompileEQG(
 
 			std::shared_ptr<EQEmu::Placeable> gen_plac(new EQEmu::Placeable());
 			gen_plac->SetFileName(model->GetName());
-			gen_plac->SetLocation(offset_x, offset_y, offset_z);
+			gen_plac->SetName(model->GetName());
+			gen_plac->SetPosition(offset_x, offset_y, offset_z);
 			gen_plac->SetRotation(rot_x, rot_y, rot_z);
 			gen_plac->SetScale(scale_x, scale_y, scale_z);
 			map_placeables.push_back(gen_plac);
@@ -1037,20 +1111,10 @@ bool MapGeometryLoader::CompileEQG(
 
 bool MapGeometryLoader::CompileEQGv4()
 {
-	collide_verts.clear();
-	collide_indices.clear();
-	non_collide_verts.clear();
-	non_collide_indices.clear();
-	current_collide_index = 0;
-	current_non_collide_index = 0;
-	collide_vert_to_index.clear();
-	non_collide_vert_to_index.clear();
-	map_models.clear();
-	map_eqg_models.clear();
-	map_placeables.clear();
-
 	if (!terrain)
+	{
 		return false;
+	}
 
 	auto& water_sheets = terrain->GetWaterSheets();
 	for (size_t i = 0; i < water_sheets.size(); ++i)
@@ -1176,7 +1240,7 @@ bool MapGeometryLoader::CompileEQGv4()
 	return true;
 }
 
-void MapGeometryLoader::AddFace(glm::vec3& v1, glm::vec3& v2, glm::vec3& v3, bool collidable)
+void MapGeometryLoader::AddFace(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, bool collidable)
 {
 	if (!collidable)
 	{

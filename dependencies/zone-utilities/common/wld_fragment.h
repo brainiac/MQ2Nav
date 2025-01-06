@@ -11,7 +11,7 @@
 
 namespace EQEmu::S3D {
 
-class S3DLoader;
+class WLDLoader;
 
 enum S3DObjectType : uint32_t
 {
@@ -79,7 +79,7 @@ public:
 class WLDFragment03 : public WLDFragment
 {
 public:
-	WLDFragment03(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment03(WLDLoader* loader, S3DFileObject* obj);
 
 	std::shared_ptr<Texture> texture;
 };
@@ -88,7 +88,7 @@ public:
 class WLDFragment04 : public WLDFragment
 {
 public:
-	WLDFragment04(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment04(WLDLoader* loader, S3DFileObject* obj);
 
 	std::shared_ptr<TextureBrush> brush;
 };
@@ -97,7 +97,7 @@ public:
 class WLDFragment05 : public WLDFragment
 {
 public:
-	WLDFragment05(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment05(WLDLoader* loader, S3DFileObject* obj);
 
 	uint32_t def_id = 0;
 };
@@ -106,7 +106,7 @@ public:
 class WLDFragment10 : public WLDFragment
 {
 public:
-	WLDFragment10(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment10(WLDLoader* loader, S3DFileObject* obj);
 
 	std::shared_ptr<SkeletonTrack> track;
 };
@@ -115,7 +115,7 @@ public:
 class WLDFragment11 : public WLDFragment
 {
 public:
-	WLDFragment11(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment11(WLDLoader* loader, S3DFileObject* obj);
 
 	uint32_t def_id = 0;
 };
@@ -124,7 +124,7 @@ public:
 class WLDFragment12 : public WLDFragment
 {
 public:
-	WLDFragment12(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment12(WLDLoader* loader, S3DFileObject* obj);
 
 	using TransformList = std::vector<SkeletonTrack::FrameTransform>;
 	TransformList transforms;
@@ -134,7 +134,7 @@ public:
 class WLDFragment13 : public WLDFragment
 {
 public:
-	WLDFragment13(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment13(WLDLoader* loader, S3DFileObject* obj);
 
 	uint32_t def_id = 0;
 };
@@ -143,7 +143,7 @@ public:
 class WLDFragment14 : public WLDFragment
 {
 public:
-	WLDFragment14(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment14(WLDLoader* loader, S3DFileObject* obj);
 
 	int sprite_id = 0;
 };
@@ -152,7 +152,7 @@ public:
 class WLDFragment15 : public WLDFragment
 {
 public:
-	WLDFragment15(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment15(WLDLoader* loader, S3DFileObject* obj);
 
 	// TODO: Fixme
 	std::shared_ptr<Placeable> placeable;
@@ -167,7 +167,7 @@ public:
 class WLDFragment1B : public WLDFragment
 {
 public:
-	WLDFragment1B(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment1B(WLDLoader* loader, S3DFileObject* obj);
 
 	std::shared_ptr<Light> light;
 };
@@ -176,7 +176,7 @@ public:
 class WLDFragment1C : public WLDFragment
 {
 public:
-	WLDFragment1C(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment1C(WLDLoader* loader, S3DFileObject* obj);
 
 	int light_id = 0;
 };
@@ -185,7 +185,7 @@ public:
 class WLDFragment21 : public WLDFragment
 {
 public:
-	WLDFragment21(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment21(WLDLoader* loader, S3DFileObject* obj);
 
 	std::shared_ptr<BSPTree> tree;
 };
@@ -194,13 +194,23 @@ public:
 class WLDFragment22 : public WLDFragment
 {
 public:
-	WLDFragment22(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment22(WLDLoader* loader, S3DFileObject* obj);
+
+	int ambient_light_index = 0;
+	uint32_t encoded_visibility_type = 0;
+	uint32_t range = 0;
+
+	glm::vec3 sphere_center = { 0.0f, 0.0f, 0.0f };
+	float sphere_radius = 0.0f;
+
+	int region_sprite_index = -1;
+	bool region_sprite_is_def = false;
 };
 
 class WLDFragment28 : public WLDFragment
 {
 public:
-	WLDFragment28(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment28(WLDLoader* loader, S3DFileObject* obj);
 
 };
 
@@ -208,7 +218,7 @@ public:
 class WLDFragment29 : public WLDFragment
 {
 public:
-	WLDFragment29(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment29(WLDLoader* loader, S3DFileObject* obj);
 
 	std::shared_ptr<BSPRegion> region;
 };
@@ -217,7 +227,7 @@ public:
 class WLDFragment2D : public WLDFragment
 {
 public:
-	WLDFragment2D(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment2D(WLDLoader* loader, S3DFileObject* obj);
 
 	uint32_t sprite_id = 0;
 };
@@ -226,7 +236,7 @@ public:
 class WLDFragment30 : public WLDFragment
 {
 public:
-	WLDFragment30(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment30(WLDLoader* loader, S3DFileObject* obj);
 
 	std::shared_ptr<TextureBrush> texture_brush;
 };
@@ -235,7 +245,7 @@ public:
 class WLDFragment31 : public WLDFragment
 {
 public:
-	WLDFragment31(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment31(WLDLoader* loader, S3DFileObject* obj);
 
 	std::shared_ptr<TextureBrushSet> texture_brush_set;
 };
@@ -244,7 +254,7 @@ public:
 class WLDFragment36 : public WLDFragment
 {
 public:
-	WLDFragment36(S3DLoader* loader, S3DFileObject* obj);
+	WLDFragment36(WLDLoader* loader, S3DFileObject* obj);
 	~WLDFragment36() {}
 
 	std::shared_ptr<Geometry> geometry;

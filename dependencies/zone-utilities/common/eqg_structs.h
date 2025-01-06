@@ -1,12 +1,9 @@
-#ifndef EQEMU_COMMON_EQG_STRUCTS_H
-#define EQEMU_COMMON_EQG_STRUCTS_H
 
-#include <stdint.h>
+#pragma once
 
-#pragma pack(1)
+#include <cstdint>
 
-namespace EQEmu
-{
+namespace EQEmu {
 
 struct eqg_v4_zone_magic_header
 {
@@ -40,13 +37,13 @@ struct zon_placable
 struct zon_region
 {
 	uint32_t loc;
-	float center_x; 
-	float center_y; 
-	float center_z; 
-	float unknown016; 
+	float center_x;
+	float center_y;
+	float center_z;
+	float unknown016;
 	uint32_t flag_unknown020; //0 about half the time, non-zero other half
 	uint32_t flag_unknown024; //almost always 0
-	float extend_x; 
+	float extend_x;
 	float extend_y;
 	float extend_z;
 };
@@ -129,14 +126,10 @@ struct mod_polygon
 };
 
 struct v4_zone_dat_header
-{
-	uint32_t unk000;
-	uint32_t unk004;
-	uint32_t unk008;
-};
+	{
+		uint32_t unk000;
+		uint32_t unk004;
+		uint32_t unk008;
+	};
 
-}
-
-#pragma pack()
-
-#endif
+} // namespace EQEmu

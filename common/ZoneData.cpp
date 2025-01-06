@@ -4,7 +4,7 @@
 
 #include "ZoneData.h"
 
-#include <zone-utilities/common/eqg_model_loader.h>
+#include <zone-utilities/common/eqg_loader.h>
 #include <zone-utilities/common/safe_alloc.h>
 
 #include <fmt/format.h>
@@ -84,10 +84,9 @@ public:
 					{
 						for (auto& modelName : models)
 						{
-							EQEmu::EQGModelLoader model_loader;
 							ModelPtr model;
 
-							model_loader.Load(archive, modelName, model);
+							EQEmu::LoadEQGModel(archive, modelName, model);
 							if (model)
 							{
 								model->SetName(modelName);
@@ -118,10 +117,8 @@ public:
 			return iter->second;
 		}
 
-		EQEmu::EQGModelLoader model_loader;
 		ModelPtr model;
-
-		if (model_loader.Load(m_archive, name, model))
+		if (EQEmu::LoadEQGModel(m_archive, name, model))
 		{
 			model->SetName(modelName);
 			m_models[modelName] = model;
@@ -198,7 +195,7 @@ public:
 			std::string wld_name = m_zd->GetZoneName() + suffix + ".wld";
 			std::string file_name = fmt::format("{}\\{}.s3d", m_zd->GetEQPath(), m_zd->GetZoneName() + suffix);
 
-			EQEmu::S3D::S3DLoader loader;
+			EQEmu::S3D::WLDLoader loader;
 
 			if (loader.ParseWLDFile(loader, file_name, wld_name))
 			{
@@ -254,10 +251,9 @@ public:
 					{
 						for (auto& modelName : models)
 						{
-							EQEmu::EQGModelLoader model_loader;
 							ModelPtr model;
 
-							model_loader.Load(archive, modelName, model);
+							EQEmu::LoadEQGModel(archive, modelName, model);
 							if (model)
 							{
 								model->SetName(modelName);
