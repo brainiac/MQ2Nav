@@ -9,7 +9,7 @@ extern std::shared_ptr<spdlog::logger> g_logger;
 enum class LoggingCategory
 {
 	MeshGen = 0,
-	EQEmu,
+	EQG,
 	Recast,
 	Bgfx,
 	Other,

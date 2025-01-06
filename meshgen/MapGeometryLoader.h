@@ -63,9 +63,11 @@ private:
 	void TraverseBone(std::shared_ptr<EQEmu::S3D::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
 
 	bool CompileS3D(
-		std::vector<EQEmu::S3D::WLDFragment>& zone_frags,
-		std::vector<EQEmu::S3D::WLDFragment>& zone_object_frags,
-		std::vector<EQEmu::S3D::WLDFragment>& object_frags);
+		EQEmu::S3D::S3DLoader& zone_loader,
+		EQEmu::S3D::S3DLoader& zone_object_loader,
+		EQEmu::S3D::S3DLoader& object_loader,
+		EQEmu::S3D::S3DLoader& object2_loader);
+
 	bool CompileEQG(
 		std::vector<std::shared_ptr<EQEmu::EQG::Geometry>>& models,
 		std::vector<std::shared_ptr<EQEmu::Placeable>>& placeables,
@@ -158,4 +160,7 @@ private:
 	std::string m_meshPath;
 
 	bool m_doorsLoaded = false;
+
+	std::vector<std::unique_ptr<EQEmu::PFS::Archive>> m_archives;
+	std::vector<std::unique_ptr<EQEmu::S3D::S3DLoader>> m_s3dLoaders;
 };

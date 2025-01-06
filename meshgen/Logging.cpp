@@ -27,7 +27,7 @@ class EQEmuLogSink : public EQEmu::Log::LogBase
 public:
 	EQEmuLogSink()
 	{
-		m_logger = Logging::GetLogger(LoggingCategory::EQEmu);
+		m_logger = Logging::GetLogger(LoggingCategory::EQG);
 		m_logger->set_level(spdlog::level::trace);
 	}
 
@@ -97,7 +97,7 @@ void Logging::Initialize()
 	auto bgfxLogger = g_logger->clone("bgfx");
 	spdlog::register_logger(bgfxLogger);
 
-	auto emuLogger = g_logger->clone("EQEmu");
+	auto emuLogger = g_logger->clone("EQG");
 	spdlog::register_logger(emuLogger);
 
 	eqLogInit(-1);
@@ -127,8 +127,8 @@ std::shared_ptr<spdlog::logger> Logging::GetLogger(LoggingCategory category)
 {
 	switch (category)
 	{
-	case LoggingCategory::EQEmu:
-		return spdlog::get("EQEmu");
+	case LoggingCategory::EQG:
+		return spdlog::get("EQG");
 
 	case LoggingCategory::Recast:
 		return spdlog::get("Recast");
@@ -149,8 +149,8 @@ LoggingCategory Logging::GetLoggingCategory(std::string_view loggerName)
 	switch (loggerName[0])
 	{
 	case 'E':
-		if (loggerName == "EQEmu")
-			return LoggingCategory::EQEmu;
+		if (loggerName == "EQG")
+			return LoggingCategory::EQG;
 		return LoggingCategory::Other;
 
 	case 'R':
@@ -178,7 +178,7 @@ const char* Logging::GetLoggingCategoryName(LoggingCategory category)
 	switch (category)
 	{
 	case LoggingCategory::Recast: return "Recast";
-	case LoggingCategory::EQEmu: return "EQEmu";
+	case LoggingCategory::EQG: return "EQG";
 	case LoggingCategory::MeshGen: return "MeshGen";
 	case LoggingCategory::Bgfx: return "Bgfx";
 	default:

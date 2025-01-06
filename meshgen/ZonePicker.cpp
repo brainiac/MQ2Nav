@@ -209,9 +209,10 @@ bool ZonePicker::DrawZoneList(const char* str_id, std::ranges::input_range auto&
 		lastZone = shortName;
 
 		bool selected = !m_selectedZone.empty() && m_selectedZone == shortName;
+		bool clickedSelect = false;
 
 		if (ImGui::Selectable(longName.c_str(), &selected, ImGuiSelectableFlags_SpanAllColumns))
-			didSelect = true;
+			clickedSelect = true;
 
 		ImGui::TableNextColumn();
 		ImGui::Text("%s", shortName.c_str());
@@ -233,11 +234,12 @@ bool ZonePicker::DrawZoneList(const char* str_id, std::ranges::input_range auto&
 			ImGui::SetScrollHereY();
 		}
 
-		if (didSelect)
+		if (clickedSelect)
 		{
 			m_selectedZone = shortName;
 			m_selectedIndex = index;
 			m_foundSelected = true;
+			didSelect = true;
 		}
 
 		if (m_selectedZone == shortName)

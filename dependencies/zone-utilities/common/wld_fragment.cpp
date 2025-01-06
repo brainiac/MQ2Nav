@@ -1,519 +1,650 @@
-#include "wld_fragment.h"
-#include "wld_structs.h"
+
+#include "read_buffer.h"
 #include "s3d_loader.h"
+#include "s3d_types.h"
+#include "wld_fragment.h"
+#include "log_macros.h"
 
-EQEmu::S3D::WLDFragment03::WLDFragment03(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment03 *header = (wld_fragment03*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment03);
-	uint32_t count = header->texture_count;
-	if(!count)
+#include <mq/api/Abilities.h>
+
+#include "wld_structs.h"
+
+namespace EQEmu::S3D {
+
+// WLD_BITMAP_INFO
+WLDFragment03::WLDFragment03(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+
+	WLD_OBJ_BMINFO* header = reader.read_ptr<WLD_OBJ_BMINFO>();
+	uint32_t count = header->num_mip_levels;
+	if (!count)
 		count = 1;
-	
-	std::shared_ptr<Texture> tex(new Texture);
-	auto &frames = tex->GetTextureFrames();
-	frames.resize(count);
-	for(uint32_t i = 0; i < count; ++i) {
-		uint16_t name_len = *(uint16_t*)frag_buffer;
-		frag_buffer += sizeof(uint16_t);
 
-		char *texture_name = frag_buffer;
-		decode_string_hash(texture_name, name_len);
-		frames[i] = texture_name;
+	texture = std::make_shared<Texture>();
+	texture->frames.reserve(count);
 
-		frag_buffer += name_len;
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		uint16_t name_len = reader.read<uint16_t>();
+
+		char* texture_name = reader.read_array<char>(name_len);
+		decode_s3d_string(texture_name, name_len);
+
+		texture->frames.emplace_back(texture_name);
 	}
-
-	data = tex;
 }
 
-EQEmu::S3D::WLDFragment04::WLDFragment04(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment04 *header = (wld_fragment04*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment04);
+WLDFragment04::WLDFragment04(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
 
-	if (header->flags & (1 << 2))
-		frag_buffer += sizeof(uint32_t);
+	WLD_OBJ_SIMPLESPRITEDEFINITION* def = reader.read_ptr<WLD_OBJ_SIMPLESPRITEDEFINITION>();
 
-	if (header->flags & (1 << 3))
-		frag_buffer += sizeof(uint32_t);
+	brush = std::make_shared<TextureBrush>();
 
-	uint32_t count = header->texture_count;
-	if(!count)
+	if (def->flags & 0x4)
+		reader.skip<uint32_t>();
+
+	if (def->flags & 0x8)
+		reader.skip<uint32_t>();
+
+	uint32_t count = def->texture_count;
+	if (!count)
 		count = 1;
 
-	std::shared_ptr<TextureBrush> brush(new TextureBrush);
-	for (uint32_t i = 0; i < count; ++i) {
-		wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-		frag_buffer += sizeof(wld_fragment_reference);
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		uint32_t tagId = reader.read<uint32_t>();
 
-		WLDFragment &frag = out[ref->id - 1];
-		try {
-			std::shared_ptr<Texture> tex = EQEmu::any_cast<std::shared_ptr<Texture>>(frag.data);
-			brush->GetTextures().push_back(tex);
-		} catch (EQEmu::bad_any_cast&) {
-			brush->GetTextures().push_back(std::shared_ptr<Texture>(new Texture()));
+		WLDFragment03* bitmap = static_cast<WLDFragment03*>(loader->GetObjectFromID(tagId).parsed_data);
+		if (!bitmap)
+		{
+			eqLogMessage(LogWarn, "missing bitmap!");
+			continue;
 		}
+		brush->brush_textures.push_back(bitmap->texture);
 	}
-
-	data = brush;
 }
 
-EQEmu::S3D::WLDFragment05::WLDFragment05(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-	uint32_t frag_id = ref->id - 1;
-	data = frag_id;
+WLDFragment05::WLDFragment05(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+
+	auto* inst = reader.read_ptr<WLD_OBJ_SIMPLESPRITEINSTANCE>();
+
+	def_id = loader->GetObjectIndexFromID(inst->definition_id);
 }
 
-EQEmu::S3D::WLDFragment10::WLDFragment10(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment10 *header = (wld_fragment10*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment10);
+WLDFragment10::WLDFragment10(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
 
-	std::shared_ptr<SkeletonTrack> track(new SkeletonTrack());
-	track->SetName(&hash[-(int32_t)frag_name]);
+	auto* header = reader.read_ptr<WLD_OBJ_HIERARCHICALSPRITEDEFINITION>();
 
-	if(header->flag & 1) {
-		int32_t param0 = *(int32_t*)frag_buffer;
-		frag_buffer += sizeof(int32_t);
-		int32_t param1 = *(int32_t*)frag_buffer;
-		frag_buffer += sizeof(int32_t);
-		int32_t param2 = *(int32_t*)frag_buffer;
-		frag_buffer += sizeof(int32_t);
+	track = std::make_shared<SkeletonTrack>();
+	track->name = obj->tag;
+
+	if (header->flags & WLD_OBJ_SPROPT_HAVECENTEROFFSET)
+	{
+		reader.read(track->center_offset);
 	}
 
-	if (header->flag & 2) {
-		float params2 = *(float*)frag_buffer;
-		frag_buffer += sizeof(float);
+	if (header->flags & WLD_OBJ_SPROPT_HAVEBOUNDINGRADIUS)
+	{
+		reader.read(track->bounding_radius);
 	}
 
-	auto &bones = track->GetBones();
 	std::vector<std::pair<int, int>> tree;
-	for(uint32_t i = 0; i < header->track_ref_count; ++i) {
-		wld_fragment10_track_ref_entry *ent = (wld_fragment10_track_ref_entry*)frag_buffer;
-		frag_buffer += sizeof(wld_fragment10_track_ref_entry);
+	std::vector<std::shared_ptr<SkeletonTrack::Bone>> bones;
 
-		std::shared_ptr<SkeletonTrack::Bone> bone(new SkeletonTrack::Bone);
-		if (ent->frag_ref2 > 0 && out[ent->frag_ref2 - 1].type == 0x2d) {
-			WLDFragment2D &f = reinterpret_cast<WLDFragment2D&>(out[ent->frag_ref2 - 1]);
-			auto m_ref = f.GetData();
+	for (uint32_t i = 0; i < header->num_dags; ++i)
+	{
+		WLDDATA_DAG* ent = reader.read_ptr<WLDDATA_DAG>();
+		auto bone = std::make_shared<SkeletonTrack::Bone>();
 
-			WLDFragment36 &fmod = reinterpret_cast<WLDFragment36&>(out[m_ref]);
-			auto mod = fmod.GetData();
+		S3DFileObject& sprite_obj = loader->GetObjectFromID(ent->sprite_id);
+		if (sprite_obj.type == WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+		{
+			WLDFragment2D* sprite_inst = static_cast<WLDFragment2D*>(sprite_obj.parsed_data);
+			WLDFragment36* sprite_def = static_cast<WLDFragment36*>(loader->GetObjectFromID(sprite_inst->sprite_id).parsed_data);
+			bone->model = sprite_def->geometry;
 
-			bone->model = mod;
-
-			if (ent->frag_ref != 0) {
-				WLDFragment13 &f_oref = reinterpret_cast<WLDFragment13&>(out[ent->frag_ref - 1]);
-				auto or_ref = f_oref.GetData();
-
-				WLDFragment12 &fori = reinterpret_cast<WLDFragment12&>(out[or_ref]);
-				auto orient = fori.GetData();
-
-				bone->orientation = orient;
+			S3DFileObject& track_obj = loader->GetObjectFromID(ent->track_id);
+			if (track_obj.type == WLD_OBJ_TRACKINSTANCE_TYPE)
+			{
+				WLDFragment13* track_inst = static_cast<WLDFragment13*>(track_obj.parsed_data);
+				WLDFragment12* track_def = static_cast<WLDFragment12*>(loader->GetObjectFromID(track_inst->def_id).parsed_data);
+				bone->transforms = track_def->transforms; // FIXME
 			}
 		}
 
 		bones.push_back(bone);
 
-		for(uint32_t j = 0; j < ent->tree_piece_count; ++j) {
-			int32_t tree_piece_ref = *(int32_t*)frag_buffer;
-			frag_buffer += sizeof(int32_t);
-
-			tree.push_back(std::make_pair(i, tree_piece_ref));
+		for (uint32_t j = 0; j < ent->num_sub_dags; ++j)
+		{
+			tree.emplace_back(i, reader.read<int32_t>());
 		}
 	}
 
-	for (size_t i = 0; i < tree.size(); ++i) {
-		int &bone_src = tree[i].first;
-		int &bone_dest = tree[i].second;
-
-		bones[bone_src]->children.push_back(bones[bone_dest]);
+	for (auto& [bone_src, bone_dst] : tree)
+	{
+		bones[bone_src]->children.push_back(bones[bone_dst]);
 	}
 
-	if (header->flag & 512) {
-		uint32_t sz = *(uint32_t*)frag_buffer;
-		frag_buffer += sizeof(uint32_t);
-		for (uint32_t i = 0; i < sz; ++i) {
-			int32_t ref = *(int32_t*)frag_buffer;
+	if (header->flags & WLD_OBJ_SPROPT_HAVEATTACHEDSKINS)
+	{
+		uint32_t numAttachedSkins = reader.read<uint32_t>();
 
-			if(out[ref - 1].type = 0x2d) {
-				WLDFragment2D &f = reinterpret_cast<WLDFragment2D&>(out[ref - 1]);
-				auto mod_ref = f.GetData();
+		for (uint32_t i = 0; i < numAttachedSkins; ++i)
+		{
+			int ref = reader.read<int>();
 
-				if (out[mod_ref].type == 0x36) {
-					WLDFragment36 &f = reinterpret_cast<WLDFragment36&>(out[mod_ref]);
-					auto mod = f.GetData();
+			S3DFileObject& skinObj = loader->GetObjectFromID(ref);
+			if (skinObj.type = WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+			{
+				WLDFragment2D* inst = static_cast<WLDFragment2D*>(skinObj.parsed_data);
+
+				S3DFileObject& defObj = loader->GetObjectFromID(inst->sprite_id);
+				if (defObj.type == WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+				{
+					WLDFragment36* f = static_cast<WLDFragment36*>(defObj.parsed_data);
+					auto mod = f->geometry;
 				}
 			}
-
-			frag_buffer += sizeof(int32_t);
 		}
 
-		for (uint32_t i = 0; i < sz; ++i) {
-			int32_t data = *(int32_t*)frag_buffer;
-			frag_buffer += sizeof(int32_t);
+		track->attached_skeleton_dag_index.resize(numAttachedSkins);
+		for (uint32_t i = 0; i < numAttachedSkins; ++i)
+		{
+			track->attached_skeleton_dag_index[i] = reader.read<int>();
+		}
+	}
+}
+
+WLDFragment11::WLDFragment11(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_HIERARCHICALSPRITEINSTANCE>();
+
+	def_id = header->definition_id;
+}
+
+WLDFragment12::WLDFragment12(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_TRACKDEFINITION>();
+
+	transforms.resize(header->num_frames);
+
+	for (uint32_t i = 0; i < header->num_frames; ++i)
+	{
+		auto* s3d_transform = reader.read_ptr<EQG_S3D_PFRAMETRANSFORM>();
+		auto& transform = transforms[i];
+
+		constexpr float quat_scale = 1.0f / 16384.0f;
+		constexpr float pivot_scale = 1.0f / 256.0f;
+
+		transform.rotation = glm::quat(
+			-static_cast<float>(s3d_transform->rot_q3 * quat_scale),
+			static_cast<float>(s3d_transform->rot_q0 * quat_scale),
+			static_cast<float>(s3d_transform->rot_q1 * quat_scale),
+			static_cast<float>(s3d_transform->rot_q2 * quat_scale)
+		);
+		transform.pivot = glm::vec3(
+			static_cast<float>(s3d_transform->pivot_x * pivot_scale),
+			static_cast<float>(s3d_transform->pivot_y * pivot_scale),
+			static_cast<float>(s3d_transform->pivot_z * pivot_scale)
+		);
+		transform.scale = static_cast<float>(s3d_transform->scale) * pivot_scale;
+	}
+}
+
+WLDFragment13::WLDFragment13(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_TRACKINSTANCE>();
+
+	def_id = header->track_id;
+}
+
+WLDFragment14::WLDFragment14(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_ACTORDEFINITION>();
+
+	if (header->flags & WLD_OBJ_ACTOROPT_HAVECURRENTACTION)
+		reader.skip<uint32_t>();
+	if (header->flags & WLD_OBJ_ACTOROPT_HAVELOCATION)
+		reader.skip(sizeof(uint32_t) * 7);
+
+	std::string_view callback_name = loader->GetString(header->callback_id);
+
+	// action data is unused.
+	for (uint32_t i = 0; i < header->num_actions; ++i)
+	{
+		uint32_t size = reader.read<uint32_t>();
+
+		for (uint32_t j = 0; j < size; ++j)
+		{
+			reader.skip<uint32_t>();
+			reader.skip<float>();
 		}
 	}
 
-	data = track;
-}
-
-EQEmu::S3D::WLDFragment11::WLDFragment11(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-	uint32_t frag_id = ref->id - 1;
-	data = frag_id;
-}
-
-EQEmu::S3D::WLDFragment12::WLDFragment12(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	std::shared_ptr<SkeletonTrack::BoneOrientation> orientation(new SkeletonTrack::BoneOrientation);
-	wld_fragment12 *header = (wld_fragment12*)frag_buffer;
-
-	orientation->rotate_denom = header->rot_denom;
-	orientation->rotate_x_num = header->rot_x_num;
-	orientation->rotate_y_num = header->rot_y_num;
-	orientation->rotate_z_num = header->rot_z_num;
-	orientation->shift_denom = header->shift_denom;
-	orientation->shift_x_num = header->shift_x_num;
-	orientation->shift_y_num = header->shift_y_num;
-	orientation->shift_z_num = header->shift_z_num;
-
-	data = orientation;
-}
-
-EQEmu::S3D::WLDFragment13::WLDFragment13(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-	uint32_t frag_id = ref->id - 1;
-	data = frag_id;
-}
-
-EQEmu::S3D::WLDFragment14::WLDFragment14(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment14 *header = (wld_fragment14*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment14);
-
-	std::shared_ptr<WLDFragmentReference> ref(new WLDFragmentReference());
-	ref->SetName(&hash[-(int32_t)frag_name]);
-	ref->SetMagicString(&hash[-header->ref]);
-
-	if(header->flag & 1) {
-		frag_buffer += sizeof(int32_t);
+	// Should only have one sprite id;
+	for (uint32_t i = 0; i < header->num_sprites; ++i)
+	{
+		sprite_id = reader.read<uint32_t>();
 	}
 
-	if (header->flag & 2) {
-		frag_buffer += sizeof(int32_t);
+	// remaining data is "userdata" but is never set, so don't bother to read for it.
+}
+
+WLDFragment15::WLDFragment15(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_ACTORINSTANCE>();
+
+	if (header->actor_def_id >= 0)
+		return;
+
+	if (header->flags & WLD_OBJ_ACTOROPT_HAVECURRENTACTION)
+		reader.skip<uint32_t>();
+
+	placeable = std::make_shared<Placeable>();
+	placeable->model_name = loader->GetString(header->actor_def_id);
+	actor_def_id = header->actor_def_id;
+	collision_volume_id = header->collision_volume_id;
+
+	if (header->flags & WLD_OBJ_ACTOROPT_HAVELOCATION)
+	{
+		SLocation location;
+		reader.read(location);
+
+		placeable->x = location.x;
+		placeable->y = location.y;
+		placeable->z = location.z;
+
+		constexpr float EQ_TO_DEG = 360.0f / 512.0f;
+		placeable->rotate_x = location.roll * EQ_TO_DEG;
+		placeable->rotate_y = location.pitch * EQ_TO_DEG;
+		placeable->rotate_z = location.heading * EQ_TO_DEG;
 	}
-	
-	for(uint32_t i = 0; i < header->entries; ++i) {
-		uint32_t sz = *(uint32_t*)frag_buffer;
-		frag_buffer += sizeof(uint32_t);
-		for(uint32_t j = 0; j < sz; ++j) {
-			frag_buffer += sizeof(int32_t);
-			frag_buffer += sizeof(float);
+
+	if (header->flags & WLD_OBJ_ACTOROPT_HAVEBOUNDINGRADIUS)
+	{
+		reader.read(bounding_radius);
+	}
+
+	if (header->flags & WLD_OBJ_ACTOROPT_HAVESCALEFACTOR)
+	{
+		reader.read(scale_factor);
+	}
+
+	placeable->scale_x = scale_factor;
+	placeable->scale_y = scale_factor;
+	placeable->scale_z = scale_factor;
+
+	if (header->flags & WLD_OBJ_ACTOROPT_HAVEDMRGBTRACK)
+	{
+		reader.read(color_track_id);
+	}
+}
+
+WLDFragment1B::WLDFragment1B(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_LIGHTDEFINITION>();
+
+	light = std::make_shared<Light>();
+	light->tag = obj->tag;
+	light->pos = { 0.0f, 0.0f, 0.0f };
+
+	if (header->flags & WLD_OBJ_LIGHTOPT_SKIPFRAMES)
+	{
+		light->skip_frames = true;
+	}
+
+	if (header->flags & WLD_OBJ_LIGHTOPT_HAVECURRENTFRAME)
+	{
+		reader.read(light->current_frame);
+	}
+
+	if (header->flags & WLD_OBJ_LIGHTOPT_HAVESLEEP)
+	{
+		reader.read(light->update_interval);
+	}
+
+	float* intensity_list = reader.read_array<float>(header->num_frames);
+	light->intensity.reserve(header->num_frames);
+
+	for (float* intensity = intensity_list; intensity < intensity_list + header->num_frames; ++intensity)
+	{
+		light->intensity.push_back(*intensity);
+	}
+
+	if (header->flags & WLD_OBJ_LIGHTOPT_HAVECOLORS)
+	{
+		COLOR* color_list = reader.read_array<COLOR>(header->num_frames);
+		light->color.reserve(header->num_frames);
+
+		for (COLOR* color = color_list; color < color_list + header->num_frames; ++color)
+		{
+			light->color.emplace_back(color->red, color->green, color->blue);
 		}
 	}
-
-	for(uint32_t i = 0; i < header->entries2; ++i) {
-		uint32_t f_ref = *(uint32_t*)frag_buffer;
-		frag_buffer += sizeof(uint32_t);
-
-		ref->GetFrags().push_back(f_ref);
-	}
-
-	//Encoded string length + string here, purpose unknown.
-
-	data = ref;
-}
-
-EQEmu::S3D::WLDFragment15::WLDFragment15(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment_reference);
-
-	wld_fragment15 *header = (wld_fragment15*)frag_buffer;
-	if(ref->id <= 0) {
-		std::shared_ptr<Placeable> plac(new Placeable());
-		plac->SetLocation(header->x, header->y, header->z);
-		plac->SetRotation(
-			header->rotate_x / 512.f * 360.f,
-			header->rotate_y / 512.f * 360.f,
-			header->rotate_z / 512.f * 360.f
-			);
-		plac->SetScale(header->scale_x, header->scale_y, header->scale_y);
-		
-		const char *model_str = (const char*)&hash[-ref->id];
-		plac->SetName(model_str);
-		data = plac;
+	else
+	{
+		light->color.emplace_back(1.0f, 1.0f, 1.0f);
 	}
 }
 
-EQEmu::S3D::WLDFragment1B::WLDFragment1B(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	std::shared_ptr<Light> light(new Light());
-	wld_fragment1B *header = (wld_fragment1B*)frag_buffer;
+WLDFragment1C::WLDFragment1C(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_LIGHTINSTANCE>();
 
-	light->SetLocation(0.0f, 0.0f, 0.0f);
-	light->SetRadius(0.0f);
-	
-	if (header->flags & (1 << 3)) {
-		light->SetColor(header->color[0], header->color[1], header->color[2]);
-	} else {
-		light->SetColor(1.0f, 1.0f, 1.0f);
-	}
-
-	data = light;
+	light_id = header->definition_id;
 }
 
-EQEmu::S3D::WLDFragment1C::WLDFragment1C(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-	uint32_t frag_id = ref->id - 1;
-	data = frag_id;
-}
+WLDFragment21::WLDFragment21(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_WORLDTREE>();
 
-EQEmu::S3D::WLDFragment21::WLDFragment21(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment21 *header = (wld_fragment21*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment21);
+	tree = std::make_shared<BSPTree>();
+	auto& nodes = tree->GetNodes();
+	nodes.resize(header->num_world_nodes);
 
-	std::shared_ptr<S3D::BSPTree> tree(new S3D::BSPTree());
-	auto &nodes = tree->GetNodes();
-	nodes.resize(header->count);
-	for(uint32_t i = 0; i < header->count; ++i) {
-		wld_fragment21_data *data = (wld_fragment21_data*)frag_buffer;
-		frag_buffer += sizeof(wld_fragment21_data);
+	for (uint32_t i = 0; i < header->num_world_nodes; ++i)
+	{
+		WLD_OBJ_WORLDTREE_NODE* data = reader.read_ptr<WLD_OBJ_WORLDTREE_NODE>();
 
-		auto &node = nodes[i];
-		node.number = i;
-		node.normal[0] = data->normal[0];
-		node.normal[1] = data->normal[1];
-		node.normal[2] = data->normal[2];
-		node.split_dist = data->split_dist;
+		auto& node = nodes[i];
+		node.plane = data->plane;
 		node.region = data->region;
-		node.left = data->node[0];
-		node.right = data->node[1];
+		node.front = data->node[0];
+		node.back = data->node[1];
 	}
-
-	data = tree;
 }
 
-EQEmu::S3D::WLDFragment22::WLDFragment22(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	//bsp regions
+WLDFragment22::WLDFragment22(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_REGION>();
+
+	// TODO
 }
 
-EQEmu::S3D::WLDFragment28::WLDFragment28(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment_reference);
+WLDFragment28::WLDFragment28(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_POINTLIGHT>();
 
-	wld_fragment_28 *header = (wld_fragment_28*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment_28);
+	// Get LIGHTINSTANCE
+	S3DFileObject& light_obj = loader->GetObjectFromID(header->light_id);
+	if (light_obj.type == WLD_OBJ_LIGHTINSTANCE_TYPE)
+	{
+		WLDFragment1C* light_inst = static_cast<WLDFragment1C*>(light_obj.parsed_data);
 
-	if(ref->id == 0)
-		return;
+		// Get LIGHTDEFINITION
+		S3DFileObject& light_def_obj = loader->GetObjectFromID(light_inst->light_id);
+		if (light_def_obj.type == WLD_OBJ_LIGHTDEFINITION_TYPE)
+		{
+			WLDFragment1B* light_def = static_cast<WLDFragment1B*>(light_def_obj.parsed_data);
 
-	WLDFragment &frag = out[ref->id - 1];
-	uint32_t ref_id = 0;
-	try {
-		ref_id = EQEmu::any_cast<uint32_t>(frag.data);
-	}
-	catch (EQEmu::bad_any_cast&) { }
-
-	frag = out[ref_id];
-	try {
-		std::shared_ptr<Light> l = EQEmu::any_cast<std::shared_ptr<Light>>(frag.data);
-		l->SetLocation(header->x, header->y, header->z);
-		l->SetRadius(header->rad);
-	}
-	catch (EQEmu::bad_any_cast&) {}
-}
-
-EQEmu::S3D::WLDFragment29::WLDFragment29(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment_29 *header = (wld_fragment_29*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment_29);
-
-	std::shared_ptr<S3D::BSPRegion> region(new S3D::BSPRegion());
-	int32_t ref_id = (int32_t)frag_name;
-	char *region_name = &hash[-ref_id];
-	region->SetName(region_name);
-
-	for(uint32_t i = 0; i < header->region_count; ++i) {
-		uint32_t ref_id = *(uint32_t*)frag_buffer;
-		frag_buffer += sizeof(uint32_t);
-		region->AddRegion(ref_id);
-	}
-
-	uint32_t str_length = *(uint32_t*)frag_buffer;
-	if(str_length > 0) {
-		frag_buffer += sizeof(uint32_t);
-		char *str = frag_buffer;
-		decode_string_hash(str, str_length);
-		region->SetExtendedInfo(str);
-	}
-
-	data = region;
-}
-
-EQEmu::S3D::WLDFragment2D::WLDFragment2D(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-	uint32_t frag_id = ref->id - 1;
-	data = frag_id;
-}
-
-EQEmu::S3D::WLDFragment30::WLDFragment30(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	//texture reference to a 0x05
-	wld_fragment30 *header = (wld_fragment30*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment30);
-
-	if(!header->flags)
-		frag_buffer += sizeof(uint32_t) * 2;
-
-	wld_fragment_reference *ref = (wld_fragment_reference*)frag_buffer;
-
-	if(!header->params1 || !ref->id) {
-		std::shared_ptr<TextureBrush> tb(new TextureBrush());
-		std::shared_ptr<Texture> t(new Texture());
-		t->GetTextureFrames().push_back("collide.dds");
-		tb->GetTextures().push_back(t);
-		tb->SetFlags(1);
-		data = tb;
-		return;
-	}
-	
-	WLDFragment &frag = out[ref->id - 1];
-	uint32_t tex_ref = 0;
-	try {
-		tex_ref = EQEmu::any_cast<uint32_t>(frag.data);
-	}
-	catch (EQEmu::bad_any_cast&) { }
-	
-	
-	frag = out[tex_ref];
-	try {
-		std::shared_ptr<TextureBrush> tb = EQEmu::any_cast<std::shared_ptr<TextureBrush>>(frag.data);
-		std::shared_ptr<TextureBrush> new_tb(new TextureBrush);
-
-		*new_tb = *tb;
-
-		if (header->params1 & (1 << 1) || header->params1 & (1 << 2) || header->params1 & (1 << 3) || header->params1 & (1 << 4))
-			new_tb->SetFlags(1);
-		else
-			new_tb->SetFlags(0);
-	
-		data = new_tb;
-	}
-	catch (EQEmu::bad_any_cast&) { }
-}
-
-EQEmu::S3D::WLDFragment31::WLDFragment31(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment31 *header = (wld_fragment31*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment31);
-
-	std::shared_ptr<TextureBrushSet> tbs(new TextureBrushSet());
-
-	auto &ts = tbs->GetTextureSet();
-	ts.resize(header->count);
-	for(uint32_t i = 0; i < header->count; ++i) {
-		uint32_t ref_id = *(uint32_t*)frag_buffer;
-		frag_buffer += sizeof(uint32_t);
-		WLDFragment &frag = out[ref_id - 1];
-		try {
-			std::shared_ptr<TextureBrush> tb = EQEmu::any_cast<std::shared_ptr<TextureBrush>>(frag.data);
-			ts[i] = tb;
+			light_def->light->pos = { header->pos.x, header->pos.y, header->pos.z };
+			light_def->light->radius = header->radius;
 		}
-		catch (EQEmu::bad_any_cast&) {}
 	}
-
-	data = tbs;
 }
 
-EQEmu::S3D::WLDFragment36::WLDFragment36(std::vector<WLDFragment> &out, char *frag_buffer, uint32_t frag_length, uint32_t frag_name, char *hash, bool old) {
-	wld_fragment36 *header = (wld_fragment36*)frag_buffer;
-	frag_buffer += sizeof(wld_fragment36);
+WLDFragment29::WLDFragment29(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_ZONE>();
+
+	region = std::make_shared<BSPRegion>();
+	region->tag = obj->tag;
+
+	for (uint32_t i = 0; i < header->num_regions; ++i)
+	{
+		region->regions.push_back(reader.read<uint32_t>());
+	}
+
+	uint32_t str_length = reader.read<uint32_t>();
+	if (str_length > 0)
+	{
+		char* str = reader.read_array<char>(str_length);
+		decode_s3d_string(str, str_length);
+
+		region->old_style_tag = str;
+	}
+}
+
+WLDFragment2D::WLDFragment2D(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_DMSPRITEINSTANCE>();
+
+	sprite_id = header->definition_id;
+}
+
+// WLD_OBJ_MATERIALDEFINITION_TYPE
+WLDFragment30::WLDFragment30(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_MATERIALDEFINITION>();
+
+	if (!header->flags)
+	{
+		reader.skip(sizeof(uint32_t) * 2); // ???
+	}
+
+	if (!header->render_method || !header->sprite_or_bminfo)
+	{
+		texture_brush = std::make_shared<TextureBrush>();
+		auto texture = std::make_shared<Texture>();
+		texture->GetTextureFrames().push_back("collide.dds");
+		
+		texture_brush->brush_textures.push_back(texture);
+		texture_brush->flags = 1;
+		return;
+	}
+
+	S3DFileObject& sprite_obj = loader->GetObjectFromID(header->sprite_or_bminfo);
+	uint32_t tex_ref = 0;
+	if (sprite_obj.type == WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE)
+	{
+		WLDFragment05* simple_sprite_inst = static_cast<WLDFragment05*>(sprite_obj.parsed_data);
+
+		tex_ref = simple_sprite_inst->def_id;
+	}
+
+	S3DFileObject& sprite_def_obj = loader->GetObjectFromID(tex_ref);
+	if (sprite_def_obj.type == WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE)
+	{
+		WLDFragment04* simple_sprite_def = static_cast<WLDFragment04*>(sprite_def_obj.parsed_data);
+
+		texture_brush = std::make_shared<TextureBrush>();
+		*texture_brush = *simple_sprite_def->brush;
+		 
+		// ????
+
+		if (header->render_method & (1 << 1) || header->render_method & (1 << 2) || header->render_method & (1 << 3) || header->render_method & (1 << 4))
+			texture_brush->flags = 1;
+		else
+			texture_brush->flags = 0;
+	}
+}
+
+// WLD_OBJ_MATERIALPALETTE_TYPE
+WLDFragment31::WLDFragment31(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_MATERIALPALETTE>();
+
+	texture_brush_set = std::make_shared<TextureBrushSet>();
+	texture_brush_set->texture_sets.reserve(header->num_entries);
+
+	for (uint32_t i = 0; i < header->num_entries; ++i)
+	{
+		int ref_id = reader.read<int>();
+
+		S3DFileObject& frag = loader->GetObjectFromID(ref_id);
+		if (frag.type == WLD_OBJ_MATERIALDEFINITION_TYPE)
+		{
+			WLDFragment30* parsed_data = static_cast<WLDFragment30*>(frag.parsed_data);
+
+			texture_brush_set->texture_sets.push_back(parsed_data->texture_brush);
+		}
+	}
+}
+
+WLDFragment36::WLDFragment36(S3DLoader* loader, S3DFileObject* obj)
+	: WLDFragment(obj)
+{
+	ReadBuffer reader(obj->data, obj->size);
+	auto* header = reader.read_ptr<WLD_OBJ_DMSPRITEDEFINITION2>();
+
+	constexpr float recip_255 = 1.0f / 256.0f;
+	constexpr float recip_127 = 1.0f / 127.0f;
 
 	float scale = 1.0f / (float)(1 << header->scale);
-	float recip_255 = 1.0f / 256.0f, recip_127 = 1.0f / 127.0f;
 
-	std::shared_ptr<Geometry> model(new Geometry());
-	model->SetName((char*)&hash[-(int32_t)frag_name]);
+	std::shared_ptr<Geometry> model = std::make_shared<Geometry>();
+	model->name = obj->tag;
 
-	WLDFragment &tex_frag = out[header->frag1 - 1];
-	try {
-		std::shared_ptr<TextureBrushSet> tbs = EQEmu::any_cast<std::shared_ptr<TextureBrushSet>>(tex_frag.data);
-		model->SetTextureBrushSet(tbs);
-	}
-	catch (EQEmu::bad_any_cast&) {}
+	S3DFileObject& frag = loader->GetObjectFromID(header->material_palette_id);
+	if (frag.type == WLD_OBJ_MATERIALPALETTE_TYPE)
+	{
+		WLDFragment31* material_palette = static_cast<WLDFragment31*>(frag.parsed_data);
 
-	auto &verts = model->GetVertices();
-	verts.resize(header->vertex_count);
-	for(uint32_t i = 0; i < header->vertex_count; ++i) {
-		wld_fragment36_vert *in = (wld_fragment36_vert*)frag_buffer;
-		frag_buffer += sizeof(wld_fragment36_vert);
-
-		auto &v = verts[i];
-		v.pos.x = header->center_x + in->x * scale;
-		v.pos.y = header->center_y + in->y * scale;
-		v.pos.z = header->center_z + in->z * scale;
+		model->SetTextureBrushSet(material_palette->texture_brush_set);
 	}
 
-	if(old) {
-		for(uint32_t i = 0; i < header->tex_coord_count; ++i) {
-			wld_fragment36_tex_coords_old *in = (wld_fragment36_tex_coords_old*)frag_buffer;
-		
-			if (i < model->GetVertices().size()) {
-				model->GetVertices()[i].tex.x = in->u * recip_255;
-				model->GetVertices()[i].tex.y = in->v * recip_255;
-			}
+	// Vertices
+	model->verts.resize(header->num_vertices);
+	WLD_PVERTEX* verts = reader.read_array<WLD_PVERTEX>(header->num_vertices);
 
-			frag_buffer += sizeof(wld_fragment36_tex_coords_old);
-		}
-	} else {
-		for (uint32_t i = 0; i < header->tex_coord_count; ++i) {
-			wld_fragment36_tex_coords_new *in = (wld_fragment36_tex_coords_new*)frag_buffer;
+	for (uint32_t i = 0; i < header->num_vertices; ++i)
+	{
+		auto& in = verts[i];
 
-			if (i < model->GetVertices().size()) {
-				model->GetVertices()[i].tex.x = in->u;
-				model->GetVertices()[i].tex.y = in->v;
-			}
+		model->verts[i].pos = {
+			header->center_offset.x + in.x * scale,
+			header->center_offset.y + in.y * scale,
+			header->center_offset.z + in.z * scale
+		};
+	}
 
-			frag_buffer += sizeof(wld_fragment36_tex_coords_new);
+	// Texture coordinates
+	uint16_t num_uvs = header->num_uvs;
+	if (num_uvs > model->verts.size())
+	{
+		eqLogMessage(LogWarn, "num_uvs > model->verts.size()");
+		num_uvs = (uint16_t)model->verts.size();
+	}
+
+	if (loader->IsOldVersion())
+	{
+		WLD_PUVOLDFORM* uvs = reader.read_array<WLD_PUVOLDFORM>(header->num_uvs);
+
+		for (uint32_t i = 0; i < num_uvs; ++i)
+		{
+			auto& in = uvs[i];
+			model->verts[i].tex = { in.u * recip_255, in.v * recip_255 };
 		}
 	}
+	else
+	{
+		WLD_PUV* uvs = reader.read_array<WLD_PUV>(header->num_uvs);
 
-	for(uint32_t i = 0; i < header->normal_count; ++i) {
-		wld_fragment36_normal *in = (wld_fragment36_normal*)frag_buffer;
+		for (uint32_t i = 0; i < num_uvs; ++i)
+		{
+			auto& in = uvs[i];
+			model->verts[i].tex = { in.u, in.v };
+		}
+	}
 
+	// Normals
+	uint16_t num_vertex_normals = header->num_vertex_normals;
+	if (num_vertex_normals > model->verts.size())
+	{
 		// this check is here cause there's literally zones where there's normals than verts (ssratemple for ex). Stupid I know.
-		if (i < model->GetVertices().size()) {
-			model->GetVertices()[i].nor.x = in->x * recip_127;
-			model->GetVertices()[i].nor.y = in->y * recip_127;
-			model->GetVertices()[i].nor.z = in->z * recip_127;
-		}
-
-		frag_buffer += sizeof(wld_fragment36_normal);
+		eqLogMessage(LogWarn, "num_vertex_normals > model->verts.size()");
+		num_vertex_normals = (uint16_t)model->verts.size();
 	}
 
-	frag_buffer += sizeof(uint32_t) * header->color_count;
-
-	auto &polys = model->GetPolygons();
-	polys.resize(header->polygon_count);
-	for(uint32_t i = 0; i < header->polygon_count; ++i) {
-		wld_fragment36_poly *in = (wld_fragment36_poly*)frag_buffer;
-
-		auto &p = polys[i];
-		p.flags = in->flags;
-		p.verts[0] = in->index[2];
-		p.verts[1] = in->index[1];
-		p.verts[2] = in->index[0];
-		frag_buffer += sizeof(wld_fragment36_poly);
+	WLD_PNORMAL* normals = reader.read_array<WLD_PNORMAL>(header->num_vertex_normals);
+	for (uint32_t i = 0; i < num_vertex_normals; ++i)
+	{
+		auto& in = normals[i];
+		model->verts[i].nor = { in.x * recip_127, in.y * recip_127, in.z * recip_127 };
 	}
 
-	frag_buffer += 4 * header->size6;
+	// TODO: not handling colors yet
+	reader.read_array<uint32_t>(header->num_rgb_colors);
+
+	// Polygons
+	model->polys.resize(header->num_faces);
+	WLD_DMFACE2* faces = reader.read_array<WLD_DMFACE2>(header->num_faces);
+	for (uint32_t i = 0; i < header->num_faces; ++i)
+	{
+		auto& in = faces[i];
+		auto& p = model->polys[i];
+
+		p.flags = in.flags;
+		p.verts[0] = in.indices[2];
+		p.verts[1] = in.indices[1];
+		p.verts[2] = in.indices[0];
+	}
+
+	// TODO: not handling skin group
+	reader.read_array<WLD_SKINGROUP>(header->num_skin_groups);
+
+	// Materials
+	WLD_MATERIALGROUP* poly_material_groups = reader.read_array<WLD_MATERIALGROUP>(header->num_fmaterial_groups);
 	uint32_t pc = 0;
-	for(uint32_t i = 0; i < header->polygon_tex_count; ++i) {
-		wld_fragment36_tex_map *tm = (wld_fragment36_tex_map*)frag_buffer;
 
-		for(uint32_t j = 0; j < tm->poly_count; ++j) {
-			if(pc >= model->GetPolygons().size()) {
+	for (uint32_t i = 0; i < header->num_fmaterial_groups; ++i)
+	{
+		auto& tm = poly_material_groups[i];
+
+		for (uint32_t group_num = 0; group_num < tm.group_size; ++group_num)
+		{
+			if (pc >= model->polys.size())
+			{
+				eqLogMessage(LogWarn, "pc >= model->GetPolygons().size()");
 				break;
 			}
 
-			model->GetPolygons()[pc++].tex = tm->tex;
+			model->polys[pc++].tex = tm.material_id;
 		}
-
-		frag_buffer += sizeof(wld_fragment36_tex_map);
 	}
 
-	data = model;
+	// TODO: not handling vertex material groups
+
+	geometry = model;
 }
+
+} // namespace EQEmu::S3D

@@ -1,15 +1,11 @@
-#ifndef EQEMU_COMMON_PLACEABLE_H
-#define EQEMU_COMMON_PLACEABLE_H
 
-namespace EQEmu
-{
+#pragma once
+
+namespace EQEmu {
 
 class Placeable
 {
 public:
-	Placeable() { }
-	~Placeable() { }
-
 	void SetLocation(float nx, float ny, float nz) { x = nx; y = ny; z = nz; }
 	void SetRotation(float nx, float ny, float nz) { rotate_x = nx; rotate_y = ny; rotate_z = nz; }
 	void SetScale(float nx, float ny, float nz) { scale_x = nx; scale_y = ny; scale_z = nz; }
@@ -25,9 +21,10 @@ public:
 	float GetScaleX() { return scale_x; }
 	float GetScaleY() { return scale_y; }
 	float GetScaleZ() { return scale_z; }
-	std::string &GetName() { return model_name; }
-	std::string &GetFileName() { return model_file; }
-private:
+	std::string& GetName() { return model_name; }
+	std::string& GetFileName() { return model_file; }
+
+
 	float x, y, z;
 	float rotate_x, rotate_y, rotate_z;
 	float scale_x, scale_y, scale_z;
@@ -35,6 +32,4 @@ private:
 	std::string model_file;
 };
 
-}
-
-#endif
+} // namespace EQEmu

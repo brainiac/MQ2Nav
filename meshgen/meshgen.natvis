@@ -9,4 +9,7 @@
 	<Type Name="EQEmu::EQG::Region">
 		<DisplayString>EQG::Region {{ name={name} alt_name={alt_name} flags={flag[0]},{flag[1]} pos={x},{y},{z} }}</DisplayString>
 	</Type>
+	<Type Name="EQEmu::S3D::S3DFileObject">
+		<DisplayString>WLD Object {{ type={type} tag={tag,na} }}</DisplayString>
+	</Type>
 </AutoVisualizer>

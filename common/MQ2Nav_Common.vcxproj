@@ -82,7 +82,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <StructMemberAlignment>Default</StructMemberAlignment>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -96,7 +96,7 @@
       <StringPooling>false</StringPooling>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MinimalRebuild>false</MinimalRebuild>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <PreprocessorDefinitions>MQ_BUILD_AS_X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -112,7 +112,7 @@
       <StringPooling>true</StringPooling>
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <StructMemberAlignment>Default</StructMemberAlignment>
     </ClCompile>
     <Link>
@@ -131,7 +131,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <StringPooling>true</StringPooling>
       <DisableSpecificWarnings>4091;4018;4244</DisableSpecificWarnings>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <PreprocessorDefinitions>MQ_BUILD_AS_X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>

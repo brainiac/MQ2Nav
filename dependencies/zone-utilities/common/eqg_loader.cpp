@@ -169,10 +169,10 @@ bool EQEmu::EQGLoader::ParseZon(EQEmu::PFS::Archive &archive, std::vector<char> 
 	for(uint32_t i = 0; i < header->light_count; ++i) {
 		SafeStructAllocParse(zon_light, light);
 		std::shared_ptr<Light> l(new Light());
-		l->SetName(&buffer[sizeof(zon_header) + light->loc]);
-		l->SetLocation(light->x, light->y, light->z);
-		l->SetColor(light->r, light->g, light->b);
-		l->SetRadius(light->radius);
+		l->tag = std::string(&buffer[sizeof(zon_header) + light->loc]);
+		l->pos = glm::vec3(light->x, light->y, light->z);
+		l->color.push_back(glm::vec3(light->r, light->g, light->b));
+		l->radius = light->radius;
 
 		lights.push_back(l);
 	}

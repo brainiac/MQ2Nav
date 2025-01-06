@@ -16,38 +16,30 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
-#ifndef EQEMU_COMMON_PFS_CRC_HPP
-#define EQEMU_COMMON_PFS_CRC_HPP
+#pragma once
 
-#include <stdint.h>
-#include <string.h>
-#include <string>
+#include <cstdint>
+#include <string_view>
 
-namespace EQEmu
-{
-
-namespace PFS
-{
+namespace EQEmu::PFS {
 
 class CRC
 {
-public:
-	~CRC() { }
-	static CRC &Instance();
-	
-	int32_t Update(int32_t crc, int8_t *data, int32_t length);
-	int32_t Get(std::string s);
-private:
-	CRC() { GenerateCRCTable(); }
-	CRC(const CRC &s);
-	const CRC &operator=(const CRC &s);
+	enum { Polynomial = 0x04C11DB7l };
 
-	void GenerateCRCTable();
-	int32_t crc_table[256];
+public:
+
+	CRC() = default;
+	~CRC() = default;
+	CRC(const CRC&) = delete;
+	CRC& operator=(const CRC&) = delete;
+	
+	int32_t Get(std::string_view s);
+	int32_t Update(int32_t crc, std::string_view s);
+
+private:
+	int32_t Get(const uint8_t* data, int32_t length);
+	int32_t Update(int32_t crc, const uint8_t* data, int32_t length);
 };
 
-}
-
-}
-
-#endif
+} // namespace EQEmu::PFS

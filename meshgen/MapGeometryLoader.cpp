@@ -17,9 +17,10 @@
 #include <filesystem>
 #include <sstream>
 
+
 namespace fs = std::filesystem;
 
-static inline void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
+static void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
 {
 	glm::vec3 nv = v;
 
@@ -38,29 +39,29 @@ static inline void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
 
 	v = nv;
 }
-static inline void RotateVertex(glm::vec3& v, const glm::vec3& r)
+static void RotateVertex(glm::vec3& v, const glm::vec3& r)
 {
 	RotateVertex(v, r.x, r.y, r.z);
 }
 
-static inline void ScaleVertex(glm::vec3& v, float sx, float sy, float sz)
+static void ScaleVertex(glm::vec3& v, float sx, float sy, float sz)
 {
 	v.x = v.x * sx;
 	v.y = v.y * sy;
 	v.z = v.z * sz;
 }
-static inline void ScaleVertex(glm::vec3& v, const glm::vec3& s)
+static void ScaleVertex(glm::vec3& v, const glm::vec3& s)
 {
 	ScaleVertex(v, s.x, s.y, s.z);
 }
 
-static inline void TranslateVertex(glm::vec3& v, float tx, float ty, float tz)
+static void TranslateVertex(glm::vec3& v, float tx, float ty, float tz)
 {
 	v.x = v.x + tx;
 	v.y = v.y + ty;
 	v.z = v.z + tz;
 }
-static inline void TranslateVertex(glm::vec3& v, const glm::vec3& t)
+static void TranslateVertex(glm::vec3& v, const glm::vec3& t)
 {
 	TranslateVertex(v, t.x, t.y, t.z);
 }
@@ -616,26 +617,50 @@ bool MapGeometryLoader::Build()
 	}
 
 	eqLogMessage(LogInfo, "Attempting to load %s.s3d as a standard s3d.", m_zoneName.c_str());
-	EQEmu::S3DLoader s3d;
-	std::vector<EQEmu::S3D::WLDFragment> zone_frags;
-	std::vector<EQEmu::S3D::WLDFragment> zone_object_frags;
-	std::vector<EQEmu::S3D::WLDFragment> object_frags;
-	if (!s3d.ParseWLDFile(filePath + ".s3d", m_zoneName + ".wld", zone_frags))
+
+	EQEmu::PFS::Archive zone_archive;
+	if (!zone_archive.Open(filePath + ".s3d"))
 	{
 		return false;
 	}
 
-	if (!s3d.ParseWLDFile(filePath + ".s3d", "objects.wld", zone_object_frags))
+	// Load zone data
+	EQEmu::S3D::S3DLoader zone_loader;
+	if (!zone_loader.Init(&zone_archive, m_zoneName + ".wld"))
 	{
 		return false;
 	}
 
-	if (!s3d.ParseWLDFile(filePath + "_obj.s3d", m_zoneName + "_obj.wld", object_frags))
+	// Load object data
+	EQEmu::S3D::S3DLoader zone_object_loader;
+	if (!zone_object_loader.Init(&zone_archive, "objects.wld"))
 	{
 		return false;
 	}
 
-	return CompileS3D(zone_frags, zone_object_frags, object_frags);
+	// Load additional object data
+	EQEmu::PFS::Archive object_archive;
+	EQEmu::S3D::S3DLoader object_loader;
+	if (object_archive.Open(filePath + "_obj.s3d"))
+	{
+		if (!object_loader.Init(&object_archive, m_zoneName + "_obj.wld"))
+		{
+			object_loader.Reset();
+		}
+	}
+
+	// Load even more object data
+	EQEmu::PFS::Archive object2_archive;
+	EQEmu::S3D::S3DLoader object2_loader;
+	if (object2_archive.Open(filePath + "_2_obj.s3d"))
+	{
+		if (!object2_loader.Init(&object2_archive, m_zoneName + "_obj.wld"))
+		{
+			object2_loader.Reset();
+		}
+	}
+
+	return CompileS3D(zone_loader, zone_object_loader, object_loader, object2_loader);
 }
 
 void MapGeometryLoader::TraverseBone(
@@ -644,41 +669,28 @@ void MapGeometryLoader::TraverseBone(
 	glm::vec3 parent_rot,
 	glm::vec3 parent_scale)
 {
-	float offset_x = 0.0f;
-	float offset_y = 0.0f;
-	float offset_z = 0.0f;
+	glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 scale = parent_scale;
 
-	float rot_x = 0.0f;
-	float rot_y = 0.0f;
-	float rot_z = 0.0f;
-
-	float scale_x = parent_scale.x;
-	float scale_y = parent_scale.y;
-	float scale_z = parent_scale.z;
-
-	if (bone->orientation)
+	if (!bone->transforms.empty())
 	{
-		if (bone->orientation->shift_denom != 0)
+		auto& transform = bone->transforms[0];
+
+		if (transform.scale != 0)
 		{
-			offset_x = (float)bone->orientation->shift_x_num / (float)bone->orientation->shift_denom;
-			offset_y = (float)bone->orientation->shift_y_num / (float)bone->orientation->shift_denom;
-			offset_z = (float)bone->orientation->shift_z_num / (float)bone->orientation->shift_denom;
+			pos = transform.pivot * transform.scale;
 		}
 
-		if (bone->orientation->rotate_denom != 0)
+		if (transform.rotation.w != 0)
 		{
-			rot_x = (float)bone->orientation->rotate_x_num / (float)bone->orientation->rotate_denom;
-			rot_y = (float)bone->orientation->rotate_y_num / (float)bone->orientation->rotate_denom;
-			rot_z = (float)bone->orientation->rotate_z_num / (float)bone->orientation->rotate_denom;
+			rot.x = transform.rotation.x / transform.rotation.w;
+			rot.y = transform.rotation.y / transform.rotation.w;
+			rot.z = transform.rotation.z / transform.rotation.w;
 
-			rot_x = rot_x * 3.14159f / 180.0f;
-			rot_y = rot_y * 3.14159f / 180.0f;
-			rot_z = rot_z * 3.14159f / 180.0f;
+			rot = rot * 3.14159f / 180.0f;
 		}
 	}
-
-	glm::vec3 pos(offset_x, offset_y, offset_z);
-	glm::vec3 rot(rot_x, rot_y, rot_z);
 
 	RotateVertex(pos, parent_rot.x, parent_rot.y, parent_rot.z);
 	pos += parent_trans;
@@ -690,16 +702,16 @@ void MapGeometryLoader::TraverseBone(
 		auto& mod_polys = bone->model->GetPolygons();
 		auto& mod_verts = bone->model->GetVertices();
 
-		if (map_models.count(bone->model->GetName()) == 0)
+		if (map_models.contains(bone->model->GetName()))
 		{
 			map_models[bone->model->GetName()] = bone->model;
 		}
 
-		std::shared_ptr<EQEmu::Placeable> gen_plac(new EQEmu::Placeable());
+		std::shared_ptr<EQEmu::Placeable> gen_plac = std::make_shared<EQEmu::Placeable>();
 		gen_plac->SetFileName(bone->model->GetName());
 		gen_plac->SetLocation(pos.x, pos.y, pos.z);
 		gen_plac->SetRotation(rot.x, rot.y, rot.z);
-		gen_plac->SetScale(scale_x, scale_y, scale_z);
+		gen_plac->SetScale(scale.x, scale.y, scale.z);
 		map_placeables.push_back(gen_plac);
 
 		eqLogMessage(LogTrace, "Adding placeable %s at (%f, %f, %f)", bone->model->GetName().c_str(), pos.x, pos.y, pos.z);
@@ -712,9 +724,10 @@ void MapGeometryLoader::TraverseBone(
 }
 
 bool MapGeometryLoader::CompileS3D(
-	std::vector<EQEmu::S3D::WLDFragment>& zone_frags,
-	std::vector<EQEmu::S3D::WLDFragment>& zone_object_frags,
-	std::vector<EQEmu::S3D::WLDFragment>& object_frags)
+	EQEmu::S3D::S3DLoader& zone_loader,
+	EQEmu::S3D::S3DLoader& zone_object_loader,
+	EQEmu::S3D::S3DLoader& object_loader,
+	EQEmu::S3D::S3DLoader& object2_loader)
 {
 	collide_verts.clear();
 	collide_indices.clear();
@@ -729,21 +742,22 @@ bool MapGeometryLoader::CompileS3D(
 	map_placeables.clear();
 
 	//eqLogMessage(LogTrace, "Processing s3d zone geometry fragments.");
-	for (uint32_t i = 0; i < zone_frags.size(); ++i)
+	for (uint32_t i = 0; i < zone_loader.GetNumObjects(); ++i)
 	{
-		if (zone_frags[i].type == 0x29)
-		{
-			EQEmu::S3D::WLDFragment29 &frag = reinterpret_cast<EQEmu::S3D::WLDFragment29&>(zone_frags[i]);
-			auto region = frag.GetData();
+		auto& obj = zone_loader.GetObject(i);
 
-			eqLogMessage(LogTrace, "Processing region '%s' '%s' for s3d.",
-				region->GetName().c_str(), region->GetExtendedInfo().c_str());
+		if (obj.type == EQEmu::S3D::WLD_OBJ_ZONE_TYPE)
+		{
+			EQEmu::S3D::WLDFragment29* frag = static_cast<EQEmu::S3D::WLDFragment29*>(obj.parsed_data);
+			auto region = frag->region;
+
+			eqLogMessage(LogTrace, "Processing zone region '%s' '%s' for s3d.", region->tag.c_str(), region->old_style_tag.c_str());
 
 		}
-		if (zone_frags[i].type == 0x36)
+		else if (obj.type == EQEmu::S3D::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
 		{
-			EQEmu::S3D::WLDFragment36& frag = reinterpret_cast<EQEmu::S3D::WLDFragment36&>(zone_frags[i]);
-			auto model = frag.GetData();
+			EQEmu::S3D::WLDFragment36* frag = static_cast<EQEmu::S3D::WLDFragment36*>(obj.parsed_data);
+			auto model = frag->geometry;
 
 			auto& mod_polys = model->GetPolygons();
 			auto& mod_verts = model->GetVertices();
@@ -778,12 +792,14 @@ bool MapGeometryLoader::CompileS3D(
 	eqLogMessage(LogTrace, "Processing zone placeable fragments.");
 	std::vector<std::pair<std::shared_ptr<EQEmu::Placeable>, std::shared_ptr<EQEmu::S3D::Geometry>>> placables;
 	std::vector<std::pair<std::shared_ptr<EQEmu::Placeable>, std::shared_ptr<EQEmu::S3D::SkeletonTrack>>> placables_skeleton;
-	for (uint32_t i = 0; i < zone_object_frags.size(); ++i)
+	for (uint32_t i = 0; i < zone_object_loader.GetNumObjects(); ++i)
 	{
-		if (zone_object_frags[i].type == 0x15)
+		auto& obj = zone_object_loader.GetObject(i);
+
+		if (obj.type == EQEmu::S3D::WLD_OBJ_ACTORINSTANCE_TYPE)
 		{
-			EQEmu::S3D::WLDFragment15& frag = reinterpret_cast<EQEmu::S3D::WLDFragment15&>(zone_object_frags[i]);
-			auto plac = frag.GetData();
+			EQEmu::S3D::WLDFragment15* frag = static_cast<EQEmu::S3D::WLDFragment15*>(obj.parsed_data);
+			auto plac = frag->placeable;
 
 			if (!plac)
 			{
@@ -792,38 +808,41 @@ bool MapGeometryLoader::CompileS3D(
 			}
 
 			bool found = false;
-			for (uint32_t o = 0; o < object_frags.size(); ++o)
+			for (uint32_t o = 0; o < object_loader.GetNumObjects(); ++o)
 			{
-				if (object_frags[o].type == 0x14) {
-					EQEmu::S3D::WLDFragment14& obj_frag = reinterpret_cast<EQEmu::S3D::WLDFragment14&>(object_frags[o]);
-					auto mod_ref = obj_frag.GetData();
+				auto& object = object_loader.GetObject(o);
 
-					if (mod_ref->GetName().compare(plac->GetName()) == 0)
+				if (object.type == EQEmu::S3D::WLD_OBJ_ACTORDEFINITION_TYPE)
+				{
+					auto mod_ref = object.tag;
+
+					if (mod_ref.compare(plac->GetName()) == 0)
 					{
 						found = true;
+						EQEmu::S3D::WLDFragment14* obj_frag = static_cast<EQEmu::S3D::WLDFragment14*>(object.parsed_data);
+						int sprite_id = obj_frag->sprite_id;
 
-						auto& frag_refs = mod_ref->GetFrags();
-						for (uint32_t m = 0; m < frag_refs.size(); ++m)
+						auto& sprite_obj = object_loader.GetObjectFromID(sprite_id);
+
+						if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_DMSPRITEINSTANCE_TYPE)
 						{
-							if (object_frags[frag_refs[m] - 1].type == 0x2D)
-							{
-								EQEmu::S3D::WLDFragment2D& r_frag = reinterpret_cast<EQEmu::S3D::WLDFragment2D&>(object_frags[frag_refs[m] - 1]);
-								auto m_ref = r_frag.GetData();
+							EQEmu::S3D::WLDFragment2D* r_frag = static_cast<EQEmu::S3D::WLDFragment2D*>(sprite_obj.parsed_data);
+							auto m_ref = r_frag->sprite_id;
 
-								EQEmu::S3D::WLDFragment36& mod_frag = reinterpret_cast<EQEmu::S3D::WLDFragment36&>(object_frags[m_ref]);
-								auto mod = mod_frag.GetData();
-								placables.push_back(std::make_pair(plac, mod));
-							}
-							else if (object_frags[frag_refs[m] - 1].type == 0x11)
-							{
-								EQEmu::S3D::WLDFragment11& r_frag = reinterpret_cast<EQEmu::S3D::WLDFragment11&>(object_frags[frag_refs[m] - 1]);
-								auto s_ref = r_frag.GetData();
+							EQEmu::S3D::WLDFragment36* mod_frag = static_cast<EQEmu::S3D::WLDFragment36*>(object_loader.GetObjectFromID(m_ref).parsed_data);
+							auto mod = mod_frag->geometry;
 
-								EQEmu::S3D::WLDFragment10& skeleton_frag = reinterpret_cast<EQEmu::S3D::WLDFragment10&>(object_frags[s_ref]);
-								auto skele = skeleton_frag.GetData();
+							placables.emplace_back(plac, mod);
+						}
+						else if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
+						{
+							EQEmu::S3D::WLDFragment11* r_frag = static_cast<EQEmu::S3D::WLDFragment11*>(sprite_obj.parsed_data);
+							auto s_ref = r_frag->def_id;
 
-								placables_skeleton.push_back(std::make_pair(plac, skele));
-							}
+							EQEmu::S3D::WLDFragment10* skeleton_frag = static_cast<EQEmu::S3D::WLDFragment10*>(object_loader.GetObjectFromID(s_ref).parsed_data);
+							auto skele = skeleton_frag->track;
+
+							placables_skeleton.emplace_back(plac, skele);
 						}
 
 						break;
@@ -844,9 +863,6 @@ bool MapGeometryLoader::CompileS3D(
 	{
 		auto plac = placables[i].first;
 		auto model = placables[i].second;
-
-		auto& mod_polys = model->GetPolygons();
-		auto& mod_verts = model->GetVertices();
 
 		float offset_x = plac->GetX();
 		float offset_y = plac->GetY();

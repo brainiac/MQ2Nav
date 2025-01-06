@@ -1,5 +1,4 @@
-#ifndef EQEMU_LOG_LOG_MACROS_H
-#define EQEMU_LOG_LOG_MACROS_H
+#pragma once
 
 #include "log_manager.h"
 
@@ -8,5 +7,3 @@
 
 #define eqLogRegister(obj) EQEmu::Log::Manager::Instance().RegisterLog(obj);
 #define eqLogMessage(type, format, ...) EQEmu::Log::Manager::Instance().Log(EQEmu::Log::type, format, ##__VA_ARGS__);
-
-#endif

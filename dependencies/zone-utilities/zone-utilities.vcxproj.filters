@@ -78,25 +78,10 @@
     <ClInclude Include="common\placeable_group.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="common\s3d_bsp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\s3d_geometry.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="common\s3d_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="common\s3d_skeleton_track.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\s3d_texture.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\s3d_texture_brush.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\s3d_texture_brush_set.h">
+    <ClInclude Include="common\s3d_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\safe_alloc.h">
@@ -115,9 +100,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\wld_fragment.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\wld_fragment_reference.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\wld_structs.h">
@@ -142,6 +124,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="log\log_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="common\read_buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

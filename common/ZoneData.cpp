@@ -46,7 +46,8 @@ public:
 
 	static bool IsValid(ZoneData* zd)
 	{
-		return fs::exists(GetZoneFile(zd), std::error_code());
+		std::error_code ec;
+		return fs::exists(GetZoneFile(zd), ec);
 	}
 
 	virtual bool Load() override
@@ -173,7 +174,8 @@ public:
 	{
 		std::string filename = fmt::format("{}\\{}.s3d", zd->GetEQPath(), zd->GetZoneName());
 
-		return fs::exists(filename, std::error_code());
+		std::error_code ec;
+		return fs::exists(filename, ec);
 	}
 
 	virtual bool Load() override
@@ -196,19 +198,20 @@ public:
 			std::string wld_name = m_zd->GetZoneName() + suffix + ".wld";
 			std::string file_name = fmt::format("{}\\{}.s3d", m_zd->GetEQPath(), m_zd->GetZoneName() + suffix);
 
-			EQEmu::S3DLoader loader;
-			std::vector<EQEmu::S3D::WLDFragment> frags;
+			EQEmu::S3D::S3DLoader loader;
 
-			if (loader.ParseWLDFile(file_name, wld_name, frags))
+			if (loader.ParseWLDFile(loader, file_name, wld_name))
 			{
-				for (auto& frag : frags)
+				for (uint32_t i = 1; i < loader.GetNumObjects(); ++i)
 				{
-					if (frag.type == 0x36)
-					{
-						EQEmu::S3D::WLDFragment36 &frag36 = reinterpret_cast<EQEmu::S3D::WLDFragment36&>(frag);
-						auto model = frag36.GetData();
+					auto& frag = loader.GetObject(i);
 
-						if (m_s3dModels.find(model->GetName()) == m_s3dModels.end())
+					if (frag.type == EQEmu::S3D::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+					{
+						EQEmu::S3D::WLDFragment36* frag36 = static_cast<EQEmu::S3D::WLDFragment36*>(frag.parsed_data);
+						auto model = frag36->geometry;
+
+						if (!m_s3dModels.contains(model->GetName()))
 						{
 							m_s3dModels[model->GetName()] = model;
 							loadedSomething = true;
