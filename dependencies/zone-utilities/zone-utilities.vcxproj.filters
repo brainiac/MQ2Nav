@@ -63,7 +63,7 @@
     <ClInclude Include="common\placeable_group.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="common\s3d_loader.h">
+    <ClInclude Include="common\wld_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\s3d_types.h">
@@ -137,7 +137,7 @@
     <ClCompile Include="common\pfs_crc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="common\s3d_loader.cpp">
+    <ClCompile Include="common\wld_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="common\string_util.cpp">

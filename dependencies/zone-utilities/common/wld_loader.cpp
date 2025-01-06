@@ -1,4 +1,4 @@
-#include "s3d_loader.h"
+#include "wld_loader.h"
 #include "pfs.h"
 #include "wld_structs.h"
 #include "safe_alloc.h"

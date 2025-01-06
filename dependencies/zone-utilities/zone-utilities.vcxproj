@@ -36,7 +36,7 @@
     <ClInclude Include="common\pfs_crc.h" />
     <ClInclude Include="common\placeable.h" />
     <ClInclude Include="common\placeable_group.h" />
-    <ClInclude Include="common\s3d_loader.h" />
+    <ClInclude Include="common\wld_loader.h" />
     <ClInclude Include="common\s3d_types.h" />
     <ClInclude Include="common\safe_alloc.h" />
     <ClInclude Include="common\string_util.h" />
@@ -61,7 +61,7 @@
     <ClCompile Include="common\oriented_bounding_box.cpp" />
     <ClCompile Include="common\pfs.cpp" />
     <ClCompile Include="common\pfs_crc.cpp" />
-    <ClCompile Include="common\s3d_loader.cpp" />
+    <ClCompile Include="common\wld_loader.cpp" />
     <ClCompile Include="common\string_util.cpp" />
     <ClCompile Include="common\water_map.cpp" />
     <ClCompile Include="common\water_map_v1.cpp" />

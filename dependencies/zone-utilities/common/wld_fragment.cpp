@@ -1,12 +1,9 @@
 
+#include "log_macros.h"
 #include "read_buffer.h"
-#include "s3d_loader.h"
 #include "s3d_types.h"
 #include "wld_fragment.h"
-#include "log_macros.h"
-
-#include <mq/api/Abilities.h>
-
+#include "wld_loader.h"
 #include "wld_structs.h"
 
 namespace EQEmu::S3D {

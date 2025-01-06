@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "zone-utilities/common/s3d_loader.h"
+#include "zone-utilities/common/wld_loader.h"
 #include "zone-utilities/common/eqg_loader.h"
 
 #include <cstdint>

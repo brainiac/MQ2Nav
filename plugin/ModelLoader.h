@@ -9,7 +9,7 @@
 #include "plugin/MQ2Navigation.h"
 
 #include "dependencies/zone-utilities/common/eqg_loader.h"
-#include "dependencies/zone-utilities/common/s3d_loader.h"
+#include "dependencies/zone-utilities/common/wld_loader.h"
 
 #include <d3d9caps.h>
 
