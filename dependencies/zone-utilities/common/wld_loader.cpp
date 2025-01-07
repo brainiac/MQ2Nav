@@ -1,9 +1,8 @@
-#include "wld_loader.h"
-#include "pfs.h"
-#include "wld_structs.h"
-#include "safe_alloc.h"
+#include "buffer_reader.h"
 #include "log_macros.h"
-#include "read_buffer.h"
+#include "pfs.h"
+#include "wld_loader.h"
+#include "wld_structs.h"
 
 namespace EQEmu::S3D {
 
@@ -66,10 +65,10 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 		return false;
 	}
 
-	ReadBuffer read_buffer(m_wldFileContents, m_wldFileSize);
+	BufferReader reader(m_wldFileContents, m_wldFileSize);
 
 	wld_header header;
-	if (!read_buffer.read(header))
+	if (!reader.read(header))
 	{
 		eqLogMessage(LogWarn, "Unable to read wld header.");
 		return false;
@@ -92,7 +91,7 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 	if (m_stringPoolSize)
 	{
 		m_stringPool = new char[m_stringPoolSize];
-		if (!read_buffer.read(m_stringPool, m_stringPoolSize))
+		if (!reader.read(m_stringPool, m_stringPoolSize))
 		{
 			eqLogMessage(LogWarn, "Unable to read string pool.");
 			return false;
@@ -110,13 +109,13 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 	for (; index < m_numObjects; ++index)
 	{
 		uint32_t objectSize, type;
-		if (!read_buffer.read(objectSize))
+		if (!reader.read(objectSize))
 		{
 			eqLogMessage(LogWarn, "Unable to read object size (%d).", index);
 			return false;
 		}
 
-		if (!read_buffer.read(type))
+		if (!reader.read(type))
 		{
 			eqLogMessage(LogWarn, "Unable to read object type (%d).", index);
 			return false;
@@ -127,21 +126,21 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 		obj.type = static_cast<S3DObjectType>(type);
 
 		// Read the raw data from the buffer
-		obj.data = m_wldFileContents.get() + read_buffer.pos();
-		if (!read_buffer.skip(objectSize))
+		obj.data = m_wldFileContents.get() + reader.pos();
+		if (!reader.skip(objectSize))
 		{
 			eqLogMessage(LogWarn, "Unable to read object data (%d).", index);
 			return false;
 		}
 
 		// Read the tag
-		if (type == WLD_DEFAULT_PALLETE_FILE || type == WLD_WORLD_USERDATA || type == WLD_CONSTANT_AMBIENT)
+		if (type == WLD_OBJ_DEFAULTPALETTEFILE_TYPE || type == WLD_OBJ_WORLD_USERDATA_TYPE)
 		{
-			eqLogMessage(LogWarn, "Unable to read tag ID (%d) type (%d).", index, type);
+			eqLogMessage(LogWarn, "Not going to read tag ID (%d) type (%d).", index, type);
 		}
-		else
+		else if (type != WLD_OBJ_CONSTANTAMBIENT_TYPE)
 		{
-			ReadBuffer tagBuffer(obj.data, obj.size);
+			BufferReader tagBuffer(obj.data, obj.size);
 
 			int tagID;
 			if (!tagBuffer.read(tagID))

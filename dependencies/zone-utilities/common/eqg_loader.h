@@ -20,9 +20,10 @@ namespace EQEmu {
 class EQGLoader
 {
 public:
-	EQGLoader() = default;
+	EQGLoader();
+	~EQGLoader();
 
-	bool Load(PFS::Archive* archive, const std::string& file);
+	bool Load(PFS::Archive* archive, const std::string& fileName);
 
 	std::vector<std::shared_ptr<EQG::Geometry>> models;
 	std::vector<std::shared_ptr<Placeable>> placeables;
@@ -34,6 +35,7 @@ private:
 	bool ParseZon(std::vector<char>& buffer);
 
 	PFS::Archive* m_archive = nullptr;
+	std::string m_fileName;
 };
 
 class EQG4Loader

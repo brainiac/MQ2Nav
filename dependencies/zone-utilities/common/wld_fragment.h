@@ -16,9 +16,9 @@ class WLDLoader;
 enum S3DObjectType : uint32_t
 {
 	WLD_NONE                                  = 0,
-	WLD_DEFAULT_PALLETE_FILE                  = 1,
-	WLD_WORLD_USERDATA                        = 2,
-	WLD_OBJ_BMINFO_TYPE                       = 3,  // (0x03) BMINFO
+	WLD_OBJ_DEFAULTPALETTEFILE_TYPE           = 1,
+	WLD_OBJ_WORLD_USERDATA_TYPE               = 2,
+	WLD_OBJ_BMINFO_TYPE                       = 3,  // (0x03)
 	WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE       = 4,
 	WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE         = 5,
 
@@ -46,8 +46,8 @@ enum S3DObjectType : uint32_t
 
 	WLD_OBJ_DMRGBTRACKDEFINITION_TYPE         = 50, // (0x32)
 	WLD_OBJ_DMRGBTRACKINSTANCE_TYPE           = 51, // (0x33)
-	WLD_PARTICLE_DEFINITION                   = 52, // (0x34)
-	WLD_CONSTANT_AMBIENT                      = 53, // (0x35)
+	WLD_OBJ_PCLOUDDEFINITION_TYPE             = 52, // (0x34)
+	WLD_OBJ_CONSTANTAMBIENT_TYPE              = 53, // (0x35)
 	WLD_OBJ_DMSPRITEDEFINITION2_TYPE          = 54, // (0x36)
 };
 

@@ -1,7 +1,7 @@
 #include "eqg_structs.h"
 #include "safe_alloc.h"
 #include "eqg_loader.h"
-#include "string_util.h"
+#include "str_util.h"
 #include "log_macros.h"
 
 #include <algorithm>
@@ -20,10 +20,9 @@ bool EQG4Loader::Load(std::string file, std::shared_ptr<EQG::Terrain>& terrain)
 
 	std::vector<char> zon;
 	bool zon_found = false;
-	std::vector<std::string> files;
-	archive.GetFilenames("zon", files);
+	std::vector<std::string> files = archive.GetFileNames("zon");
 
-	if (files.size() == 0)
+	if (files.empty())
 	{
 		if (GetZon(file + ".zon", zon))
 		{
@@ -36,7 +35,7 @@ bool EQG4Loader::Load(std::string file, std::shared_ptr<EQG::Terrain>& terrain)
 		{
 			if (archive.Get(f, zon))
 			{
-				if (zon[0] == 'E' && zon[1] == 'Q' && zon[2] == 'T' && zon[3] == 'Z' && zon[4] == 'P')
+				if (strncmp(&zon[0], "EQTZP", 5) == 0)
 				{
 					zon_found = true;
 					break;
@@ -53,7 +52,7 @@ bool EQG4Loader::Load(std::string file, std::shared_ptr<EQG::Terrain>& terrain)
 
 	eqLogMessage(LogTrace, "Parsing zone file.");
 
-	terrain.reset(new EQG::Terrain());
+	terrain = std::make_shared<EQG::Terrain>();
 	if (!ParseZon(zon, terrain->GetOpts()))
 	{
 		return false;
@@ -751,7 +750,8 @@ bool EQG4Loader::GetZon(std::string file, std::vector<char>& buffer) {
 	return false;
 }
 
-void EQG4Loader::ParseConfigFile(std::vector<char>& buffer, std::vector<std::string>& tokens) {
+void EQG4Loader::ParseConfigFile(std::vector<char>& buffer, std::vector<std::string>& tokens)
+{
 	tokens.clear();
 	std::string cur;
 	for (size_t i = 0; i < buffer.size(); ++i) {
@@ -768,7 +768,8 @@ void EQG4Loader::ParseConfigFile(std::vector<char>& buffer, std::vector<std::str
 	}
 }
 
-bool EQG4Loader::ParseZon(std::vector<char>& buffer, EQG::Terrain::ZoneOptions& opts) {
+bool EQG4Loader::ParseZon(std::vector<char>& buffer, EQG::Terrain::ZoneOptions& opts)
+{
 	if (buffer.size() < 5)
 		return false;
 

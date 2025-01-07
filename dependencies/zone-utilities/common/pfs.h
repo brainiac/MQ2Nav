@@ -1,11 +1,14 @@
 
 #pragma once
 
+#include "container_util.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
 #include <map>
 #include <memory>
+#include <unordered_map>
 
 namespace EQEmu::PFS {
 
@@ -15,33 +18,72 @@ public:
 	Archive();
 	~Archive();
 
-	bool Open();
-	bool Open(uint32_t date);
 	bool Open(const std::string& filename);
-	bool Save(const std::string& filename);
 	void Close();
 
-	bool Get(std::string filename, std::vector<char>& buf);
-	std::unique_ptr<uint8_t[]> Get(std::string filename, uint32_t& size);
+	const std::string& GetFileName() const { return m_archiveName; }
 
-	const std::string& GetFileName() const { return m_filename; }
+	std::vector<std::string> GetFileNames(std::string_view ext) const;
+	const std::vector<std::string>& GetFileNames() const { return m_fileNames; }
 
-	bool Set(std::string filename, const std::vector<char>& buf);
-	bool Delete(std::string filename);
-	bool Rename(std::string filename, std::string filename_new);
-	bool Exists(std::string filename);
-	bool GetFilenames(std::string ext, std::vector<std::string>& out_files);
+	bool Get(int crc, std::vector<char>& buf) const;
+	bool Get(std::string_view filename, std::vector<char>& buf) const;
+
+	std::unique_ptr<uint8_t[]> Get(int crc, uint32_t& size) const;
+	std::unique_ptr<uint8_t[]> Get(std::string_view filename, uint32_t& size) const;
+
+	bool Exists(int crc) const;
+	bool Exists(std::string_view filename) const;
 
 private:
-	bool StoreBlocksByFileOffset(uint32_t offset, uint32_t size, const std::vector<char>& in_buffer, std::string filename);
-	std::unique_ptr<uint8_t[]> InflateByFileOffset(uint32_t offset, uint32_t size, const std::vector<char>& in_buffer);
-	bool WriteDeflatedFileBlock(const std::vector<char>& file, std::vector<char>& out_buffer);
+	bool StoreBlocksByFileOffset(const std::vector<char>& in_buffer, uint32_t offset, uint32_t size, int crc);
+	std::unique_ptr<uint8_t[]> InflateByFileOffset(uint32_t offset, uint32_t size, const std::vector<char>& in_buffer) const;
 
-	std::map<std::string, std::vector<char>> m_files;
-	std::map<std::string, uint32_t> m_files_uncompressed_size;
-	bool m_footer;
-	uint32_t m_footer_date;
-	std::string m_filename;
+	struct FileEntry
+	{
+		std::string_view fileName;
+		std::vector<char> data;
+		uint32_t compressedSize;
+		uint32_t uncompressedSize;
+		int crc;
+	};
+
+	struct CRCKey
+	{
+		CRCKey(int value_) : value(value_) {}
+		CRCKey(const CRCKey& other) : value(other.value) {}
+		CRCKey(std::string_view str);
+
+		bool operator==(const CRCKey& other) const { return value == other.value; }
+
+		struct equals
+		{
+			bool operator()(const CRCKey& a, const CRCKey& b) const { return a == b; }
+
+			template <typename T, typename U>
+			bool operator()(const T& a, const U& b) const { return CRCKey(a) == CRCKey(b); }
+
+			using is_transparent = void;
+		};
+
+		struct hash
+		{
+			size_t operator()(CRCKey a) const { return (size_t)a.value; }
+
+			template <typename T>
+			size_t operator()(const T& t) const { return CRCKey(t).value; }
+
+			using is_transparent = void;
+		};
+
+		int value;
+	};
+
+	std::string m_archiveName;
+	std::unordered_map<CRCKey, FileEntry, CRCKey::hash, CRCKey::equals> m_fileEntries;
+
+	std::vector<std::string> m_fileNames;
+	ci_ordered::map<std::string_view, FileEntry*> m_fileEntriesByName;
 };
 
 } // namespace EQEmu::PFS

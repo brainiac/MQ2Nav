@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="common\any.h" />
     <ClInclude Include="common\compression.h" />
+    <ClInclude Include="common\container_util.h" />
     <ClInclude Include="common\eqemu_endian.h" />
     <ClInclude Include="common\eqg_geometry.h" />
     <ClInclude Include="common\eqg_loader.h" />
@@ -29,17 +30,17 @@
     <ClInclude Include="common\eqg_structs.h" />
     <ClInclude Include="common\eqg_terrain.h" />
     <ClInclude Include="common\light.h" />
-    <ClInclude Include="common\read_buffer.h" />
+    <ClInclude Include="common\buffer_reader.h" />
     <ClInclude Include="common\octree.h" />
     <ClInclude Include="common\oriented_bounding_box.h" />
     <ClInclude Include="common\pfs.h" />
     <ClInclude Include="common\pfs_crc.h" />
     <ClInclude Include="common\placeable.h" />
     <ClInclude Include="common\placeable_group.h" />
+    <ClInclude Include="common\str_util.h" />
     <ClInclude Include="common\wld_loader.h" />
     <ClInclude Include="common\s3d_types.h" />
     <ClInclude Include="common\safe_alloc.h" />
-    <ClInclude Include="common\string_util.h" />
     <ClInclude Include="common\water_map.h" />
     <ClInclude Include="common\water_map_v1.h" />
     <ClInclude Include="common\water_map_v2.h" />
@@ -62,7 +63,6 @@
     <ClCompile Include="common\pfs.cpp" />
     <ClCompile Include="common\pfs_crc.cpp" />
     <ClCompile Include="common\wld_loader.cpp" />
-    <ClCompile Include="common\string_util.cpp" />
     <ClCompile Include="common\water_map.cpp" />
     <ClCompile Include="common\water_map_v1.cpp" />
     <ClCompile Include="common\water_map_v2.cpp" />

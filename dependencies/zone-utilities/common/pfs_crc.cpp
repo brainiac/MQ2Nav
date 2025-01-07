@@ -1,7 +1,8 @@
 
 #include "pfs_crc.h"
 
-#include <assert.h>
+#include <cassert>
+#include <cctype>
 
 namespace EQEmu::PFS {
 
@@ -44,7 +45,7 @@ int32_t CRC::Update(int32_t crc, const uint8_t* data, int32_t length)
 {
 	while (length > 0)
 	{
-		int32_t i = ((crc >> 24) ^ *data) & 0xFF;
+		int32_t i = ((crc >> 24) ^ ::tolower(*data)) & 0xFF;
 		data += 1;
 		crc = (crc << 8) ^ s_crcTable[i];
 		length -= 1;

@@ -78,21 +78,17 @@ public:
 					if (!archive.Open(asset_file))
 						continue;
 
-					std::vector<std::string> models;
-
-					if (archive.GetFilenames("mod", models))
+					std::vector<std::string> models = archive.GetFileNames("mod");
+					for (auto& modelName : models)
 					{
-						for (auto& modelName : models)
-						{
-							ModelPtr model;
+						ModelPtr model;
 
-							EQEmu::LoadEQGModel(archive, modelName, model);
-							if (model)
-							{
-								model->SetName(modelName);
-								m_modelsByFile[modelName] = model;
-								loadedSomething = true;
-							}
+						EQEmu::LoadEQGModel(archive, modelName, model);
+						if (model)
+						{
+							model->SetName(modelName);
+							m_modelsByFile[modelName] = model;
+							loadedSomething = true;
 						}
 					}
 				}
@@ -245,21 +241,18 @@ public:
 					if (!archive.Open(asset_file))
 						continue;
 
-					std::vector<std::string> models;
+					std::vector<std::string> models = archive.GetFileNames(".mod");
 
-					if (archive.GetFilenames("mod", models))
+					for (auto& modelName : models)
 					{
-						for (auto& modelName : models)
-						{
-							ModelPtr model;
+						ModelPtr model;
 
-							EQEmu::LoadEQGModel(archive, modelName, model);
-							if (model)
-							{
-								model->SetName(modelName);
-								m_eqgModels[modelName] = model;
-								loadedSomething = true;
-							}
+						EQEmu::LoadEQGModel(archive, modelName, model);
+						if (model)
+						{
+							model->SetName(modelName);
+							m_eqgModels[modelName] = model;
+							loadedSomething = true;
 						}
 					}
 				}

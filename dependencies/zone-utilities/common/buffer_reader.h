@@ -24,45 +24,35 @@ private:
 	uint32_t size_;
 };
 
-class ReadBuffer
+class BufferReader
 {
 public:
-	ReadBuffer(const uint8_t* data, size_t sz)
+	BufferReader(const uint8_t* data, size_t sz)
 		: buffer_(data), size_(sz)
 	{
 	}
 
-	ReadBuffer(const char* data, size_t sz)
+	BufferReader(const char* data, size_t sz)
 		: buffer_(reinterpret_cast<const uint8_t*>(data)), size_(sz)
 	{
 	}
 
-	ReadBuffer(const std::unique_ptr<uint8_t[]>& data, size_t sz)
+	BufferReader(const std::unique_ptr<uint8_t[]>& data, size_t sz)
 		: buffer_(data.get()), size_(sz)
 	{
 	}
 
-	ReadBuffer(const std::unique_ptr<char[]>& data, size_t sz)
+	BufferReader(const std::unique_ptr<char[]>& data, size_t sz)
 		: buffer_(reinterpret_cast<const uint8_t*>(data.get())), size_(sz)
 	{
 	}
 
-	ReadBuffer(std::span<uint8_t> span)
+	BufferReader(std::span<const uint8_t> span)
 		: buffer_(span.data()), size_(span.size())
 	{
 	}
 
-	ReadBuffer(std::span<char> span)
-		: buffer_(reinterpret_cast<const uint8_t*>(span.data())), size_(span.size())
-	{
-	}
-
-	ReadBuffer(std::span<const uint8_t> span)
-		: buffer_(span.data()), size_(span.size())
-	{
-	}
-
-	ReadBuffer(std::span<const char> span)
+	BufferReader(std::span<const char> span)
 		: buffer_(reinterpret_cast<const uint8_t*>(span.data())), size_(span.size())
 	{
 	}
@@ -76,6 +66,14 @@ public:
 	bool empty() { return size_ == 0; }
 	size_t size() const { return size_; }
 	size_t remaining() const { return size_ - pos_; }
+
+	bool seek(uint32_t pos)
+	{
+		if (pos > size_)
+			return false;
+		pos_ = pos;
+		return true;
+	}
 
 	template <typename T>
 	bool read(T& data)

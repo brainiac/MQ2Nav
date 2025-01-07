@@ -637,7 +637,7 @@ bool MapGeometryLoader::TryLoadS3D()
 	}
 
 	// Load zone data
-	EQEmu::S3D::WLDLoader* zone_loader = LoadWLD(zone_archive, m_zoneName + ".wld");
+	EQEmu::S3D::WLDLoader* zone_loader = LoadWLD(zone_archive, fmt::format("{}.wld", m_zoneName));
 	if (!zone_loader)
 	{
 		return false;
@@ -727,7 +727,9 @@ EQEmu::PFS::Archive* MapGeometryLoader::LoadArchive(const std::string& path)
 	if (archive->Open(path))
 	{
 		m_archives.push_back(std::move(archive));
-		eqLogMessage(LogInfo, "Loaded archive: %s", fs::path(path).filename().c_str());
+
+		std::string filename = fs::path(path).filename().string();
+		eqLogMessage(LogInfo, "Loaded archive: %s", filename.c_str());
 
 		return m_archives.back().get();
 	}
@@ -779,10 +781,7 @@ EQEmu::S3D::WLDLoader* MapGeometryLoader::LoadWLD(EQEmu::PFS::Archive* archive, 
 		{
 			EQEmu::S3D::WLDFragment15* frag = static_cast<EQEmu::S3D::WLDFragment15*>(obj.parsed_data);
 			if (!frag->placeable)
-			{
-				eqLogMessage(LogWarn, "Placeable entry was not found for actor tag '%s'.", obj.tag);
 				continue;
-			}
 
 			map_s3d_model_instances.push_back(frag->placeable);
 		}
@@ -860,20 +859,17 @@ void MapGeometryLoader::LoadAssetsFile()
 		{
 			if (loadEQG)
 			{
-				std::vector<std::string> models;
+				std::vector<std::string> models = archive->GetFileNames("mod");
 
-				if (archive->GetFilenames("mod", models))
+				for (auto& modelName : models)
 				{
-					for (auto& modelName : models)
-					{
-						EQGGeometryPtr model;
+					EQGGeometryPtr model;
 
-						EQEmu::LoadEQGModel(*archive, modelName, model);
-						if (model)
-						{
-							model->SetName(modelName);
-							map_eqg_models.emplace(modelName, model);
-						}
+					EQEmu::LoadEQGModel(*archive, modelName, model);
+					if (model)
+					{
+						model->SetName(modelName);
+						map_eqg_models.emplace(modelName, model);
 					}
 				}
 			}

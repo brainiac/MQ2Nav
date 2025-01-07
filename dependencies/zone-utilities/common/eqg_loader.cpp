@@ -5,20 +5,27 @@
 #include "log_macros.h"
 
 namespace EQEmu {
-	
-bool EQGLoader::Load(PFS::Archive* archive, const std::string& file)
+
+EQGLoader::EQGLoader()
 {
-	// find zon file
+}
+
+EQGLoader::~EQGLoader()
+{
+}
+	
+bool EQGLoader::Load(PFS::Archive* archive, const std::string& fileName)
+{
 	m_archive = archive;
+	m_fileName = fileName;
 
 	std::vector<char> zon;
 	bool zon_found = false;
-	std::vector<std::string> files;
-	m_archive->GetFilenames("zon", files);
+	std::vector<std::string> files = m_archive->GetFileNames("zon");
 
 	if (files.size() == 0)
 	{
-		if (GetZon(file + ".zon", zon))
+		if (GetZon(fileName + ".zon", zon))
 		{
 			zon_found = true;
 		}
@@ -29,7 +36,7 @@ bool EQGLoader::Load(PFS::Archive* archive, const std::string& file)
 		{
 			if (m_archive->Get(f, zon))
 			{
-				if (zon[0] == 'E' && zon[1] == 'Q' && zon[2] == 'T' && zon[3] == 'Z' && zon[4] == 'P')
+				if (strncmp(&zon[0], "EQTZP", 5) == 0)
 				{
 					eqLogMessage(LogWarn, "Unable to parse the zone file, is a eqgv4.");
 					return false;
@@ -42,7 +49,7 @@ bool EQGLoader::Load(PFS::Archive* archive, const std::string& file)
 
 	if (!zon_found)
 	{
-		eqLogMessage(LogError, "Failed to open %s.eqg because the %s.zon file could not be found.", file.c_str(), file.c_str());
+		eqLogMessage(LogError, "Failed to open %s.eqg because the %s.zon file could not be found.", fileName.c_str(), fileName.c_str());
 		return false;
 	}
 
