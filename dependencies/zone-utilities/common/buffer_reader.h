@@ -84,14 +84,18 @@ public:
 		return read(reinterpret_cast<uint8_t*>(&data), sizeof(T));
 	}
 
-	bool read(std::string& str)
+	template <typename... Ts>
+	bool read_multiple(Ts&&... args)
 	{
-		std::string temp(reinterpret_cast<const char*>(buffer_) + pos_);
-		if (temp.length() + pos_ > size_)
-			return false;
+		return (read(std::forward<Ts>(args)) && ...);
+	}
 
-		pos_ += temp.length() + 1;
-		str = std::move(temp);
+	bool read(std::string& out_str)
+	{
+		char* str = read_cstr();
+		if (!str)
+			return false;
+		out_str = str;
 		return true;
 	}
 
@@ -141,7 +145,7 @@ public:
 		if (pos_ + len > size_ || buffer_[pos_ + len] != 0)
 			return nullptr;
 		char* str = (char*)(buffer_ + pos_);
-		pos_ += len;
+		pos_ += len + 1;
 		return str;
 	}
 
@@ -155,6 +159,18 @@ public:
 		T* arr = (T*)(buffer_ + pos_);
 		pos_ += len;
 		return arr;
+	}
+
+	template <typename T>
+	bool read_array(T* out, size_t count)
+	{
+		size_t len = sizeof(T) * count;
+		if (pos_ + len > size_)
+			return false;
+
+		memcpy(out, buffer_ + pos_, len);
+		pos_ += len;
+		return true;
 	}
 
 	template <typename T>
@@ -195,6 +211,9 @@ public:
 	{
 		return std::span<const uint8_t>(buffer_ + pos_, len);
 	}
+
+	template <typename T>
+	T* peek() const { return (T*)(buffer_ + pos_); }
 
 private:
 	const uint8_t* buffer_ = nullptr;

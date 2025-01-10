@@ -1,8 +1,13 @@
 
+#include "buffer_reader.h"
 #include "eqg_loader.h"
 #include "eqg_structs.h"
 #include "safe_alloc.h"
 #include "log_macros.h"
+
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 namespace EQEmu {
 
@@ -14,203 +19,693 @@ EQGLoader::~EQGLoader()
 {
 }
 	
-bool EQGLoader::Load(PFS::Archive* archive, const std::string& fileName)
+bool EQGLoader::Load(PFS::Archive* archive)
 {
+	if (archive == nullptr)
+		return false;
+
 	m_archive = archive;
-	m_fileName = fileName;
 
-	std::vector<char> zon;
-	bool zon_found = false;
-	std::vector<std::string> files = m_archive->GetFileNames("zon");
+	fs::path zonFilePath = fs::path(archive->GetFileName()).replace_extension(".zon");
+	bool loaded_anything = false;
 
-	if (files.size() == 0)
+	// Check for a .zon file that exists next to this .eqg
+	std::vector<char> zonBuffer;
+	FILE* pZonFile = _fsopen(zonFilePath.string().c_str(), "rb", _SH_DENYNO);
+	if (pZonFile != nullptr)
 	{
-		if (GetZon(fileName + ".zon", zon))
+		fseek(pZonFile, 0, SEEK_END);
+		size_t sz = ftell(pZonFile);
+
+		rewind(pZonFile);
+
+		zonBuffer.resize(sz);
+		fread(&zonBuffer[0], sz, 1, pZonFile);
+
+		fclose(pZonFile);
+		pZonFile = nullptr;
+	}
+
+	const std::vector<std::string>& files = m_archive->GetFileNames();
+	int zon_index = -1;
+
+	// Load everything else first. Load the zone last.
+
+	for (uint32_t idx = 0; idx < (uint32_t)files.size(); ++idx)
+	{
+		if (!ci_ends_with(files[idx], ".zon"))
 		{
-			zon_found = true;
+			if (ParseFile(files[idx]))
+				loaded_anything = true;
+		}
+		else
+		{
+			zon_index = idx;
 		}
 	}
-	else
+
+	if (!zonBuffer.empty())
 	{
-		for (auto& f : files)
+		if (strncmp(zonBuffer.data(), "EQTZP", 5) == 0)
 		{
-			if (m_archive->Get(f, zon))
+			if (!ParseTerrainProject(zonBuffer))
+				return false;
+		}
+		else
+		{
+			std::string fileName = fs::path(zonFilePath).filename().replace_extension().string();
+
+			if (!ParseZoneV2(zonBuffer, fileName))
+				return false;
+		}
+	}
+	else if (zon_index != -1)
+	{
+		if (ParseFile(files[zon_index]))
+			loaded_anything = true;
+	}
+
+	return loaded_anything;
+}
+
+bool EQGLoader::ParseFile(const std::string& fileName)
+{
+	bool success = false;
+
+	std::string_view sv = fileName;
+
+	if (ci_ends_with(sv, ".ani"))
+	{
+		// Parse ANI file
+		eqLogMessage(LogDebug, "Animation file: %s", fileName.c_str());
+		success = true;
+	}
+	else if (!ci_ends_with(sv, ".dds")
+		&& !ci_ends_with(sv, ".tga")
+		&& !ci_ends_with(sv, ".lit")
+		&& !ci_ends_with(sv, ".txt"))
+	{
+		std::vector<char> fileBuffer;
+
+		if (!m_archive->Get(sv, fileBuffer))
+			return false;
+
+		std::string tag = to_upper_copy(sv.substr(0, sv.length() - 4));
+
+		BufferReader reader(fileBuffer);
+		char* pMagic = reader.peek<char>();
+
+		if (strncmp(pMagic, "EQGM", 4) == 0)
+		{
+			// Model
+			eqLogMessage(LogDebug, "EQGM: Model: %s", fileName.c_str());
+			success = ParseModel(fileBuffer, fileName, tag);
+
+			actor_tags.push_back(tag);
+		}
+		else if (strncmp(pMagic, "EQGS", 4) == 0)
+		{
+			// Skin
+			eqLogMessage(LogDebug, "EQGS: Model skin: %s", fileName.c_str()); 
+			success = true;
+
+			//actor_tags.push_back(tag);
+		}
+		else if (strncmp(pMagic, "EQAL", 4) == 0)
+		{
+			// Animation list
+			eqLogMessage(LogDebug, "EQAL: Animation list: %s", fileName.c_str());
+			success = true;
+		}
+		else if (strncmp(pMagic, "EQGL", 4) == 0)
+		{
+			// Material layer
+			eqLogMessage(LogDebug, "EQGL: Material layer: %s", fileName.c_str());
+			success = true;
+		}
+		else if (strncmp(pMagic, "EQGT", 4) == 0)
+		{
+			// Terrain
+			eqLogMessage(LogDebug, "EQGT: Terrain data: %s", fileName.c_str());
+			success = ParseTerrain(fileBuffer, fileName, tag);
+		}
+		else if (strncmp(pMagic, "EQGZ", 4) == 0)
+		{
+			// Zone
+			eqLogMessage(LogDebug, "EQGZ: Zone data: %s", fileName.c_str());
+			success = ParseZone(fileBuffer, tag);
+		}
+		else if (strncmp(pMagic, "EQLOD", 5) == 0)
+		{
+			// LOD Data
+			eqLogMessage(LogDebug, "EQLOD: LOD data: %s", fileName.c_str());
+			success = true;
+		}
+		else if (strncmp(pMagic, "EQTZP", 5) == 0)
+		{
+			// Terrain project file
+			eqLogMessage(LogDebug, "EQTZP: Terrain project file: %s", fileName.c_str());
+			success = ParseTerrainProject(fileBuffer);
+
+		}
+		else if (strncmp(pMagic, "EQOBG", 5) == 0)
+		{
+			// Actor group
+			eqLogMessage(LogDebug, "EQOBG: Actor group: %s", fileName.c_str());
+			success = true;
+		}
+	}
+
+	return success;
+}
+
+bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag)
+{
+	std::shared_ptr<EQG::Geometry> model;
+
+	if (!LoadEQGModel(buffer, fileName, model))
+	{
+		return false;
+	}
+
+	model->SetName(tag + "_ACTORDEF");
+
+	models.push_back(model);
+	return true;
+}
+
+bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag)
+{
+	std::shared_ptr<EQG::Geometry> model;
+
+	if (!LoadEQGModel(buffer, tag, model))
+	{
+		return false;
+	}
+
+	terrain_model = model;
+	terrain_model->name = fileName;
+	return true;
+}
+
+bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
+{
+	if (buffer.size() < 5)
+		return false;
+
+	SEQZoneParameters params;
+
+	LoadZoneParameters(buffer.data(), buffer.size(), params);
+
+	// Load terrain data
+	auto loading_terrain = std::make_shared<EQG::Terrain>(params);
+
+	eqLogMessage(LogDebug, "Parsing zone data file.");
+	if (!loading_terrain->Load(m_archive))
+	{
+		eqLogMessage(LogError, "Failed to parse zone data.");
+		return false;
+	}
+
+	eqLogMessage(LogDebug, "Parsing water data file.");
+	LoadWaterSheets(loading_terrain);
+
+	eqLogMessage(LogDebug, "Parsing invisible walls file.");
+	LoadInvisibleWalls(loading_terrain);
+
+	terrain = loading_terrain;
+
+	return true;
+}
+
+void EQGLoader::LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params)
+{
+	params.min_lng = -1000000;
+	params.min_lat = -1000000;
+	params.max_lng = 1000000;
+	params.max_lat = 1000000;
+	params.units_per_vert = 12.0f;
+	params.quads_per_tile = 16;
+	params.layer_map_input_size = 1024;
+	params.cover_map_input_size = 256;
+	params.version = 1;
+
+	std::vector<std::string> tokens = ParseConfigFile(buffer, size);
+
+	for (size_t i = 1; i < tokens.size();)
+	{
+		std::string_view token = tokens[i];
+
+		if (token.compare("*NAME") == 0)
+		{
+			if (i + 1 >= tokens.size())
 			{
-				if (strncmp(&zon[0], "EQTZP", 5) == 0)
-				{
-					eqLogMessage(LogWarn, "Unable to parse the zone file, is a eqgv4.");
-					return false;
-				}
-
-				zon_found = true;
+				break;
 			}
+
+			params.name = tokens[i + 1];
+			i += 2;
+		}
+		else if (token.compare("*MINLNG") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.min_lng = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*MAXLNG") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.max_lng = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*MINLAT") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.min_lat = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*MAXLAT") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.max_lat = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*MIN_EXTENTS") == 0)
+		{
+			if (i + 3 >= tokens.size())
+			{
+				break;
+			}
+
+			params.min_extents[0] = std::stof(tokens[i + 1]);
+			params.min_extents[1] = std::stof(tokens[i + 2]);
+			params.min_extents[2] = std::stof(tokens[i + 3]);
+			i += 4;
+		}
+		else if (token.compare("*MAX_EXTENTS") == 0)
+		{
+			if (i + 3 >= tokens.size())
+			{
+				break;
+			}
+
+			params.max_extents[0] = std::stof(tokens[i + 1]);
+			params.max_extents[1] = std::stof(tokens[i + 2]);
+			params.max_extents[2] = std::stof(tokens[i + 3]);
+			i += 4;
+		}
+		else if (token.compare("*UNITSPERVERT") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.units_per_vert = std::stof(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*QUADSPERTILE") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.quads_per_tile = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*COVERMAPINPUTSIZE") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.cover_map_input_size = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*LAYERINGMAPINPUTSIZE") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.layer_map_input_size = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*VERSION") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.version = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else
+		{
+			++i;
 		}
 	}
 
-	if (!zon_found)
+	params.units_per_tile = params.units_per_vert * params.quads_per_tile;
+	params.tiles_per_chunk = 16;
+	params.units_per_chunk = params.units_per_tile * params.tiles_per_chunk;
+	params.verts_per_tile = params.quads_per_tile + 1;
+}
+
+bool EQGLoader::LoadWaterSheets(std::shared_ptr<EQG::Terrain>& terrain)
+{
+	std::vector<char> wat;
+	if (!m_archive->Get("water.dat", wat))
 	{
-		eqLogMessage(LogError, "Failed to open %s.eqg because the %s.zon file could not be found.", fileName.c_str(), fileName.c_str());
 		return false;
 	}
 
-	eqLogMessage(LogTrace, "Parsing zone file.");
+	std::vector<std::string> tokens = ParseConfigFile(wat.data(), wat.size());
 
-	if (!ParseZon(zon))
+	std::shared_ptr<EQG::WaterSheet> ws;
+
+	for (size_t i = 1; i < tokens.size();)
 	{
-		// if we couldn't parse the zon file then it's probably eqg4
-		eqLogMessage(LogWarn, "Unable to parse the zone file, probably eqgv4 style file.");
-		return false;
+		std::string_view token = tokens[i];
+
+		if (token.compare("*WATERSHEET") == 0)
+		{
+			ws = std::make_shared<EQG::WaterSheet>();
+			ws->SetTile(false);
+
+			++i;
+		}
+		else if (token.compare("*END_SHEET") == 0)
+		{
+			if (ws)
+			{
+				eqLogMessage(LogTrace, "Adding finite water sheet.");
+				terrain->AddWaterSheet(ws);
+			}
+
+			++i;
+		}
+		else if (token.compare("*WATERSHEETDATA") == 0)
+		{
+			ws = std::make_shared<EQG::WaterSheet>();
+			ws->SetTile(true);
+
+			++i;
+		}
+		else if (token.compare("*ENDWATERSHEETDATA") == 0)
+		{
+			if (ws)
+			{
+				eqLogMessage(LogTrace, "Adding infinite water sheet.");
+				terrain->AddWaterSheet(ws);
+			}
+
+			++i;
+		}
+		else if (token.compare("*INDEX") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			int32_t index = std::stoi(tokens[i + 1]);
+			ws->SetIndex(index);
+			i += 2;
+		}
+		else if (token.compare("*MINX") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			float min_x = std::stof(tokens[i + 1]);
+			ws->SetMinX(min_x);
+
+			i += 2;
+		}
+		else if (token.compare("*MINY") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			float min_y = std::stof(tokens[i + 1]);
+			ws->SetMinY(min_y);
+
+			i += 2;
+		}
+		else if (token.compare("*MAXX") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			float max_x = std::stof(tokens[i + 1]);
+			ws->SetMaxX(max_x);
+
+			i += 2;
+		}
+		else if (token.compare("*MAXY") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			float max_y = std::stof(tokens[i + 1]);
+			ws->SetMaxY(max_y);
+
+			i += 2;
+		}
+		else if (token.compare("*ZHEIGHT") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			float z = std::stof(tokens[i + 1]);
+			ws->SetZHeight(z);
+
+			i += 2;
+		}
+		else
+		{
+			++i;
+		}
 	}
 
 	return true;
 }
 
-bool EQGLoader::GetZon(std::string file, std::vector<char>& buffer)
+bool EQGLoader::LoadInvisibleWalls(std::shared_ptr<EQG::Terrain>& terrain)
 {
-	buffer.clear();
+	std::vector<char> buffer;
 
-	FILE* f = _fsopen(file.c_str(), "rb", _SH_DENYNO);
-	if (f)
-	{
-		fseek(f, 0, SEEK_END);
-		size_t sz = ftell(f);
-		rewind(f);
-
-		if (sz != 0)
-		{
-			buffer.resize(sz);
-
-			size_t bytes_read = fread(&buffer[0], 1, sz, f);
-
-			if (bytes_read != sz)
-			{
-				fclose(f);
-				return false;
-			}
-			fclose(f);
-		}
-		else
-		{
-			fclose(f);
-			return false;
-		}
-		return true;
-	}
-	return false;
-}
-
-bool EQGLoader::ParseZon(std::vector<char>& buffer)
-{
-	uint32_t idx = 0;
-	SafeStructAllocParse(zon_header, header);
-
-	if (header->magic[0] != 'E' || header->magic[1] != 'Q' || header->magic[2] != 'G' || header->magic[3] != 'Z')
+	if (!m_archive->Get("InvW.dat", buffer))
 	{
 		return false;
 	}
 
-	idx += header->list_length;
+	BufferReader reader(buffer);
 
-	eqLogMessage(LogTrace, "Parsing zone models.");
+	uint32_t count = reader.read<uint32_t>();
 
-	std::vector<std::string> model_names;
-	for (uint32_t i = 0; i < header->model_count; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
-		SafeVarAllocParse(uint32_t, model);
+		const char* name = reader.read_cstr();
+		std::shared_ptr<EQG::InvisWall> invisWall = std::make_shared<EQG::InvisWall>(name);
 
-		std::string mod = &buffer[sizeof(zon_header) + model];
-		for (size_t j = 0; j < mod.length(); ++j)
+		reader.read(invisWall->wall_top_height);
+
+		uint32_t vert_count;
+		reader.read(vert_count);
+
+		invisWall->verts.resize(vert_count);
+
+		for (uint32_t j = 0; j < vert_count; ++j)
 		{
-			if (mod[j] == ')')
-				mod[j] = '_';
+			reader.read(invisWall->verts[j]);
 		}
-		model_names.push_back(mod);
+
+		terrain->AddInvisWall(invisWall);
 	}
 
-	// Need to load all the models
-	eqLogMessage(LogTrace, "Loading zone models.");
+	return true;
+}
 
-	for (size_t i = 0; i < model_names.size(); ++i)
+std::vector<std::string> EQGLoader::ParseConfigFile(const char* buffer, size_t size)
+{
+	std::vector<std::string> tokens;
+
+	std::string cur;
+	for (size_t i = 0; i < size; ++i)
 	{
-		std::string mod = model_names[i];
-		std::shared_ptr<EQG::Geometry> m(new EQG::Geometry());
-		m->SetName(mod);
+		char c = buffer[i];
 
-		if (LoadEQGModel(*m_archive, mod, m))
+		if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f')
 		{
-			models.push_back(m);
+			if (cur.size() > 0)
+			{
+				tokens.push_back(cur);
+				cur.clear();
+			}
 		}
 		else
 		{
-			m->GetMaterials().clear();
-			m->GetPolygons().clear();
-			m->GetVertices().clear();
-			models.push_back(m);
+			cur.push_back(c);
 		}
 	}
 
-	// load placables
-	eqLogMessage(LogTrace, "Parsing zone placeables.");
+	return tokens;
+}
 
-	constexpr float rot_change = 180.0f / 3.14159f;
+bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& tag)
+{
+	BufferReader reader(buffer);
 
-	for (uint32_t i = 0; i < header->object_count; ++i)
+	SZONHeader* header = reader.read_ptr<SZONHeader>();
+	if (strncmp(header->magic, "EQGZ", 4) != 0)
 	{
-		SafeStructAllocParse(zon_placable, plac);
+		return false;
+	}
 
-		std::shared_ptr<Placeable> p = std::make_shared<Placeable>();
-		p->SetName(&buffer[sizeof(zon_header) + plac->loc]);
+	// Note that this function tries to load .zon file for both version 1 and 2.
 
-		if (plac->id >= 0 && plac->id < static_cast<int32_t>(models.size()))
+	const char* string_pool = reader.read_array<const char>(header->string_pool_size);
+	mesh_names.resize(header->string_pool_size);
+
+	// translate string pool
+	for (uint32_t i = 0; i < header->num_meshes; ++i)
+	{
+		int offset = reader.read<uint32_t>();
+
+		if (offset != -1)
 		{
-			p->SetFileName(model_names[plac->id]);
+			mesh_names[i] = string_pool + offset;
 		}
+	}
 
-		p->SetPosition(plac->x, plac->y, plac->z);
-		p->SetRotation(plac->rz * rot_change, plac->ry * rot_change, plac->rx * rot_change);
-		p->SetScale(plac->scale, plac->scale, plac->scale);
+	auto& model_names = mesh_names;
+
+	// load placables
+	eqLogMessage(LogTrace, "Parsing model instances.")
+
+	size_t name_index = 0;
+
+	for (uint32_t i = 0; i < header->num_instances; ++i)
+	{
+		SZONInstance* instance = reader.read_ptr<SZONInstance>();
+
+		uint32_t num_lit_verts = 0;
+		uint32_t* pLitData = nullptr;
 
 		if (header->version > 1)
 		{
-			//don't know what this is but it relates to the underlying model
-			SafeVarAllocParse(uint32_t, unk_size);
-			idx += (unk_size) * sizeof(uint32_t);
+			num_lit_verts = reader.read<uint32_t>();
+			pLitData = reader.read_array<uint32_t>(num_lit_verts);
+		}
+		else
+		{
+			// TODO: Search for .LIT file that matches this model.
+			std::string litFileName = mesh_names[instance->name] + ".LIT";
+			(void)litFileName;
 		}
 
-		placeables.push_back(p);
+		if (header->version > 1)
+		{
+			while (name_index < mesh_names.size())
+			{
+				std::string_view mesh_name = mesh_names[name_index++];
+				if (!ci_ends_with(mesh_name, ".TER") && !ci_ends_with(mesh_name, ".MOD"))
+					break;
+			}
+		}
+
+		if (i > 0 && instance->mesh_id != -1)
+		{
+			std::string_view tag_name= mesh_names[instance->mesh_id];
+			tag_name = tag_name.substr(0, tag_name.size() - 4); // strip extension
+			std::string instance_tag = to_upper_copy(tag_name) + "_ACTORDEF";
+			std::string instance_name = header->version > 1 && name_index < model_names.size() ? model_names[name_index] : "";
+
+			std::shared_ptr<Placeable> obj = std::make_shared<Placeable>();
+			obj->tag = std::move(instance_tag);
+			obj->model_file = std::move(instance_name);
+			obj->pos = instance->translation;
+			obj->rotate = instance->rotation.zyx;
+			obj->scale = glm::vec3(instance->scale);
+
+			// This would be called ZoneActor_0%5d if we had a place to keep it.
+
+			placeables.push_back(obj);
+		}
 	}
 
-	eqLogMessage(LogTrace, "Parsing zone regions.");
+	eqLogMessage(LogTrace, "Parsing zone regions.")
 
-	for (uint32_t i = 0; i < header->region_count; ++i)
+	for (uint32_t i = 0; i < header->num_areas; ++i)
 	{
-		SafeStructAllocParse(zon_region, reg);
+		SZONArea* area = reader.read_ptr<SZONArea>();
 
-		std::shared_ptr<EQG::Region> region(new EQG::Region());
-		region->SetName(&buffer[sizeof(zon_header) + reg->loc]);
-		region->SetLocation(reg->center_x, reg->center_y, reg->center_z);
-		region->SetRotation(0.0f, 0.0f, 0.0f);
-		region->SetScale(1.0f, 1.0f, 1.0f);
-		region->SetExtents(reg->extend_x, reg->extend_y, reg->extend_z);
-		region->SetFlags(reg->flag_unknown020, reg->flag_unknown024);
-		regions.push_back(region);
+		auto newArea = std::make_shared<EQG::TerrainArea>();
+		newArea->name = string_pool + area->name;
+		newArea->position = area->center;
+		newArea->orientation = area->orientation;
+		newArea->scale = glm::vec3(1.0f);
+		newArea->extents = area->extents;
+
+		newArea->transform = glm::translate(glm::identity<glm::mat4x4>(), newArea->position);
+		newArea->transform *= glm::mat4_cast(glm::quat{ area->orientation });
+		
+		areas.push_back(newArea);
 	}
 
 	eqLogMessage(LogTrace, "Parsing zone lights.");
 
-	for (uint32_t i = 0; i < header->light_count; ++i)
+	for (uint32_t i = 0; i < header->num_lights; ++i)
 	{
-		SafeStructAllocParse(zon_light, light);
-		std::shared_ptr<Light> l(new Light());
-		l->tag = std::string(&buffer[sizeof(zon_header) + light->loc]);
-		l->pos = glm::vec3(light->x, light->y, light->z);
-		l->color.push_back(glm::vec3(light->r, light->g, light->b));
-		l->radius = light->radius;
+		SZONLight* light = reader.read_ptr<SZONLight>();
 
-		lights.push_back(l);
+		auto newLight = std::make_shared<Light>();
+		newLight->tag = std::string(string_pool + light->name) + "_LIGHTDEF";
+		newLight->pos = light->pos;
+		newLight->color.push_back(light->color);
+		newLight->radius = light->radius;
+
+		lights.push_back(newLight);
 	}
 
 	return true;
+}
+
+bool EQGLoader::ParseZoneV2(const std::vector<char>& buffer, const std::string& tag)
+{
+	return ParseZone(buffer, tag);
 }
 
 } // namespace EQEmu

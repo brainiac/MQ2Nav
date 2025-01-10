@@ -26,7 +26,6 @@
     <ClInclude Include="common\eqg_geometry.h" />
     <ClInclude Include="common\eqg_loader.h" />
     <ClInclude Include="common\eqg_material.h" />
-    <ClInclude Include="common\eqg_region.h" />
     <ClInclude Include="common\eqg_structs.h" />
     <ClInclude Include="common\eqg_terrain.h" />
     <ClInclude Include="common\light.h" />
@@ -36,7 +35,6 @@
     <ClInclude Include="common\pfs.h" />
     <ClInclude Include="common\pfs_crc.h" />
     <ClInclude Include="common\placeable.h" />
-    <ClInclude Include="common\placeable_group.h" />
     <ClInclude Include="common\str_util.h" />
     <ClInclude Include="common\wld_loader.h" />
     <ClInclude Include="common\s3d_types.h" />
@@ -58,7 +56,7 @@
     <ClCompile Include="common\compression.cpp" />
     <ClCompile Include="common\eqg_loader.cpp" />
     <ClCompile Include="common\eqg_model_loader.cpp" />
-    <ClCompile Include="common\eqg_v4_loader.cpp" />
+    <ClCompile Include="common\eqg_terrain.cpp" />
     <ClCompile Include="common\oriented_bounding_box.cpp" />
     <ClCompile Include="common\pfs.cpp" />
     <ClCompile Include="common\pfs_crc.cpp" />

@@ -21,6 +21,7 @@ using S3DGeometryPtr = std::shared_ptr<EQEmu::S3D::Geometry>;
 using SkeletonTrackPtr = std::shared_ptr<EQEmu::S3D::SkeletonTrack>;
 using EQGGeometryPtr = std::shared_ptr<EQEmu::EQG::Geometry>;
 using TerrainPtr = std::shared_ptr<EQEmu::EQG::Terrain>;
+using TerrainAreaPtr = std::shared_ptr<EQEmu::EQG::TerrainArea>;
 
 struct KeyFuncs
 {
@@ -58,8 +59,9 @@ public:
 
 	void addModel(std::string_view name, const S3DGeometryPtr& model);
 	void addModel(std::string_view name, const EQGGeometryPtr& model);
-	void addModelInstance(const PlaceablePtr& inst, const glm::mat4x4& transform);
+	void addModelInstance(const PlaceablePtr& inst);
 	void addZoneGeometry(const S3DGeometryPtr& model); // For s3d zone geometry
+	void addZoneGeometry(const EQGGeometryPtr& model); // For TER zone geometry
 
 	void finalize();
 
@@ -147,23 +149,16 @@ private:
 	void Clear();
 
 	bool LoadZone();
-	void LoadDoors();
-
-	bool TryLoadEQG();
-	bool TryLoadS3D();
-
-	void TraverseBone(std::shared_ptr<EQEmu::S3D::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
-
-	bool CompileS3D(EQEmu::S3D::WLDLoader* zone_loader);
-	bool CompileEQG(EQEmu::EQGLoader& eqgLoader);
-	bool CompileEQGv4();
-
-	bool LoadModelInst(const PlaceablePtr& model_inst);
-
 	EQEmu::PFS::Archive* LoadArchive(const std::string& path);
-
+	EQEmu::EQGLoader* LoadEQG(std::string_view fileName);
+	EQEmu::EQGLoader* LoadEQG(EQEmu::PFS::Archive* archive);
+	EQEmu::S3D::WLDLoader* LoadS3D(std::string_view fileName, std::string_view wldFile = "");
 	EQEmu::S3D::WLDLoader* LoadWLD(EQEmu::PFS::Archive* archive, const std::string& fileName);
 	void LoadAssetsFile();
+	void LoadDoors();
+
+	void TraverseBone(std::shared_ptr<EQEmu::S3D::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
+	bool LoadModelInst(const PlaceablePtr& model_inst);
 
 	void AddFace(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, bool collidable);
 
@@ -186,6 +181,7 @@ private:
 	uint32_t current_collide_index = 0;
 	uint32_t current_non_collide_index = 0;
 
+	// Used to optimize collision meshes
 	std::unordered_map<glm::vec3, uint32_t, KeyFuncs, KeyFuncs> collide_vert_to_index;
 	std::unordered_map<glm::vec3, uint32_t, KeyFuncs, KeyFuncs> non_collide_vert_to_index;
 
@@ -193,17 +189,21 @@ private:
 	std::map<std::string_view, S3DGeometryPtr> map_models;
 	std::map<std::string_view, SkeletonTrackPtr> map_anim_models;
 	std::map<std::string, EQGGeometryPtr> map_eqg_models;
+	EQGGeometryPtr terrain_model;
 
 	std::vector<PlaceablePtr> map_placeables;
-	std::vector<PlaceableGroupPtr> map_group_placeables;
-
 	std::vector<S3DGeometryPtr> map_s3d_geometry;
-	std::vector<PlaceablePtr> map_s3d_model_instances;
-	std::vector<PlaceablePtr> dynamic_map_objects;
+	//std::vector<PlaceablePtr> map_s3d_model_instances;
+	//std::vector<PlaceablePtr> dynamic_map_objects; // "Doors"
+	std::vector<TerrainAreaPtr> map_areas;
+	std::vector<std::shared_ptr<EQEmu::Light>> map_lights;
+
+	//std::vector<PlaceableGroupPtr> map_group_placeables;
 
 	int m_dynamicObjects = 0;
 	bool m_hasDynamicObjects = false;
 
 	std::vector<std::unique_ptr<EQEmu::PFS::Archive>> m_archives;
 	std::vector<std::unique_ptr<EQEmu::S3D::WLDLoader>> m_wldLoaders;
+	std::vector<std::unique_ptr<EQEmu::EQGLoader>> m_eqgLoaders;
 };

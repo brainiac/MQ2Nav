@@ -11,6 +11,10 @@
 
 namespace EQEmu {
 
+namespace EQG {
+	struct TerrainObject;
+}
+
 class Placeable
 {
 public:
@@ -22,12 +26,7 @@ public:
 	float GetZ() const { return pos.z; }
 	glm::vec3 GetPosition() const { return pos; }
 
-	void SetRotation(float nx, float ny, float nz) { rotate.x = nx; rotate.y = ny; rotate.z = nz; }
 	void SetRotation(const glm::vec3& rot_) { rotate = rot_; }
-
-	float GetRotateX() const { return rotate.x; }
-	float GetRotateY() const { return rotate.y; }
-	float GetRotateZ() const { return rotate.z; }
 	glm::vec3 GetRotation() const { return rotate; }
 
 	void SetScale(float nx, float ny, float nz) { scale.x = nx; scale.y = ny; scale.z = nz; }
@@ -50,16 +49,20 @@ public:
 		glm::mat4x4 mtx;
 		mtx = glm::translate(mtx, pos);
 		mtx = glm::scale(mtx, scale);
-		mtx *= glm::mat4_cast(glm::quat(rotate));
+		mtx *= glm::mat4_cast(glm::quat{rotate});
 
 		return mtx;
 	}
 
 	std::string tag;
 	glm::vec3 pos;
-	glm::vec3 rotate;
+	glm::vec3 rotate; // radians
 	glm::vec3 scale;
+
 	std::string model_file;
+
+	std::shared_ptr<EQG::TerrainObject> terrain_object;
+	bool ignore_for_collision = false;
 };
 
 class PlaceableGroup
@@ -106,7 +109,7 @@ public:
 		grp_mat = glm::translate(grp_mat, tile_pos);
 		grp_mat = glm::translate(grp_mat, pos);
 		grp_mat = glm::scale(grp_mat, scale);
-		grp_mat *= glm::mat4_cast(glm::quat{glm::radians(rotate)});
+		grp_mat *= glm::mat4_cast(glm::quat{ glm::radians(rotate) });
 
 		return grp_mat;
 	}

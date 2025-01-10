@@ -2,13 +2,14 @@
 #include "eqg_structs.h"
 #include "safe_alloc.h"
 #include "log_macros.h"
+#include "buffer_reader.h"
 
 #include <algorithm>
-#include <cctype> 
+#include <cctype>
 
 namespace EQEmu {
 
-bool LoadEQGModel(EQEmu::PFS::Archive& archive, std::string model, std::shared_ptr<EQG::Geometry>& model_out)
+bool LoadEQGModel(EQEmu::PFS::Archive& archive, const std::string& model, std::shared_ptr<EQG::Geometry>& model_out)
 {
 	eqLogMessage(LogDebug, "Loading model %s.", model.c_str());
 	std::vector<char> buffer;
@@ -19,7 +20,13 @@ bool LoadEQGModel(EQEmu::PFS::Archive& archive, std::string model, std::shared_p
 		return false;
 	}
 
+	return LoadEQGModel(buffer, model, model_out);
+}
+
+bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std::shared_ptr<EQG::Geometry>& model_out)
+{
 	uint32_t idx = 0;
+
 	SafeStructAllocParse(mod_header, header);
 	uint32_t bone_count = 0;
 

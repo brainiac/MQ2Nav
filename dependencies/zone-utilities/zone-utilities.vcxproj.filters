@@ -33,9 +33,6 @@
     <ClInclude Include="common\eqg_material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="common\eqg_region.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="common\eqg_structs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -58,9 +55,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\placeable.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="common\placeable_group.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common\wld_loader.h">
@@ -128,9 +122,6 @@
     <ClCompile Include="common\eqg_model_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="common\eqg_v4_loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="common\oriented_bounding_box.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -165,6 +156,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="log\log_stdout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="common\eqg_terrain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

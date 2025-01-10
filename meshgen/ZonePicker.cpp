@@ -479,7 +479,8 @@ bool ZonePicker::Draw()
 								return map.expansion == expansionName;
 							};
 
-							activateSelection = DrawZoneList("ZoneList", std::views::filter(m_allMaps, filterByExpansion), enterPressed, &index);
+							if (DrawZoneList("ZoneList", std::views::filter(m_allMaps, filterByExpansion), enterPressed, &index))
+								activateSelection = true;
 
 							ImGui::TreePop();
 						}

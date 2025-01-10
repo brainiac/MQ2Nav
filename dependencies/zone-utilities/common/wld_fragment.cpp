@@ -1,6 +1,6 @@
 
+#include "buffer_reader.h"
 #include "log_macros.h"
-#include "read_buffer.h"
 #include "s3d_types.h"
 #include "wld_fragment.h"
 #include "wld_loader.h"
@@ -8,11 +8,13 @@
 
 namespace EQEmu::S3D {
 
+constexpr float EQ_TO_DEG = 360.0f / 512.0f;
+
 // WLD_BITMAP_INFO
 WLDFragment03::WLDFragment03(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 
 	WLD_OBJ_BMINFO* header = reader.read_ptr<WLD_OBJ_BMINFO>();
 	uint32_t count = header->num_mip_levels;
@@ -36,7 +38,7 @@ WLDFragment03::WLDFragment03(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment04::WLDFragment04(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 
 	WLD_OBJ_SIMPLESPRITEDEFINITION* def = reader.read_ptr<WLD_OBJ_SIMPLESPRITEDEFINITION>();
 
@@ -69,7 +71,7 @@ WLDFragment04::WLDFragment04(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment05::WLDFragment05(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 
 	auto* inst = reader.read_ptr<WLD_OBJ_SIMPLESPRITEINSTANCE>();
 
@@ -79,7 +81,7 @@ WLDFragment05::WLDFragment05(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment10::WLDFragment10(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 
 	auto* header = reader.read_ptr<WLD_OBJ_HIERARCHICALSPRITEDEFINITION>();
 
@@ -166,7 +168,7 @@ WLDFragment10::WLDFragment10(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment11::WLDFragment11(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_HIERARCHICALSPRITEINSTANCE>();
 
 	def_id = header->definition_id;
@@ -175,7 +177,7 @@ WLDFragment11::WLDFragment11(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment12::WLDFragment12(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_TRACKDEFINITION>();
 
 	transforms.resize(header->num_frames);
@@ -206,7 +208,7 @@ WLDFragment12::WLDFragment12(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment13::WLDFragment13(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_TRACKINSTANCE>();
 
 	def_id = header->track_id;
@@ -215,7 +217,7 @@ WLDFragment13::WLDFragment13(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment14::WLDFragment14(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_ACTORDEFINITION>();
 
 	if (header->flags & WLD_OBJ_ACTOROPT_HAVECURRENTACTION)
@@ -249,7 +251,7 @@ WLDFragment14::WLDFragment14(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment15::WLDFragment15(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_ACTORINSTANCE>();
 
 	if (header->actor_def_id >= 0)
@@ -272,10 +274,13 @@ WLDFragment15::WLDFragment15(WLDLoader* loader, S3DFileObject* obj)
 		placeable->pos.y = location.y;
 		placeable->pos.z = location.z;
 
-		constexpr float EQ_TO_DEG = 360.0f / 512.0f;
-		placeable->rotate.x = location.roll * EQ_TO_DEG;
-		placeable->rotate.y = location.pitch * EQ_TO_DEG;
-		placeable->rotate.z = location.heading * EQ_TO_DEG;
+		// y rotation seems backwards on s3ds, probably cause of the weird coord system they used back then
+		// x rotation might be too but there are literally 0 x rotated placeables in all the s3ds so who knows
+		// 
+		// Convert 512 degrees -> 360 degrees -> radians
+		placeable->rotate.x = glm::radians(location.roll * EQ_TO_DEG);
+		placeable->rotate.y = -glm::radians(location.pitch * EQ_TO_DEG);
+		placeable->rotate.z = glm::radians(location.heading * EQ_TO_DEG);
 	}
 
 	if (header->flags & WLD_OBJ_ACTOROPT_HAVEBOUNDINGRADIUS)
@@ -288,9 +293,7 @@ WLDFragment15::WLDFragment15(WLDLoader* loader, S3DFileObject* obj)
 		reader.read(scale_factor);
 	}
 
-	placeable->scale.x = scale_factor;
-	placeable->scale.y = scale_factor;
-	placeable->scale.z = scale_factor;
+	placeable->scale = glm::vec3(scale_factor);
 
 	if (header->flags & WLD_OBJ_ACTOROPT_HAVEDMRGBTRACK)
 	{
@@ -301,7 +304,7 @@ WLDFragment15::WLDFragment15(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment1B::WLDFragment1B(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_LIGHTDEFINITION>();
 
 	light = std::make_shared<Light>();
@@ -350,7 +353,7 @@ WLDFragment1B::WLDFragment1B(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment1C::WLDFragment1C(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_LIGHTINSTANCE>();
 
 	light_id = header->definition_id;
@@ -359,7 +362,7 @@ WLDFragment1C::WLDFragment1C(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment21::WLDFragment21(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_WORLDTREE>();
 
 	tree = std::make_shared<BSPTree>();
@@ -381,7 +384,7 @@ WLDFragment21::WLDFragment21(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment22::WLDFragment22(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_REGION>();
 
 	ambient_light_index = loader->GetObjectIndexFromID(header->ambient_light_id);
@@ -453,7 +456,7 @@ WLDFragment22::WLDFragment22(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment28::WLDFragment28(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_POINTLIGHT>();
 
 	// Get LIGHTINSTANCE
@@ -477,7 +480,7 @@ WLDFragment28::WLDFragment28(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment29::WLDFragment29(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_ZONE>();
 
 	region = std::make_shared<BSPRegion>();
@@ -501,7 +504,7 @@ WLDFragment29::WLDFragment29(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment2D::WLDFragment2D(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_DMSPRITEINSTANCE>();
 
 	sprite_id = header->definition_id;
@@ -511,7 +514,7 @@ WLDFragment2D::WLDFragment2D(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment30::WLDFragment30(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_MATERIALDEFINITION>();
 
 	if (!header->flags)
@@ -560,7 +563,7 @@ WLDFragment30::WLDFragment30(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment31::WLDFragment31(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_MATERIALPALETTE>();
 
 	texture_brush_set = std::make_shared<TextureBrushSet>();
@@ -583,7 +586,7 @@ WLDFragment31::WLDFragment31(WLDLoader* loader, S3DFileObject* obj)
 WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
-	ReadBuffer reader(obj->data, obj->size);
+	BufferReader reader(obj->data, obj->size);
 	auto* header = reader.read_ptr<WLD_OBJ_DMSPRITEDEFINITION2>();
 
 	constexpr float recip_255 = 1.0f / 256.0f;

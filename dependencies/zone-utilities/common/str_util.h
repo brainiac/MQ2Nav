@@ -25,9 +25,9 @@ inline void to_upper(std::string& str)
 	std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 }
 
-inline std::string to_upper_copy(const std::string& str)
+inline std::string to_upper_copy(std::string_view str)
 {
-	std::string tmp = str;
+	std::string tmp(str);
 	to_upper(tmp);
 	return tmp;
 }

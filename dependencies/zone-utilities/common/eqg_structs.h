@@ -1,63 +1,90 @@
 
 #pragma once
 
+#include <glm/glm.hpp>
+
 #include <cstdint>
+#include <memory>
+#include <string>
 
 namespace EQEmu {
 
-struct eqg_v4_zone_magic_header
+enum EQG_FACEFLAGS
 {
-	char magic[5];
+	EQG_FACEFLAG_PASSABLE            = 0x01,
+	EQG_FACEFLAG_TRANSPARENT         = 0x02,
+	EQG_FACEFLAG_COLLISION_REQUIRED  = 0x04,
+	EQG_FACEFLAG_CULLED              = 0x08,
+	EQG_FACEFLAG_DEGENERATE          = 0x10,
 };
 
-struct zon_header
+struct SEQZoneParameters
+{
+	std::string name;
+	int32_t min_lng;
+	int32_t max_lng;
+	int32_t min_lat;
+	int32_t max_lat;
+	float units_per_vert;
+	int verts_per_tile;
+	int quads_per_tile;
+	float units_per_tile;
+	int tiles_per_chunk;
+	float units_per_chunk;
+	int cover_map_input_size;
+	int layer_map_input_size;
+	glm::vec3 min_extents;
+	glm::vec3 max_extents;
+
+	int version = 1;
+};
+
+struct SZONHeader
 {
 	char magic[4];
 	uint32_t version;
-	uint32_t list_length;
-	uint32_t model_count;
-	uint32_t object_count;
-	uint32_t region_count;
-	uint32_t light_count;
+	uint32_t string_pool_size; // list_length;
+	uint32_t num_meshes; // model_count;
+	uint32_t num_instances;// object_count;
+	uint32_t num_areas;// region_count;
+	uint32_t num_lights;// light_count;
 };
 
-struct zon_placable
+struct SZONInstance
 {
-	int32_t id;
-	uint32_t loc;
-	float x;
-	float y;
-	float z;
-	float rx;
-	float ry;
-	float rz;
+	int mesh_id;
+	int name;
+	glm::vec3 translation;
+	glm::vec3 rotation;
 	float scale;
 };
 
-struct zon_region
+struct SZONArea
 {
-	uint32_t loc;
-	float center_x;
-	float center_y;
-	float center_z;
-	float unknown016;
-	uint32_t flag_unknown020; //0 about half the time, non-zero other half
-	uint32_t flag_unknown024; //almost always 0
-	float extend_x;
-	float extend_y;
-	float extend_z;
+	int name;
+	glm::vec3 center;
+	glm::vec3 orientation;
+	glm::vec3 extents;
 };
 
-struct zon_light
+struct SZONLight
 {
-	uint32_t loc;
-	float x;
-	float y;
-	float z;
-	float r;
-	float g;
-	float b;
+	int name;
+	glm::vec3 pos;
+	glm::vec3 color;
 	float radius;
+};
+
+
+struct SEQMHeader
+{
+	char magic[4];
+	uint32_t version;
+	uint32_t string_pool_size;
+	uint32_t num_materials;
+	uint32_t num_vertices;
+	uint32_t num_faces;
+	uint32_t num_bones;
 };
 
 struct mod_header
@@ -69,6 +96,7 @@ struct mod_header
 	uint32_t vert_count;
 	uint32_t tri_count;
 };
+
 
 struct mod_material
 {
@@ -124,12 +152,5 @@ struct mod_polygon
 	int32_t material;
 	uint32_t flags;
 };
-
-struct v4_zone_dat_header
-	{
-		uint32_t unk000;
-		uint32_t unk004;
-		uint32_t unk008;
-	};
 
 } // namespace EQEmu

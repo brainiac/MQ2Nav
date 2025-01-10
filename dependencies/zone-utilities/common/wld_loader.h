@@ -71,7 +71,6 @@ private:
 	std::vector<S3D::S3DFileObject> m_objects;
 	bool                       m_oldVersion = false;
 	bool                       m_valid = false;
-	uint32_t                   m_constantAmbient = 0;
 };
 
 } // namespace EQEmu

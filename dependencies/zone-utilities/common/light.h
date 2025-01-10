@@ -7,9 +7,11 @@
 
 namespace EQEmu {
 
+// TODO: Split into LightDefinition, PointLight, etc.
 class Light
 {
 public:
+	std::string name;
 	std::string tag;
 
 	std::vector<glm::vec3> color;
@@ -20,6 +22,9 @@ public:
 
 	glm::vec3 pos;
 	float radius;
+
+	glm::mat4x4 transform;
+	bool static_light = true;
 };
 
 } // namespace EQEmu

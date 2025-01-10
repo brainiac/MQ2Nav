@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <istream>
+#include <ranges>
 #include <string>
 #include <sstream>
 
@@ -482,4 +483,19 @@ void ApplicationConfig::SetUseMaxExtents(bool use)
 	m_useMaxExtents = use;
 
 	mq::WritePrivateProfileBool("General", "ZoneMaxExtents", m_useMaxExtents, m_settingsFile);
+}
+
+std::string ApplicationConfig::GetExpansionForZone(std::string_view zoneName) const
+{
+	for (const auto& [expansion, zones] : m_loadedMaps)
+	{
+		for (const auto& shortName : zones | std::views::values)
+		{
+			if (mq::ci_equals(shortName, zoneName))
+			{
+				return expansion;
+			}
+		}
+	}
+	return std::string();
 }

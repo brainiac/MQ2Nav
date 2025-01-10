@@ -67,6 +67,8 @@ public:
 	const std::map<std::string, std::string>& GetAllMaps() const { return m_mapNames; }
 	bool AreMapsLoaded() const { return m_mapsLoaded; }
 
+	std::string GetExpansionForZone(std::string_view zoneName) const;
+
 private:
 	bool LoadZones();
 
