@@ -78,6 +78,7 @@ WLDFragment05::WLDFragment05(WLDLoader* loader, S3DFileObject* obj)
 	def_id = loader->GetObjectIndexFromID(inst->definition_id);
 }
 
+// WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE
 WLDFragment10::WLDFragment10(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
@@ -110,15 +111,24 @@ WLDFragment10::WLDFragment10(WLDLoader* loader, S3DFileObject* obj)
 		if (sprite_obj.type == WLD_OBJ_DMSPRITEINSTANCE_TYPE)
 		{
 			WLDFragment2D* sprite_inst = static_cast<WLDFragment2D*>(sprite_obj.parsed_data);
-			WLDFragment36* sprite_def = static_cast<WLDFragment36*>(loader->GetObjectFromID(sprite_inst->sprite_id).parsed_data);
-			bone->model = sprite_def->geometry;
-
-			S3DFileObject& track_obj = loader->GetObjectFromID(ent->track_id);
-			if (track_obj.type == WLD_OBJ_TRACKINSTANCE_TYPE)
+			
+			S3DFileObject& sprite_def_obj = loader->GetObjectFromID(sprite_inst->sprite_id);
+			if (sprite_def_obj.type == WLD_OBJ_DMSPRITEDEFINITION_TYPE)
 			{
-				WLDFragment13* track_inst = static_cast<WLDFragment13*>(track_obj.parsed_data);
-				WLDFragment12* track_def = static_cast<WLDFragment12*>(loader->GetObjectFromID(track_inst->def_id).parsed_data);
-				bone->transforms = track_def->transforms; // FIXME
+				// TODO
+			}
+			else if (sprite_def_obj.type == WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+			{
+				WLDFragment36* sprite_def = static_cast<WLDFragment36*>(sprite_def_obj.parsed_data);
+				bone->model = sprite_def->geometry;
+
+				S3DFileObject& track_obj = loader->GetObjectFromID(ent->track_id);
+				if (track_obj.type == WLD_OBJ_TRACKINSTANCE_TYPE)
+				{
+					WLDFragment13* track_inst = static_cast<WLDFragment13*>(track_obj.parsed_data);
+					WLDFragment12* track_def = static_cast<WLDFragment12*>(loader->GetObjectFromID(track_inst->def_id).parsed_data);
+					bone->transforms = track_def->transforms; // FIXME
+				}
 			}
 		}
 
@@ -144,7 +154,7 @@ WLDFragment10::WLDFragment10(WLDLoader* loader, S3DFileObject* obj)
 			int ref = reader.read<int>();
 
 			S3DFileObject& skinObj = loader->GetObjectFromID(ref);
-			if (skinObj.type = WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+			if (skinObj.type == WLD_OBJ_DMSPRITEINSTANCE_TYPE)
 			{
 				WLDFragment2D* inst = static_cast<WLDFragment2D*>(skinObj.parsed_data);
 

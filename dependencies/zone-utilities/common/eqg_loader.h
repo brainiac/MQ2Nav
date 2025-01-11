@@ -73,3 +73,10 @@ bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std
 
 
 } // namespace EQEmu
+
+
+using PlaceablePtr = std::shared_ptr<EQEmu::Placeable>;
+using PlaceableGroupPtr = std::shared_ptr<EQEmu::PlaceableGroup>;
+using EQGGeometryPtr = std::shared_ptr<EQEmu::EQG::Geometry>;
+using TerrainPtr = std::shared_ptr<EQEmu::EQG::Terrain>;
+using TerrainAreaPtr = std::shared_ptr<EQEmu::EQG::TerrainArea>;

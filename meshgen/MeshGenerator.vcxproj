@@ -51,6 +51,7 @@
     <ClCompile Include="SettingsDialog.cpp" />
     <ClCompile Include="ToolsPanel.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
+    <ClCompile Include="ZoneCollisionMesh.cpp" />
     <ClCompile Include="ZoneProject.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
     <ClCompile Include="ZoneRenderManager.cpp" />
@@ -106,6 +107,7 @@
     <ClInclude Include="SettingsDialog.h" />
     <ClInclude Include="ToolsPanel.h" />
     <ClInclude Include="WaypointsTool.h" />
+    <ClInclude Include="ZoneCollisionMesh.h" />
     <ClInclude Include="ZoneProject.h" />
     <ClInclude Include="ZoneResourceManager.h" />
     <ClInclude Include="ZonePicker.h" />

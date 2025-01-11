@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "ZoneCollisionMesh.h"
 #include "zone-utilities/common/wld_loader.h"
 #include "zone-utilities/common/eqg_loader.h"
 
@@ -14,112 +15,6 @@
 #include <unordered_map>
 
 #include <glm/glm.hpp>
-
-using PlaceablePtr = std::shared_ptr<EQEmu::Placeable>;
-using PlaceableGroupPtr = std::shared_ptr<EQEmu::PlaceableGroup>;
-using S3DGeometryPtr = std::shared_ptr<EQEmu::S3D::Geometry>;
-using SkeletonTrackPtr = std::shared_ptr<EQEmu::S3D::SkeletonTrack>;
-using EQGGeometryPtr = std::shared_ptr<EQEmu::EQG::Geometry>;
-using TerrainPtr = std::shared_ptr<EQEmu::EQG::Terrain>;
-using TerrainAreaPtr = std::shared_ptr<EQEmu::EQG::TerrainArea>;
-
-struct KeyFuncs
-{
-	size_t operator()(const glm::vec3& k)const
-	{
-		return std::hash<float>()(k.x) ^ std::hash<float>()(k.y) ^ std::hash<float>()(k.z);
-	}
-
-	bool operator()(const glm::vec3& a, const glm::vec3& b)const
-	{
-		return a == b;
-	}
-};
-
-class ZoneCollisionMesh
-{
-public:
-	ZoneCollisionMesh();
-	~ZoneCollisionMesh();
-
-	void clear();
-
-	const float* getVerts() const { return m_verts; }
-	const float* getNormals() const { return m_normals; }
-	const int* getTris() const { return m_tris; }
-	int getVertCount() const { return m_vertCount; }
-	int getTriCount() const { return m_triCount; }
-
-	void addVertex(float x, float y, float z);
-	void addTriangle(int a, int b, int c);
-	void addTriangle(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3);
-
-	void addTerrain(const TerrainPtr& terrain);
-	void addPolys(const std::vector<glm::vec3>& verts, const std::vector<uint32_t>& indices);
-
-	void addModel(std::string_view name, const S3DGeometryPtr& model);
-	void addModel(std::string_view name, const EQGGeometryPtr& model);
-	void addModelInstance(const PlaceablePtr& inst);
-	void addZoneGeometry(const S3DGeometryPtr& model); // For s3d zone geometry
-	void addZoneGeometry(const EQGGeometryPtr& model); // For TER zone geometry
-
-	void finalize();
-
-	void setMaxExtents(const std::pair<glm::vec3, glm::vec3>& maxExtents);
-
-	template<typename... Args>
-	bool ArePointsOutsideExtents(Args &&... args)
-	{
-		bool outside = false;
-		(void)std::initializer_list<bool>{
-			outside = outside || IsPointOutsideExtents(std::forward<Args>(args))...};
-		return outside;
-	}
-
-	template <typename VecT>
-	bool IsPointOutsideExtents(const VecT& p)
-	{
-		if (!m_maxExtentsSet)
-			return false;
-
-		for (int i = 0; i < 3; i++)
-		{
-			if ((m_maxExtents.first[i] != 0. && p[i] < m_maxExtents.first[i])
-				|| (m_maxExtents.second[i] != 0. && p[i] > m_maxExtents.second[i]))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	// model collision mesh
-	struct ModelEntry
-	{
-		struct Poly
-		{
-			glm::ivec3 indices;
-			uint8_t vis;
-			uint32_t flags;
-		};
-		std::vector<glm::vec3> verts;
-		std::vector<Poly> polys;
-	};
-	std::unordered_map<std::string_view, std::shared_ptr<ModelEntry>> m_models;
-
-	std::pair<glm::vec3, glm::vec3> m_maxExtents;
-	bool m_maxExtentsSet = false;
-	glm::vec3 m_boundsMin, m_boundsMax;
-
-	int vcap = 0, tcap = 0;
-	float m_scale = 1.0;
-	float* m_verts = nullptr;
-	int* m_tris = nullptr;
-	float* m_normals = nullptr;
-	int m_vertCount = 0;
-	int m_triCount = 0;
-};
 
 class MapGeometryLoader
 {
@@ -149,13 +44,27 @@ private:
 	void Clear();
 
 	bool LoadZone();
+	bool LoadGlobalData();
+
 	EQEmu::PFS::Archive* LoadArchive(const std::string& path);
 	EQEmu::EQGLoader* LoadEQG(std::string_view fileName);
 	EQEmu::EQGLoader* LoadEQG(EQEmu::PFS::Archive* archive);
 	EQEmu::S3D::WLDLoader* LoadS3D(std::string_view fileName, std::string_view wldFile = "");
 	EQEmu::S3D::WLDLoader* LoadWLD(EQEmu::PFS::Archive* archive, const std::string& fileName);
+
 	void LoadAssetsFile();
 	void LoadDoors();
+
+	struct GlobalLoadAsset
+	{
+		int phase = -1;
+		bool itemAnims = false; // 3
+		bool luclinAnims = false; // 4
+		std::string fileName;
+		std::string message;
+	};
+	void LoadGlobalLoadFile();
+	void PerformGlobalLoad(int phase);
 
 	void TraverseBone(std::shared_ptr<EQEmu::S3D::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
 	bool LoadModelInst(const PlaceablePtr& model_inst);
@@ -193,12 +102,10 @@ private:
 
 	std::vector<PlaceablePtr> map_placeables;
 	std::vector<S3DGeometryPtr> map_s3d_geometry;
-	//std::vector<PlaceablePtr> map_s3d_model_instances;
-	//std::vector<PlaceablePtr> dynamic_map_objects; // "Doors"
 	std::vector<TerrainAreaPtr> map_areas;
 	std::vector<std::shared_ptr<EQEmu::Light>> map_lights;
 
-	//std::vector<PlaceableGroupPtr> map_group_placeables;
+	std::vector<GlobalLoadAsset> global_load_assets;
 
 	int m_dynamicObjects = 0;
 	bool m_hasDynamicObjects = false;

@@ -59,7 +59,7 @@ struct S3DFileObject
 	S3DObjectType type;
 	std::string_view tag;
 	uint8_t* data;
-	WLDFragment* parsed_data;
+	WLDFragment* parsed_data = nullptr;
 };
 
 class WLDFragment

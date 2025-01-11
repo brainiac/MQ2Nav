@@ -74,3 +74,7 @@ private:
 };
 
 } // namespace EQEmu
+
+
+using S3DGeometryPtr = std::shared_ptr<EQEmu::S3D::Geometry>;
+using SkeletonTrackPtr = std::shared_ptr<EQEmu::S3D::SkeletonTrack>;
