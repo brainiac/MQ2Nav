@@ -105,6 +105,7 @@ private:
 	std::map<std::string_view, SkeletonTrackPtr> map_anim_models;
 	std::map<std::string, EQGGeometryPtr> map_eqg_models;
 	EQGGeometryPtr terrain_model;
+	std::vector<std::shared_ptr<eqg::LODList>> lod_lists;
 
 	std::vector<PlaceablePtr> map_placeables;
 	std::vector<S3DGeometryPtr> map_s3d_geometry;

@@ -16,6 +16,7 @@ namespace eqg {
 class Archive;
 class BufferReader;
 class Light;
+class LODList;
 class Placeable;
 class Terrain;
 class TerrainArea;
@@ -37,6 +38,8 @@ public:
 	std::shared_ptr<Terrain> terrain;
 	std::shared_ptr<Geometry> terrain_model;
 
+	std::vector<std::shared_ptr<LODList>> lod_lists;
+
 	std::vector<std::string> mesh_names;
 	std::vector<std::string> actor_tags;
 
@@ -51,6 +54,7 @@ private:
 	bool ParseZoneV2(const std::vector<char>& buffer, const std::string& tag);
 	bool ParseModel(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag);
 	bool ParseTerrain(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag);
+	bool ParseLOD(const std::vector<char>& buffer, const std::string& tag);
 
 	bool ParseTerrainProject(const std::vector<char>& buffer);
 	void LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params);
@@ -63,6 +67,33 @@ private:
 
 bool LoadEQGModel(Archive& archive, const std::string& model, std::shared_ptr<Geometry>& model_out);
 bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std::shared_ptr<Geometry>& model_out);
+
+struct LODListElement
+{
+	LODListElement(std::string_view data);
+
+	std::string definition;
+
+	enum LODElementType
+	{
+		Unknown = 0,
+		LOD,
+		Collision
+	};
+	LODElementType type = Unknown;
+	float max_distance = 10000.0f;
+};
+
+class LODList
+{
+public:
+	LODList(const std::string& name);
+	bool Init(const std::vector<char>& buffer);
+
+	std::string tag;
+	std::vector<std::shared_ptr<LODListElement>> elements;
+	std::shared_ptr<LODListElement> collision;
+};
 
 } // namespace eqg
 

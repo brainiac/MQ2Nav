@@ -2,6 +2,7 @@
 
 // String utilities
 #include <algorithm>
+#include <charconv>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -308,5 +309,12 @@ inline int ci_string_compare(std::string_view s1, std::string_view s2)
 	return 0;
 }
 
+inline float str_to_float(const std::string_view svString, float fReturnOnFail)
+{
+	auto trimmed = trim(svString);
+	std::from_chars(trimmed.data(), trimmed.data() + trimmed.size(), fReturnOnFail);
+	// Could error check here, but failures don't modify the value and we're not returning meaningful errors.
+	return fReturnOnFail;
+}
 
 } // namespace eqg

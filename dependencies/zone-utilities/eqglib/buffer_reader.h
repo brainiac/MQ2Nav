@@ -114,6 +114,20 @@ public:
 		return true;
 	}
 
+	bool read(std::string_view& out_str)
+	{
+		size_t len = 0;
+		while (pos_ + len < size_ && buffer_[pos_ + len] != 0)
+			++len;
+		if (pos_ + len > size_ || buffer_[pos_ + len] != 0)
+			return false;
+		char* str = (char*)(buffer_ + pos_);
+		pos_ += len + 1;
+
+		out_str = std::string_view(str, len);
+		return true;
+	}
+
 	bool read(std::span<const uint8_t>& span, size_t len)
 	{
 		if (pos_ + len > size_)

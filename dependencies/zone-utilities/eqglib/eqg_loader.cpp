@@ -101,7 +101,7 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 	if (ci_ends_with(sv, ".ani"))
 	{
 		// Parse ANI file
-		EQG_LOG_DEBUG("Animation file: {}", fileName);
+		EQG_LOG_TRACE("Animation file: {}", fileName);
 		success = true;
 	}
 	else if (!ci_ends_with(sv, ".dds")
@@ -122,7 +122,7 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 		if (strncmp(pMagic, "EQGM", 4) == 0)
 		{
 			// Model
-			EQG_LOG_DEBUG("EQGM: Model: {}", fileName);
+			EQG_LOG_TRACE("EQGM: Model: {}", fileName);
 			success = ParseModel(fileBuffer, fileName, tag);
 
 			actor_tags.push_back(tag);
@@ -130,7 +130,7 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 		else if (strncmp(pMagic, "EQGS", 4) == 0)
 		{
 			// Skin
-			EQG_LOG_DEBUG("EQGS: Model skin: {}", fileName);
+			EQG_LOG_TRACE("EQGS: Model skin: {}", fileName);
 			success = true;
 
 			//actor_tags.push_back(tag);
@@ -138,44 +138,43 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 		else if (strncmp(pMagic, "EQAL", 4) == 0)
 		{
 			// Animation list
-			EQG_LOG_DEBUG("EQAL: Animation list: {}", fileName);
+			EQG_LOG_TRACE("EQAL: Animation list: {}", fileName);
 			success = true;
 		}
 		else if (strncmp(pMagic, "EQGL", 4) == 0)
 		{
 			// Material layer
-			EQG_LOG_DEBUG("EQGL: Material layer: {}", fileName);
+			EQG_LOG_TRACE("EQGL: Material layer: {}", fileName);
 			success = true;
 		}
 		else if (strncmp(pMagic, "EQGT", 4) == 0)
 		{
 			// Terrain
-			EQG_LOG_DEBUG("EQGT: Terrain data: {}", fileName);
+			EQG_LOG_TRACE("EQGT: Terrain data: {}", fileName);
 			success = ParseTerrain(fileBuffer, fileName, tag);
 		}
 		else if (strncmp(pMagic, "EQGZ", 4) == 0)
 		{
 			// Zone
-			EQG_LOG_DEBUG("EQGZ: Zone data: {}", fileName);
+			EQG_LOG_TRACE("EQGZ: Zone data: {}", fileName);
 			success = ParseZone(fileBuffer, tag);
 		}
 		else if (strncmp(pMagic, "EQLOD", 5) == 0)
 		{
 			// LOD Data
-			EQG_LOG_DEBUG("EQLOD: LOD data: {}", fileName);
-			success = true;
+			EQG_LOG_TRACE("EQLOD: LOD data: {}", fileName);
+			success = ParseLOD(fileBuffer, tag);
 		}
 		else if (strncmp(pMagic, "EQTZP", 5) == 0)
 		{
 			// Terrain project file
-			EQG_LOG_DEBUG("EQTZP: Terrain project file: {}", fileName);
+			EQG_LOG_TRACE("EQTZP: Terrain project file: {}", fileName);
 			success = ParseTerrainProject(fileBuffer);
-
 		}
 		else if (strncmp(pMagic, "EQOBG", 5) == 0)
 		{
 			// Actor group
-			EQG_LOG_DEBUG("EQOBG: Actor group: {}", fileName);
+			EQG_LOG_TRACE("EQOBG: Actor group: {}", fileName);
 			success = true;
 		}
 	}
@@ -394,6 +393,17 @@ void EQGLoader::LoadZoneParameters(const char* buffer, size_t size, SEQZoneParam
 	params.tiles_per_chunk = 16;
 	params.units_per_chunk = params.units_per_tile * params.tiles_per_chunk;
 	params.verts_per_tile = params.quads_per_tile + 1;
+}
+
+bool EQGLoader::ParseLOD(const std::vector<char>& buffer, const std::string& tag)
+{
+	std::shared_ptr<LODList> lodList = std::make_shared<LODList>(tag);
+
+	if (!lodList->Init(buffer))
+		return false;
+
+	lod_lists.push_back(lodList);
+	return true;
 }
 
 bool EQGLoader::LoadWaterSheets(std::shared_ptr<Terrain>& terrain)
@@ -659,7 +669,7 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 
 			std::shared_ptr<Placeable> obj = std::make_shared<Placeable>();
 			obj->tag = std::move(instance_tag);
-			obj->model_file = std::move(instance_name);
+			//obj->model_file = std::move(instance_name);
 			obj->pos = instance->translation;
 			obj->rotate = instance->rotation.zyx;
 			obj->scale = glm::vec3(instance->scale);
@@ -710,6 +720,79 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 bool EQGLoader::ParseZoneV2(const std::vector<char>& buffer, const std::string& tag)
 {
 	return ParseZone(buffer, tag);
+}
+
+//============================================================================
+
+LODList::LODList(const std::string& name)
+	: tag(fmt::format("{}_LODLIST", name))
+{
+}
+
+bool LODList::Init(const std::vector<char>& buffer)
+{
+	std::string_view data(buffer.data() + 7, buffer.size() - 7);
+
+	auto lines = split_view(data, '\n');
+	for (auto&& line : lines)
+	{
+		line = trim(line);
+		if (line.empty())
+			continue;
+
+		auto element = std::make_shared<LODListElement>(line);
+		if (element->type == LODListElement::LOD)
+		{
+			elements.push_back(element);
+		}
+		else if (element->type == LODListElement::Collision)
+		{
+			collision = element;
+		}
+	}
+
+	return true;
+}
+
+LODListElement::LODListElement(std::string_view data)
+{
+	auto parts = split_view(data, ',');
+
+	if (parts.size() < 2)
+	{
+		EQG_LOG_WARN("Invalid LOD element: {}", data);
+		return;
+	}
+
+	// Level-of-detail definition
+	if (parts[0] == "LOD")
+	{
+		type = LOD;
+		definition = parts[1];
+
+		if (parts.size() < 3)
+		{
+			EQG_LOG_WARN("LOD element has missing distance: {}", data);
+			return;
+		}
+		max_distance = str_to_float(parts[2], -1);
+
+		if (max_distance < 0)
+		{
+			EQG_LOG_WARN("LOD element has invalid distance: {}", data);
+			max_distance = 10000.0f;
+		}
+	}
+	// Collision definition
+	else if (parts[0] == "COL")
+	{
+		type = Collision;
+		definition = parts[1];
+	}
+	else
+	{
+		EQG_LOG_WARN("Unknown LOD element type: {}", data);
+	}
 }
 
 } // namespace eqg

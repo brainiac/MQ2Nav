@@ -208,8 +208,6 @@ void ZoneResourceManager::LoadDoors()
 	for (DoorParams& params : doors)
 	{
 		std::shared_ptr<eqg::Placeable> gen_plac = std::make_shared<eqg::Placeable>();
-		gen_plac->SetFileName(params.name);
-
 		glm::vec3 scale;
 		glm::quat rotation;
 		glm::vec3 pos;
@@ -348,16 +346,21 @@ bool ZoneResourceManager::LoadZone()
 	// Load <zonename>_EnvironmentEmitters.txt
 
 	bool loadedEQG = false;
+	fs::path zonePath = fs::path(m_eqPath) / m_zoneName;
 
 	// Check if .eqg file exists
 
 	std::error_code ec;
-	if (fs::exists((fs::path(m_eqPath) / m_zoneName).replace_extension(".eqg"), ec))
+	if (fs::exists(zonePath.replace_extension(".eqg"), ec))
 	{
 		if (LoadEQG(m_zoneName))
 		{
 			loadedEQG = true;
 		}
+	}
+	else if (!fs::exists(zonePath.replace_extension(".s3d"), ec))
+	{
+		return false;
 	}
 
 	if (!loadedEQG)
@@ -395,6 +398,9 @@ bool ZoneResourceManager::LoadZone()
 
 	if (!loadedEQG)
 	{
+		if (!LoadS3D(m_zoneName))
+			return false;
+
 		// Load object placements
 		LoadS3D(m_zoneName, "objects.wld");
 		LoadS3D(m_zoneName, "lights.wld");
@@ -621,6 +627,11 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 		map_lights.push_back(lights);
 	}
 
+	for (const auto& lod_list : loader->lod_lists)
+	{
+		lod_lists.push_back(lod_list);
+	}
+
 	m_eqgLoaders.push_back(std::move(loader));
 	return m_eqgLoaders.back().get();
 }
@@ -650,10 +661,7 @@ eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::s
 
 	auto loader = std::make_unique<eqg::WLDLoader>();
 	if (!loader->Init(archive, fileName))
-	{
-		SPDLOG_ERROR("Failed to load {} from {}", fileName, archive->GetFileName());
 		return nullptr;
-	}
 
 	// Load objects from the .wld
 	auto& objectList = loader->GetObjectList();
@@ -808,7 +816,7 @@ void ZoneResourceManager::TraverseBone(
 		}
 		
 		std::shared_ptr<eqg::Placeable> gen_plac = std::make_shared<eqg::Placeable>();
-		gen_plac->SetFileName(bone->model->GetName());
+		gen_plac->SetName(bone->model->GetName());
 		gen_plac->SetPosition(pos);
 		gen_plac->SetRotation(rot);
 		gen_plac->SetScale(scale);

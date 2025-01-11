@@ -255,7 +255,7 @@ void ZoneCollisionMesh::addModelInstance(const PlaceablePtr& obj)
 	if (IsPointOutsideExtents(glm::vec3{ mtx * glm::vec4{ 0., 0., 0., 1. } }))
 	{
 		SPDLOG_WARN("Ignoring placement of '{}' at {{ {:.2f} {:.2f} {:.2f} }} due to being outside of max extents",
-			obj->GetFileName(), obj->pos.x, obj->pos.y, obj->pos.z);
+			obj->GetName(), obj->pos.x, obj->pos.y, obj->pos.z);
 		return;
 	}
 

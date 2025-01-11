@@ -60,7 +60,11 @@ bool WLDLoader::Init(Archive* archive, const std::string& wld_name)
 	m_fileName = wld_name;
 
 	if (!archive->Exists(wld_name))
+	{
+		EQG_LOG_TRACE("wld file {} does not exist in archive {}.", wld_name, archive->GetFileName());
+
 		return false; // no error log if file doesn't exist.
+	}
 
 	// This will whole the entire contents of the .wld file
 	m_wldFileContents = m_archive->Get(wld_name, m_wldFileSize);

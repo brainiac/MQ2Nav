@@ -39,9 +39,6 @@ public:
 	void SetName(const std::string& name) { tag = name; }
 	const std::string& GetName() const { return tag; }
 
-	void SetFileName(const std::string& name) { model_file = name; }
-	const std::string& GetFileName() const { return model_file; }
-
 	glm::mat4 GetTransform()
 	{
 		glm::mat4x4 mtx;
@@ -56,8 +53,6 @@ public:
 	glm::vec3 pos;
 	glm::vec3 rotate; // radians
 	glm::vec3 scale;
-
-	std::string model_file;
 
 	std::shared_ptr<TerrainObject> terrain_object;
 	bool ignore_for_collision = false;
