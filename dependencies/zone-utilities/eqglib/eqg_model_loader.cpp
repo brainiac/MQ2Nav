@@ -1,6 +1,7 @@
 
 #include "pch.h"
 
+#include "archive.h"
 #include "buffer_reader.h"
 #include "eqg_loader.h"
 #include "eqg_structs.h"
@@ -10,9 +11,9 @@
 #include <algorithm>
 #include <cctype>
 
-namespace EQEmu {
+namespace eqg {
 
-bool LoadEQGModel(EQEmu::PFS::Archive& archive, const std::string& model, std::shared_ptr<EQG::Geometry>& model_out)
+bool LoadEQGModel(Archive& archive, const std::string& model, std::shared_ptr<eqg::Geometry>& model_out)
 {
 	EQG_LOG_DEBUG("Loading model {}.", model);
 	std::vector<char> buffer;
@@ -26,7 +27,7 @@ bool LoadEQGModel(EQEmu::PFS::Archive& archive, const std::string& model, std::s
 	return LoadEQGModel(buffer, model, model_out);
 }
 
-bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std::shared_ptr<EQG::Geometry>& model_out)
+bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std::shared_ptr<eqg::Geometry>& model_out)
 {
 	uint32_t idx = 0;
 
@@ -52,7 +53,7 @@ bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std
 
 	if (!model_out)
 	{
-		model_out = std::make_shared<EQG::Geometry>();
+		model_out = std::make_shared<eqg::Geometry>();
 	}
 
 	uint32_t list_loc = idx;
@@ -153,4 +154,4 @@ bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std
 	return true;
 }
 
-} // namespace EQEmu
+} // namespace eqg

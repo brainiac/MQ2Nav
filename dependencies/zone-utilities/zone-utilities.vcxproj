@@ -19,7 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="eqglib\compression.h" />
     <ClInclude Include="eqglib\container_util.h" />
     <ClInclude Include="eqglib\eqglib.h" />
     <ClInclude Include="eqglib\eqg_geometry.h" />
@@ -33,7 +32,7 @@
     <ClInclude Include="eqglib\octree.h" />
     <ClInclude Include="eqglib\oriented_bounding_box.h" />
     <ClInclude Include="eqglib\pch.h" />
-    <ClInclude Include="eqglib\pfs.h" />
+    <ClInclude Include="eqglib\archive.h" />
     <ClInclude Include="eqglib\pfs_crc.h" />
     <ClInclude Include="eqglib\placeable.h" />
     <ClInclude Include="eqglib\str_util.h" />
@@ -44,7 +43,6 @@
     <ClInclude Include="eqglib\wld_structs.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="eqglib\compression.cpp" />
     <ClCompile Include="eqglib\eqglib.cpp" />
     <ClCompile Include="eqglib\eqg_loader.cpp" />
     <ClCompile Include="eqglib\eqg_model_loader.cpp" />
@@ -56,7 +54,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="eqglib\pfs.cpp" />
+    <ClCompile Include="eqglib\archive.cpp" />
     <ClCompile Include="eqglib\pfs_crc.cpp" />
     <ClCompile Include="eqglib\wld_loader.cpp" />
     <ClCompile Include="eqglib\wld_fragment.cpp" />

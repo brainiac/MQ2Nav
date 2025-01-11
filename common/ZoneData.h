@@ -7,8 +7,8 @@
 #include "eqglib/eqg_loader.h"
 #include "eqglib/wld_loader.h"
 
-typedef std::shared_ptr<EQEmu::EQG::Geometry> ModelPtr;
-typedef std::shared_ptr<EQEmu::S3D::Geometry> OldModelPtr;
+using EQGGeometryPtr = std::shared_ptr<eqg::Geometry>;
+using S3DGeometryPtr = std::shared_ptr<eqg::s3d::Geometry>;
 
 class ZoneDataLoader;
 
@@ -17,8 +17,8 @@ struct ModelInfo
 	glm::vec3 min = { 0, 0, 0 };
 	glm::vec3 max = { 0, 0, 0 };
 
-	OldModelPtr oldModel;
-	ModelPtr newModel;
+	S3DGeometryPtr oldModel;
+	EQGGeometryPtr newModel;
 };
 
 class ZoneData

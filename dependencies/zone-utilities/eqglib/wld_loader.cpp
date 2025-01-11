@@ -2,12 +2,14 @@
 #include "pch.h"
 #include "wld_loader.h"
 
+#include "archive.h"
 #include "buffer_reader.h"
 #include "log_internal.h"
-#include "pfs.h"
 #include "wld_structs.h"
 
-namespace EQEmu::S3D {
+using namespace eqg::s3d;
+
+namespace eqg {
 
 static const uint8_t decoder_array[] = { 0x95, 0x3A, 0xC5, 0x2A, 0x95, 0x7A, 0x95, 0x6A };
 
@@ -47,7 +49,7 @@ void WLDLoader::Reset()
 	m_objects.clear();
 }
 
-bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
+bool WLDLoader::Init(Archive* archive, const std::string& wld_name)
 {
 	if (archive == nullptr || wld_name.empty())
 	{
@@ -212,7 +214,7 @@ uint32_t WLDLoader::GetObjectIndexFromID(int nID, uint32_t currID)
 bool WLDLoader::ParseWLDFile(WLDLoader& loader,
 	const std::string& file_name, const std::string& wld_name)
 {
-	EQEmu::PFS::Archive archive;
+	Archive archive;
 	if (!archive.Open(file_name))
 	{
 		EQG_LOG_WARN("Unable to open file {}.", file_name);
@@ -322,4 +324,4 @@ bool WLDLoader::ParseWLDObjects()
 	return true;
 }
 
-} //  namespace EQEmu
+} //  namespace eqg

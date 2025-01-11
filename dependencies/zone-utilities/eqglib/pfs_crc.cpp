@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cctype>
 
-namespace EQEmu::PFS {
+namespace eqg {
 
 static uint32_t s_crcTable[256] = {
 	0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b, 0x1a864db2, 0x1e475005,
@@ -84,4 +84,4 @@ int32_t CRC::Get(std::string_view data)
 	return Update(crc, &terminator, 1);
 }
 
-} // namespace EQEmu::PFS
+} // namespace eqg

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace EQEmu {
+namespace eqg {
 
 // TODO: Split into LightDefinition, PointLight, etc.
 class Light
@@ -27,4 +27,4 @@ public:
 	bool static_light = true;
 };
 
-} // namespace EQEmu
+} // namespace eqg

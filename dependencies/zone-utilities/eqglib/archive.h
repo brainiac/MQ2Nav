@@ -10,7 +10,7 @@
 #include <memory>
 #include <unordered_map>
 
-namespace EQEmu::PFS {
+namespace eqg {
 
 class Archive
 {
@@ -86,4 +86,4 @@ private:
 	ci_ordered::map<std::string_view, FileEntry*> m_fileEntriesByName;
 };
 
-} // namespace EQEmu::PFS
+} // namespace eqg

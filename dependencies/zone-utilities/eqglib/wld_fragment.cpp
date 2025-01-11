@@ -8,7 +8,9 @@
 #include "wld_loader.h"
 #include "wld_structs.h"
 
-namespace EQEmu::S3D {
+using namespace eqg::s3d;
+
+namespace eqg {
 
 constexpr float EQ_TO_DEG = 360.0f / 512.0f;
 
@@ -722,4 +724,4 @@ WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 	geometry = model;
 }
 
-} // namespace EQEmu::S3D
+} // namespace eqg::s3d

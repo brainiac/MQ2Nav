@@ -2,15 +2,15 @@
 #include "pch.h"
 #include "eqg_terrain.h"
 
+#include "archive.h"
 #include "buffer_reader.h"
 #include "eqg_structs.h"
 #include "light.h"
 #include "log_internal.h"
-#include "pfs.h"
 
 #include <glm/gtx/matrix_decompose.hpp>
 
-namespace EQEmu::EQG {
+namespace eqg {
 
 Terrain::Terrain(const SEQZoneParameters& params_)
 	: m_params(params_)
@@ -67,7 +67,7 @@ static float HeightWithinQuad(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec
 }
 
 
-bool Terrain::Load(EQEmu::PFS::Archive* archive)
+bool Terrain::Load(Archive* archive)
 {
 	m_archive = archive;
 
@@ -98,7 +98,7 @@ bool Terrain::Load(EQEmu::PFS::Archive* archive)
 	EQG_LOG_TRACE("Parsing zone terrain tiles.");
 	for (uint32_t i = 0; i < tile_count; ++i)
 	{
-		std::shared_ptr<EQG::TerrainTile> tile = std::make_shared<EQG::TerrainTile>(this);
+		std::shared_ptr<TerrainTile> tile = std::make_shared<TerrainTile>(this);
 
 		if (!tile->Load(reader, version))
 		{
@@ -619,7 +619,7 @@ bool TerrainObjectGroupDefinitionAreaElement::Load(const std::vector<std::string
 	return false;
 }
 
-bool TerrainObjectGroupDefinition::Load(EQEmu::PFS::Archive* archive, const std::string& group_name)
+bool TerrainObjectGroupDefinition::Load(Archive* archive, const std::string& group_name)
 {
 	this->name = group_name;
 	std::string fileName = group_name + ".tog";
@@ -657,4 +657,4 @@ bool TerrainObjectGroupDefinition::Load(EQEmu::PFS::Archive* archive, const std:
 	return true;
 }
 
-} // namespace EQEmu::EQG
+} // namespace eqg

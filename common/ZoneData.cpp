@@ -5,7 +5,7 @@
 #include "ZoneData.h"
 
 #include "eqglib/eqg_loader.h"
-#include "Eqglib/s3d_types.h"
+#include "eqglib/s3d_types.h"
 
 #include <fmt/format.h>
 #include <mq/base/String.h>
@@ -18,9 +18,6 @@
 #include <filesystem>
 
 namespace fs = std::filesystem;
-
-typedef std::shared_ptr<EQEmu::EQG::Geometry> ModelPtr;
-typedef std::shared_ptr<EQEmu::S3D::Geometry> OldModelPtr;
 
 class ZoneDataLoader
 {
@@ -73,7 +70,7 @@ public:
 				for (auto& name : filenames)
 				{
 					std::string asset_file = fmt::format("{}\\{}", m_zd->GetEQPath(), name);
-					EQEmu::PFS::Archive archive;
+					eqg::Archive archive;
 
 					if (!archive.Open(asset_file))
 						continue;
@@ -81,9 +78,9 @@ public:
 					std::vector<std::string> models = archive.GetFileNames("mod");
 					for (auto& modelName : models)
 					{
-						ModelPtr model;
+						EQGGeometryPtr model;
 
-						EQEmu::LoadEQGModel(archive, modelName, model);
+						eqg::LoadEQGModel(archive, modelName, model);
 						if (model)
 						{
 							model->SetName(modelName);
@@ -98,7 +95,7 @@ public:
 		return loadedSomething;
 	}
 
-	ModelPtr GetModel(const std::string& modelName)
+	EQGGeometryPtr GetModel(const std::string& modelName)
 	{
 		std::string name = mq::to_lower_copy(modelName) + ".mod";
 		auto fileIter = m_modelsByFile.find(name);
@@ -113,8 +110,8 @@ public:
 			return iter->second;
 		}
 
-		ModelPtr model;
-		if (EQEmu::LoadEQGModel(m_archive, name, model))
+		EQGGeometryPtr model;
+		if (eqg::LoadEQGModel(m_archive, name, model))
 		{
 			model->SetName(modelName);
 			m_models[modelName] = model;
@@ -125,8 +122,7 @@ public:
 
 	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
-
-		if (ModelPtr model = GetModel(modelName))
+		if (EQGGeometryPtr model = GetModel(modelName))
 		{
 			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
 
@@ -150,10 +146,10 @@ public:
 
 private:
 	ZoneData* m_zd;
-	EQEmu::PFS::Archive m_archive;
+	eqg::Archive m_archive;
 
-	std::map<std::string, ModelPtr> m_models;
-	std::map<std::string, ModelPtr> m_modelsByFile;
+	std::map<std::string, EQGGeometryPtr> m_models;
+	std::map<std::string, EQGGeometryPtr> m_modelsByFile;
 };
 
 //----------------------------------------------------------------------------
@@ -173,12 +169,12 @@ public:
 
 	virtual bool Load() override
 	{
-		std::vector<EQEmu::S3D::WLDFragment> zone_object_frags;
+		std::vector<eqg::WLDFragment> zone_object_frags;
 
 		std::string base_filename = fmt::format("{}\\{}", m_zd->GetEQPath(), m_zd->GetZoneName());
 		bool loadedSomething = false;
 
-		EQEmu::PFS::Archive archive;
+		eqg::Archive archive;
 
 		for (int i = 0; i < 3; i++)
 		{
@@ -191,7 +187,7 @@ public:
 			std::string wld_name = m_zd->GetZoneName() + suffix + ".wld";
 			std::string file_name = fmt::format("{}\\{}.s3d", m_zd->GetEQPath(), m_zd->GetZoneName() + suffix);
 
-			EQEmu::S3D::WLDLoader loader;
+			eqg::WLDLoader loader;
 
 			if (loader.ParseWLDFile(loader, file_name, wld_name))
 			{
@@ -199,9 +195,9 @@ public:
 				{
 					auto& frag = loader.GetObject(i);
 
-					if (frag.type == EQEmu::S3D::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+					if (frag.type == eqg::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
 					{
-						EQEmu::S3D::WLDFragment36* frag36 = static_cast<EQEmu::S3D::WLDFragment36*>(frag.parsed_data);
+						eqg::WLDFragment36* frag36 = static_cast<eqg::WLDFragment36*>(frag.parsed_data);
 						auto model = frag36->geometry;
 
 						if (!m_s3dModels.contains(model->GetName()))
@@ -236,7 +232,7 @@ public:
 				for (auto& name : filenames)
 				{
 					std::string asset_file = fmt::format("{}\\{}", m_zd->GetEQPath(), name);
-					EQEmu::PFS::Archive archive;
+					eqg::Archive archive;
 
 					if (!archive.Open(asset_file))
 						continue;
@@ -245,9 +241,9 @@ public:
 
 					for (auto& modelName : models)
 					{
-						ModelPtr model;
+						EQGGeometryPtr model;
 
-						EQEmu::LoadEQGModel(archive, modelName, model);
+						eqg::LoadEQGModel(archive, modelName, model);
 						if (model)
 						{
 							model->SetName(modelName);
@@ -262,7 +258,7 @@ public:
 		return loadedSomething;
 	}
 
-	OldModelPtr GetS3dModel(const std::string& modelName)
+	S3DGeometryPtr GetS3dModel(const std::string& modelName)
 	{
 		std::string actualName = mq::to_upper_copy(modelName) + "_DMSPRITEDEF";
 
@@ -273,7 +269,7 @@ public:
 		return nullptr;
 	}
 
-	ModelPtr GetEQGModel(const std::string& modelName)
+	EQGGeometryPtr GetEQGModel(const std::string& modelName)
 	{
 		std::string eqgName = mq::to_lower_copy(modelName) + ".mod";
 
@@ -287,7 +283,7 @@ public:
 	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
 		// try to find the s3d model first, that is the most common
-		if (OldModelPtr model = GetS3dModel(modelName))
+		if (S3DGeometryPtr model = GetS3dModel(modelName))
 		{
 			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
 
@@ -307,7 +303,7 @@ public:
 		}
 
 		// otherwise, if we have eqg models, try them too
-		if (ModelPtr model = GetEQGModel(modelName))
+		if (EQGGeometryPtr model = GetEQGModel(modelName))
 		{
 			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
 
@@ -332,8 +328,8 @@ public:
 private:
 	ZoneData* m_zd;
 
-	std::map<std::string, OldModelPtr> m_s3dModels;
-	std::map<std::string, ModelPtr> m_eqgModels;
+	std::map<std::string, S3DGeometryPtr> m_s3dModels;
+	std::map<std::string, EQGGeometryPtr> m_eqgModels;
 };
 
 //----------------------------------------------------------------------------

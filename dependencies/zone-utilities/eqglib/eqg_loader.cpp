@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "eqg_loader.h"
 
+#include "archive.h"
 #include "buffer_reader.h"
 #include "eqg_structs.h"
 #include "log_internal.h"
@@ -10,7 +11,7 @@
 
 namespace fs = std::filesystem;
 
-namespace EQEmu {
+namespace eqg {
 
 EQGLoader::EQGLoader()
 {
@@ -20,7 +21,7 @@ EQGLoader::~EQGLoader()
 {
 }
 	
-bool EQGLoader::Load(PFS::Archive* archive)
+bool EQGLoader::Load(Archive* archive)
 {
 	if (archive == nullptr)
 		return false;
@@ -184,7 +185,7 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 
 bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag)
 {
-	std::shared_ptr<EQG::Geometry> model;
+	std::shared_ptr<eqg::Geometry> model;
 
 	if (!LoadEQGModel(buffer, fileName, model))
 	{
@@ -199,7 +200,7 @@ bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& f
 
 bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag)
 {
-	std::shared_ptr<EQG::Geometry> model;
+	std::shared_ptr<eqg::Geometry> model;
 
 	if (!LoadEQGModel(buffer, tag, model))
 	{
@@ -221,7 +222,7 @@ bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
 	LoadZoneParameters(buffer.data(), buffer.size(), params);
 
 	// Load terrain data
-	auto loading_terrain = std::make_shared<EQG::Terrain>(params);
+	auto loading_terrain = std::make_shared<Terrain>(params);
 
 	EQG_LOG_DEBUG("Parsing zone data file.");
 	if (!loading_terrain->Load(m_archive))
@@ -395,7 +396,7 @@ void EQGLoader::LoadZoneParameters(const char* buffer, size_t size, SEQZoneParam
 	params.verts_per_tile = params.quads_per_tile + 1;
 }
 
-bool EQGLoader::LoadWaterSheets(std::shared_ptr<EQG::Terrain>& terrain)
+bool EQGLoader::LoadWaterSheets(std::shared_ptr<Terrain>& terrain)
 {
 	std::vector<char> wat;
 	if (!m_archive->Get("water.dat", wat))
@@ -405,7 +406,7 @@ bool EQGLoader::LoadWaterSheets(std::shared_ptr<EQG::Terrain>& terrain)
 
 	std::vector<std::string> tokens = ParseConfigFile(wat.data(), wat.size());
 
-	std::shared_ptr<EQG::WaterSheet> ws;
+	std::shared_ptr<WaterSheet> ws;
 
 	for (size_t i = 1; i < tokens.size();)
 	{
@@ -413,7 +414,7 @@ bool EQGLoader::LoadWaterSheets(std::shared_ptr<EQG::Terrain>& terrain)
 
 		if (token.compare("*WATERSHEET") == 0)
 		{
-			ws = std::make_shared<EQG::WaterSheet>();
+			ws = std::make_shared<WaterSheet>();
 			ws->SetTile(false);
 
 			++i;
@@ -430,7 +431,7 @@ bool EQGLoader::LoadWaterSheets(std::shared_ptr<EQG::Terrain>& terrain)
 		}
 		else if (token.compare("*WATERSHEETDATA") == 0)
 		{
-			ws = std::make_shared<EQG::WaterSheet>();
+			ws = std::make_shared<WaterSheet>();
 			ws->SetTile(true);
 
 			++i;
@@ -525,7 +526,7 @@ bool EQGLoader::LoadWaterSheets(std::shared_ptr<EQG::Terrain>& terrain)
 	return true;
 }
 
-bool EQGLoader::LoadInvisibleWalls(std::shared_ptr<EQG::Terrain>& terrain)
+bool EQGLoader::LoadInvisibleWalls(std::shared_ptr<Terrain>& terrain)
 {
 	std::vector<char> buffer;
 
@@ -541,7 +542,7 @@ bool EQGLoader::LoadInvisibleWalls(std::shared_ptr<EQG::Terrain>& terrain)
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const char* name = reader.read_cstr();
-		std::shared_ptr<EQG::InvisWall> invisWall = std::make_shared<EQG::InvisWall>(name);
+		std::shared_ptr<InvisWall> invisWall = std::make_shared<InvisWall>(name);
 
 		reader.read(invisWall->wall_top_height);
 
@@ -675,7 +676,7 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 	{
 		SZONArea* area = reader.read_ptr<SZONArea>();
 
-		auto newArea = std::make_shared<EQG::TerrainArea>();
+		auto newArea = std::make_shared<TerrainArea>();
 		newArea->name = string_pool + area->name;
 		newArea->position = area->center;
 		newArea->orientation = area->orientation;
@@ -711,4 +712,4 @@ bool EQGLoader::ParseZoneV2(const std::vector<char>& buffer, const std::string& 
 	return ParseZone(buffer, tag);
 }
 
-} // namespace EQEmu
+} // namespace eqg

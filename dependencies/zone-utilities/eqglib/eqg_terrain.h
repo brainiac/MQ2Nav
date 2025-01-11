@@ -7,19 +7,11 @@
 #include <memory>
 #include <map>
 
-namespace EQEmu::PFS
-{
-	class Archive;
-}
+namespace eqg {
 
-namespace EQEmu
-{
-	class BufferReader;
-	class Light;
-}
-
-namespace EQEmu::EQG {
-
+class Archive;
+class BufferReader;
+class Light;
 class Terrain;
 class WaterSheet;
 
@@ -102,7 +94,7 @@ struct TerrainObjectGroupDefinition
 	std::vector<std::shared_ptr<TerrainObjectGroupDefinitionObjectElement>> objects;
 	std::vector<std::shared_ptr<TerrainObjectGroupDefinitionAreaElement>> areas;
 
-	bool Load(EQEmu::PFS::Archive* archive, const std::string& group_name);
+	bool Load(Archive* archive, const std::string& group_name);
 };
 
 struct TerrainObjectGroup;
@@ -196,7 +188,7 @@ public:
 	float lava_level = -1000.0f;
 	WaterSheet* water_sheet = nullptr;
 
-	std::vector<std::shared_ptr<EQG::TerrainArea>> m_areas;
+	std::vector<std::shared_ptr<TerrainArea>> m_areas;
 	std::vector<std::shared_ptr<TerrainObject>> m_objects;
 	std::vector<std::shared_ptr<TerrainObjectGroup>> m_groups;
 	std::vector<std::shared_ptr<Light>> m_lights;
@@ -214,7 +206,7 @@ public:
 	Terrain(const SEQZoneParameters& params);
 	~Terrain();
 
-	bool Load(EQEmu::PFS::Archive* archive);
+	bool Load(Archive* archive);
 
 	void AddTile(const std::shared_ptr<TerrainTile>& t) { tiles.push_back(t); }
 	void AddWaterSheet(const std::shared_ptr<WaterSheet>& s) { water_sheets.push_back(s); }
@@ -235,7 +227,7 @@ private:
 	void LoadInvisibleWalls();
 
 	SEQZoneParameters m_params;
-	EQEmu::PFS::Archive* m_archive = nullptr;
+	Archive* m_archive = nullptr;
 
 public:
 	uint32_t version = 0;
@@ -257,4 +249,4 @@ public:
 	std::vector<std::shared_ptr<TerrainObjectGroupDefinition>> group_definitions;
 };
 
-} // namespace EQEmu::EQG
+} // namespace eqg

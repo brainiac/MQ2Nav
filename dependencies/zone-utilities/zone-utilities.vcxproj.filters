@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="eqglib\compression.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="eqglib\eqg_geometry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -42,7 +39,7 @@
     <ClInclude Include="eqglib\oriented_bounding_box.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="eqglib\pfs.h">
+    <ClInclude Include="eqglib\archive.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="eqglib\pfs_crc.h">
@@ -86,9 +83,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="eqglib\compression.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="eqglib\eqg_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -98,7 +92,7 @@
     <ClCompile Include="eqglib\oriented_bounding_box.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="eqglib\pfs.cpp">
+    <ClCompile Include="eqglib\archive.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="eqglib\pfs_crc.cpp">

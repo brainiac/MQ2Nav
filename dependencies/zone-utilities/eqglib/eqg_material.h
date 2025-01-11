@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace EQEmu::EQG {
+namespace eqg {
 
 class Material
 {
@@ -31,4 +31,4 @@ public:
 	std::vector<Property> properties;
 };
 
-} // namespace EQEmu::EQG
+} // namespace eqg

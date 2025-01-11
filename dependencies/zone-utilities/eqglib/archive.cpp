@@ -1,19 +1,53 @@
 
 #include "pch.h"
-#include "pfs.h"
+#include "archive.h"
 
 #include "buffer_reader.h"
-#include "compression.h"
 #include "pfs_crc.h"
 #include "str_util.h"
 
 #include <algorithm>
 #include <cstring>
+#include <zlib.h>
 
-namespace EQEmu::PFS {
+namespace eqg {
 
-constexpr int32_t MAX_BLOCK_SIZE = 8192;          // the client will crash if you make this bigger, so don't.
-constexpr int32_t PFS_MAGIC = 'PFS ';
+static uint32_t InflateData(const char* buffer, uint32_t len, char* out_buffer, uint32_t out_len_max)
+{
+	z_stream zstream;
+	int zerror = 0;
+	int i;
+
+	zstream.next_in = const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(buffer));
+	zstream.avail_in = len;
+	zstream.next_out = reinterpret_cast<unsigned char*>(out_buffer);;
+	zstream.avail_out = out_len_max;
+	zstream.zalloc = Z_NULL;
+	zstream.zfree = Z_NULL;
+	zstream.opaque = Z_NULL;
+
+	i = inflateInit2(&zstream, 15);
+	if (i != Z_OK)
+	{
+		return 0;
+	}
+
+	zerror = inflate(&zstream, Z_FINISH);
+	if (zerror == Z_STREAM_END)
+	{
+		inflateEnd(&zstream);
+		return zstream.total_out;
+	}
+
+	if (zerror == -4 && zstream.msg == 0)
+	{
+		return 0;
+	}
+
+	zerror = inflateEnd(&zstream);
+	return 0;
+}
+
 
 Archive::CRCKey::CRCKey(std::string_view s)
 {
@@ -281,7 +315,7 @@ std::unique_ptr<uint8_t[]> Archive::InflateByFileOffset(
 		if (!reader.read(&temp_buffer[0], deflate_length))
 			return nullptr;
 
-		uint32_t inflate_out = EQEmu::InflateData(&temp_buffer[0], deflate_length,
+		uint32_t inflate_out = InflateData(&temp_buffer[0], deflate_length,
 			reinterpret_cast<char*>(out_buffer.get()) + inflate, inflate_length);
 		if (inflate_out != inflate_length)
 			return nullptr;
@@ -291,4 +325,4 @@ std::unique_ptr<uint8_t[]> Archive::InflateByFileOffset(
 	return out_buffer;
 }
 
-} // namespace EQEmu::PFS
+} // namespace eqg

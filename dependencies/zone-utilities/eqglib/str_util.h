@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-namespace EQEmu {
+namespace eqg {
 
 inline void to_lower(std::string& str)
 {
@@ -309,4 +309,4 @@ inline int ci_string_compare(std::string_view s1, std::string_view s2)
 }
 
 
-} // namespace EQEmu
+} // namespace eqg

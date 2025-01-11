@@ -48,7 +48,7 @@ private:
 	int m_lastDoorTargetRenderId = -1;
 	int m_loadedDoorCount = 0;
 
-	std::map<std::string, std::shared_ptr<EQEmu::EQG::Geometry>> m_models;
+	std::map<std::string, std::shared_ptr<eqg::Geometry>> m_models;
 	std::map<int, std::shared_ptr<ModelData>> m_modelData;
 
 	std::unique_ptr<DoorsDebugUI> m_doorsUI;

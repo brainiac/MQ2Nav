@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <memory>
 
-namespace EQEmu::S3D {
+namespace eqg {
 
 class WLDLoader;
 
@@ -81,7 +81,7 @@ class WLDFragment03 : public WLDFragment
 public:
 	WLDFragment03(WLDLoader* loader, S3DFileObject* obj);
 
-	std::shared_ptr<Texture> texture;
+	std::shared_ptr<s3d::Texture> texture;
 };
 
 // WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE
@@ -90,7 +90,7 @@ class WLDFragment04 : public WLDFragment
 public:
 	WLDFragment04(WLDLoader* loader, S3DFileObject* obj);
 
-	std::shared_ptr<TextureBrush> brush;
+	std::shared_ptr<s3d::TextureBrush> brush;
 };
 
 // WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE
@@ -108,7 +108,7 @@ class WLDFragment10 : public WLDFragment
 public:
 	WLDFragment10(WLDLoader* loader, S3DFileObject* obj);
 
-	std::shared_ptr<SkeletonTrack> track;
+	std::shared_ptr<s3d::SkeletonTrack> track;
 };
 
 // WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE
@@ -126,7 +126,7 @@ class WLDFragment12 : public WLDFragment
 public:
 	WLDFragment12(WLDLoader* loader, S3DFileObject* obj);
 
-	using TransformList = std::vector<SkeletonTrack::FrameTransform>;
+	using TransformList = std::vector<s3d::SkeletonTrack::FrameTransform>;
 	TransformList transforms;
 };
 
@@ -187,7 +187,7 @@ class WLDFragment21 : public WLDFragment
 public:
 	WLDFragment21(WLDLoader* loader, S3DFileObject* obj);
 
-	std::shared_ptr<BSPTree> tree;
+	std::shared_ptr<s3d::BSPTree> tree;
 };
 
 // WLD_OBJ_REGION_TYPE
@@ -220,7 +220,7 @@ class WLDFragment29 : public WLDFragment
 public:
 	WLDFragment29(WLDLoader* loader, S3DFileObject* obj);
 
-	std::shared_ptr<BSPRegion> region;
+	std::shared_ptr<s3d::BSPRegion> region;
 };
 
 // WLD_OBJ_DMSPRITEINSTANCE_TYPE
@@ -238,7 +238,7 @@ class WLDFragment30 : public WLDFragment
 public:
 	WLDFragment30(WLDLoader* loader, S3DFileObject* obj);
 
-	std::shared_ptr<TextureBrush> texture_brush;
+	std::shared_ptr<s3d::TextureBrush> texture_brush;
 };
 
 // WLD_OBJ_MATERIALPALETTE_TYPE
@@ -247,7 +247,7 @@ class WLDFragment31 : public WLDFragment
 public:
 	WLDFragment31(WLDLoader* loader, S3DFileObject* obj);
 
-	std::shared_ptr<TextureBrushSet> texture_brush_set;
+	std::shared_ptr<s3d::TextureBrushSet> texture_brush_set;
 };
 
 // WLD_OBJ_DMSPRITEDEFINITION2_TYPE
@@ -257,7 +257,7 @@ public:
 	WLDFragment36(WLDLoader* loader, S3DFileObject* obj);
 	~WLDFragment36() {}
 
-	std::shared_ptr<Geometry> geometry;
+	std::shared_ptr<s3d::Geometry> geometry;
 };
 
-} // namespace EQEmu::S3D
+} // namespace eqg

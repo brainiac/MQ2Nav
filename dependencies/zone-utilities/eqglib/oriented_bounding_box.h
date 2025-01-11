@@ -3,6 +3,8 @@
 
 #include <glm/glm.hpp>
 
+namespace eqg {
+
 glm::mat4 CreateRotateMatrix(float rx, float ry, float rz);
 glm::mat4 CreateTranslateMatrix(float tx, float ty, float tz);
 glm::mat4 CreateScaleMatrix(float sx, float sy, float sz);
@@ -26,3 +28,5 @@ private:
 	glm::mat4 transformation;
 	glm::mat4 inverted_transformation;
 };
+
+} // namespace eqg

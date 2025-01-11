@@ -21,7 +21,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace EQEmu::PFS {
+namespace eqg {
 
 class CRC
 {
@@ -42,4 +42,4 @@ private:
 	int32_t Update(int32_t crc, const uint8_t* data, int32_t length);
 };
 
-} // namespace EQEmu::PFS
+} // namespace eqg

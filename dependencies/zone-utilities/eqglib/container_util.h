@@ -8,7 +8,7 @@
 #include <map>
 #include <set>
 
-namespace EQEmu {
+namespace eqg {
 
 struct ci_unordered
 {
@@ -110,4 +110,4 @@ public:
 };
 
 
-} // namespace EQEmu
+} // namespace eqg

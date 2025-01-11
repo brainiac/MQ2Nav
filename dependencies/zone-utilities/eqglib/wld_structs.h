@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-namespace EQEmu::S3D {
+namespace eqg {
 
 // flags for sprite objects
 enum WLDOBJ_SPROPT
@@ -225,7 +225,7 @@ struct WLD_OBJ_WORLDTREE
 
 struct WLD_OBJ_WORLDTREE_NODE
 {
-	SPlanarEquation plane;
+	s3d::SPlanarEquation plane;
 	uint32_t region;
 	uint32_t node[2];
 };
@@ -360,4 +360,4 @@ struct WLD_MATERIALGROUP
 	uint16_t material_id;
 };
 
-} // namespace EQEmu::S3D
+} // namespace eqg

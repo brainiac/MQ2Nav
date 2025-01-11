@@ -9,11 +9,9 @@
 #include <memory>
 #include <vector>
 
-namespace EQEmu {
+namespace eqg {
 
-namespace EQG {
-	struct TerrainObject;
-}
+struct TerrainObject;
 
 class Placeable
 {
@@ -61,7 +59,7 @@ public:
 
 	std::string model_file;
 
-	std::shared_ptr<EQG::TerrainObject> terrain_object;
+	std::shared_ptr<TerrainObject> terrain_object;
 	bool ignore_for_collision = false;
 };
 
@@ -123,5 +121,4 @@ public:
 	std::vector<std::shared_ptr<Placeable>> placeables;
 };
 
-
-} // namespace EQEmu
+} // namespace eqg

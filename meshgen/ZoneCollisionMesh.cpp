@@ -285,7 +285,7 @@ void ZoneCollisionMesh::addZoneGeometry(const S3DGeometryPtr& model)
 		auto v2 = mod_verts[current_poly.verts[1]];
 		auto v3 = mod_verts[current_poly.verts[2]];
 
-		if ((current_poly.flags & EQEmu::S3D::S3D_FACEFLAG_PASSABLE) == 0)
+		if ((current_poly.flags & eqg::S3D_FACEFLAG_PASSABLE) == 0)
 		{
 			addTriangle(v1.pos, v2.pos, v3.pos);
 		}

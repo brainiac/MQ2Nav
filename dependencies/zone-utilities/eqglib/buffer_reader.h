@@ -8,7 +8,7 @@
 #include <span>
 #include <type_traits>
 
-namespace EQEmu {
+namespace eqg {
 
 class OverreadException : public std::exception
 {
@@ -221,4 +221,4 @@ private:
 	size_t pos_ = 0;
 };
 
-} // namespace EQEmu
+} // namespace eqg

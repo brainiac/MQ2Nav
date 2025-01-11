@@ -5,6 +5,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
 
+namespace eqg {
+
 glm::mat4 CreateRotateMatrix(float rx, float ry, float rz)
 {
 	glm::mat4 rot_x(1.0f);
@@ -103,3 +105,5 @@ bool OrientedBoundingBox::ContainsPoint(glm::vec3 p) const
 	
 	return false;
 }
+
+} // namespace eqg

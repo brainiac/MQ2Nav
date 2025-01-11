@@ -7,7 +7,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <memory>
 
-namespace EQEmu::S3D {
+namespace eqg::s3d {
 
 class TextureBrushSet;
 class TextureBrush;
@@ -132,6 +132,4 @@ public:
 	uint32_t flags = 0;
 };
 
-
-
-} // namespace EQEmu::S3D
+} // namespace eqg::s3d

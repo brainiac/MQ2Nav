@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-namespace EQEmu {
+namespace eqg {
 
 enum EQG_FACEFLAGS
 {
@@ -153,4 +153,4 @@ struct mod_polygon
 	uint32_t flags;
 };
 
-} // namespace EQEmu
+} // namespace eqg

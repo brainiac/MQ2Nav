@@ -7,6 +7,8 @@
 #include <functional>
 #include <map>
 
+namespace eqg {
+
 template<typename T, int elem_t = 4, int max_depth = 7>
 class Octree
 {
@@ -447,3 +449,5 @@ private:
 	AABB bounds_;
 	std::unordered_map<T*, OctreeNode*> data_node_lookup_;
 };
+
+} // namespace eqg

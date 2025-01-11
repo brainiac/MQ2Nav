@@ -53,11 +53,11 @@ private:
 	bool LoadZone();
 	bool LoadGlobalData();
 
-	EQEmu::PFS::Archive* LoadArchive(const std::string& path);
-	EQEmu::EQGLoader* LoadEQG(std::string_view fileName);
-	EQEmu::EQGLoader* LoadEQG(EQEmu::PFS::Archive* archive);
-	EQEmu::S3D::WLDLoader* LoadS3D(std::string_view fileName, std::string_view wldFile = "");
-	EQEmu::S3D::WLDLoader* LoadWLD(EQEmu::PFS::Archive* archive, const std::string& fileName);
+	eqg::Archive* LoadArchive(const std::string& path);
+	eqg::EQGLoader* LoadEQG(std::string_view fileName);
+	eqg::EQGLoader* LoadEQG(eqg::Archive* archive);
+	eqg::WLDLoader* LoadS3D(std::string_view fileName, std::string_view wldFile = "");
+	eqg::WLDLoader* LoadWLD(eqg::Archive* archive, const std::string& fileName);
 
 	void LoadAssetsFile();
 	void LoadDoors();
@@ -73,7 +73,7 @@ private:
 	void LoadGlobalLoadFile();
 	void PerformGlobalLoad(int phase);
 
-	void TraverseBone(std::shared_ptr<EQEmu::S3D::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
+	void TraverseBone(std::shared_ptr<eqg::s3d::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
 	bool LoadModelInst(const PlaceablePtr& model_inst);
 
 	void AddFace(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, bool collidable);
@@ -109,14 +109,14 @@ private:
 	std::vector<PlaceablePtr> map_placeables;
 	std::vector<S3DGeometryPtr> map_s3d_geometry;
 	std::vector<TerrainAreaPtr> map_areas;
-	std::vector<std::shared_ptr<EQEmu::Light>> map_lights;
+	std::vector<std::shared_ptr<eqg::Light>> map_lights;
 
 	std::vector<GlobalLoadAsset> global_load_assets;
 
 	int m_dynamicObjects = 0;
 	bool m_hasDynamicObjects = false;
 
-	std::vector<std::unique_ptr<EQEmu::PFS::Archive>> m_archives;
-	std::vector<std::unique_ptr<EQEmu::S3D::WLDLoader>> m_wldLoaders;
-	std::vector<std::unique_ptr<EQEmu::EQGLoader>> m_eqgLoaders;
+	std::vector<std::unique_ptr<eqg::Archive>> m_archives;
+	std::vector<std::unique_ptr<eqg::WLDLoader>> m_wldLoaders;
+	std::vector<std::unique_ptr<eqg::EQGLoader>> m_eqgLoaders;
 };

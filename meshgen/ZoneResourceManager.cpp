@@ -207,7 +207,7 @@ void ZoneResourceManager::LoadDoors()
 
 	for (DoorParams& params : doors)
 	{
-		std::shared_ptr<EQEmu::Placeable> gen_plac = std::make_shared<EQEmu::Placeable>();
+		std::shared_ptr<eqg::Placeable> gen_plac = std::make_shared<eqg::Placeable>();
 		gen_plac->SetFileName(params.name);
 
 		glm::vec3 scale;
@@ -363,7 +363,7 @@ bool ZoneResourceManager::LoadZone()
 	if (!loadedEQG)
 	{
 		// Load zone data: <zonename>.s3d
-		EQEmu::S3D::WLDLoader* zone_archive = LoadS3D(m_zoneName);
+		eqg::WLDLoader* zone_archive = LoadS3D(m_zoneName);
 		if (!zone_archive)
 		{
 			return false; // Zone doesn't exist
@@ -406,7 +406,7 @@ bool ZoneResourceManager::LoadZone()
 	return true;
 }
 
-EQEmu::PFS::Archive* ZoneResourceManager::LoadArchive(const std::string& path)
+eqg::Archive* ZoneResourceManager::LoadArchive(const std::string& path)
 {
 	for (const auto& archive : m_archives)
 	{
@@ -414,7 +414,7 @@ EQEmu::PFS::Archive* ZoneResourceManager::LoadArchive(const std::string& path)
 			return archive.get();
 	}
 
-	auto archive = std::make_unique<EQEmu::PFS::Archive>();
+	auto archive = std::make_unique<eqg::Archive>();
 	if (archive->Open(path))
 	{
 		m_archives.push_back(std::move(archive));
@@ -428,19 +428,19 @@ EQEmu::PFS::Archive* ZoneResourceManager::LoadArchive(const std::string& path)
 	return nullptr;
 }
 
-EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName)
+eqg::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName)
 {
 	// Load EQG archive and then load all the data within it.
 	fs::path archivePath = (fs::path(m_eqPath) / fileName).replace_extension(".eqg");
 	std::string archiveFileName = archivePath.filename().string();
 
-	EQEmu::PFS::Archive* archive = LoadArchive(archivePath.string());
+	eqg::Archive* archive = LoadArchive(archivePath.string());
 	if (!archive)
 	{
 		return nullptr;
 	}
 
-	EQEmu::EQGLoader* loader = LoadEQG(archive);
+	eqg::EQGLoader* loader = LoadEQG(archive);
 
 	if (loader)
 	{
@@ -454,7 +454,7 @@ EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName)
 	return loader;
 }
 
-EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(EQEmu::PFS::Archive* archive)
+eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 {
 	for (const auto& loader : m_eqgLoaders)
 	{
@@ -462,7 +462,7 @@ EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(EQEmu::PFS::Archive* archive)
 			return loader.get();
 	}
 
-	auto loader = std::make_unique<EQEmu::EQGLoader>();
+	auto loader = std::make_unique<eqg::EQGLoader>();
 	if (!loader->Load(archive))
 		return nullptr;
 
@@ -625,13 +625,13 @@ EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(EQEmu::PFS::Archive* archive)
 	return m_eqgLoaders.back().get();
 }
 
-EQEmu::S3D::WLDLoader* ZoneResourceManager::LoadS3D(std::string_view fileName, std::string_view wldFile)
+eqg::WLDLoader* ZoneResourceManager::LoadS3D(std::string_view fileName, std::string_view wldFile)
 {
 	// Combo load S3D archive and .WLD file by same name
 	std::string archivePath = (fs::path(m_eqPath) / fileName).replace_extension(".s3d").string();
 	std::string wldFileName = wldFile.empty() ? fs::path(fileName).filename().replace_extension(".wld").string() : std::string(wldFile);
 
-	EQEmu::PFS::Archive* archive = LoadArchive(archivePath);
+	eqg::Archive* archive = LoadArchive(archivePath);
 	if (!archive)
 	{
 		return nullptr;
@@ -640,7 +640,7 @@ EQEmu::S3D::WLDLoader* ZoneResourceManager::LoadS3D(std::string_view fileName, s
 	return LoadWLD(archive, wldFileName);
 }
 
-EQEmu::S3D::WLDLoader* ZoneResourceManager::LoadWLD(EQEmu::PFS::Archive* archive, const std::string& fileName)
+eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::string& fileName)
 {
 	for (const auto& loader : m_wldLoaders)
 	{
@@ -648,7 +648,7 @@ EQEmu::S3D::WLDLoader* ZoneResourceManager::LoadWLD(EQEmu::PFS::Archive* archive
 			return loader.get();
 	}
 
-	auto loader = std::make_unique<EQEmu::S3D::WLDLoader>();
+	auto loader = std::make_unique<eqg::WLDLoader>();
 	if (!loader->Init(archive, fileName))
 	{
 		SPDLOG_ERROR("Failed to load {} from {}", fileName, archive->GetFileName());
@@ -659,66 +659,66 @@ EQEmu::S3D::WLDLoader* ZoneResourceManager::LoadWLD(EQEmu::PFS::Archive* archive
 	auto& objectList = loader->GetObjectList();
 	for (auto& obj : objectList)
 	{
-		if (obj.type == EQEmu::S3D::WLD_OBJ_ZONE_TYPE)
+		if (obj.type == eqg::WLD_OBJ_ZONE_TYPE)
 		{
-			EQEmu::S3D::WLDFragment29* frag = static_cast<EQEmu::S3D::WLDFragment29*>(obj.parsed_data);
+			eqg::WLDFragment29* frag = static_cast<eqg::WLDFragment29*>(obj.parsed_data);
 			auto region = frag->region;
 
 			SPDLOG_TRACE("Processing zone region '{}' '{}' for s3d.", region->tag, region->old_style_tag);
 		}
-		else if (obj.type == EQEmu::S3D::WLD_OBJ_REGION_TYPE)
+		else if (obj.type == eqg::WLD_OBJ_REGION_TYPE)
 		{
 			// Regions with DMSPRITEDEF2 make up the geometry of the zone
-			EQEmu::S3D::WLDFragment22* region_frag = static_cast<EQEmu::S3D::WLDFragment22*>(obj.parsed_data);
+			eqg::WLDFragment22* region_frag = static_cast<eqg::WLDFragment22*>(obj.parsed_data);
 
 			if (region_frag->region_sprite_index != -1 && region_frag->region_sprite_is_def)
 			{
 				// Get the geometry from this sprite index
 				auto& sprite_obj = loader->GetObject(region_frag->region_sprite_index);
-				if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+				if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
 				{
-					auto model = static_cast<EQEmu::S3D::WLDFragment36*>(sprite_obj.parsed_data)->geometry;
+					auto model = static_cast<eqg::WLDFragment36*>(sprite_obj.parsed_data)->geometry;
 
 					map_s3d_geometry.push_back(model);
 				}
 			}
 		}
-		else if (obj.type == EQEmu::S3D::WLD_OBJ_ACTORINSTANCE_TYPE)
+		else if (obj.type == eqg::WLD_OBJ_ACTORINSTANCE_TYPE)
 		{
-			EQEmu::S3D::WLDFragment15* frag = static_cast<EQEmu::S3D::WLDFragment15*>(obj.parsed_data);
+			eqg::WLDFragment15* frag = static_cast<eqg::WLDFragment15*>(obj.parsed_data);
 			if (!frag->placeable)
 				continue;
 
 			//map_s3d_model_instances.push_back(frag->placeable);
 			LoadModelInst(frag->placeable);
 		}
-		else if (obj.type == EQEmu::S3D::WLD_OBJ_ACTORDEFINITION_TYPE)
+		else if (obj.type == eqg::WLD_OBJ_ACTORDEFINITION_TYPE)
 		{
 			std::string_view tag = obj.tag;
 			if (tag.empty())
 				continue;
 
-			EQEmu::S3D::WLDFragment14* obj_frag = static_cast<EQEmu::S3D::WLDFragment14*>(obj.parsed_data);
+			eqg::WLDFragment14* obj_frag = static_cast<eqg::WLDFragment14*>(obj.parsed_data);
 			int sprite_id = obj_frag->sprite_id;
 
 			auto& sprite_obj = loader->GetObjectFromID(sprite_id);
 
-			if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+			if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEINSTANCE_TYPE)
 			{
-				EQEmu::S3D::WLDFragment2D* r_frag = static_cast<EQEmu::S3D::WLDFragment2D*>(sprite_obj.parsed_data);
+				eqg::WLDFragment2D* r_frag = static_cast<eqg::WLDFragment2D*>(sprite_obj.parsed_data);
 				auto m_ref = r_frag->sprite_id;
 
-				EQEmu::S3D::WLDFragment36* mod_frag = static_cast<EQEmu::S3D::WLDFragment36*>(loader->GetObjectFromID(m_ref).parsed_data);
+				eqg::WLDFragment36* mod_frag = static_cast<eqg::WLDFragment36*>(loader->GetObjectFromID(m_ref).parsed_data);
 				auto mod = mod_frag->geometry;
 
 				map_models.emplace(tag, mod);
 			}
-			else if (sprite_obj.type == EQEmu::S3D::WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
+			else if (sprite_obj.type == eqg::WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
 			{
-				EQEmu::S3D::WLDFragment11* r_frag = static_cast<EQEmu::S3D::WLDFragment11*>(sprite_obj.parsed_data);
+				eqg::WLDFragment11* r_frag = static_cast<eqg::WLDFragment11*>(sprite_obj.parsed_data);
 				auto s_ref = r_frag->def_id;
 
-				EQEmu::S3D::WLDFragment10* skeleton_frag = static_cast<EQEmu::S3D::WLDFragment10*>(loader->GetObjectFromID(s_ref).parsed_data);
+				eqg::WLDFragment10* skeleton_frag = static_cast<eqg::WLDFragment10*>(loader->GetObjectFromID(s_ref).parsed_data);
 				auto skele = skeleton_frag->track;
 
 				map_anim_models.emplace(tag, skele);
@@ -768,7 +768,7 @@ void ZoneResourceManager::LoadAssetsFile()
 }
 
 void ZoneResourceManager::TraverseBone(
-	std::shared_ptr<EQEmu::S3D::SkeletonTrack::Bone> bone,
+	std::shared_ptr<eqg::s3d::SkeletonTrack::Bone> bone,
 	glm::vec3 parent_trans,
 	glm::vec3 parent_rot,
 	glm::vec3 parent_scale)
@@ -807,7 +807,7 @@ void ZoneResourceManager::TraverseBone(
 			map_models[bone->model->GetName()] = bone->model;
 		}
 		
-		std::shared_ptr<EQEmu::Placeable> gen_plac = std::make_shared<EQEmu::Placeable>();
+		std::shared_ptr<eqg::Placeable> gen_plac = std::make_shared<eqg::Placeable>();
 		gen_plac->SetFileName(bone->model->GetName());
 		gen_plac->SetPosition(pos);
 		gen_plac->SetRotation(rot);
