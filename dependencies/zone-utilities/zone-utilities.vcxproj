@@ -19,26 +19,26 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="common\compression.h" />
-    <ClInclude Include="common\container_util.h" />
-    <ClInclude Include="common\eqg_geometry.h" />
-    <ClInclude Include="common\eqg_loader.h" />
-    <ClInclude Include="common\eqg_material.h" />
-    <ClInclude Include="common\eqg_structs.h" />
-    <ClInclude Include="common\eqg_terrain.h" />
-    <ClInclude Include="common\light.h" />
-    <ClInclude Include="common\buffer_reader.h" />
-    <ClInclude Include="common\octree.h" />
-    <ClInclude Include="common\oriented_bounding_box.h" />
-    <ClInclude Include="common\pfs.h" />
-    <ClInclude Include="common\pfs_crc.h" />
-    <ClInclude Include="common\placeable.h" />
-    <ClInclude Include="common\str_util.h" />
-    <ClInclude Include="common\wld_loader.h" />
-    <ClInclude Include="common\s3d_types.h" />
-    <ClInclude Include="common\safe_alloc.h" />
-    <ClInclude Include="common\wld_fragment.h" />
-    <ClInclude Include="common\wld_structs.h" />
+    <ClInclude Include="eqglib\compression.h" />
+    <ClInclude Include="eqglib\container_util.h" />
+    <ClInclude Include="eqglib\eqg_geometry.h" />
+    <ClInclude Include="eqglib\eqg_loader.h" />
+    <ClInclude Include="eqglib\eqg_material.h" />
+    <ClInclude Include="eqglib\eqg_structs.h" />
+    <ClInclude Include="eqglib\eqg_terrain.h" />
+    <ClInclude Include="eqglib\light.h" />
+    <ClInclude Include="eqglib\buffer_reader.h" />
+    <ClInclude Include="eqglib\octree.h" />
+    <ClInclude Include="eqglib\oriented_bounding_box.h" />
+    <ClInclude Include="eqglib\pfs.h" />
+    <ClInclude Include="eqglib\pfs_crc.h" />
+    <ClInclude Include="eqglib\placeable.h" />
+    <ClInclude Include="eqglib\str_util.h" />
+    <ClInclude Include="eqglib\wld_loader.h" />
+    <ClInclude Include="eqglib\s3d_types.h" />
+    <ClInclude Include="eqglib\safe_alloc.h" />
+    <ClInclude Include="eqglib\wld_fragment.h" />
+    <ClInclude Include="eqglib\wld_structs.h" />
     <ClInclude Include="log\log_base.h" />
     <ClInclude Include="log\log_file.h" />
     <ClInclude Include="log\log_macros.h" />
@@ -47,15 +47,15 @@
     <ClInclude Include="log\log_types.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="common\compression.cpp" />
-    <ClCompile Include="common\eqg_loader.cpp" />
-    <ClCompile Include="common\eqg_model_loader.cpp" />
-    <ClCompile Include="common\eqg_terrain.cpp" />
-    <ClCompile Include="common\oriented_bounding_box.cpp" />
-    <ClCompile Include="common\pfs.cpp" />
-    <ClCompile Include="common\pfs_crc.cpp" />
-    <ClCompile Include="common\wld_loader.cpp" />
-    <ClCompile Include="common\wld_fragment.cpp" />
+    <ClCompile Include="eqglib\compression.cpp" />
+    <ClCompile Include="eqglib\eqg_loader.cpp" />
+    <ClCompile Include="eqglib\eqg_model_loader.cpp" />
+    <ClCompile Include="eqglib\eqg_terrain.cpp" />
+    <ClCompile Include="eqglib\oriented_bounding_box.cpp" />
+    <ClCompile Include="eqglib\pfs.cpp" />
+    <ClCompile Include="eqglib\pfs_crc.cpp" />
+    <ClCompile Include="eqglib\wld_loader.cpp" />
+    <ClCompile Include="eqglib\wld_fragment.cpp" />
     <ClCompile Include="log\log_file.cpp" />
     <ClCompile Include="log\log_manager.cpp" />
     <ClCompile Include="log\log_stdout.cpp" />
@@ -64,7 +64,7 @@
     <ProjectGuid>{200FB60C-6C01-48A7-886A-8E3683EB21BC}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>common</RootNamespace>
-    <ProjectName>zone-utilities</ProjectName>
+    <ProjectName>eqglib</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

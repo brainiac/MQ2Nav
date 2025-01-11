@@ -8,8 +8,8 @@
 #include "common/ZoneData.h"
 #include "plugin/MQ2Navigation.h"
 
-#include "dependencies/zone-utilities/common/eqg_loader.h"
-#include "dependencies/zone-utilities/common/wld_loader.h"
+#include "eqglib/eqg_loader.h"
+#include "eqglib/wld_loader.h"
 
 #include <d3d9caps.h>
 

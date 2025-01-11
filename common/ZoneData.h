@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "zone-utilities/common/eqg_loader.h"
-#include "zone-utilities/common/wld_loader.h"
+#include "eqglib/eqg_loader.h"
+#include "eqglib/wld_loader.h"
 
 typedef std::shared_ptr<EQEmu::EQG::Geometry> ModelPtr;
 typedef std::shared_ptr<EQEmu::S3D::Geometry> OldModelPtr;

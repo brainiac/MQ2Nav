@@ -1,8 +1,8 @@
 #pragma once
 
 #include "meshgen/ChunkyTriMesh.h"
-#include "zone-utilities/common/wld_loader.h"
-#include "zone-utilities/common/eqg_loader.h"
+#include "eqglib/wld_loader.h"
+#include "eqglib/eqg_loader.h"
 
 #include <glm/glm.hpp>
 #include <memory>

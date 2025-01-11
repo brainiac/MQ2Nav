@@ -4,8 +4,8 @@
 
 #include "ZoneData.h"
 
-#include <zone-utilities/common/eqg_loader.h>
-#include <zone-utilities/common/safe_alloc.h>
+#include "eqglib/eqg_loader.h"
+#include "Eqglib/s3d_types.h"
 
 #include <fmt/format.h>
 #include <mq/base/String.h>
