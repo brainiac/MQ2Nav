@@ -1,8 +1,11 @@
+
+#include "pch.h"
+
+#include "buffer_reader.h"
 #include "eqg_loader.h"
 #include "eqg_structs.h"
+#include "log_internal.h"
 #include "safe_alloc.h"
-#include "log_macros.h"
-#include "buffer_reader.h"
 
 #include <algorithm>
 #include <cctype>
@@ -11,12 +14,12 @@ namespace EQEmu {
 
 bool LoadEQGModel(EQEmu::PFS::Archive& archive, const std::string& model, std::shared_ptr<EQG::Geometry>& model_out)
 {
-	eqLogMessage(LogDebug, "Loading model %s.", model.c_str());
+	EQG_LOG_DEBUG("Loading model {}.", model);
 	std::vector<char> buffer;
 
 	if (!archive.Get(model, buffer))
 	{
-		eqLogMessage(LogError, "Unable to load %s, file was not found.", model.c_str());
+		EQG_LOG_ERROR("Unable to load {}, file was not found.", model);
 		return false;
 	}
 
@@ -32,7 +35,7 @@ bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std
 
 	if (header->magic[0] != 'E' || header->magic[1] != 'Q' || header->magic[2] != 'G')
 	{
-		eqLogMessage(LogError, "Unable to load %s, file header was corrupt.", model.c_str());
+		EQG_LOG_ERROR("Unable to load {}, file header was corrupt.", model);
 		return false;
 	}
 
@@ -43,7 +46,7 @@ bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std
 	}
 	else if (header->magic[3] != 'T')
 	{
-		eqLogMessage(LogWarn, "Attempted to load an eqg model that was not type M or T.");
+		EQG_LOG_WARN("Attempted to load an eqg model that was not type M or T.");
 		return false;
 	}
 
@@ -55,7 +58,7 @@ bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std
 	uint32_t list_loc = idx;
 	idx += header->list_length;
 
-	eqLogMessage(LogTrace, "Parsing model materials.");
+	EQG_LOG_TRACE("Parsing model materials.");
 	auto& mats = model_out->GetMaterials();
 	mats.resize(header->material_count);
 
@@ -95,7 +98,7 @@ bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std
 		}
 	}
 
-	eqLogMessage(LogTrace, "Parsing model geometry.");
+	EQG_LOG_TRACE("Parsing model geometry.");
 	auto& verts = model_out->GetVertices();
 	verts.resize(header->vert_count);
 

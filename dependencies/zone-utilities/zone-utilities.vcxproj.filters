@@ -66,24 +66,6 @@
     <ClInclude Include="eqglib\wld_structs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="log\log_base.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="log\log_file.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="log\log_macros.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="log\log_manager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="log\log_stdout.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="log\log_types.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="eqglib\buffer_reader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -91,6 +73,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="eqglib\container_util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="eqglib\log_internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="eqglib\eqglib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="eqglib\pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -119,16 +110,13 @@
     <ClCompile Include="eqglib\wld_fragment.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="log\log_file.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="log\log_manager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="log\log_stdout.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="eqglib\eqg_terrain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="eqglib\eqglib.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="eqglib\pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

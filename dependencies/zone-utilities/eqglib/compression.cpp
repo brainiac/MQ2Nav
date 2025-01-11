@@ -1,4 +1,5 @@
 
+#include "pch.h"
 #include "compression.h"
 
 #include <zlib.h>

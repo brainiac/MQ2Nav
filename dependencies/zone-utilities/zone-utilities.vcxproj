@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="eqglib\compression.h" />
     <ClInclude Include="eqglib\container_util.h" />
+    <ClInclude Include="eqglib\eqglib.h" />
     <ClInclude Include="eqglib\eqg_geometry.h" />
     <ClInclude Include="eqglib\eqg_loader.h" />
     <ClInclude Include="eqglib\eqg_material.h" />
@@ -28,8 +29,10 @@
     <ClInclude Include="eqglib\eqg_terrain.h" />
     <ClInclude Include="eqglib\light.h" />
     <ClInclude Include="eqglib\buffer_reader.h" />
+    <ClInclude Include="eqglib\log_internal.h" />
     <ClInclude Include="eqglib\octree.h" />
     <ClInclude Include="eqglib\oriented_bounding_box.h" />
+    <ClInclude Include="eqglib\pch.h" />
     <ClInclude Include="eqglib\pfs.h" />
     <ClInclude Include="eqglib\pfs_crc.h" />
     <ClInclude Include="eqglib\placeable.h" />
@@ -39,26 +42,24 @@
     <ClInclude Include="eqglib\safe_alloc.h" />
     <ClInclude Include="eqglib\wld_fragment.h" />
     <ClInclude Include="eqglib\wld_structs.h" />
-    <ClInclude Include="log\log_base.h" />
-    <ClInclude Include="log\log_file.h" />
-    <ClInclude Include="log\log_macros.h" />
-    <ClInclude Include="log\log_manager.h" />
-    <ClInclude Include="log\log_stdout.h" />
-    <ClInclude Include="log\log_types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqglib\compression.cpp" />
+    <ClCompile Include="eqglib\eqglib.cpp" />
     <ClCompile Include="eqglib\eqg_loader.cpp" />
     <ClCompile Include="eqglib\eqg_model_loader.cpp" />
     <ClCompile Include="eqglib\eqg_terrain.cpp" />
     <ClCompile Include="eqglib\oriented_bounding_box.cpp" />
+    <ClCompile Include="eqglib\pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="eqglib\pfs.cpp" />
     <ClCompile Include="eqglib\pfs_crc.cpp" />
     <ClCompile Include="eqglib\wld_loader.cpp" />
     <ClCompile Include="eqglib\wld_fragment.cpp" />
-    <ClCompile Include="log\log_file.cpp" />
-    <ClCompile Include="log\log_manager.cpp" />
-    <ClCompile Include="log\log_stdout.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{200FB60C-6C01-48A7-886A-8E3683EB21BC}</ProjectGuid>
@@ -116,8 +117,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -130,12 +130,15 @@
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)log;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -150,6 +153,8 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -158,6 +163,8 @@
       <AdditionalIncludeDirectories>$(ProjectDir)log;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

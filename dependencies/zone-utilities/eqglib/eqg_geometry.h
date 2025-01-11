@@ -1,10 +1,6 @@
 
 #pragma once
 
-#ifndef GLM_FORCE_RADIANS
-#define GLM_FORCE_RADIANS
-#endif
-
 #include "eqg_material.h"
 
 #include <glm/glm.hpp>

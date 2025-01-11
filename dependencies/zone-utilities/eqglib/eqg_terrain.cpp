@@ -1,12 +1,14 @@
-#include "eqg_terrain.h"
 
-#include <glm/gtx/matrix_decompose.hpp>
+#include "pch.h"
+#include "eqg_terrain.h"
 
 #include "buffer_reader.h"
 #include "eqg_structs.h"
 #include "light.h"
-#include "log_macros.h"
+#include "log_internal.h"
 #include "pfs.h"
+
+#include <glm/gtx/matrix_decompose.hpp>
 
 namespace EQEmu::EQG {
 
@@ -74,7 +76,7 @@ bool Terrain::Load(EQEmu::PFS::Archive* archive)
 
 	if (!archive->Get(filename, buffer))
 	{
-		eqLogMessage(LogError, "Failed to open %s.", filename.c_str())
+		EQG_LOG_ERROR("Failed to open {}.", filename);
 		return false;
 	}
 
@@ -86,22 +88,21 @@ bool Terrain::Load(EQEmu::PFS::Archive* archive)
 	if (!reader.read_multiple(version, flags, fallback_detail_repeat, fallback_detail_map_name, tile_count))
 		return false;
 
-	eqLogMessage(LogDebug, "Loading zone terrain %s version %d", filename.c_str(), version)
+	EQG_LOG_DEBUG("Loading zone terrain {} version {}", filename, version);
 
 	zone_min_x = m_params.min_lng * m_params.quads_per_tile * m_params.units_per_vert;
 	zone_min_y = m_params.min_lat * m_params.quads_per_tile * m_params.units_per_vert;
 	quad_count = m_params.quads_per_tile * m_params.quads_per_tile;
 	vert_count = (m_params.quads_per_tile + 1) * (m_params.quads_per_tile + 1);
 
-	eqLogMessage(LogTrace, "Parsing zone terrain tiles.")
+	EQG_LOG_TRACE("Parsing zone terrain tiles.");
 	for (uint32_t i = 0; i < tile_count; ++i)
 	{
 		std::shared_ptr<EQG::TerrainTile> tile = std::make_shared<EQG::TerrainTile>(this);
 
 		if (!tile->Load(reader, version))
 		{
-			eqLogMessage(LogInfo, "Failed to parse zone terrain tile %d: %d, %d",
-				i, tile->tile_loc.x, tile->tile_loc.y);
+			EQG_LOG_ERROR("Failed to parse zone terrain tile {}: {}, {}", i, tile->tile_loc.x, tile->tile_loc.y);
 			return false;
 		}
 
@@ -376,7 +377,7 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 		area->scale = scale;
 		if (area->scale != glm::vec3(1.0f, 1.0f, 1.0f))
 		{
-			eqLogMessage(LogWarn, "Area with scale not handled");
+			EQG_LOG_WARN("Area with scale not handled");
 		}
 
 		m_areas.push_back(area);
@@ -627,18 +628,9 @@ bool TerrainObjectGroupDefinition::Load(EQEmu::PFS::Archive* archive, const std:
 		return false;
 	}
 	
-	eqLogMessage(LogTrace, "Loading terrain object group %s.tog.", group_name.c_str())
-
-	//std::shared_ptr<PlaceableGroup> pg = std::make_shared<PlaceableGroup>();
-	//pg->SetFromTOG(true);
-	//pg->SetPosition(pos.x, pos.y, pos.z + scale.z * z_offset);
-	//pg->SetRotation(rot);
-	//// All scale_x?
-	//pg->SetScale(scale);
-	//pg->SetTilePosition(tile_start_y, tile_start_x, 0.0f);
+	EQG_LOG_TRACE("Loading terrain object group {}.tog.", group_name);
 
 	std::vector<std::string> tokens = EQGLoader::ParseConfigFile(tog_buffer.data(), tog_buffer.size());
-	//std::shared_ptr<Placeable> p;
 
 	for (size_t k = 0; k < tokens.size();)
 	{
@@ -662,6 +654,5 @@ bool TerrainObjectGroupDefinition::Load(EQEmu::PFS::Archive* archive, const std:
 
 	return true;
 }
-
 
 } // namespace EQEmu::EQG

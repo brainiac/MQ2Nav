@@ -11,7 +11,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <mq/api/Abilities.h>
 
 namespace EQEmu
 {

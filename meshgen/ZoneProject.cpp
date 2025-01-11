@@ -347,7 +347,7 @@ tf::Taskflow ZoneProject::BuildLoadZoneTaskflow(bool loadNavMesh, ZoneContextCal
 			});
 
 			// Do the work
-			if (sharedThis->BuildTriangleMesh())
+			if (sharedThis->BuildCollisionMesh())
 			{
 				// If load succeeded, we can submit the zone context at this time.
 				// TODO: Submit zone
@@ -417,7 +417,7 @@ bool ZoneProject::LoadZoneData()
 	return true;
 }
 
-bool ZoneProject::BuildTriangleMesh()
+bool ZoneProject::BuildCollisionMesh()
 {
 	assert(m_zoneDataLoaded);
 

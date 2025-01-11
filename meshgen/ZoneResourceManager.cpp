@@ -6,7 +6,7 @@
 #include "meshgen/ApplicationConfig.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "common/NavMeshData.h"
-#include "zone-utilities/log/log_macros.h"
+#include "mq/base/String.h"
 
 #include <rapidjson/document.h>
 
@@ -15,6 +15,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <spdlog/spdlog.h>
 
 namespace fs = std::filesystem;
 
@@ -56,6 +57,15 @@ bool ZoneResourceManager::Load()
 {
 	Clear();
 
+	// Do a quick check to ensure the zone exists before we start loading everything
+	fs::path zone_path = fs::path(m_eqPath) / m_zoneName;
+	std::error_code ec;
+	if (!fs::exists(zone_path.replace_extension(".eqg"), ec)
+		&& !fs::exists(zone_path.replace_extension(".s3d"), ec))
+	{
+		return false;
+	}
+
 	LoadGlobalData();
 
 	if (!LoadZone())
@@ -71,6 +81,8 @@ bool ZoneResourceManager::Load()
 
 bool ZoneResourceManager::BuildCollisionMesh(ZoneCollisionMesh& collisionMesh)
 {
+	SPDLOG_INFO("Building collision mesh");
+
 	collisionMesh.clear();
 
 	// load terrain geometry
@@ -109,7 +121,11 @@ bool ZoneResourceManager::BuildCollisionMesh(ZoneCollisionMesh& collisionMesh)
 			collisionMesh.addModelInstance(obj);
 	}
 
-	return collisionMesh.finalize();
+	bool result = collisionMesh.finalize();
+
+	SPDLOG_INFO("Finished building collision mesh");
+
+	return result;
 }
 
 struct DoorParams
@@ -205,7 +221,7 @@ void ZoneResourceManager::LoadDoors()
 		gen_plac->SetScale(params.scale * scale);
 		gen_plac->SetName(params.name + "_ACTORDEF");
 
-		eqLogMessage(LogTrace, "Adding placeable from dynamic objects %s at (%f, %f, %f)", params.name.c_str(), pos.x, pos.y, pos.z)
+		SPDLOG_TRACE("Adding placeable from dynamic objects {} at ({}, {}, {})", params.name, pos.x, pos.y, pos.z);
 
 		LoadModelInst(gen_plac);
 		++m_dynamicObjects;
@@ -221,7 +237,7 @@ void ZoneResourceManager::LoadGlobalLoadFile()
 	std::error_code ec;
 	if (fs::exists(assets_file, ec))
 	{
-		eqLogMessage(LogInfo, "Loading GlobalLoad.txt")
+		SPDLOG_INFO("Loading GlobalLoad.txt");
 
 		std::ifstream assets_stream(assets_file);
 		std::vector<std::string> lines;
@@ -257,7 +273,7 @@ void ZoneResourceManager::LoadGlobalLoadFile()
 			}
 			catch (const std::exception& exc)
 			{
-				eqLogMessage(LogError, "Failed to parse line in GlobalLoad.txt: %s - %s", line.c_str(), exc.what())
+				SPDLOG_ERROR("Failed to parse line in GlobalLoad.txt: {} - {}", line, exc.what());
 			}
 		}
 	}
@@ -265,7 +281,7 @@ void ZoneResourceManager::LoadGlobalLoadFile()
 
 void ZoneResourceManager::PerformGlobalLoad(int phase)
 {
-	eqLogMessage(LogInfo, "Loading GlobalLoad.txt phase %d", phase);
+	SPDLOG_INFO("Loading GlobalLoad.txt phase {}", phase);
 
 	for (const GlobalLoadAsset& asset : global_load_assets)
 	{
@@ -403,7 +419,7 @@ EQEmu::PFS::Archive* ZoneResourceManager::LoadArchive(const std::string& path)
 		m_archives.push_back(std::move(archive));
 
 		std::string filename = fs::path(path).filename().string();
-		eqLogMessage(LogInfo, "Loaded archive: %s", filename.c_str())
+		SPDLOG_INFO("Loaded archive: {}", filename.c_str());
 
 		return m_archives.back().get();
 	}
@@ -427,11 +443,11 @@ EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName)
 
 	if (loader)
 	{
-		eqLogMessage(LogInfo, "Loaded %s", archiveFileName.c_str())
+		SPDLOG_INFO("Loaded {}", archiveFileName);
 	}
 	else
 	{
-		eqLogMessage(LogError, "Failed to load %s", archiveFileName.c_str())
+		SPDLOG_ERROR("Failed to load %s", archiveFileName);
 	}
 
 	return loader;
@@ -463,7 +479,7 @@ EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(EQEmu::PFS::Archive* archive)
 	{
 		if (loader->terrain)
 		{
-			eqLogMessage(LogWarn, "Already have a terrain loaded when loading %s", archive->GetFileName().c_str())
+			SPDLOG_WARN("Already have a terrain loaded when loading {}", archive->GetFileName());
 		}
 	}
 	else
@@ -573,7 +589,7 @@ EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(EQEmu::PFS::Archive* archive)
 	{
 		if (loader->terrain_model)
 		{
-			eqLogMessage(LogWarn, "Already have a TER model loaded when loading %s", archive->GetFileName().c_str())
+			SPDLOG_WARN("Already have a TER model loaded when loading {}", archive->GetFileName());
 		}
 	}
 	else
@@ -634,7 +650,7 @@ EQEmu::S3D::WLDLoader* ZoneResourceManager::LoadWLD(EQEmu::PFS::Archive* archive
 	auto loader = std::make_unique<EQEmu::S3D::WLDLoader>();
 	if (!loader->Init(archive, fileName))
 	{
-		eqLogMessage(LogError, "Failed to load %s from %s", fileName.c_str(), archive->GetFileName().c_str())
+		SPDLOG_ERROR("Failed to load {} from {}", fileName, archive->GetFileName());
 		return nullptr;
 	}
 
@@ -647,7 +663,7 @@ EQEmu::S3D::WLDLoader* ZoneResourceManager::LoadWLD(EQEmu::PFS::Archive* archive
 			EQEmu::S3D::WLDFragment29* frag = static_cast<EQEmu::S3D::WLDFragment29*>(obj.parsed_data);
 			auto region = frag->region;
 
-			eqLogMessage(LogTrace, "Processing zone region '%s' '%s' for s3d.", region->tag.c_str(), region->old_style_tag.c_str())
+			SPDLOG_TRACE("Processing zone region '{}' '{}' for s3d.", region->tag, region->old_style_tag);
 		}
 		else if (obj.type == EQEmu::S3D::WLD_OBJ_REGION_TYPE)
 		{
@@ -711,8 +727,7 @@ EQEmu::S3D::WLDLoader* ZoneResourceManager::LoadWLD(EQEmu::PFS::Archive* archive
 	
 	m_wldLoaders.push_back(std::move(loader));
 
-	std::string archiveName = fs::path(archive->GetFileName()).filename().string();
-	eqLogMessage(LogInfo, "Loaded %s from %s", fileName.c_str(), archiveName.c_str())
+	SPDLOG_INFO("Loaded {} from {}", fileName, fs::path(archive->GetFileName()).filename().string());
 
 	return m_wldLoaders.back().get();
 }
@@ -726,7 +741,7 @@ void ZoneResourceManager::LoadAssetsFile()
 	fs::path assets_file = fs::path(m_eqPath) / fmt::format("{}_assets.txt", m_zoneName);
 	if (fs::exists(assets_file, ec))
 	{
-		eqLogMessage(LogInfo, "Loading %s_assets.txt", m_zoneName.c_str());
+		SPDLOG_INFO("Loading {}_assets.txt", m_zoneName);
 
 		std::ifstream assets(assets_file);
 
@@ -798,7 +813,7 @@ void ZoneResourceManager::TraverseBone(
 		gen_plac->SetScale(scale);
 		map_placeables.push_back(gen_plac);
 
-		eqLogMessage(LogTrace, "Adding placeable from bones %s at (%f, %f, %f)", bone->model->GetName().c_str(), pos.x, pos.y, pos.z);
+		SPDLOG_TRACE("Adding placeable from bones {} at ({}, {}, {})", bone->model->GetName(), pos.x, pos.y, pos.z);
 	}
 
 	for (size_t i = 0; i < bone->children.size(); ++i)
@@ -813,8 +828,7 @@ bool ZoneResourceManager::LoadModelInst(const PlaceablePtr& inst)
 	{
 		map_placeables.push_back(inst);
 
-		eqLogMessage(LogTrace, "Adding model instance '%s' at (%f, %f, %f)", inst->tag.c_str(),
-			inst->pos.x, inst->pos.y, inst->pos.z)
+		SPDLOG_TRACE("Adding model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
 		return true;
 	}
 
@@ -822,8 +836,7 @@ bool ZoneResourceManager::LoadModelInst(const PlaceablePtr& inst)
 	{
 		map_placeables.push_back(inst);
 
-		eqLogMessage(LogTrace, "Adding model instance '%s' at (%f, %f, %f)", inst->tag.c_str(),
-			inst->pos.x, inst->pos.y, inst->pos.z)
+		SPDLOG_TRACE("Adding model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
 		return true;
 	}
 
@@ -838,12 +851,11 @@ bool ZoneResourceManager::LoadModelInst(const PlaceablePtr& inst)
 			TraverseBone(bones[0], inst->GetPosition(), inst->GetRotation(), inst->GetScale());
 		}
 
-		eqLogMessage(LogTrace, "Adding hierarchical model instance '%s' at (%f, %f, %f)", inst->tag.c_str(),
-			inst->pos.x, inst->pos.y, inst->pos.z)
+		SPDLOG_TRACE("Adding hierarchical model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
 		return true;
 	}
 	
-	eqLogMessage(LogWarn, "Could not find model for '%s'", inst->tag.c_str())
+	SPDLOG_WARN("Could not find model for '{}'", inst->tag);
 	return false;
 }
 

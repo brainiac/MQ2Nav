@@ -14,6 +14,10 @@
 #error Missing GLM_ENABLE_EXPERIMENTAL define!
 #endif
 
+#if defined(_DEBUG)
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#endif
+
 // Windows Header Files:
 #include <windows.h>
 

@@ -5,65 +5,18 @@
 #include "meshgen/Application.h"
 #include "meshgen/ApplicationConfig.h"
 #include "meshgen/ConsolePanel.h"
+#include "eqglib/eqglib.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/base_sink.h>
-#include <zone-utilities/log/log_base.h>
-#include <zone-utilities/log/log_macros.h>
 
 #include <filesystem>
 
 namespace fs = std::filesystem;
 
 std::shared_ptr<spdlog::logger> g_logger;
-
-//----------------------------------------------------------------------------
-
-// EQEmuLogSink will capture log events from the EQEmu code (zone_utilities), and forward it to our log system.
-class EQEmuLogSink : public EQEmu::Log::LogBase
-{
-public:
-	EQEmuLogSink()
-	{
-		m_logger = Logging::GetLogger(LoggingCategory::EQG);
-		m_logger->set_level(spdlog::level::trace);
-	}
-
-	virtual void OnRegister(int enabled_logs) override {}
-	virtual void OnUnregister() override {}
-
-	virtual void OnMessage(EQEmu::Log::LogType log_type, const std::string& message) override
-	{
-		switch (log_type)
-		{
-		case EQEmu::Log::LogTrace:
-			m_logger->trace(message);
-			break;
-		case EQEmu::Log::LogDebug:
-			m_logger->debug(message);
-			break;
-		case EQEmu::Log::LogInfo:
-			m_logger->info(message);
-			break;
-		case EQEmu::Log::LogWarn:
-			m_logger->warn(message);
-			break;
-		case EQEmu::Log::LogError:
-			m_logger->error(message);
-			break;
-		case EQEmu::Log::LogFatal:
-			m_logger->critical(message);
-			break;
-
-		default: break;
-		}
-	}
-
-private:
-	std::shared_ptr<spdlog::logger> m_logger;
-};
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -75,7 +28,7 @@ void Logging::Initialize()
 
 	// set up default logger
 	g_logger = std::make_shared<spdlog::logger>("MeshGen");
-	g_logger->set_level(spdlog::level::debug);
+	g_logger->set_level(spdlog::level::trace);
 	g_logger->sinks().push_back(g_consoleSink);
 
 #if defined(_DEBUG)
@@ -95,13 +48,13 @@ void Logging::Initialize()
 	spdlog::register_logger(recastLogger);
 
 	auto bgfxLogger = g_logger->clone("bgfx");
+	bgfxLogger->set_level(spdlog::level::debug);
 	spdlog::register_logger(bgfxLogger);
 
-	auto emuLogger = g_logger->clone("EQG");
-	spdlog::register_logger(emuLogger);
-
-	eqLogInit(-1);
-	eqLogRegister(std::make_shared<EQEmuLogSink>());
+	auto eqgLogger = g_logger->clone("EQG");
+	eqgLogger->set_level(spdlog::level::trace);
+	spdlog::register_logger(eqgLogger);
+	eqg::set_logger(eqgLogger);
 }
 
 void Logging::InitSecondStage(Application* app)
@@ -121,6 +74,7 @@ void Logging::Shutdown()
 	});
 	g_consoleSink.reset();
 	g_logger.reset();
+	eqg::set_logger();
 }
 
 std::shared_ptr<spdlog::logger> Logging::GetLogger(LoggingCategory category)

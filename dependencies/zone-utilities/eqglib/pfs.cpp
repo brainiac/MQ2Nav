@@ -1,7 +1,9 @@
 
+#include "pch.h"
+#include "pfs.h"
+
 #include "buffer_reader.h"
 #include "compression.h"
-#include "pfs.h"
 #include "pfs_crc.h"
 #include "str_util.h"
 

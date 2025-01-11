@@ -1,9 +1,10 @@
 
-#include "buffer_reader.h"
+#include "pch.h"
 #include "eqg_loader.h"
+
+#include "buffer_reader.h"
 #include "eqg_structs.h"
-#include "safe_alloc.h"
-#include "log_macros.h"
+#include "log_internal.h"
 
 #include <filesystem>
 
@@ -97,7 +98,7 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 	if (ci_ends_with(sv, ".ani"))
 	{
 		// Parse ANI file
-		eqLogMessage(LogDebug, "Animation file: %s", fileName.c_str());
+		EQG_LOG_DEBUG("Animation file: {}", fileName);
 		success = true;
 	}
 	else if (!ci_ends_with(sv, ".dds")
@@ -118,7 +119,7 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 		if (strncmp(pMagic, "EQGM", 4) == 0)
 		{
 			// Model
-			eqLogMessage(LogDebug, "EQGM: Model: %s", fileName.c_str());
+			EQG_LOG_DEBUG("EQGM: Model: {}", fileName);
 			success = ParseModel(fileBuffer, fileName, tag);
 
 			actor_tags.push_back(tag);
@@ -126,7 +127,7 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 		else if (strncmp(pMagic, "EQGS", 4) == 0)
 		{
 			// Skin
-			eqLogMessage(LogDebug, "EQGS: Model skin: %s", fileName.c_str()); 
+			EQG_LOG_DEBUG("EQGS: Model skin: {}", fileName);
 			success = true;
 
 			//actor_tags.push_back(tag);
@@ -134,44 +135,44 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 		else if (strncmp(pMagic, "EQAL", 4) == 0)
 		{
 			// Animation list
-			eqLogMessage(LogDebug, "EQAL: Animation list: %s", fileName.c_str());
+			EQG_LOG_DEBUG("EQAL: Animation list: {}", fileName);
 			success = true;
 		}
 		else if (strncmp(pMagic, "EQGL", 4) == 0)
 		{
 			// Material layer
-			eqLogMessage(LogDebug, "EQGL: Material layer: %s", fileName.c_str());
+			EQG_LOG_DEBUG("EQGL: Material layer: {}", fileName);
 			success = true;
 		}
 		else if (strncmp(pMagic, "EQGT", 4) == 0)
 		{
 			// Terrain
-			eqLogMessage(LogDebug, "EQGT: Terrain data: %s", fileName.c_str());
+			EQG_LOG_DEBUG("EQGT: Terrain data: %s", fileName);
 			success = ParseTerrain(fileBuffer, fileName, tag);
 		}
 		else if (strncmp(pMagic, "EQGZ", 4) == 0)
 		{
 			// Zone
-			eqLogMessage(LogDebug, "EQGZ: Zone data: %s", fileName.c_str());
+			EQG_LOG_DEBUG("EQGZ: Zone data: %s", fileName);
 			success = ParseZone(fileBuffer, tag);
 		}
 		else if (strncmp(pMagic, "EQLOD", 5) == 0)
 		{
 			// LOD Data
-			eqLogMessage(LogDebug, "EQLOD: LOD data: %s", fileName.c_str());
+			EQG_LOG_DEBUG("EQLOD: LOD data: {}", fileName);
 			success = true;
 		}
 		else if (strncmp(pMagic, "EQTZP", 5) == 0)
 		{
 			// Terrain project file
-			eqLogMessage(LogDebug, "EQTZP: Terrain project file: %s", fileName.c_str());
+			EQG_LOG_DEBUG("EQTZP: Terrain project file: {}", fileName);
 			success = ParseTerrainProject(fileBuffer);
 
 		}
 		else if (strncmp(pMagic, "EQOBG", 5) == 0)
 		{
 			// Actor group
-			eqLogMessage(LogDebug, "EQOBG: Actor group: %s", fileName.c_str());
+			EQG_LOG_DEBUG("EQOBG: Actor group: {}", fileName);
 			success = true;
 		}
 	}
@@ -220,17 +221,17 @@ bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
 	// Load terrain data
 	auto loading_terrain = std::make_shared<EQG::Terrain>(params);
 
-	eqLogMessage(LogDebug, "Parsing zone data file.");
+	EQG_LOG_DEBUG("Parsing zone data file.");
 	if (!loading_terrain->Load(m_archive))
 	{
-		eqLogMessage(LogError, "Failed to parse zone data.");
+		EQG_LOG_ERROR("Failed to parse zone data.");
 		return false;
 	}
 
-	eqLogMessage(LogDebug, "Parsing water data file.");
+	EQG_LOG_DEBUG("Parsing water data file.");
 	LoadWaterSheets(loading_terrain);
 
-	eqLogMessage(LogDebug, "Parsing invisible walls file.");
+	EQG_LOG_DEBUG("Parsing invisible walls file.");
 	LoadInvisibleWalls(loading_terrain);
 
 	terrain = loading_terrain;
@@ -419,7 +420,7 @@ bool EQGLoader::LoadWaterSheets(std::shared_ptr<EQG::Terrain>& terrain)
 		{
 			if (ws)
 			{
-				eqLogMessage(LogTrace, "Adding finite water sheet.");
+				EQG_LOG_TRACE("Adding finite water sheet.");
 				terrain->AddWaterSheet(ws);
 			}
 
@@ -436,7 +437,7 @@ bool EQGLoader::LoadWaterSheets(std::shared_ptr<EQG::Terrain>& terrain)
 		{
 			if (ws)
 			{
-				eqLogMessage(LogTrace, "Adding infinite water sheet.");
+				EQG_LOG_TRACE("Adding infinite water sheet.");
 				terrain->AddWaterSheet(ws);
 			}
 
@@ -613,7 +614,7 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 	auto& model_names = mesh_names;
 
 	// load placables
-	eqLogMessage(LogTrace, "Parsing model instances.")
+	EQG_LOG_TRACE("Parsing model instances.");
 
 	size_t name_index = 0;
 
@@ -666,7 +667,7 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 		}
 	}
 
-	eqLogMessage(LogTrace, "Parsing zone regions.")
+	EQG_LOG_TRACE("Parsing zone regions.");
 
 	for (uint32_t i = 0; i < header->num_areas; ++i)
 	{
@@ -685,7 +686,7 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 		areas.push_back(newArea);
 	}
 
-	eqLogMessage(LogTrace, "Parsing zone lights.");
+	EQG_LOG_TRACE("Parsing zone lights.");
 
 	for (uint32_t i = 0; i < header->num_lights; ++i)
 	{

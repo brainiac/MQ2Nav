@@ -1,7 +1,10 @@
-#include "buffer_reader.h"
-#include "log_macros.h"
-#include "pfs.h"
+
+#include "pch.h"
 #include "wld_loader.h"
+
+#include "buffer_reader.h"
+#include "log_internal.h"
+#include "pfs.h"
 #include "wld_structs.h"
 
 namespace EQEmu::S3D {
@@ -61,7 +64,7 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 	m_wldFileContents = m_archive->Get(wld_name, m_wldFileSize);
 	if (!m_wldFileContents)
 	{
-		eqLogMessage(LogWarn, "Unable to open wld file %s.", wld_name.c_str());
+		EQG_LOG_WARN("Unable to open wld file {}.", wld_name);
 		return false;
 	}
 
@@ -70,13 +73,13 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 	wld_header header;
 	if (!reader.read(header))
 	{
-		eqLogMessage(LogWarn, "Unable to read wld header.");
+		EQG_LOG_WARN("Unable to read wld header.");
 		return false;
 	}
 
 	if (header.magic != '\x02\x3dPT')
 	{
-		eqLogMessage(LogError, "Header magic of %x did not match expected", header.magic);
+		EQG_LOG_ERROR("Header magic of {:x} did not match expected", header.magic);
 		return false;
 	}
 
@@ -93,14 +96,14 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 		m_stringPool = new char[m_stringPoolSize];
 		if (!reader.read(m_stringPool, m_stringPoolSize))
 		{
-			eqLogMessage(LogWarn, "Unable to read string pool.");
+			EQG_LOG_WARN("Unable to read string pool.");
 			return false;
 		}
 
 		decode_s3d_string(m_stringPool, m_stringPoolSize);
 	}
 
-	eqLogMessage(LogTrace, "Parsing WLD objects.");
+	EQG_LOG_TRACE("Parsing WLD objects.");
 
 	m_objects.resize(m_numObjects + 1);
 	memset(m_objects.data(), 0, sizeof(S3DFileObject) * (m_numObjects + 1));
@@ -111,13 +114,13 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 		uint32_t objectSize, type;
 		if (!reader.read(objectSize))
 		{
-			eqLogMessage(LogWarn, "Unable to read object size (%d).", index);
+			EQG_LOG_WARN("Unable to read object size ({}).", index);
 			return false;
 		}
 
 		if (!reader.read(type))
 		{
-			eqLogMessage(LogWarn, "Unable to read object type (%d).", index);
+			EQG_LOG_WARN("Unable to read object type ({}).", index);
 			return false;
 		}
 
@@ -129,14 +132,14 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 		obj.data = m_wldFileContents.get() + reader.pos();
 		if (!reader.skip(objectSize))
 		{
-			eqLogMessage(LogWarn, "Unable to read object data (%d).", index);
+			EQG_LOG_WARN("Unable to read object data ({}).", index);
 			return false;
 		}
 
 		// Read the tag
 		if (type == WLD_OBJ_DEFAULTPALETTEFILE_TYPE || type == WLD_OBJ_WORLD_USERDATA_TYPE)
 		{
-			eqLogMessage(LogWarn, "Not going to read tag ID (%d) type (%d).", index, type);
+			EQG_LOG_WARN("Not going to read tag ID ({}) type ({}).", index, type);
 		}
 		else if (type != WLD_OBJ_CONSTANTAMBIENT_TYPE)
 		{
@@ -145,7 +148,7 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 			int tagID;
 			if (!tagBuffer.read(tagID))
 			{
-				eqLogMessage(LogWarn, "Unable to read tag ID (%d).", index);
+				EQG_LOG_WARN("Unable to read tag ID ({}).", index);
 				return false;
 			}
 
@@ -158,7 +161,7 @@ bool WLDLoader::Init(PFS::Archive* archive, const std::string& wld_name)
 
 	if (index < m_numObjects)
 	{
-		eqLogMessage(LogWarn, "Failed to read all objects (%d < %d).", index, m_numObjects);
+		EQG_LOG_WARN("Failed to read all objects ({} < {}).", index, m_numObjects);
 		return false;
 	}
 
@@ -212,13 +215,13 @@ bool WLDLoader::ParseWLDFile(WLDLoader& loader,
 	EQEmu::PFS::Archive archive;
 	if (!archive.Open(file_name))
 	{
-		eqLogMessage(LogWarn, "Unable to open file %s.", file_name.c_str());
+		EQG_LOG_WARN("Unable to open file {}.", file_name);
 		return false;
 	}
 
 	if (!loader.Init(&archive, wld_name))
 	{
-		eqLogMessage(LogWarn, "Unable to open wld file %s.", wld_name.c_str());
+		EQG_LOG_WARN("Unable to open wld file {}.", wld_name);
 		return false;
 	}
 
@@ -230,7 +233,7 @@ bool WLDLoader::ParseWLDObjects()
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
 		S3DFileObject& obj = m_objects[i];
-		eqLogMessage(LogTrace, "Dispatching WLD object of type %x", obj.type);
+		EQG_LOG_TRACE("Dispatching WLD object of type {} (0x{:x})", static_cast<int>(obj.type), static_cast<int>(obj.type));
 
 		switch (obj.type)
 		{

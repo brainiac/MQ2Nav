@@ -1,6 +1,8 @@
 
+#include "pch.h"
+
 #include "buffer_reader.h"
-#include "log_macros.h"
+#include "log_internal.h"
 #include "s3d_types.h"
 #include "wld_fragment.h"
 #include "wld_loader.h"
@@ -61,7 +63,7 @@ WLDFragment04::WLDFragment04(WLDLoader* loader, S3DFileObject* obj)
 		WLDFragment03* bitmap = static_cast<WLDFragment03*>(loader->GetObjectFromID(tagId).parsed_data);
 		if (!bitmap)
 		{
-			eqLogMessage(LogWarn, "missing bitmap!");
+			EQG_LOG_WARN("missing bitmap: {}!", obj->tag);
 			continue;
 		}
 		brush->brush_textures.push_back(bitmap->texture);
@@ -634,7 +636,7 @@ WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 	uint16_t num_uvs = header->num_uvs;
 	if (num_uvs > model->verts.size())
 	{
-		eqLogMessage(LogWarn, "num_uvs > model->verts.size()");
+		EQG_LOG_WARN("num_uvs > model->verts.size(): {} > {}", num_uvs, model->verts.size());
 		num_uvs = (uint16_t)model->verts.size();
 	}
 
@@ -664,7 +666,7 @@ WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 	if (num_vertex_normals > model->verts.size())
 	{
 		// this check is here cause there's literally zones where there's normals than verts (ssratemple for ex). Stupid I know.
-		eqLogMessage(LogWarn, "num_vertex_normals > model->verts.size()");
+		EQG_LOG_WARN("num_vertex_normals > model->verts.size(): {} > {}", num_vertex_normals, model->verts.size());
 		num_vertex_normals = (uint16_t)model->verts.size();
 	}
 
@@ -707,7 +709,7 @@ WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 		{
 			if (pc >= model->polys.size())
 			{
-				eqLogMessage(LogWarn, "pc >= model->GetPolygons().size()");
+				EQG_LOG_WARN("pc >= model->GetPolygons().size(): {} > {}", pc, model->polys.size());
 				break;
 			}
 

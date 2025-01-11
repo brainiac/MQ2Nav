@@ -1,2 +1,3 @@
 glm
 zlib
+spdlog

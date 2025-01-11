@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "ZoneCollisionMesh.h"
 
-#include "zone-utilities/log/log_macros.h"
 #include "Recast.h"
 
 #include <spdlog/spdlog.h>
@@ -242,8 +241,8 @@ void ZoneCollisionMesh::addModelInstance(const PlaceablePtr& obj)
 	auto modelIter = m_models.find(name);
 	if (modelIter == m_models.end())
 	{
-		eqLogMessage(LogWarn, "ZoneCollisionMesh::addModelInstance: No model definition found for tag '%s'", name.c_str())
-			return;
+		SPDLOG_WARN("ZoneCollisionMesh::addModelInstance: No model definition found for tag '{}'", name);
+		return;
 	}
 
 	// some objects have a really wild position, just ignore them.
@@ -255,9 +254,9 @@ void ZoneCollisionMesh::addModelInstance(const PlaceablePtr& obj)
 
 	if (IsPointOutsideExtents(glm::vec3{ mtx * glm::vec4{ 0., 0., 0., 1. } }))
 	{
-		eqLogMessage(LogWarn, "Ignoring placement of '%s' at { %.2f %.2f %.2f } due to being outside of max extents",
-			obj->GetFileName().c_str(), obj->GetX(), obj->GetY(), obj->GetZ())
-			return;
+		SPDLOG_WARN("Ignoring placement of '{}' at {{ {:.2f} {:.2f} {:.2f} }} due to being outside of max extents",
+			obj->GetFileName(), obj->pos.x, obj->pos.y, obj->pos.z);
+		return;
 	}
 
 	const auto& model = modelIter->second;
@@ -354,6 +353,8 @@ bool ZoneCollisionMesh::finalize()
 	if (m_vertCount > 0)
 	{
 		rcCalcBounds(m_verts, m_vertCount, glm::value_ptr(m_boundsMin), glm::value_ptr(m_boundsMax));
+
+		SPDLOG_INFO("Building chunky triangle mesh");
 
 		// Construct the partitioned triangle mesh
 		m_chunkyMesh = std::make_unique<rcChunkyTriMesh>();
