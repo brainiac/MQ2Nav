@@ -565,7 +565,7 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 			{
 				auto& verts = wall->verts;
 
-				for (size_t j = 0; j < verts.size() - 1; ++j)
+				for (int j = 0; j < (int)verts.size() - 1; ++j)
 				{
 					glm::vec3 v1 = verts[j].yxz;
 					glm::vec3 v2 = verts[j + 1].yxz;
