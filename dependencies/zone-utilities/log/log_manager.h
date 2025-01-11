@@ -1,15 +1,12 @@
-#ifndef EQEMU_LOG_LOG_MANAGER_H
-#define EQEMU_LOG_LOG_MANAGER_H
+
+#pragma once
 
 #include "log_base.h"
+
 #include <vector>
 #include <memory>
 
-namespace EQEmu
-{
-
-namespace Log
-{
+namespace EQEmu::Log {
 
 class Manager {
 public:
@@ -30,8 +27,4 @@ private:
 	std::vector<std::shared_ptr<LogBase>> logs;
 };
 
-}
-
-}
-
-#endif
+} // namespace EQEmu::Log

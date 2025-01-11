@@ -1,5 +1,5 @@
-#ifndef EQEMU_ORIENTED_BOUNDNG_BOX_H
-#define EQEMU_ORIENTED_BOUNDNG_BOX_H
+
+#pragma once
 
 #include <glm/glm.hpp>
 
@@ -10,20 +10,19 @@ glm::mat4 CreateScaleMatrix(float sx, float sy, float sz);
 class OrientedBoundingBox
 {
 public:
-	OrientedBoundingBox() { }
+	OrientedBoundingBox() {}
 	OrientedBoundingBox(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale, glm::vec3 extents);
-	~OrientedBoundingBox() { }
+	~OrientedBoundingBox() {}
 
 	bool ContainsPoint(glm::vec3 p) const;
-	
+
 	glm::mat4& GetTransformation() { return transformation; }
 	glm::mat4& GetInvertedTransformation() { return inverted_transformation; }
+
 private:
-	float min_x, max_x;
-	float min_y, max_y;
-	float min_z, max_z;
+	float min_x = 0.0f, max_x = 0.0f;
+	float min_y = 0.0f, max_y = 0.0f;
+	float min_z = 0.0f, max_z = 0.0f;
 	glm::mat4 transformation;
 	glm::mat4 inverted_transformation;
 };
-
-#endif

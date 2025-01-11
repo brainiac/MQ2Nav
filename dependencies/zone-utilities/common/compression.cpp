@@ -1,8 +1,13 @@
+
 #include "compression.h"
+
 #include <zlib.h>
 #include <string.h>
 
-uint32_t EQEmu::DeflateData(const char *buffer, uint32_t len, char *out_buffer, uint32_t out_len_max) {
+namespace EQEmu {
+
+uint32_t DeflateData(const char* buffer, uint32_t len, char* out_buffer, uint32_t out_len_max)
+{
 	z_stream zstream;
 	memset(&zstream, 0, sizeof(zstream));
 	int zerror;
@@ -23,14 +28,13 @@ uint32_t EQEmu::DeflateData(const char *buffer, uint32_t len, char *out_buffer, 
 		deflateEnd(&zstream);
 		return (uint32_t)zstream.total_out;
 	}
-	else
-	{
-		zerror = deflateEnd(&zstream);
-		return 0;
-	}
+	
+	zerror = deflateEnd(&zstream);
+	return 0;
 }
 
-uint32_t EQEmu::InflateData(const char* buffer, uint32_t len, char* out_buffer, uint32_t out_len_max) {
+uint32_t InflateData(const char* buffer, uint32_t len, char* out_buffer, uint32_t out_len_max)
+{
 	z_stream zstream;
 	int zerror = 0;
 	int i;
@@ -44,22 +48,25 @@ uint32_t EQEmu::InflateData(const char* buffer, uint32_t len, char* out_buffer, 
 	zstream.opaque = Z_NULL;
 
 	i = inflateInit2(&zstream, 15);
-	if (i != Z_OK) {
+	if (i != Z_OK)
+	{
 		return 0;
 	}
 
 	zerror = inflate(&zstream, Z_FINISH);
-	if (zerror == Z_STREAM_END) {
+	if (zerror == Z_STREAM_END)
+	{
 		inflateEnd(&zstream);
 		return zstream.total_out;
 	}
-	else {
-		if (zerror == -4 && zstream.msg == 0)
-		{
-			return 0;
-		}
 
-		zerror = inflateEnd(&zstream);
+	if (zerror == -4 && zstream.msg == 0)
+	{
 		return 0;
 	}
+
+	zerror = inflateEnd(&zstream);
+	return 0;
 }
+
+} // namespace EQEmu

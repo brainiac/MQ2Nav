@@ -1,33 +1,26 @@
-#ifndef EQEMU_LOG_LOG_FILE_H
-#define EQEMU_LOG_LOG_FILE_H
 
-#include <string>
-#include <stdio.h>
+#pragma once
+
 #include "log_base.h"
 
-namespace EQEmu
-{
+#include <string>
+#include <cstdio>
 
-namespace Log
-{
+namespace EQEmu::Log {
 
 class LogFile : public LogBase
 {
 public:
 	LogFile(std::string file_name);
 	virtual ~LogFile();
-	
+
 	virtual void OnRegister(int enabled_logs);
 	virtual void OnUnregister();
-	virtual void OnMessage(LogType log_types, const std::string &message);
-	
+	virtual void OnMessage(LogType log_types, const std::string& message);
+
 private:
-	FILE *fp;
+	FILE* fp;
 	std::string file_name;
 };
 
-}
-
-}
-
-#endif
+} // namespace EQEmu::Log

@@ -363,6 +363,8 @@ bool ZoneCollisionMesh::finalize()
 			SPDLOG_ERROR("ZoneCollisionMesh::finalize: Failed to build chunky triangle mesh");
 			return false;
 		}
+
+		return true;
 	}
 
 	return false;

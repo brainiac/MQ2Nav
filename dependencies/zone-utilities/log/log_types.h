@@ -1,11 +1,7 @@
-#ifndef EQEMU_LOG_LOG_TYPES_H
-#define EQEMU_LOG_LOG_TYPES_H
 
-namespace EQEmu
-{
+#pragma once
 
-namespace Log
-{
+namespace EQEmu::Log {
 
 enum LogType
 {
@@ -18,8 +14,4 @@ enum LogType
 	LogAll = 63
 };
 
-}
-
-}
-
-#endif
+} // namespace EQEmu::Log

@@ -19,10 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="common\any.h" />
     <ClInclude Include="common\compression.h" />
     <ClInclude Include="common\container_util.h" />
-    <ClInclude Include="common\eqemu_endian.h" />
     <ClInclude Include="common\eqg_geometry.h" />
     <ClInclude Include="common\eqg_loader.h" />
     <ClInclude Include="common\eqg_material.h" />
@@ -39,12 +37,8 @@
     <ClInclude Include="common\wld_loader.h" />
     <ClInclude Include="common\s3d_types.h" />
     <ClInclude Include="common\safe_alloc.h" />
-    <ClInclude Include="common\water_map.h" />
-    <ClInclude Include="common\water_map_v1.h" />
-    <ClInclude Include="common\water_map_v2.h" />
     <ClInclude Include="common\wld_fragment.h" />
     <ClInclude Include="common\wld_structs.h" />
-    <ClInclude Include="common\zone_map.h" />
     <ClInclude Include="log\log_base.h" />
     <ClInclude Include="log\log_file.h" />
     <ClInclude Include="log\log_macros.h" />
@@ -61,11 +55,7 @@
     <ClCompile Include="common\pfs.cpp" />
     <ClCompile Include="common\pfs_crc.cpp" />
     <ClCompile Include="common\wld_loader.cpp" />
-    <ClCompile Include="common\water_map.cpp" />
-    <ClCompile Include="common\water_map_v1.cpp" />
-    <ClCompile Include="common\water_map_v2.cpp" />
     <ClCompile Include="common\wld_fragment.cpp" />
-    <ClCompile Include="common\zone_map.cpp" />
     <ClCompile Include="log\log_file.cpp" />
     <ClCompile Include="log\log_manager.cpp" />
     <ClCompile Include="log\log_stdout.cpp" />

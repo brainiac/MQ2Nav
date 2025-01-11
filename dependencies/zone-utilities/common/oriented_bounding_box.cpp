@@ -1,8 +1,11 @@
+
 #include "oriented_bounding_box.h"
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
 
-glm::mat4 CreateRotateMatrix(float rx, float ry, float rz) {
+glm::mat4 CreateRotateMatrix(float rx, float ry, float rz)
+{
 	glm::mat4 rot_x(1.0f);
 	rot_x[1][1] = cos(rx);
 	rot_x[2][1] = -sin(rx);
@@ -24,7 +27,8 @@ glm::mat4 CreateRotateMatrix(float rx, float ry, float rz) {
 	return rot_z * rot_y * rot_x;
 }
 
-glm::mat4 CreateTranslateMatrix(float tx, float ty, float tz) {
+glm::mat4 CreateTranslateMatrix(float tx, float ty, float tz)
+{
 	glm::mat4 trans(1.0f);
 	trans[3][0] = tx;
 	trans[3][1] = ty;
@@ -33,15 +37,18 @@ glm::mat4 CreateTranslateMatrix(float tx, float ty, float tz) {
 	return trans;
 }
 
-glm::mat4 CreateScaleMatrix(float sx, float sy, float sz) {
+glm::mat4 CreateScaleMatrix(float sx, float sy, float sz)
+{
 	glm::mat4 scale(1.0f);
 	scale[0][0] = sx;
 	scale[1][1] = sy;
 	scale[2][2] = sz;
+
 	return scale;
 }
 
-OrientedBoundingBox::OrientedBoundingBox(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale, glm::vec3 extents) {
+OrientedBoundingBox::OrientedBoundingBox(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale, glm::vec3 extents)
+{
 	min_x = -extents.x;
 	max_x = extents.x;
 
@@ -70,7 +77,7 @@ OrientedBoundingBox::OrientedBoundingBox(glm::vec3 pos, glm::vec3 rot, glm::vec3
 		max_z = t;
 	}
 
-	//rotate
+	// rotate
 	transformation = CreateRotateMatrix(rot.x * 3.14159f / 180.0f, rot.y * 3.14159f / 180.0f, rot.z * 3.14159f / 180.0f);
 	
 	//scale
@@ -81,13 +88,15 @@ OrientedBoundingBox::OrientedBoundingBox(glm::vec3 pos, glm::vec3 rot, glm::vec3
 	inverted_transformation = glm::inverse(transformation);
 }
 
-bool OrientedBoundingBox::ContainsPoint(glm::vec3 p) const {
+bool OrientedBoundingBox::ContainsPoint(glm::vec3 p) const
+{
 	glm::vec4 pt(p.x, p.y, p.z, 1);
 	glm::vec4 box_space_p = inverted_transformation * pt;
 
-	if (box_space_p.x >= min_x && box_space_p.x <= max_x &&
-		box_space_p.y >= min_y && box_space_p.y <= max_y &&
-		box_space_p.z >= min_z && box_space_p.z <= max_z) {
+	if (box_space_p.x >= min_x && box_space_p.x <= max_x
+		&& box_space_p.y >= min_y && box_space_p.y <= max_y
+		&& box_space_p.z >= min_z && box_space_p.z <= max_z)
+	{
 		return true;
 	}
 	

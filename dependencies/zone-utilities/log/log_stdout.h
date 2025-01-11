@@ -1,28 +1,21 @@
-#ifndef EQEMU_LOG_LOG_STDOUT_H
-#define EQEMU_LOG_LOG_STDOUT_H
 
-#include <string>
+#pragma once
+
 #include "log_base.h"
 
-namespace EQEmu
-{
+#include <string>
 
-namespace Log
-{
+namespace EQEmu::Log {
 
 class LogStdOut : public LogBase
 {
 public:
-	LogStdOut() { }
-	virtual ~LogStdOut() { }
-	
-	virtual void OnRegister(int enabled_logs) { }
-	virtual void OnUnregister() { }
-	virtual void OnMessage(LogType log_types, const std::string &message);
+	LogStdOut() {}
+	virtual ~LogStdOut() {}
+
+	virtual void OnRegister(int enabled_logs) {}
+	virtual void OnUnregister() {}
+	virtual void OnMessage(LogType log_types, const std::string& message);
 };
 
-}
-
-}
-
-#endif
+} // namespace EQEmu::Log
