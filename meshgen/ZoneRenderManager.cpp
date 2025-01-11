@@ -1,10 +1,8 @@
-#include "ZoneRenderManager.h"
-
-#include <math.h>
-
-#include "meshgen/MapGeometryLoader.h"
 #include "meshgen/ResourceManager.h"
+#include "meshgen/ZoneCollisionMesh.h"
 #include "meshgen/ZoneProject.h"
+#include "meshgen/ZoneRenderManager.h"
+#include "meshgen/ZoneResourceManager.h"
 #include "common/NavMeshData.h"
 #include "common/NavMesh.h"
 #include "im3d/im3d_math.h"
@@ -13,6 +11,7 @@
 #include <recast/DebugUtils/Include/DebugDraw.h>
 #include <recast/Detour/Include/DetourNavMeshQuery.h>
 #include <imgui/imgui.h>
+#include <math.h>
 
 
 ZoneRenderManager* g_zoneRenderManager = nullptr;
@@ -520,8 +519,6 @@ void ZoneInputGeometryRender::CreateObjects()
 		return;
 	}
 
-	auto loader = project->GetMeshLoader();
-
 	// Check to see if we have a mesh config, otherwise we'll use defaults.
 	const NavMeshConfig* config = nullptr;
 
@@ -536,11 +533,11 @@ void ZoneInputGeometryRender::CreateObjects()
 		config = &defaultConfig;
 	}
 
-	auto& collisionMesh = loader->GetCollisionMesh();
-	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(collisionMesh.getVerts());
-	const int* tris = collisionMesh.getTris();
-	const float* normals = collisionMesh.getNormals();
-	const int ntris = collisionMesh.getTriCount();
+	auto collisionMesh = project->GetCollisionMesh();
+	const glm::vec3* verts = reinterpret_cast<const glm::vec3*>(collisionMesh->getVerts());
+	const int* tris = collisionMesh->getTris();
+	const float* normals = collisionMesh->getNormals();
+	const int ntris = collisionMesh->getTriCount();
 	const float texScale = 1.0f / (config->cellSize * 10.0f);
 	const float walkableThr = cosf(config->agentMaxSlope / 180.0f * DU_PI);
 	const uint32_t unwalkable = duRGBA(192, 128, 0, 255);

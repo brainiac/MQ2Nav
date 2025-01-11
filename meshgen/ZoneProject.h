@@ -10,11 +10,11 @@
 
 class dtNavMesh;
 class Editor;
-class MapGeometryLoader;
 class NavMesh;
 class NavMeshBuilder;
 class RecastContext;
 class Scene;
+class ZoneCollisionMesh;
 class ZoneProject;
 class ZoneRenderManager;
 class ZoneResourceManager;
@@ -24,7 +24,7 @@ struct rcChunkyTriMesh;
 enum class TaskPhase
 {
 	LoadZoneData,
-	BuildTriangleMesh,
+	BuildCollisionMesh,
 	LoadNavMesh,
 	Done,
 };
@@ -130,9 +130,10 @@ public:
 	void OnUpdate(float timeStep);
 	void OnShutdown();
 
-	std::shared_ptr<ZoneRenderManager> GetRenderManager() { return m_renderManager; }
-	MapGeometryLoader* GetMeshLoader() { return m_loader.get(); }
-	const rcChunkyTriMesh* GetChunkyMesh() { return m_chunkyMesh.get(); }
+	std::shared_ptr<ZoneRenderManager> GetRenderManager() const { return m_renderManager; }
+	ZoneResourceManager* GetResourceManager() const { return m_resourceMgr.get(); }
+
+	std::shared_ptr<ZoneCollisionMesh> GetCollisionMesh() const { return m_collisionMesh; }
 
 	// Zone
 	const std::string& GetShortName() const { return m_zoneShortName; }
@@ -189,10 +190,7 @@ private:
 	std::shared_ptr<Scene>               m_scene;
 	std::shared_ptr<ZoneRenderManager>   m_renderManager;
 	std::unique_ptr<ZoneResourceManager> m_resourceMgr;
-	std::unique_ptr<MapGeometryLoader>   m_loader;
-
-	// Our zone mesh as a triangle soup
-	std::unique_ptr<rcChunkyTriMesh>     m_chunkyMesh;
+	std::shared_ptr<ZoneCollisionMesh>   m_collisionMesh;
 
 	// The currently selected nav mesh and all of its state.
 	std::shared_ptr<NavMeshProject>      m_navMeshProj;

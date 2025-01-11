@@ -28,7 +28,7 @@
     <ClCompile Include="imgui\imgui_impl_sdl2.cpp" />
     <ClCompile Include="Logging.cpp" />
     <ClCompile Include="ConsolePanel.cpp" />
-    <ClCompile Include="MapGeometryLoader.cpp" />
+    <ClCompile Include="ZoneResourceManager.cpp" />
     <ClCompile Include="NavMeshBuilder.cpp" />
     <ClCompile Include="NavMeshInfoTool.cpp" />
     <ClCompile Include="NavMeshTool.cpp" />
@@ -55,7 +55,6 @@
     <ClCompile Include="ZoneProject.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
     <ClCompile Include="ZoneRenderManager.cpp" />
-    <ClCompile Include="ZoneResourceManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\dependencies\im3d\im3d.h" />
@@ -86,7 +85,7 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="Logging.h" />
     <ClInclude Include="ConsolePanel.h" />
-    <ClInclude Include="MapGeometryLoader.h" />
+    <ClInclude Include="ZoneResourceManager.h" />
     <ClInclude Include="NavMeshBuilder.h" />
     <ClInclude Include="NavMeshInfoTool.h" />
     <ClInclude Include="NavMeshTool.h" />
@@ -109,7 +108,6 @@
     <ClInclude Include="WaypointsTool.h" />
     <ClInclude Include="ZoneCollisionMesh.h" />
     <ClInclude Include="ZoneProject.h" />
-    <ClInclude Include="ZoneResourceManager.h" />
     <ClInclude Include="ZonePicker.h" />
     <ClInclude Include="ZoneRenderManager.h" />
   </ItemGroup>

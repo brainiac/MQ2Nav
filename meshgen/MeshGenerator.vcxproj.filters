@@ -59,7 +59,7 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MapGeometryLoader.cpp">
+    <ClCompile Include="ZoneResourceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ApplicationConfig.cpp">
@@ -152,9 +152,6 @@
     <ClCompile Include="BackgroundTaskManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ZoneResourceManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Editor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -184,7 +181,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MapGeometryLoader.h">
+    <ClInclude Include="ZoneResourceManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ApplicationConfig.h">
@@ -303,9 +300,6 @@
     </ClInclude>
     <ClInclude Include="imgui\imgui_utilities.h">
       <Filter>Header Files\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="ZoneResourceManager.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ZoneProject.h">
       <Filter>Header Files</Filter>

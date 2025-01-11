@@ -4,9 +4,9 @@
 
 #include "common/MathUtil.h"
 #include "meshgen/Editor.h"
-#include "meshgen/MapGeometryLoader.h"
-#include "meshgen/RenderManager.h"
 #include "meshgen/ZoneProject.h"
+#include "meshgen/ZoneResourceManager.h"
+#include "meshgen/ZoneCollisionMesh.h"
 #include "imgui/fonts/IconsFontAwesome.h"
 
 #include <glm/gtc/type_ptr.hpp>
@@ -49,10 +49,10 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 		{
 			ImGui::Separator();
 
-			auto* loader = project->GetMeshLoader();
+			auto* resourceManager = project->GetResourceManager();
 
-			if (loader->HasDynamicObjects())
-				ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", loader->GetDynamicObjectsCount());
+			if (resourceManager->HasDynamicObjects())
+				ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", resourceManager->GetDynamicObjectsCount());
 			else
 			{
 				ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
@@ -67,8 +67,9 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 				}
 			}
 
-			auto& collisionMesh = loader->GetCollisionMesh();
-			ImGui::Text("Collision Mesh Verts: %.1fk Tris: %.1fk", collisionMesh.getVertCount() / 1000.0f, collisionMesh.getTriCount() / 1000.0f);
+			auto collisionMesh = project->GetCollisionMesh();
+			ImGui::Text("Collision Mesh Verts: %.1fk Tris: %.1fk",
+				collisionMesh->getVertCount() / 1000.0f, collisionMesh->getTriCount() / 1000.0f);
 
 			if (project->IsNavMeshReady())
 			{

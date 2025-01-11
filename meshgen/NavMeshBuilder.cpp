@@ -3,7 +3,7 @@
 #include "common/NavMesh.h"
 #include "common/Utilities.h"
 #include "meshgen/ChunkyTriMesh.h"
-#include "meshgen/MapGeometryLoader.h"
+#include "meshgen/ZoneCollisionMesh.h"
 #include "meshgen/RecastContext.h"
 #include "meshgen/ZoneProject.h"
 
@@ -57,7 +57,7 @@ bool NavMeshBuilder::Prepare()
 	}
 
 	auto zoneProj = navMeshProj->GetZoneProject();
-	if (!zoneProj || !zoneProj->GetMeshLoader())
+	if (!zoneProj)
 	{
 		SPDLOG_ERROR("NavMeshBuilder::Prepare: No vertices and triangles.");
 		return false;
@@ -346,9 +346,16 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshBuilder::RasterizeGeometry(
 	}
 
 	auto zoneProj = navMeshProj->GetZoneProject();
-	if (!zoneProj || !zoneProj->GetMeshLoader())
+	if (!zoneProj)
 	{
-		SPDLOG_ERROR("NavMeshBuilder::RasterizeGeometry: No input geometry");
+		SPDLOG_ERROR("NavMeshBuilder::RasterizeGeometry: No zone project!");
+		return nullptr;
+	}
+
+	auto collisionMesh = zoneProj->GetCollisionMesh();
+	if (!collisionMesh)
+	{
+		SPDLOG_ERROR("NavMeshBuilder::RasterizeGeometry: No collision mesh!");
 		return nullptr;
 	}
 
@@ -364,11 +371,9 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshBuilder::RasterizeGeometry(
 		return nullptr;
 	}
 
-	MapGeometryLoader* loader = zoneProj->GetMeshLoader();
-
-	const float* verts = loader->GetCollisionMesh(). getVerts();
-	const int nverts = loader->GetCollisionMesh().getVertCount();
-	const rcChunkyTriMesh* chunkyMesh = zoneProj->GetChunkyMesh();
+	const float* verts = collisionMesh->getVerts();
+	const int nverts = collisionMesh->getVertCount();
+	const rcChunkyTriMesh* chunkyMesh = collisionMesh->GetChunkyMesh();
 
 	// Allocate array that can hold triangle flags.
 	// If you have multiple meshes you need to process, allocate
@@ -384,7 +389,7 @@ deleting_unique_ptr<rcCompactHeightfield> NavMeshBuilder::RasterizeGeometry(
 	int cid[512];// TODO: Make grow when returning too many items.
 	const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
 	if (!ncid)
-		return 0;
+		return nullptr;
 
 	for (int i = 0; i < ncid; ++i)
 	{
@@ -438,9 +443,9 @@ unsigned char* NavMeshBuilder::BuildTileMesh(
 	}
 
 	auto zoneProj = navMeshProj->GetZoneProject();
-	if (!zoneProj || !zoneProj->GetMeshLoader())
+	if (!zoneProj)
 	{
-		SPDLOG_ERROR("NavMeshBuilder::BuildTileMesh: No input geometry");
+		SPDLOG_ERROR("NavMeshBuilder::BuildTileMesh: No zone project");
 		return nullptr;
 	}
 
@@ -643,8 +648,7 @@ unsigned char* NavMeshBuilder::BuildTileMesh(
 			pmesh->flags[i] = m_navMesh->GetPolyArea(pmesh->areas[i]).flags;
 		}
 
-		dtNavMeshCreateParams params;
-		memset(&params, 0, sizeof(params));
+		dtNavMeshCreateParams params = {};
 		params.verts = pmesh->verts;
 		params.vertCount = pmesh->nverts;
 		params.polys = pmesh->polys;

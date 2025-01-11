@@ -6,7 +6,6 @@
 #include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/Editor.h"
 #include "meshgen/Logging.h"
-#include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/RenderManager.h"
 #include "meshgen/ResourceManager.h"
@@ -22,7 +21,6 @@
 
 #include <bx/math.h>
 #include <fmt/format.h>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <SDL2/SDL.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -257,8 +255,6 @@ bool Application::Update()
 
 bool Application::HandleEvents()
 {
-	auto& io = ImGui::GetIO();
-
 	SDL_Event event;
 	while (SDL_PollEvent(&event))
 	{

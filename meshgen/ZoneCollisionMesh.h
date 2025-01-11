@@ -1,24 +1,12 @@
 #pragma once
 
+#include "meshgen/ChunkyTriMesh.h"
 #include "zone-utilities/common/wld_loader.h"
 #include "zone-utilities/common/eqg_loader.h"
 
 #include <glm/glm.hpp>
 #include <memory>
 #include <vector>
-
-struct KeyFuncs
-{
-	size_t operator()(const glm::vec3& k)const
-	{
-		return std::hash<float>()(k.x) ^ std::hash<float>()(k.y) ^ std::hash<float>()(k.z);
-	}
-
-	bool operator()(const glm::vec3& a, const glm::vec3& b)const
-	{
-		return a == b;
-	}
-};
 
 class ZoneCollisionMesh
 {
@@ -47,9 +35,13 @@ public:
 	void addZoneGeometry(const S3DGeometryPtr& model); // For s3d zone geometry
 	void addZoneGeometry(const EQGGeometryPtr& model); // For TER zone geometry
 
-	void finalize();
+	bool finalize();
 
 	void setMaxExtents(const std::pair<glm::vec3, glm::vec3>& maxExtents);
+
+	// TOOD: Collapse this impl into the collision mesh itself
+	const rcChunkyTriMesh* GetChunkyMesh() { return m_chunkyMesh.get(); }
+	bool RaycastMesh(const glm::vec3& src, const glm::vec3& dest, float& tMin);
 
 	template<typename... Args>
 	bool ArePointsOutsideExtents(Args &&... args)
@@ -103,5 +95,7 @@ public:
 	float* m_normals = nullptr;
 	int m_vertCount = 0;
 	int m_triCount = 0;
+
+	std::unique_ptr<rcChunkyTriMesh> m_chunkyMesh;
 };
 

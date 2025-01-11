@@ -2,15 +2,13 @@
 #include "pch.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/Application.h"
-#include "meshgen/ChunkyTriMesh.h"
+#include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/ConvexVolumeTool.h"
-#include "meshgen/MapGeometryLoader.h"
 #include "meshgen/NavMeshInfoTool.h"
 #include "meshgen/NavMeshPruneTool.h"
 #include "meshgen/NavMeshTesterTool.h"
 #include "meshgen/NavMeshTileTool.h"
 #include "meshgen/OffMeshConnectionTool.h"
-#include "meshgen/RecastContext.h"
 #include "meshgen/WaypointsTool.h"
 #include "meshgen/ZoneProject.h"
 #include "common/NavMeshData.h"
@@ -28,8 +26,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <complex>
-
-#include "BackgroundTaskManager.h"
 
 //----------------------------------------------------------------------------
 
