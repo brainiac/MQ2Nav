@@ -82,8 +82,10 @@ bool EQGLoader::Load(PFS::Archive* archive)
 	}
 	else if (zon_index != -1)
 	{
-		if (ParseFile(files[zon_index]))
-			loaded_anything = true;
+		if (!ParseFile(files[zon_index]))
+			return false;
+
+		loaded_anything = true;
 	}
 
 	return loaded_anything;
@@ -147,13 +149,13 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 		else if (strncmp(pMagic, "EQGT", 4) == 0)
 		{
 			// Terrain
-			EQG_LOG_DEBUG("EQGT: Terrain data: %s", fileName);
+			EQG_LOG_DEBUG("EQGT: Terrain data: {}", fileName);
 			success = ParseTerrain(fileBuffer, fileName, tag);
 		}
 		else if (strncmp(pMagic, "EQGZ", 4) == 0)
 		{
 			// Zone
-			EQG_LOG_DEBUG("EQGZ: Zone data: %s", fileName);
+			EQG_LOG_DEBUG("EQGZ: Zone data: {}", fileName);
 			success = ParseZone(fileBuffer, tag);
 		}
 		else if (strncmp(pMagic, "EQLOD", 5) == 0)

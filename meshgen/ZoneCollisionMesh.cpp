@@ -368,6 +368,7 @@ bool ZoneCollisionMesh::finalize()
 		return true;
 	}
 
+	SPDLOG_WARN("No vertices loaded?");
 	return false;
 }
 

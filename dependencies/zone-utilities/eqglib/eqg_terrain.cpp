@@ -253,10 +253,13 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 			break;
 		}
 	}
-	for (size_t idx = 0; idx < quad_flags.size(); ++idx)
+	if (tile_is_flat)
 	{
-		if (quad_flags[idx] & 0x01)
-			tile_is_flat = false;
+		for (size_t idx = 0; idx < quad_flags.size(); ++idx)
+		{
+			if (quad_flags[idx] & 0x01) // bmQuadExcluded
+				tile_is_flat = false;
+		}
 	}
 
 	this->flat = tile_is_flat;
@@ -272,10 +275,9 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 		if (!reader.read(has_water_sheet))
 			return false;
 
-		// Should be checking for has_water_sheet?
 		if (has_water_sheet)
 		{
-			if (reader.read_multiple(water_sheet_min_x, water_sheet_max_x, water_sheet_min_y, water_sheet_max_y))
+			if (!reader.read_multiple(water_sheet_min_x, water_sheet_max_x, water_sheet_min_y, water_sheet_max_y))
 				return false;
 		}
 	}

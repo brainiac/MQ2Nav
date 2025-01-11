@@ -63,6 +63,7 @@ bool ZoneResourceManager::Load()
 	if (!fs::exists(zone_path.replace_extension(".eqg"), ec)
 		&& !fs::exists(zone_path.replace_extension(".s3d"), ec))
 	{
+		SPDLOG_WARN("Zone files for '{}' not found", m_zoneName);
 		return false;
 	}
 
@@ -447,7 +448,7 @@ EQEmu::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName)
 	}
 	else
 	{
-		SPDLOG_ERROR("Failed to load %s", archiveFileName);
+		SPDLOG_ERROR("Failed to load {}", archiveFileName);
 	}
 
 	return loader;
