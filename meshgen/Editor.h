@@ -60,6 +60,7 @@ private:
 	void UI_UpdateViewport();
 	void UI_DrawMainMenuBar();
 	void UI_DrawToolbar();
+	void UI_DrawStatusBar();
 	void UI_DrawZonePicker();
 	void UI_DrawSettingsDialog();
 	void UI_DrawOverlayText();

@@ -51,7 +51,7 @@ struct DockingSplit
 {
 	std::string initialDock;
 	std::string newDock;
-	ImGuiDir_ direction;
+	ImGuiDir direction;
 	float ratio = .25f;
 	ImGuiDockNodeFlags nodeFlags = 0;
 };

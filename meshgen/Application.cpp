@@ -10,6 +10,7 @@
 #include "meshgen/RenderManager.h"
 #include "meshgen/ResourceManager.h"
 #include "meshgen/ZonePicker.h"
+#include "mq/base/Color.h"
 
 #include "imgui/fonts/IconsLucide.h"
 #include "imgui/fonts/IconsLucide.h_lucide.ttf.h"
@@ -139,6 +140,21 @@ bool Application::InitSystem()
 		return false;
 	}
 
+	// TODO: Pump events with SDL_PumpEvents instead of SDL_PollEvents, to avoid blocking on resize
+	//SDL_AddEventWatch([](void* data, SDL_Event* event)
+	//	{
+	//		Application* pThis = static_cast<Application*>(data);
+	//		if (event->type == SDL_WINDOWEVENT  && event->window.event == SDL_WINDOWEVENT_RESIZED)
+	//		{
+	//			SDL_Window* win = SDL_GetWindowFromID(event->window.windowID);
+	//			if (win == pThis->m_window)
+	//			{
+	//				pThis->HandleWindowEvent(event->window);
+	//			}
+	//		}
+	//		return 0;
+	//	}, this);
+
 	if (!g_render->Initialize(m_windowRect.z, m_windowRect.w, m_window))
 		return false;
 	if (!g_resourceMgr->Initialize())
@@ -208,7 +224,8 @@ void Application::InitImGui()
 	style.ScrollbarRounding = 8;
 
 	ImVec4* colors = style.Colors;
-	colors[ImGuiCol_FrameBg] = ImVec4(0.16f, 0.16f, 0.16f, 0.54f);
+	colors[ImGuiCol_WindowBg] = mq::MQColor(33, 33, 37, 240).ToImColor();
+	colors[ImGuiCol_FrameBg] = mq::MQColor(18, 18, 18, 140).ToImColor();
 	colors[ImGuiCol_MenuBarBg] = ImVec4(0.06f, 0.06f, 0.06f, 0.94f);
 	colors[ImGuiCol_Separator] = ImVec4(0.75f, 0.75f, 0.75f, 0.38f);
 
@@ -263,55 +280,7 @@ bool Application::HandleEvents()
 		switch (event.type)
 		{
 		case SDL_WINDOWEVENT:
-			if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-			{
-				m_windowRect.z = event.window.data1;
-				m_windowRect.w = event.window.data2;
-
-				Uint32 flags = SDL_GetWindowFlags(m_window);
-				bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
-				if (!isMaximized)
-					g_config.SetSavedWindowDimensions(m_windowRect);
-
-				g_render->SetWindowSize(m_windowRect.z, m_windowRect.w);
-
-				m_editor->OnWindowSizeChanged(event.window);
-			}
-			else if (event.window.event == SDL_WINDOWEVENT_MOVED)
-			{
-				m_windowRect.x = event.window.data1;
-				m_windowRect.y = event.window.data2;
-
-				Uint32 flags = SDL_GetWindowFlags(m_window);
-				bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
-				if (!isMaximized)
-					g_config.SetSavedWindowDimensions(m_windowRect);
-			}
-			else if (event.window.event == SDL_WINDOWEVENT_SHOWN)
-			{
-				int x, y, z, w;
-				SDL_GetWindowPosition(m_window, &x, &y);
-				SDL_GetWindowSize(m_window, &z, &w);
-
-				m_windowRect = { x, y, z, w };
-
-				Uint32 flags = SDL_GetWindowFlags(m_window);
-				bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
-				if (!isMaximized)
-					g_config.SetSavedWindowDimensions(m_windowRect);
-			}
-			else if (event.window.event == SDL_WINDOWEVENT_MAXIMIZED)
-			{
-				SPDLOG_INFO("Window Maximized");
-			}
-			else if (event.window.event == SDL_WINDOWEVENT_RESTORED)
-			{
-				SPDLOG_INFO("Window Restored");
-			}
-			else if (event.window.event == SDL_WINDOWEVENT_MINIMIZED)
-			{
-				SPDLOG_INFO("Window Minimized");
-			}
+			HandleWindowEvent(event.window);
 			break;
 
 		case SDL_KEYDOWN:
@@ -349,6 +318,60 @@ bool Application::HandleEvents()
 
 	return !m_done;
 }
+
+void Application::HandleWindowEvent(SDL_WindowEvent& event)
+{
+	if (event.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+	{
+		m_windowRect.z = event.data1;
+		m_windowRect.w = event.data2;
+
+		Uint32 flags = SDL_GetWindowFlags(m_window);
+		bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
+		if (!isMaximized)
+			g_config.SetSavedWindowDimensions(m_windowRect);
+
+		g_render->SetWindowSize(m_windowRect.z, m_windowRect.w);
+
+		m_editor->OnWindowSizeChanged(event);
+	}
+	else if (event.event == SDL_WINDOWEVENT_MOVED)
+	{
+		m_windowRect.x = event.data1;
+		m_windowRect.y = event.data2;
+
+		Uint32 flags = SDL_GetWindowFlags(m_window);
+		bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
+		if (!isMaximized)
+			g_config.SetSavedWindowDimensions(m_windowRect);
+	}
+	else if (event.event == SDL_WINDOWEVENT_SHOWN)
+	{
+		int x, y, z, w;
+		SDL_GetWindowPosition(m_window, &x, &y);
+		SDL_GetWindowSize(m_window, &z, &w);
+
+		m_windowRect = { x, y, z, w };
+
+		Uint32 flags = SDL_GetWindowFlags(m_window);
+		bool isMaximized = flags & SDL_WINDOW_MAXIMIZED;
+		if (!isMaximized)
+			g_config.SetSavedWindowDimensions(m_windowRect);
+	}
+	else if (event.event == SDL_WINDOWEVENT_MAXIMIZED)
+	{
+		SPDLOG_INFO("Window Maximized");
+	}
+	else if (event.event == SDL_WINDOWEVENT_RESTORED)
+	{
+		SPDLOG_INFO("Window Restored");
+	}
+	else if (event.event == SDL_WINDOWEVENT_MINIMIZED)
+	{
+		SPDLOG_INFO("Window Minimized");
+	}
+}
+
 
 void Application::RenderImGui()
 {

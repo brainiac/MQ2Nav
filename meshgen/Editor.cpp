@@ -18,6 +18,7 @@
 #include "meshgen/SelectionManager.h"
 #include "meshgen/SettingsDialog.h"
 #include "meshgen/ToolsPanel.h"
+#include "meshgen/ZoneCollisionMesh.h"
 #include "meshgen/ZonePicker.h"
 #include "meshgen/ZoneProject.h"
 #include "meshgen/ZoneRenderManager.h"
@@ -26,10 +27,12 @@
 #include "imgui/fonts/IconsMaterialDesign.h"
 #include "imgui/ImGuiUtils.h"
 #include "imgui/scoped_helpers.h"
-#include "imgui_internal.h"
+#include "imgui/imgui_internal.h"
+#include "imgui/imgui_stacklayout.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include "ZoneResourceManager.h"
 
 
 Editor::Editor()
@@ -141,6 +144,7 @@ void Editor::OnImGuiRender()
 
 	UI_DrawMainMenuBar();
 	UI_DrawToolbar();
+	UI_DrawStatusBar();
 	
 	UI_DrawOverlayText();
 
@@ -440,6 +444,10 @@ static bool ToolbarButton(const char* text, const char* tooltip = nullptr, bool 
 		ImGuiCol_Separator, IM_COL32(192, 192, 192, 96)
 	);
 
+	mq::imgui::ScopedStyleStack styleStack(
+		ImGuiStyleVar_FramePadding, ImVec2(2, 2)
+	);
+
 	ImGui::BeginDisabled(disabled);
 	float cursorY = ImGui::GetCursorPosY();
 	ImGui::SetCursorPosY(3);
@@ -447,8 +455,8 @@ static bool ToolbarButton(const char* text, const char* tooltip = nullptr, bool 
 	bool pressed;
 
 	{
-		mq::imgui::ScopedColorStack colorStack(
-			ImGuiCol_Text, (selected || disabled) ? IM_COL32(255, 255, 255, 255) : IM_COL32(104, 184, 255, 255)
+		mq::imgui::ScopedColorStack colorStack2(
+			ImGuiCol_Text, (selected && !disabled) ? IM_COL32(255, 255, 255, 255) : IM_COL32(200, 200, 200, 255)
 		);
 
 		ImGui::PushFont(font ? font : LCIconFontLarge);
@@ -465,30 +473,185 @@ static bool ToolbarButton(const char* text, const char* tooltip = nullptr, bool 
 	return pressed;
 }
 
-static void ToolbarSeparator()
+static void ToolbarSeparator(int adj = 0)
 {
-	float cursorY = ImGui::GetCursorPosY();
-	ImGui::SetCursorPosY(3);
-
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
 
 	// Vertical separator, for menu bars (use current line height).
-	float y1 = 1;
-	float y2 = window->Rect().Max.y - 1;
-	const ImRect bb(ImVec2(window->DC.CursorPos.x, y1), ImVec2(window->DC.CursorPos.x + 1.0f, y2));
-	ImGui::ItemSize(ImVec2(1.0, 0.0f));
-	if (!ImGui::ItemAdd(bb, 0))
-		return;
+	float y1 = window->Rect().Min.y + adj;
+	float y2 = window->Rect().Max.y - 1 + adj;
+	const ImRect bb(ImVec2(window->DC.CursorPos.x + 4, y1), ImVec2(window->DC.CursorPos.x + 5.0f, y2));
+	ImGui::ItemSize(ImVec2(9.0, 1.0f));
 
 	// Draw
-	window->DrawList->AddRectFilled(bb.Min, bb.Max, IM_COL32(192, 192, 192, 96));
-	ImGui::SetCursorPosY(cursorY);
+	window->DrawList->AddRectFilled(bb.Min, bb.Max, ImGui::GetColorU32(ImGuiCol_Separator));
 }
 
 void Editor::UI_DrawToolbar()
 {
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	float height = 32;
+	// Set up the area we will use for the toolbar
+	{
+		mq::imgui::ScopedStyleStack window_style_stack(
+			ImGuiStyleVar_WindowBorderSize, 1.0f,
+			ImGuiStyleVar_WindowPadding, ImVec2(0, 0),
+			ImGuiStyleVar_FrameBorderSize, 1.0f
+		);
+		mq::imgui::ScopedColorStack window_color_stack(
+			ImGuiCol_WindowBg, ImGui::GetColorU32(ImGuiCol_MenuBarBg)
+		);
+
+		ImGuiWindowFlags window_flags = 0
+			| ImGuiWindowFlags_NoDocking
+			| ImGuiWindowFlags_NoTitleBar
+			| ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoMove
+			| ImGuiWindowFlags_NoScrollbar
+			| ImGuiWindowFlags_NoSavedSettings
+			;
+
+		float height = 32;
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+		if (!ImGui::BeginViewportSideBar("##Toolbar", viewport, ImGuiDir_Up, height, window_flags))
+		{
+			ImGui::End();
+			return;
+		}
+
+		ImGui::BeginHorizontal("##ToolbarHorizontal", ImVec2(ImGui::GetContentRegionAvail().x, height), 0.5f);
+
+		ImGuiWindow* window = ImGui::GetCurrentWindow();
+		const float window_border_size = window->WindowBorderSize;
+
+		ImRect menu_bar_rect = window->Rect();
+		menu_bar_rect.Max.y -= 1;
+		//window->DrawList->AddRectFilled(menu_bar_rect.Min + ImVec2(window_border_size, 0), menu_bar_rect.Max - ImVec2(window_border_size, 0),
+		//	ImGui::GetColorU32(ImGuiCol_MenuBarBg), 0.0f, ImDrawFlags_None);
+		
+		window->DrawList->AddLine(menu_bar_rect.GetBL(), menu_bar_rect.GetBR(), ImGui::GetColorU32(ImGuiCol_Border), 1.0f);
+	}
+
+	mq::imgui::ScopedStyleStack styleStack2(
+		ImGuiStyleVar_FramePadding, ImVec2(4, 4),
+		ImGuiStyleVar_FrameRounding, 2.0f,
+		ImGuiStyleVar_FrameBorderSize, 1.0f
+	);
+
+	bool isBlocked = m_project->IsBusy();
+
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 0));
+	ImGui::Spring(0);
+
+	{
+		//
+		// Basic Actions
+		//
+
+		// Open Zone
+		if (ToolbarButton(ICON_MD_PUBLIC "##OpenZone", "Open Zone", isBlocked, mq::imgui::LargeTextFont))
+		{
+			ShowZonePicker();
+		}
+
+		// Settings
+		if (ToolbarButton(ICON_LC_SETTINGS "##Settings", "Settings"))
+		{
+			ShowSettingsDialog();
+		}
+
+		ToolbarSeparator();
+
+		//
+		// Mesh Actions
+		//
+
+		// Load Mesh
+		if (ToolbarButton(ICON_LC_FOLDER_OPEN "##OpenMesh", "Open Mesh", isBlocked || !m_project->IsZoneLoaded()))
+		{
+			m_project->LoadNavMesh();
+		}
+
+		// Save
+		if (ToolbarButton(ICON_LC_SAVE "##SaveMesh", "Save Mesh", isBlocked || !m_project->IsZoneLoaded() || !m_project->IsNavMeshReady()))
+		{
+			m_project->SaveNavMesh();
+		}
+
+		ToolbarSeparator();
+
+		//
+		// Tools
+		//
+
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1, 0));
+
+		if (ToolbarButton(ICON_LC_MOUSE_POINTER_2 "##SelectTool", "Select", false, nullptr, m_interactMode == InteractMode::Select))
+			m_interactMode = InteractMode::Select;
+		if (ToolbarButton(ICON_LC_MOVE "##MoveTool", "Translate", false, nullptr, m_interactMode == InteractMode::Move))
+			m_interactMode = InteractMode::Move;
+		if (ToolbarButton(ICON_LC_ROTATE_3D "##RotateTool", "Rotate", false, nullptr, m_interactMode == InteractMode::Rotate))
+			m_interactMode = InteractMode::Rotate;
+		if (ToolbarButton(ICON_LC_SCALE_3D "##ScaleTool", "Scale", false, nullptr, m_interactMode == InteractMode::Translate))
+			m_interactMode = InteractMode::Translate;
+
+		ImGui::PopStyleVar();
+
+		ToolbarSeparator();
+
+
+		//
+		// Camera Controls
+		//
+
+		ImGui::Spring(0.25f);
+
+		// Current Position
+		ToolbarIconText(ICON_MD_EXPLORE, "Camera position", mq::imgui::LargeTextFont);
+		{
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 4));
+
+			ImGui::SuspendLayout();
+
+			glm::vec3 cameraPos = to_eq_coord(m_camera.GetPosition());
+			ImGui::SetNextItemWidth(240.0f);
+			if (ImGui::DragFloat3("##Position", glm::value_ptr(cameraPos), 0.01f))
+			{
+				m_camera.SetPosition(from_eq_coord(cameraPos));
+			}
+
+			ImGui::ResumeLayout();
+
+			ImGui::PopStyleVar();
+		}
+
+		ImGui::Spring(0.75f);
+	}
+
+	ImGui::Spring(0);
+	ImGui::PopStyleVar(); // ItemSpacing
+
+	ImGui::EndHorizontal();
+	ImGui::End();
+}
+
+void Editor::UI_DrawStatusBar()
+{
+	// Set up the area we will use for the statusbar
+
+	mq::imgui::ScopedStyleStack window_style_stack(
+		ImGuiStyleVar_WindowBorderSize, 0.0f,
+		ImGuiStyleVar_WindowPadding, ImVec2(4, 4),
+		ImGuiStyleVar_FrameBorderSize, 1.0f,
+		ImGuiStyleVar_FramePadding, ImVec2(4, 4),
+		ImGuiStyleVar_ItemSpacing, ImVec2(4, 0)
+	);
+
+	constexpr uint32_t green = IM_COL32(14, 42, 17, 228);
+	constexpr uint32_t blue = IM_COL32(20, 26, 54, 240);
+
+	mq::imgui::ScopedColorStack window_color_stack(
+		ImGuiCol_WindowBg, m_project->IsZoneLoaded() ? green : blue
+	);
 
 	ImGuiWindowFlags window_flags = 0
 		| ImGuiWindowFlags_NoDocking
@@ -499,132 +662,80 @@ void Editor::UI_DrawToolbar()
 		| ImGuiWindowFlags_NoSavedSettings
 		;
 
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-	ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-	
-	bool draw = ImGui::BeginViewportSideBar("toolbar", viewport, ImGuiDir_Up, height, window_flags);
-	ImGuiWindow* window = ImGui::GetCurrentWindow();
-	if (draw)
-	{
-		const float window_border_size = window->WindowBorderSize;
-		window->DC.LayoutType = ImGuiLayoutType_Horizontal;
-		window->DC.CursorPosPrevLine.y += 6;
-		window->DC.CursorStartPos.y += 6;
-		window->DC.CursorPos.y += 6;
-		window->DC.IsSameLine = true;
+	float height = 24;
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-		ImRect menu_bar_rect = window->Rect();
-		menu_bar_rect.Max.y -= 1;
-		window->DrawList->AddRectFilled(menu_bar_rect.Min + ImVec2(window_border_size, 0), menu_bar_rect.Max - ImVec2(window_border_size, 0),
-			ImGui::GetColorU32(ImGuiCol_MenuBarBg), 0.0f, ImDrawFlags_None);
-		
-		window->DrawList->AddLine(menu_bar_rect.GetBL(), menu_bar_rect.GetBR(), ImGui::GetColorU32(ImGuiCol_Border), 1.0f);
+	if (!ImGui::BeginViewportSideBar("##Statusbar", viewport, ImGuiDir_Down, height, window_flags))
+	{
+		ImGui::End();
+		return;
 	}
 
-	ImGui::PopStyleVar(3);
+	ImGui::BeginHorizontal("##StatusbarHorizontal", ImGui::GetContentRegionAvail(), 0.5f);
+	ImGui::Spring(0);
 
-	mq::imgui::ScopedStyleStack styleStack(
-		ImGuiStyleVar_FramePadding, ImVec2(2, 2),
-		ImGuiStyleVar_FrameRounding, 2.0f,
-		ImGuiStyleVar_FrameBorderSize, 1.0f
-	);
+	// Draw border line above
+	ImGuiWindow* window = ImGui::GetCurrentWindow();
 
-	bool isBlocked = m_project->IsBusy();
+	ImRect menu_bar_rect = window->Rect();
+	window->DrawList->AddLine(menu_bar_rect.GetTL(), menu_bar_rect.GetTR(), ImGui::GetColorU32(ImGuiCol_Border), 1.0f);
 
-	if (draw)
 	{
-		ImGui::SetCursorPosX(8);
-		ImGui::SetCursorPosY(6);
-
+		// show zone name / stats
 		{
-			//
-			// Basic Actions
-			//
 
-			// Open Zone
-			if (ToolbarButton(ICON_MD_PUBLIC "##OpenZone", "Open Zone", isBlocked, mq::imgui::LargeTextFont))
+			if (m_project->IsZoneLoading())
+				ImGui::Text("Loading %s...", m_project->GetShortName().c_str());
+			else if (!m_project->IsZoneLoaded())
+				ImGui::TextColored(ImColor(255, 255, 255), "No zone loaded (Ctrl+O to select zone)");
+			else
+				ImGui::TextColored(ImColor(0, 255, 0), "%s (%s)", m_project->GetLongName().c_str(), m_project->GetShortName().c_str());
+
+			if (m_project->IsZoneLoaded())
 			{
-				ShowZonePicker();
-			}
+				ToolbarSeparator(1);
 
-			// Settings
-			if (ToolbarButton(ICON_LC_SETTINGS "##Settings2", "Settings"))
-			{
-				ShowSettingsDialog();
-			}
-
-			ToolbarSeparator();
-
-			//
-			// Mesh Actions
-			//
-
-			// Load Mesh
-			if (ToolbarButton(ICON_LC_FOLDER_OPEN "##OpenMesh", "Open Mesh", isBlocked || !m_project->IsZoneLoaded()))
-			{
-				m_project->LoadNavMesh();
-			}
-
-			// Save
-			if (ToolbarButton(ICON_LC_SAVE "##SaveMesh", "Save Mesh", isBlocked || !m_project->IsZoneLoaded() || !m_project->IsNavMeshReady()))
-			{
-				m_project->SaveNavMesh();
-			}
-
-			ToolbarSeparator();
-
-			//
-			// Tools
-			//
-
-			if (ToolbarButton(ICON_LC_MOUSE_POINTER_2 "##SelectTool", "Select", false, nullptr, m_interactMode == InteractMode::Select))
-				m_interactMode = InteractMode::Select;
-			ImGui::SameLine(0, 1);
-			if (ToolbarButton(ICON_LC_MOVE "##MoveTool", "Translate", false, nullptr, m_interactMode == InteractMode::Move))
-				m_interactMode = InteractMode::Move;
-			ImGui::SameLine(0, 1);
-			if (ToolbarButton(ICON_LC_ROTATE_3D "##RotateTool", "Rotate", false, nullptr, m_interactMode == InteractMode::Rotate))
-				m_interactMode = InteractMode::Rotate;
-			ImGui::SameLine(0, 1);
-			if (ToolbarButton(ICON_LC_SCALE_3D "##ScaleTool", "Scale", false, nullptr, m_interactMode == InteractMode::Translate))
-				m_interactMode = InteractMode::Translate;
-
-			ToolbarSeparator();
-
-
-			//
-			// Camera Controls
-			//
-
-			// show zone name
-			{
-				if (m_project->IsZoneLoading())
-					ImGui::TextColored(ImColor(255, 255, 0), "Loading %s...", m_project->GetShortName().c_str());
-				else if (!m_project->IsZoneLoaded())
-					ImGui::TextColored(ImColor(255, 255, 255), "No zone loaded");
+				auto* resourceManager = m_project->GetResourceManager();
+				if (resourceManager->HasDynamicObjects())
+					ImGui::Text("%d zone objects loaded", resourceManager->GetDynamicObjectsCount());
 				else
-					ImGui::TextColored(ImColor(0, 255, 0), "%s", m_project->GetShortName().c_str());
-			}
-
-			// Current Position
-			ToolbarIconText(ICON_MD_EXPLORE, "Camera position", mq::imgui::LargeTextFont);
-			{
-				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 4));
-
-				glm::vec3 cameraPos = to_eq_coord(m_camera.GetPosition());
-				ImGui::SetNextItemWidth(240.0f);
-				if (ImGui::DragFloat3("##Position", glm::value_ptr(cameraPos), 0.01f))
 				{
-					m_camera.SetPosition(from_eq_coord(cameraPos));
+					ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
+
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::BeginTooltip();
+						ImGui::Text("Dynamic objects can be loaded after entering\n"
+							"a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
+							"to refresh the dynamic objects.");
+						ImGui::EndTooltip();
+					}
 				}
 
-				ImGui::PopStyleVar();
+				ToolbarSeparator(1);
+
+				auto collisionMesh = m_project->GetCollisionMesh();
+				ImGui::TextColored(ImColor(127, 127, 127), "Collision Mesh Verts: %.1fk Tris: %.1fk",
+					collisionMesh->getVertCount() / 1000.0f, collisionMesh->getTriCount() / 1000.0f);
 			}
 		}
 
-		ImGui::End();
+		ImGui::Spring(1.0f);
+		ToolbarSeparator(1);
+
+		ImGui::Dummy(ImVec2(80, 0));
+		ImVec2 pos = ImGui::GetCursorPos();
+
+		ImGuiIO& io = ImGui::GetIO();
+		ImGui::SetCursorPos(pos - ImVec2(80, 0));
+
+		ImGui::Text("%.1f FPS", io.Framerate);
 	}
+
+	ImGui::Spring(0);
+
+	ImGui::EndHorizontal();
+	ImGui::End();
 }
 
 void Editor::UI_DrawZonePicker()

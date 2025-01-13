@@ -53,6 +53,8 @@ private:
 	// input event handling
 	bool HandleEvents();
 
+	void HandleWindowEvent(SDL_WindowEvent& event);
+
 private:
 	static Application* instance;
 

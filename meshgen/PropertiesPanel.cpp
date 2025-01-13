@@ -41,74 +41,8 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 			}
 		}
 		else if (!project->IsZoneLoaded())
-			ImGui::TextColored(ImColor(255, 255, 0), "No zone loaded (Ctrl+O to open zone)");
-		else
-			ImGui::TextColored(ImColor(0, 255, 0), "%s", project->GetDisplayName().c_str());
-
-		if (project->IsZoneLoaded())
 		{
-			ImGui::Separator();
-
-			auto* resourceManager = project->GetResourceManager();
-
-			if (resourceManager->HasDynamicObjects())
-				ImGui::TextColored(ImColor(0, 127, 127), "%d zone objects loaded", resourceManager->GetDynamicObjectsCount());
-			else
-			{
-				ImGui::TextColored(ImColor(255, 255, 0), "No zone objects loaded");
-
-				if (ImGui::IsItemHovered())
-				{
-					ImGui::BeginTooltip();
-					ImGui::Text("Dynamic objects can be loaded after entering\n"
-						"a zone in EQ with MQ2Nav loaded. Re-open the zone\n"
-						"to refresh the dynamic objects.");
-					ImGui::EndTooltip();
-				}
-			}
-
-			auto collisionMesh = project->GetCollisionMesh();
-			ImGui::Text("Collision Mesh Verts: %.1fk Tris: %.1fk",
-				collisionMesh->getVertCount() / 1000.0f, collisionMesh->getTriCount() / 1000.0f);
-
-			if (project->IsNavMeshReady())
-			{
-				// TODO: Can remove, have it on the toolbar
-				ImGui::Separator();
-				if (ImGui::Button(ICON_FA_FLOPPY_O " Save"))
-					project->SaveNavMesh();
-			}
-
-			ImGui::Separator();
-
-			// TODO: Move these to somewhere else?
-			Camera& camera = m_editor->GetCamera();
-
-			glm::vec3 cameraPos = to_eq_coord(camera.GetPosition());
-			if (ImGui::DragFloat3("Position", glm::value_ptr(cameraPos), 0.01f))
-			{
-				camera.SetPosition(from_eq_coord(cameraPos));
-			}
-
-			float angle[2] = { camera.GetYaw(), camera.GetPitch() };
-			if (ImGui::DragFloat2("Camera Angle", angle, 0.1f))
-			{
-				camera.SetYaw(angle[0]);
-				camera.SetPitch(angle[1]);
-			}
-
-			//float fov = camera->GetFieldOfView();
-			//if (ImGui::DragFloat("FOV", &fov))
-			//{
-			//	camera->SetFieldOfView(fov);
-			//}
-
-			//float ratio = camera->GetAspectRatio();
-			//if (ImGui::DragFloat("Aspect Ratio", &ratio, 0.1f))
-			//{
-			//	camera->SetAspectRatio(ratio);
-			//}
-
+			ImGui::Text("No zone loaded");
 		}
 	}
 
