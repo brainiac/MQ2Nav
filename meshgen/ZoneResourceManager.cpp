@@ -376,7 +376,7 @@ bool ZoneResourceManager::LoadZone()
 	// If this is LDON zone, load obequip_lexit.s3d
 	if (g_config.GetExpansionForZone(m_zoneName) == "Lost Dungeons of Norrath")
 	{
-		LoadS3D("obeqip_lexit");
+		LoadS3D("obequip_lexit");
 	}
 
 	if (!loadedEQG)
