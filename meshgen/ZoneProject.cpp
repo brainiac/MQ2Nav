@@ -185,9 +185,6 @@ ZoneProject::ZoneProject(Editor* editor, const std::string& name)
 {
 	m_renderManager = std::make_unique<ZoneRenderManager>(this);
 	m_renderManager->InitShared();
-	m_renderManager->GetNavMeshRender()->SetFlags(
-		ZoneNavMeshRender::DRAW_TILES | ZoneNavMeshRender::DRAW_TILE_BOUNDARIES | ZoneNavMeshRender::DRAW_CLOSED_LIST
-	);
 
 	std::string eqPath = g_config.GetEverquestPath();
 	std::string outputPath = g_config.GetOutputPath();
@@ -208,12 +205,21 @@ ZoneProject::~ZoneProject()
 void ZoneProject::OnUpdate(float timeStep)
 {
 	m_navMeshProj->OnUpdate(timeStep);
+
+	// Should this go in here or in render?
+	if (m_navMeshProj->GetNavMesh()->SendEventIfDirty())
+		m_renderManager->GetNavMeshRender()->SetDirty();
 }
 
 void ZoneProject::OnShutdown()
 {
 	CancelTasks();
 	m_renderManager->DestroyObjects();
+}
+
+void ZoneProject::Render()
+{
+	m_renderManager->Render();
 }
 
 void ZoneProject::LoadZone(bool loadNavMesh)

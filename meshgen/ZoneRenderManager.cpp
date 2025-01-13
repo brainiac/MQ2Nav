@@ -13,6 +13,9 @@
 #include <imgui/imgui.h>
 #include <math.h>
 
+#include "DetourDebugDraw.h"
+#include "Recast.h"
+
 
 ZoneRenderManager* g_zoneRenderManager = nullptr;
 
@@ -380,6 +383,7 @@ void ZoneRenderManager::DestroyObjects()
 
 void ZoneRenderManager::OnNavMeshChanged(const std::shared_ptr<NavMeshProject>& navMesh)
 {
+	m_navMeshProj = navMesh;
 	m_navMeshRender->SetNavMesh(navMesh);
 }
 
@@ -388,8 +392,47 @@ void ZoneRenderManager::Rebuild()
 	m_zoneInputGeometry->Rebuild();
 }
 
+void ZoneRenderManager::DrawCollisionMesh()
+{
+	if (m_drawCollisionMesh)
+	{
+		m_zoneInputGeometry->Render();
+	}
+}
+
+void ZoneRenderManager::DrawGrid()
+{
+	if (m_drawGrid && m_navMeshProj)
+	{
+		ZoneRenderDebugDraw dd(this);
+		dd.depthMask(false);
+
+		// Draw bounds
+		const glm::vec3& bmin = m_navMeshProj->GetNavMesh()->GetNavMeshBoundsMin();
+		const glm::vec3& bmax = m_navMeshProj->GetNavMesh()->GetNavMeshBoundsMax();
+		duDebugDrawBoxWire(&dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2],
+			duRGBA(255, 255, 255, 128), 1.0f);
+
+		auto& config = m_navMeshProj->GetNavMeshConfig();
+
+		// Tiling grid.
+		int gw = 0, gh = 0;
+		rcCalcGridSize(&bmin[0], &bmax[0], config.cellSize, &gw, &gh);
+		const int tw = (gw + (int)config.tileSize - 1) / (int)config.tileSize;
+		const int th = (gh + (int)config.tileSize - 1) / (int)config.tileSize;
+		const float s = config.tileSize * config.cellSize;
+		duDebugDrawGridXZ(&dd, bmin[0], bmin[1], bmin[2], tw, th, s, duRGBA(0, 0, 0, 64), 1.0f);
+	}
+}
+
 void ZoneRenderManager::Render()
 {
+	if (m_project && m_project->IsZoneLoaded())
+	{
+		DrawCollisionMesh();
+		DrawGrid();
+
+	}
 	if (!m_points.empty())
 	{
 		if (isValid(m_ddPointsVB) && m_points.size() == m_lastPointsSize)
@@ -491,6 +534,8 @@ void ZoneRenderManager::Render()
 		m_tris.clear();
 		m_triIndices.clear();
 	}
+
+	m_navMeshRender->Render();
 }
 
 //----------------------------------------------------------------------------
@@ -638,20 +683,12 @@ ZoneNavMeshRender::~ZoneNavMeshRender()
 
 void ZoneNavMeshRender::SetNavMesh(const std::shared_ptr<NavMeshProject>& navMesh)
 {
-	if (m_navMesh == navMesh)
+	if (m_navMeshProject == navMesh)
 		return;
 
-
 	m_navMeshConn.Disconnect();
-	m_navMesh = navMesh;
+	m_navMeshProject = navMesh;
 	m_dirty = true;
-
-	if (m_navMesh)
-	{
-		m_navMeshConn = m_navMesh->GetNavMesh()->OnNavMeshChanged.Connect([this]() {
-			m_dirty = true;
-		});
-	}
 }
 
 void ZoneNavMeshRender::SetNavMeshQuery(const dtNavMeshQuery* query)
@@ -674,6 +711,9 @@ void ZoneNavMeshRender::SetFlags(uint32_t flags)
 
 void ZoneNavMeshRender::Render()
 {
+	if (!m_navMeshProject || !m_navMeshProject->IsLoaded())
+		return;
+
 	if (m_dirty)
 	{
 		Build();
@@ -714,6 +754,157 @@ void ZoneNavMeshRender::Render()
 
 		encoder->submit(0, s_shared.m_pointsProgram);
 	}
+
+	if (m_navMeshProject->IsLoaded())
+	{
+		if ((m_flags & (ZoneNavMeshRender::DRAW_DEBUG | ZoneNavMeshRender::DRAW_VOLUMES | DRAW_OFFMESH_CONNS)) != 0)
+		{
+			ZoneRenderDebugDraw dd(m_mgr);
+
+			if (m_flags & ZoneNavMeshRender::DRAW_BV_TREE)
+			{
+				duDebugDrawNavMeshBVTree(&dd, *m_navMeshProject->GetDetourNavMesh());
+			}
+
+			if (m_flags & ZoneNavMeshRender::DRAW_PORTALS)
+			{
+				duDebugDrawNavMeshPortals(&dd, *m_navMeshProject->GetDetourNavMesh());
+			}
+
+			if (m_flags & ZoneNavMeshRender::DRAW_NODES)
+			{
+				duDebugDrawNavMeshNodes(&dd, *m_navMeshProject->GetNavMesh()->GetNavMeshQuery());
+			}
+
+			if (m_flags & ZoneNavMeshRender::DRAW_VOLUMES)
+			{
+				DrawConvexVolumes(&dd);
+			}
+
+			if (m_flags & ZoneNavMeshRender::DRAW_OFFMESH_CONNS)
+			{
+				DrawOffmeshConnections(&dd);
+			}
+		}
+	}
+}
+
+void ZoneNavMeshRender::DrawConvexVolumes(ZoneRenderDebugDraw* dd)
+{
+	auto navMesh = m_navMeshProject->GetNavMesh();
+	const auto& volumes = navMesh->GetConvexVolumes();
+
+	if (volumes.empty())
+		return;
+
+	dd->depthMask(false);
+	dd->begin(DU_DRAW_TRIS);
+
+	for (const auto& vol : volumes)
+	{
+		uint32_t col = duTransCol(navMesh->GetPolyArea((int)vol->areaType).color, 32);
+		size_t nverts = vol->verts.size();
+
+		for (size_t j = 0, k = nverts - 1; j < nverts; k = j++)
+		{
+			const glm::vec3& va = vol->verts[k];
+			const glm::vec3& vb = vol->verts[j];
+
+			dd->vertex(vol->verts[0][0], vol->hmax, vol->verts[0][2], col);
+			dd->vertex(vb[0], vol->hmax, vb[2], col);
+			dd->vertex(va[0], vol->hmax, va[2], col);
+
+			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
+			dd->vertex(va[0], vol->hmax, va[2], col);
+			dd->vertex(vb[0], vol->hmax, vb[2], col);
+
+			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
+			dd->vertex(vb[0], vol->hmax, vb[2], col);
+			dd->vertex(vb[0], vol->hmin, vb[2], duDarkenCol(col));
+		}
+	}
+	dd->end();
+
+	dd->begin(DU_DRAW_LINES, 2.0f);
+	for (const auto& vol : volumes)
+	{
+		uint32_t col = duTransCol(navMesh->GetPolyArea((int)vol->areaType).color, 220);
+		size_t nverts = vol->verts.size();
+
+		for (size_t j = 0, k = nverts - 1; j < nverts; k = j++)
+		{
+			const glm::vec3& va = vol->verts[k];
+			const glm::vec3& vb = vol->verts[j];
+
+			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
+			dd->vertex(vb[0], vol->hmin, vb[2], duDarkenCol(col));
+			dd->vertex(va[0], vol->hmax, va[2], col);
+			dd->vertex(vb[0], vol->hmax, vb[2], col);
+			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
+			dd->vertex(va[0], vol->hmax, va[2], col);
+		}
+	}
+	dd->end();
+
+	dd->begin(DU_DRAW_POINTS, 3.0f);
+	for (const auto& vol : volumes)
+	{
+		uint32_t col = duDarkenCol(duTransCol(navMesh->GetPolyArea((int)vol->areaType).color, 255));
+		size_t nverts = vol->verts.size();
+
+		for (size_t j = 0; j < nverts; ++j)
+		{
+			dd->vertex(vol->verts[j].x, vol->verts[j].y + 0.1f, vol->verts[j].z, col);
+			dd->vertex(vol->verts[j].x, vol->hmin, vol->verts[j].z, col);
+			dd->vertex(vol->verts[j].x, vol->hmax, vol->verts[j].z, col);
+		}
+	}
+	dd->end();
+
+	dd->depthMask(true);
+}
+
+void ZoneNavMeshRender::DrawOffmeshConnections(ZoneRenderDebugDraw* dd)
+{
+	auto navMesh = m_navMeshProject->GetNavMesh();
+	const auto& connections = navMesh->GetConnections();
+
+	if (connections.empty())
+		return;
+
+	unsigned int conColor = duRGBA(0, 192, 128, 192);
+	unsigned int badColor = duRGBA(192, 0, 128, 192);
+	unsigned int activeColor = duRGBA(255, 255, 0, 192);
+	unsigned int baseColor = duRGBA(0, 0, 0, 64);
+
+	dd->depthMask(false);
+	dd->begin(DU_DRAW_LINES, 3.5f);
+
+	const float s = navMesh->GetNavMeshConfig().agentRadius;
+
+	for (const auto& connection : connections)
+	{
+		const glm::vec3& from = connection->start;
+		const glm::vec3& to = connection->end;
+
+		// TODO: Move selected connect id to selection mgr via entity
+		uint32_t currentConnectionId = m_navMeshProject->currentConnectionId;
+
+		dd->vertex(glm::value_ptr(from), baseColor);
+		dd->vertex(glm::value_ptr(from + glm::vec3(0.0f, 0.2f, 0.0f)), connection->id == currentConnectionId ? activeColor : baseColor);
+
+		dd->vertex(glm::value_ptr(to), baseColor);
+		dd->vertex(glm::value_ptr(to + glm::vec3(0.0f, 0.2f, 0.0f)), connection->id == currentConnectionId ? activeColor : baseColor);
+
+		duAppendCircle(dd, from.x, from.y + 0.1f, from.z, s, connection->id == currentConnectionId ? activeColor : baseColor);
+		duAppendCircle(dd, to.x, to.y + 0.1f, to.z, s, connection->id == currentConnectionId ? activeColor : baseColor);
+
+		duAppendArc(dd, from.x, from.y, from.z, to.x, to.y, to.z, 0.25f,
+			connection->bidirectional ? 4.f : 0.0f, 4.f,
+			connection->id == currentConnectionId ? activeColor : connection->valid ? conColor : badColor);
+	}
+	dd->end();
+	dd->depthMask(true);
 }
 
 void ZoneNavMeshRender::DestroyObjects()
@@ -749,9 +940,7 @@ void ZoneNavMeshRender::DestroyObjects()
 
 void ZoneNavMeshRender::Build()
 {
-	if (!m_navMesh)
-		return;
-	auto navMesh = m_navMesh->GetNavMesh();
+	auto navMesh = m_navMeshProject->GetNavMesh();
 	if (!navMesh)
 		return;
 
@@ -1092,7 +1281,7 @@ void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& ve
 
 uint32_t ZoneNavMeshRender::PolyToCol(const dtPoly* poly)
 {
-	if (auto navMesh = m_navMesh->GetNavMesh(); poly && navMesh)
+	if (auto navMesh = m_navMeshProject->GetNavMesh(); poly && navMesh)
 	{
 		return navMesh->GetPolyArea(poly->getArea()).color;
 	}

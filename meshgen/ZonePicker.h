@@ -47,7 +47,9 @@ private:
 		std::string shortName;
 		std::string expansion;
 	};
+
 	std::vector<MapInfo> m_allMaps;
+	ApplicationConfig::MapList m_mapsByExpansion;
 
 	bool DrawZoneList(const char* str_id, std::ranges::input_range auto&& input_range,
 		bool enterPressed, int* baseIndex = nullptr);
@@ -59,10 +61,12 @@ private:
 	bool m_showExpansionButtons = true;
 	bool m_isShowing = true;
 	bool m_setFocus = false;
-	bool m_loaded = false;
+	bool m_loadedZones = false;
+	bool m_loadedImages = false;
 	bool m_showNextDraw = false;
 
 	std::vector<bgfx::TextureHandle> m_textures;
+	std::string m_lastEQDirectory;
 
 	int m_selectedExpansion = -1;
 	std::string m_selectedZone;

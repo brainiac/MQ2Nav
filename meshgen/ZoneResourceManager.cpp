@@ -412,11 +412,32 @@ bool ZoneResourceManager::LoadZone()
 	return true;
 }
 
+eqg::Archive* ZoneResourceManager::GetArchive(int index) const
+{
+	std::unique_lock lock(m_archiveMutex);
+
+	if (index < (int)m_archives.size())
+	{
+		return m_archives[index].get();
+	}
+
+	return nullptr;
+}
+
+int ZoneResourceManager::GetNumArchives() const
+{
+	std::unique_lock lock(m_archiveMutex);
+
+	return (int)m_archives.size();
+}
+
 eqg::Archive* ZoneResourceManager::LoadArchive(const std::string& path)
 {
+	std::unique_lock lock(m_archiveMutex);
+
 	for (const auto& archive : m_archives)
 	{
-		if (path == archive->GetFileName())
+		if (path == archive->GetFilePath())
 			return archive.get();
 	}
 
@@ -736,7 +757,7 @@ eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::s
 	
 	m_wldLoaders.push_back(std::move(loader));
 
-	SPDLOG_INFO("Loaded {} from {}", fileName, fs::path(archive->GetFileName()).filename().string());
+	SPDLOG_INFO("Loaded {} from {}", fileName, archive->GetFileName());
 
 	return m_wldLoaders.back().get();
 }

@@ -28,7 +28,7 @@ bool EQGLoader::Load(Archive* archive)
 
 	m_archive = archive;
 
-	fs::path zonFilePath = fs::path(archive->GetFileName()).replace_extension(".zon");
+	fs::path zonFilePath = fs::path(archive->GetFilePath()).replace_extension(".zon");
 	bool loaded_anything = false;
 
 	// Check for a .zon file that exists next to this .eqg

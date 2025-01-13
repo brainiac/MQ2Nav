@@ -22,9 +22,21 @@ public:
 	void Close();
 
 	const std::string& GetFileName() const { return m_archiveName; }
+	const std::string& GetFilePath() const { return m_archivePath; }
 
 	std::vector<std::string> GetFileNames(std::string_view ext) const;
 	const std::vector<std::string>& GetFileNames() const { return m_fileNames; }
+	int GetFileCount() const { return (int)m_fileNames.size(); }
+
+	struct FileEntry
+	{
+		std::string_view fileName;
+		std::vector<char> data;
+		uint32_t compressedSize;
+		uint32_t uncompressedSize;
+		int crc;
+	};
+	const ci_ordered::map<std::string_view, FileEntry*>& GetSortedEntries() const { return m_fileEntriesByName; }
 
 	bool Get(int crc, std::vector<char>& buf) const;
 	bool Get(std::string_view filename, std::vector<char>& buf) const;
@@ -39,14 +51,7 @@ private:
 	bool StoreBlocksByFileOffset(const std::vector<char>& in_buffer, uint32_t offset, uint32_t size, int crc);
 	std::unique_ptr<uint8_t[]> InflateByFileOffset(uint32_t offset, uint32_t size, const std::vector<char>& in_buffer) const;
 
-	struct FileEntry
-	{
-		std::string_view fileName;
-		std::vector<char> data;
-		uint32_t compressedSize;
-		uint32_t uncompressedSize;
-		int crc;
-	};
+
 
 	struct CRCKey
 	{
@@ -80,6 +85,7 @@ private:
 	};
 
 	std::string m_archiveName;
+	std::string m_archivePath;
 	std::unordered_map<CRCKey, FileEntry, CRCKey::hash, CRCKey::equals> m_fileEntries;
 
 	std::vector<std::string> m_fileNames;

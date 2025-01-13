@@ -19,6 +19,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/norm.hpp>
 
+#include "ZoneProject.h"
+
 OffMeshConnectionTool::OffMeshConnectionTool()
 {
 }
@@ -43,6 +45,9 @@ void OffMeshConnectionTool::init(NavMeshTool* meshTool)
 
 void OffMeshConnectionTool::reset()
 {
+	if (auto proj = m_meshTool->GetNavMeshProj())
+		proj->currentConnectionId = 0;
+
 	m_editing = false;
 	m_state->reset();
 }
@@ -60,6 +65,8 @@ void OffMeshConnectionTool::handleMenu()
 	float w = ImGui::GetContentRegionAvail().x;
 	float spacing = style.ItemInnerSpacing.x;
 	float button_sz = ImGui::GetFrameHeight();
+
+	uint32_t& currentConnectionId = m_meshTool->GetNavMeshProj()->currentConnectionId;
 
 	for (size_t i = 0; i < navMesh->GetConnectionCount(); ++i)
 	{
@@ -97,7 +104,7 @@ void OffMeshConnectionTool::handleMenu()
 		}
 
 		std::string label = fmt::format("{:04}: {} ({})", conn->id, connName, areaName);
-		bool selected = (m_state->m_currentConnectionId == conn->id);
+		bool selected = (currentConnectionId == conn->id);
 
 		ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)textColor);
 
@@ -107,7 +114,7 @@ void OffMeshConnectionTool::handleMenu()
 			{
 				m_state->reset();
 				m_state->m_editConnection = *conn;
-				m_state->m_currentConnectionId = conn->id;
+				currentConnectionId = conn->id;
 				m_editing = false;
 			}
 		}
@@ -125,11 +132,11 @@ void OffMeshConnectionTool::handleMenu()
 		ImGui::NextColumn();
 
 		if (!m_editing
-			&& m_state->m_currentConnectionId != 0
+			&& currentConnectionId != 0
 			&& ImGuiEx::ColoredButton("Delete", ImVec2(-1, 0), 0.0))
 		{
-			auto modifiedTiles = navMesh->GetTilesIntersectingConnection(m_state->m_currentConnectionId);
-			navMesh->DeleteConnectionById(m_state->m_currentConnectionId);
+			auto modifiedTiles = navMesh->GetTilesIntersectingConnection(currentConnectionId);
+			navMesh->DeleteConnectionById(currentConnectionId);
 
 			if (!modifiedTiles.empty())
 			{
@@ -147,9 +154,9 @@ void OffMeshConnectionTool::handleMenu()
 
 	// Edit / Properties frame
 	{
-		if (m_state->m_currentConnectionId != 0)
+		if (currentConnectionId != 0)
 		{
-			ImGui::TextColored(ImColor(255, 255, 0), "Connection %d:", m_state->m_currentConnectionId);
+			ImGui::TextColored(ImColor(255, 255, 0), "Connection %d:", currentConnectionId);
 		}
 		else
 		{
@@ -169,7 +176,7 @@ void OffMeshConnectionTool::handleMenu()
 			m_state->m_modified = true;
 		}
 
-		if (m_state->m_currentConnectionId == 0)
+		if (currentConnectionId == 0)
 		{
 			ImGui::TextColored(ImColor(0, 255, 0), "Place two points to complete a connection");
 		}
@@ -178,9 +185,9 @@ void OffMeshConnectionTool::handleMenu()
 			ImGui::TextColored(ImColor(255, 0, 0), "Connection is not valid. A connection can only extend between two adjacent tiles. Delete it and try again.");
 		}
 
-		if (m_state->m_currentConnectionId != 0 && m_state->m_modified && ImGui::Button("Save Changes"))
+		if (currentConnectionId != 0 && m_state->m_modified && ImGui::Button("Save Changes"))
 		{
-			if (OffMeshConnection* conn = navMesh->GetConnectionById(m_state->m_currentConnectionId))
+			if (OffMeshConnection* conn = navMesh->GetConnectionById(currentConnectionId))
 			{
 				conn->name = m_state->m_editConnection.name;
 
@@ -229,14 +236,6 @@ void OffMeshConnectionTool::handleClick(const glm::vec3& p, bool shift)
 	}
 }
 
-void OffMeshConnectionTool::handleUpdate(float /*dt*/)
-{
-}
-
-void OffMeshConnectionTool::handleRender()
-{
-}
-
 void OffMeshConnectionTool::handleRenderOverlay()
 {
 	// Draw start and end point labels
@@ -271,7 +270,6 @@ void OffMeshConnectionToolState::init(NavMeshTool* meshTool)
 void OffMeshConnectionToolState::reset()
 {
 	m_hitPosSet = false;
-	m_currentConnectionId = 0;
 	m_editConnection = OffMeshConnection{};
 	m_modified = false;
 }
@@ -286,40 +284,6 @@ void OffMeshConnectionToolState::handleRender()
 
 	if (m_hitPosSet)
 		duDebugDrawCross(&dd, m_hitPos[0], m_hitPos[1] + 0.1f, m_hitPos[2], s, duRGBA(0, 0, 0, 128), 2.0f);
-
-	unsigned int conColor = duRGBA(0, 192, 128, 192);
-	unsigned int badColor = duRGBA(192, 0, 128, 192);
-	unsigned int activeColor = duRGBA(255, 255, 0, 192);
-	unsigned int baseColor = duRGBA(0, 0, 0, 64);
-	dd.depthMask(false);
-
-	dd.begin(DU_DRAW_LINES, 3.5f);
-
-	for (const auto& connection : connections)
-	{
-		const glm::vec3& from = connection->start;
-		const glm::vec3& to = connection->end;
-
-		dd.vertex(glm::value_ptr(from), baseColor);
-		dd.vertex(glm::value_ptr(from + glm::vec3(0.0f, 0.2f, 0.0f)), connection->id == m_currentConnectionId ? activeColor : baseColor);
-
-		dd.vertex(glm::value_ptr(to), baseColor);
-		dd.vertex(glm::value_ptr(to + glm::vec3(0.0f, 0.2f, 0.0f)), connection->id == m_currentConnectionId ? activeColor : baseColor);
-
-		duAppendCircle(&dd, from.x, from.y + 0.1f, from.z, s, connection->id == m_currentConnectionId ? activeColor : baseColor);
-		duAppendCircle(&dd, to.x, to.y + 0.1f, to.z, s, connection->id == m_currentConnectionId ? activeColor : baseColor);
-
-		duAppendArc(&dd, from.x, from.y, from.z, to.x, to.y, to.z, 0.25f,
-			connection->bidirectional ? 4.f : 0.0f, 4.f,
-			connection->id == m_currentConnectionId ? activeColor : connection->valid ? conColor : badColor);
-	}
-	dd.end();
-	dd.depthMask(true);
-}
-
-void OffMeshConnectionToolState::handleRenderOverlay()
-{
-
 }
 
 std::vector<dtTileRef> OffMeshConnectionToolState::handleConnectionClick(const glm::vec3& p, bool shift)
@@ -384,7 +348,7 @@ std::vector<dtTileRef> OffMeshConnectionToolState::handleConnectionClick(const g
 			modifiedTiles = UpdateConnection(conn);
 
 			reset();
-			m_currentConnectionId = conn->id;
+			m_meshTool->GetNavMeshProj()->currentConnectionId = conn->id;
 		}
 	}
 
@@ -397,7 +361,7 @@ std::vector<dtTileRef> OffMeshConnectionToolState::UpdateConnection(OffMeshConne
 
 	auto modifiedTiles = navMesh->GetTileRefsForPoint(conn->start);
 	auto endTiles = navMesh->GetTileRefsForPoint(conn->end);
-	std::copy(modifiedTiles.begin(), modifiedTiles.end(), std::back_inserter(endTiles));
+	std::ranges::copy(modifiedTiles, std::back_inserter(endTiles));
 
 	if (!modifiedTiles.empty())
 	{

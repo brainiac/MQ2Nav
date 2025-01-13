@@ -110,7 +110,7 @@ void PanelManager::ApplyDockLayout()
 		m_resetLayout = false;
 		DockingLayout* currentLayout = m_activeLayout;
 
-		ImGui::DockBuilderRemoveNodeChildNodes(m_dockspaceID);
+		ImGui::DockContextClearNodes(ImGui::GetCurrentContext(), m_dockspaceID, false);
 
 		if (m_activeLayout == nullptr)
 		{
@@ -152,11 +152,14 @@ void PanelManager::ApplyDockLayout()
 		{
 			ImGui::DockBuilderDockWindow(assignment.panelName.c_str(), m_dockspaceIDs[assignment.dockName]);
 
-			// Get the panel matching this name
-			auto panel = m_panels[hash::fnv_1a()(assignment.panelName)];
-			IM_ASSERT(panel != nullptr);
+			if (!assignment.external)
+			{
+				// Get the panel matching this name
+				auto panel = m_panels[hash::fnv_1a()(assignment.panelName)];
+				IM_ASSERT(panel != nullptr);
 
-			panel->SetIsOpen(assignment.open);
+				panel->SetIsOpen(assignment.open);
+			}
 		}
 
 		ImGui::DockBuilderFinish(m_dockspaceID);

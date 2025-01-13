@@ -61,6 +61,7 @@ struct PanelDockAssignment
 	std::string panelName;
 	std::string dockName;
 	bool open;
+	bool external = false;
 };
 
 struct DockingLayout
@@ -103,8 +104,15 @@ public:
 		size_t hash = hash::fnv_1a()(panel->panelName);
 
 		assert(!m_panels.contains(hash));
-		m_panelsSorted.push_back(hash);
 		m_panels.emplace(hash, panel);
+
+		m_panelsSorted.insert(
+			std::upper_bound(begin(m_panelsSorted), end(m_panelsSorted), panel->panelName,
+				[&](std::string_view value, size_t otherHash)
+				{
+					return value.compare(m_panels[otherHash]->panelName) < 0;
+				}
+			), hash);
 
 		return panel;
 	}
@@ -156,7 +164,7 @@ private:
 
 	DockingLayout* m_activeLayout = nullptr;     // The currently active docking layout
 	bool m_resetLayout = false;                  // Reset layout on next frame.
-	ImGuiID m_dockspaceID = 0;                   // Id of the main dockspace
+	ImGuiID m_dockspaceID = 0;                   // ID of the main dockspace
 
 	// IDs of all docknodes
 	std::unordered_map<std::string, ImGuiID> m_dockspaceIDs;

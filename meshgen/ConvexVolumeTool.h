@@ -24,8 +24,6 @@ public:
 	void reset() override;
 	void handleMenu() override;
 	void handleClick(const glm::vec3& p, bool shift) override;
-	void handleUpdate(float dt) override {}
-	void handleRender() override;
 	void handleRenderOverlay() override;
 
 private:

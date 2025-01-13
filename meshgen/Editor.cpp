@@ -7,9 +7,9 @@
 
 #include "common/MathUtil.h"
 #include "meshgen/Application.h"
+#include "meshgen/ArchiveBrowserPanel.h"
 #include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/ConsolePanel.h"
-#include "meshgen/DebugPanel.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/PanelManager.h"
 #include "meshgen/PropertiesPanel.h"
@@ -18,21 +18,21 @@
 #include "meshgen/SelectionManager.h"
 #include "meshgen/SettingsDialog.h"
 #include "meshgen/ToolsPanel.h"
+#include "meshgen/ViewPanel.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "meshgen/ZonePicker.h"
 #include "meshgen/ZoneProject.h"
 #include "meshgen/ZoneRenderManager.h"
+#include "meshgen/ZoneResourceManager.h"
 
 #include "imgui/fonts/IconsLucide.h"
 #include "imgui/fonts/IconsMaterialDesign.h"
-#include "imgui/ImGuiUtils.h"
-#include "imgui/scoped_helpers.h"
 #include "imgui/imgui_internal.h"
 #include "imgui/imgui_stacklayout.h"
+#include "imgui/ImGuiUtils.h"
+#include "imgui/scoped_helpers.h"
 
 #include <glm/gtc/type_ptr.hpp>
-
-#include "ZoneResourceManager.h"
 
 
 Editor::Editor()
@@ -50,20 +50,29 @@ void Editor::OnInit()
 	m_panelManager = std::make_unique<PanelManager>();
 	m_panelManager->AddPanel<PropertiesPanel>(this);
 	m_panelManager->AddPanel<ConsolePanel>();
-	m_panelManager->AddPanel<DebugPanel>(this);
+	m_panelManager->AddPanel<ViewPanel>(this);
 	m_panelManager->AddPanel<ToolsPanel>(this);
+	m_panelManager->AddPanel<ArchiveBrowserPanel>(this);
 
 	m_panelManager->AddDockingLayout({
 		.splits = {
 			{.initialDock = "MainDockSpace", .newDock = "LeftPane", .direction = ImGuiDir_Left, .ratio = .16f },
 			{.initialDock = "MainDockSpace", .newDock = "RightPane", .direction = ImGuiDir_Right, .ratio = .16f },
-			{.initialDock = "MainDockSpace", .newDock = "BottomPane", .direction = ImGuiDir_Down, .ratio = .25f }
+			{.initialDock = "MainDockSpace", .newDock = "BottomPane", .direction = ImGuiDir_Down, .ratio = .25f },
+			{.initialDock = "LeftPane", .newDock = "LeftBottomPane", .direction = ImGuiDir_Down, .ratio = .50f },
 		},
 		.assignments = {
 			{.panelName = "Properties", .dockName = "LeftPane", .open = true },
+			{.panelName = "Archive Browser", .dockName = "LeftPane", .open = false },
 			{.panelName = "Console Log", .dockName = "BottomPane", .open = true },
-			{.panelName = "Debug", .dockName = "BottomPane", .open = false },
 			{.panelName = "Tools", .dockName = "RightPane", .open = true },
+			{.panelName = "View", .dockName = "RightPane", .open = true },
+
+			// Give our ImGui demo windows a place to live.
+			{.panelName = "Dear ImGui Demo", .dockName = "LeftBottomPane", .open = false, .external = true },
+			{.panelName = "Dear ImGui Metrics/Debugger", .dockName = "LeftBottomPane", .open = false, .external = true },
+			{.panelName = "Dear ImGui Debug Log", .dockName = "BottomPane", .open = false, .external = true },
+			{.panelName = "Dear ImGui Style Editor", .dockName = "RightPane", .open = false, .external = true },
 		},
 		.layoutName = "Default",
 		.isDefault = true,
@@ -78,7 +87,7 @@ void Editor::OnInit()
 		.assignments = {
 			{.panelName = "Properties", .dockName = "LeftPane", .open = true },
 			{.panelName = "Console Log", .dockName = "LeftPane", .open = true },
-			{.panelName = "Debug", .dockName = "LeftPane", .open = false },
+			{.panelName = "View", .dockName = "LeftPane", .open = false },
 			{.panelName = "Tools", .dockName = "LeftPane", .open = true },
 		},
 		.layoutName = "Test Layout",
@@ -134,6 +143,8 @@ void Editor::OnUpdate(float timeStep)
 	m_project->OnUpdate(timeStep);
 
 	m_meshTool->handleRender(m_camera.GetViewProjMtx(), g_render->GetViewport());
+
+	m_project->Render();
 }
 
 void Editor::OnImGuiRender()
@@ -392,7 +403,7 @@ void Editor::UI_DrawMainMenuBar()
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("View"))
+		if (ImGui::BeginMenu("Windows"))
 		{
 			m_panelManager->DoWindowMenu();
 
@@ -1097,6 +1108,8 @@ void Editor::OpenProject(const std::string& name, bool loadMesh)
 
 	m_project = std::make_shared<ZoneProject>(this, name);
 	m_project->LoadZone(loadMesh);
+
+	SetProject(m_project);
 }
 
 void Editor::CloseProject()

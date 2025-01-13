@@ -25,8 +25,6 @@ public:
 	void reset() override;
 	void handleMenu() override;
 	void handleClick(const glm::vec3& p, bool shift) override;
-	void handleUpdate(float dt) override;
-	void handleRender() override;
 	void handleRenderOverlay() override;
 
 private:
@@ -44,7 +42,6 @@ public:
 	void init(NavMeshTool* meshTool) override;
 	void reset() override;
 	void handleRender() override;
-	void handleRenderOverlay() override;
 	void handleUpdate(const float dt) override {}
 
 	std::vector<dtTileRef> handleConnectionClick(const glm::vec3& p, bool shift);
@@ -59,6 +56,5 @@ private:
 
 	// editing existing connection (or staging for new). We copy so we can make edits without committing.
 	OffMeshConnection m_editConnection;
-	uint32_t m_currentConnectionId = 0;
 	bool m_modified = false;
 };

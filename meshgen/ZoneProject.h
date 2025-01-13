@@ -108,6 +108,9 @@ public:
 	void RemoveTileAt(int tx, int ty, int layer = 0);
 	void RemoveAllTiles();
 
+	// Working state - refactor me
+	uint32_t currentConnectionId = 0; // for offmesh link editor
+
 private:
 	mutable std::mutex m_mutex;
 	using ConvexVolumePtr = std::unique_ptr<ConvexVolume>;
@@ -129,6 +132,7 @@ public:
 
 	void OnUpdate(float timeStep);
 	void OnShutdown();
+	void Render();
 
 	std::shared_ptr<ZoneRenderManager> GetRenderManager() const { return m_renderManager; }
 	ZoneResourceManager* GetResourceManager() const { return m_resourceMgr.get(); }

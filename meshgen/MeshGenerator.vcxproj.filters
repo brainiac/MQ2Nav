@@ -131,7 +131,7 @@
     <ClCompile Include="ConsolePanel.cpp">
       <Filter>Source Files\panels</Filter>
     </ClCompile>
-    <ClCompile Include="DebugPanel.cpp">
+    <ClCompile Include="ViewPanel.cpp">
       <Filter>Source Files\panels</Filter>
     </ClCompile>
     <ClCompile Include="PropertiesPanel.cpp">
@@ -178,6 +178,9 @@
     </ClCompile>
     <ClCompile Include="ZoneCollisionMesh.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ArchiveBrowserPanel.cpp">
+      <Filter>Source Files\panels</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -277,7 +280,7 @@
     <ClInclude Include="Hash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DebugPanel.h">
+    <ClInclude Include="ViewPanel.h">
       <Filter>Header Files\panels</Filter>
     </ClInclude>
     <ClInclude Include="PanelManager.h">
@@ -339,6 +342,9 @@
     </ClInclude>
     <ClInclude Include="ZoneCollisionMesh.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ArchiveBrowserPanel.h">
+      <Filter>Header Files\panels</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

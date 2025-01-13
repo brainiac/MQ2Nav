@@ -57,23 +57,23 @@ class Tool
 public:
 	virtual ~Tool() {}
 	virtual ToolType type() const = 0;
-	virtual void init(NavMeshTool* meshTool) = 0;
-	virtual void reset() = 0;
-	virtual void handleMenu() = 0;
-	virtual void handleClick(const glm::vec3& p, bool shift) = 0;
-	virtual void handleRender() = 0;
-	virtual void handleRenderOverlay() = 0;
-	virtual void handleUpdate(float dt) = 0;
+	virtual void init(NavMeshTool* meshTool) {}
+	virtual void reset() {}
+	virtual void handleMenu() {}
+	virtual void handleClick(const glm::vec3& p, bool shift) {}
+	virtual void handleRender() {}
+	virtual void handleRenderOverlay() {}
+	virtual void handleUpdate(float dt) {}
 };
 
 struct ToolState
 {
 	virtual ~ToolState() {}
 	virtual void init(NavMeshTool* meshTool) = 0;
-	virtual void reset() = 0;
-	virtual void handleRender() = 0;
-	virtual void handleRenderOverlay() = 0;
-	virtual void handleUpdate(float dt) = 0;
+	virtual void reset() {}
+	virtual void handleRender() {}
+	virtual void handleRenderOverlay() {}
+	virtual void handleUpdate(float dt) {}
 };
 
 //----------------------------------------------------------------------------
@@ -89,7 +89,7 @@ public:
 
 	void Reset();
 
-	void handleDebug();
+	void HandleViewOptions();
 	void handleTools();
 	void handleRender(const glm::mat4& viewModelProjMtx, const glm::ivec4& viewport);
 	void handleUpdate(float dt);
@@ -110,6 +110,7 @@ public:
 	float GetLastBuildTime() const;
 
 	std::shared_ptr<NavMesh> GetNavMesh() const { return m_navMesh; }
+	std::shared_ptr<NavMeshProject> GetNavMeshProj() const { return m_navMeshProj; }
 
 	void setTool(Tool* tool);
 	ToolState* getToolState(ToolType type) const;

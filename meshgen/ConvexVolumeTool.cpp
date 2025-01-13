@@ -405,10 +405,6 @@ void ConvexVolumeTool::handleClick(const glm::vec3& p, bool shift)
 	}
 }
 
-void ConvexVolumeTool::handleRender()
-{
-}
-
 void ConvexVolumeTool::handleRenderOverlay()
 {
 	if (m_editing)

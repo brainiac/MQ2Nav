@@ -19,10 +19,6 @@ void NavMeshInfoTool::init(NavMeshTool* meshTool)
 	m_meshTool = meshTool;
 }
 
-void NavMeshInfoTool::reset()
-{
-}
-
 void NavMeshInfoTool::handleMenu()
 {
 	ImGui::Text("Mesh Info");
@@ -38,20 +34,4 @@ void NavMeshInfoTool::handleMenu()
 	}
 
 	ImGui::Text("Compatibility Version: v%d", navMesh->GetHeaderVersion());
-}
-
-void NavMeshInfoTool::handleClick(const glm::vec3& p, bool shift)
-{
-}
-
-void NavMeshInfoTool::handleUpdate(float /*dt*/)
-{
-}
-
-void NavMeshInfoTool::handleRender()
-{
-}
-
-void NavMeshInfoTool::handleRenderOverlay()
-{
 }

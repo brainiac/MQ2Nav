@@ -136,13 +136,17 @@ public:
 
 	int GetHeaderVersion() const { return static_cast<int>(m_version); }
 
-	void SendEventIfDirty()
+	bool SendEventIfDirty()
 	{
 		if (m_dirty)
 		{
 			m_dirty = false;
 			OnNavMeshChanged();
+
+			return true;
 		}
+
+		return false;
 	}
 
 	//------------------------------------------------------------------------

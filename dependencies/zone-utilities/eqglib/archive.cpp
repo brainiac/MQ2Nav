@@ -8,7 +8,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 #include <zlib.h>
+
+namespace fs = std::filesystem;
 
 namespace eqg {
 
@@ -89,7 +92,8 @@ bool Archive::Open(const std::string& filename)
 		return false;
 	}
 
-	m_archiveName = filename;
+	m_archivePath = filename;
+	m_archiveName = fs::path(filename).filename().string();
 
 	BufferReader reader(buffer);
 

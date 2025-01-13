@@ -130,39 +130,11 @@ void NavMeshTool::UpdateTileSizes()
 	}
 }
 
-void NavMeshTool::handleDebug()
+void NavMeshTool::HandleViewOptions()
 {
 	if (m_zoneProj)
 	{
-		ImGui::Checkbox("Draw Input Geometry", &m_drawInputGeometry);
-
-		// TODO: Extract these to app settings
-		auto renderManager = m_zoneProj->GetRenderManager();
-
-		uint32_t flags = renderManager->GetNavMeshRender()->GetFlags();
-		if (ImGui::CheckboxFlags("Draw Tiles", &flags, ZoneNavMeshRender::DRAW_TILES))
-			renderManager->GetNavMeshRender()->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw Tile Boundaries", &flags, ZoneNavMeshRender::DRAW_TILE_BOUNDARIES))
-			renderManager->GetNavMeshRender()->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw Polygon Boundaries", &flags, ZoneNavMeshRender::DRAW_POLY_BOUNDARIES))
-			renderManager->GetNavMeshRender()->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw Polygon Vertices", &flags, ZoneNavMeshRender::DRAW_POLY_VERTICES))
-			renderManager->GetNavMeshRender()->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw Closed List", &flags, ZoneNavMeshRender::DRAW_CLOSED_LIST))
-			renderManager->GetNavMeshRender()->SetFlags(flags);
-
-		ImGui::Checkbox("Draw Grid", &m_drawGrid);
-
-		float pointSize = renderManager->GetNavMeshRender()->GetPointSize();
-		if (ImGui::DragFloat("PointSize", &pointSize, 0.01f, 0, 10, "%.2f"))
-		{
-			renderManager->SetPointSize(pointSize);
-			renderManager->GetNavMeshRender()->SetPointSize(pointSize);
-		}
-	
-		ImGui::Checkbox("Draw BV Tree", &m_drawNavMeshBVTree);
-		ImGui::Checkbox("Draw Nodes", &m_drawNavMeshNodes);
-		ImGui::Checkbox("Draw Portals", &m_drawNavMeshPortals);
+		
 	}
 }
 
@@ -397,142 +369,16 @@ void NavMeshTool::handleTools()
 
 void NavMeshTool::handleRender(const glm::mat4& viewModelProjMtx, const glm::ivec4& viewport)
 {
-	// TODO: Remove all this from tool
-
-
 	m_viewModelProjMtx = viewModelProjMtx;
 	m_viewport = viewport;
 
 	if (!m_zoneProj || !m_zoneProj->IsZoneLoaded())
 		return;
 
-	m_navMesh->SendEventIfDirty();
-
-	auto renderManager = m_zoneProj->GetRenderManager();
-	auto& config = m_navMeshProj->GetNavMeshConfig();
-
-	ZoneRenderDebugDraw dd(renderManager.get());
-
-	if (m_drawInputGeometry)
-	{
-		renderManager->GetInputGeoRender()->Render();
-	}
-
-	dd.depthMask(false);
-
-	if (m_drawGrid)
-	{
-		// Draw bounds
-		const glm::vec3& bmin = m_navMesh->GetNavMeshBoundsMin();
-		const glm::vec3& bmax = m_navMesh->GetNavMeshBoundsMax();
-		duDebugDrawBoxWire(&dd, bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2],
-			duRGBA(255, 255, 255, 128), 1.0f);
-
-		// Tiling grid.
-		int gw = 0, gh = 0;
-		rcCalcGridSize(&bmin[0], &bmax[0], config.cellSize, &gw, &gh);
-		const int tw = (gw + (int)config.tileSize - 1) / (int)config.tileSize;
-		const int th = (gh + (int)config.tileSize - 1) / (int)config.tileSize;
-		const float s = config.tileSize * config.cellSize;
-		duDebugDrawGridXZ(&dd, bmin[0], bmin[1], bmin[2], tw, th, s, duRGBA(0, 0, 0, 64), 1.0f);
-	}
-	if (m_navMesh->IsNavMeshLoaded())
-	{
-		auto navMesh = m_navMesh->GetNavMesh();
-		auto navQuery = m_navMesh->GetNavMeshQuery();
-
-		if (navMesh && navQuery)
-		{
-			renderManager->GetNavMeshRender()->Render();
-
-			if (m_drawNavMeshBVTree)
-				duDebugDrawNavMeshBVTree(&dd, *navMesh);
-			if (m_drawNavMeshPortals)
-				duDebugDrawNavMeshPortals(&dd, *navMesh);
-			if (m_drawNavMeshNodes)
-				duDebugDrawNavMeshNodes(&dd, *navQuery);
-		}
-	}
-
-	drawConvexVolumes(&dd);
-
 	if (m_tool)
 		m_tool->handleRender();
+
 	renderToolStates();
-
-	renderManager->Render();
-}
-
-void NavMeshTool::drawConvexVolumes(duDebugDraw* dd)
-{
-	dd->depthMask(false);
-
-	dd->begin(DU_DRAW_TRIS);
-
-	const auto& volumes = m_navMesh->GetConvexVolumes();
-
-	for (const auto& vol : volumes)
-	{
-		uint32_t col = duTransCol(m_navMesh->GetPolyArea((int)vol->areaType).color, 32);
-		size_t nverts = vol->verts.size();
-
-		for (size_t j = 0, k = nverts - 1; j < nverts; k = j++)
-		{
-			const glm::vec3& va = vol->verts[k];
-			const glm::vec3& vb = vol->verts[j];
-
-			dd->vertex(vol->verts[0][0], vol->hmax, vol->verts[0][2], col);
-			dd->vertex(vb[0], vol->hmax, vb[2], col);
-			dd->vertex(va[0], vol->hmax, va[2], col);
-
-			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
-			dd->vertex(va[0], vol->hmax, va[2], col);
-			dd->vertex(vb[0], vol->hmax, vb[2], col);
-
-			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
-			dd->vertex(vb[0], vol->hmax, vb[2], col);
-			dd->vertex(vb[0], vol->hmin, vb[2], duDarkenCol(col));
-		}
-	}
-	dd->end();
-
-	dd->begin(DU_DRAW_LINES, 2.0f);
-	for (const auto& vol : volumes)
-	{
-		uint32_t col = duTransCol(m_navMesh->GetPolyArea((int)vol->areaType).color, 220);
-		size_t nverts = vol->verts.size();
-
-		for (size_t j = 0, k = nverts - 1; j < nverts; k = j++)
-		{
-			const glm::vec3& va = vol->verts[k];
-			const glm::vec3& vb = vol->verts[j];
-
-			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
-			dd->vertex(vb[0], vol->hmin, vb[2], duDarkenCol(col));
-			dd->vertex(va[0], vol->hmax, va[2], col);
-			dd->vertex(vb[0], vol->hmax, vb[2], col);
-			dd->vertex(va[0], vol->hmin, va[2], duDarkenCol(col));
-			dd->vertex(va[0], vol->hmax, va[2], col);
-		}
-	}
-	dd->end();
-
-	dd->begin(DU_DRAW_POINTS, 3.0f);
-	for (const auto& vol : volumes)
-	{
-		uint32_t col = duDarkenCol(duTransCol(m_navMesh->GetPolyArea((int)vol->areaType).color, 255));
-		size_t nverts = vol->verts.size();
-
-		for (size_t j = 0; j < nverts; ++j)
-		{
-			dd->vertex(vol->verts[j].x, vol->verts[j].y + 0.1f, vol->verts[j].z, col);
-			dd->vertex(vol->verts[j].x, vol->hmin, vol->verts[j].z, col);
-			dd->vertex(vol->verts[j].x, vol->hmax, vol->verts[j].z, col);
-		}
-	}
-	dd->end();
-
-	dd->depthMask(true);
 }
 
 void NavMeshTool::handleRenderOverlay()

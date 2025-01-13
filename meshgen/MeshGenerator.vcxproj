@@ -12,13 +12,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\dependencies\im3d\im3d.cpp" />
+    <ClCompile Include="ArchiveBrowserPanel.cpp" />
     <ClCompile Include="BackgroundTaskManager.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="ApplicationConfig.cpp" />
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="DebugPanel.cpp" />
+    <ClCompile Include="ViewPanel.cpp" />
     <ClCompile Include="Editor.cpp" />
     <ClCompile Include="Entity.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
@@ -60,13 +61,14 @@
     <ClInclude Include="..\dependencies\im3d\im3d.h" />
     <ClInclude Include="..\dependencies\im3d\im3d_config.h" />
     <ClInclude Include="..\dependencies\im3d\im3d_math.h" />
+    <ClInclude Include="ArchiveBrowserPanel.h" />
     <ClInclude Include="BackgroundTaskManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
     <ClInclude Include="Components.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="ApplicationConfig.h" />
-    <ClInclude Include="DebugPanel.h" />
+    <ClInclude Include="ViewPanel.h" />
     <ClInclude Include="Editor.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="Hash.h" />

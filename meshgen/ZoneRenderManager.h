@@ -136,7 +136,7 @@ public:
 
 	void OnNavMeshChanged(const std::shared_ptr<NavMeshProject>& navMesh);
 
-	std::shared_ptr<NavMeshProject> GetNavMesh() const { return m_navMesh; }
+	std::shared_ptr<NavMeshProject> GetNavMesh() const { return m_navMeshProj; }
 
 	ZoneNavMeshRender* GetNavMeshRender() { return m_navMeshRender; }
 	ZoneInputGeometryRender* GetInputGeoRender() { return m_zoneInputGeometry; }
@@ -149,9 +149,22 @@ public:
 		m_pointSize = pointSize;
 	}
 
+	bool GetDrawCollisionMesh() const { return m_drawCollisionMesh; }
+	void SetDrawCollisionMesh(bool draw) { m_drawCollisionMesh = draw; }
+
+	bool GetDrawGrid() const { return m_drawGrid; }
+	void SetDrawGrid(bool draw) { m_drawGrid = draw; }
+
+private:
+	void DrawCollisionMesh();
+	void DrawGrid();
+
 private:
 	ZoneProject* m_project;
-	std::shared_ptr<NavMeshProject> m_navMesh;
+	std::shared_ptr<NavMeshProject> m_navMeshProj;
+
+	bool m_drawCollisionMesh = true;
+	bool m_drawGrid = true;
 
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
@@ -209,6 +222,7 @@ private:
 	int m_numVertices = 0;
 };
 
+// This is basically just a simple mesh without textures.
 class ZoneInputGeometryRender
 {
 public:
@@ -241,15 +255,26 @@ public:
 
 	enum Flags
 	{
-		DRAW_TILES            = 0x0001,
-		DRAW_TILE_BOUNDARIES  = 0x0002,
-		DRAW_POLY_BOUNDARIES  = 0x0004,
+		DRAW_TILES = 0x0001,
+		DRAW_TILE_BOUNDARIES = 0x0002,
+		DRAW_POLY_BOUNDARIES = 0x0004,
 
-		DRAW_CLOSED_LIST      = 0x0008,
-		DRAW_COLORED_TILES    = 0x0010,
-		DRAW_POLY_VERTICES    = 0x0020,
+		DRAW_CLOSED_LIST = 0x0008,
+		DRAW_COLORED_TILES = 0x0010,
+		DRAW_POLY_VERTICES = 0x0020,
 
-		DRAW_BOUNDARIES       = DRAW_TILE_BOUNDARIES | DRAW_POLY_BOUNDARIES
+		DRAW_BOUNDARIES = DRAW_TILE_BOUNDARIES | DRAW_POLY_BOUNDARIES,
+
+		DRAW_BV_TREE = 0x0040,
+		DRAW_NODES = 0x0080,
+		DRAW_PORTALS = 0x0100,
+
+		DRAW_DEBUG = DRAW_BV_TREE | DRAW_NODES | DRAW_PORTALS,
+
+		DRAW_VOLUMES = 0x0200,
+		DRAW_OFFMESH_CONNS = 0x0400,
+
+		DEFAULT_DRAW_FLAGS = DRAW_TILES | DRAW_TILE_BOUNDARIES | DRAW_VOLUMES | DRAW_OFFMESH_CONNS,
 	};
 
 	enum PolyColor
@@ -260,8 +285,10 @@ public:
 		TileGrid = 4,
 	};
 
+	void SetDirty() { m_dirty = true; }
+
 	void SetNavMesh(const std::shared_ptr<NavMeshProject>& navMesh);
-	NavMeshProject* GetNavMesh() const { return m_navMesh.get(); }
+	NavMeshProject* GetNavMesh() const { return m_navMeshProject.get(); }
 
 	void SetNavMeshQuery(const dtNavMeshQuery* query);
 
@@ -272,6 +299,9 @@ public:
 	void UpdateQuery();
 
 	void Render();
+	void DrawConvexVolumes(ZoneRenderDebugDraw* dd);
+	void DrawOffmeshConnections(ZoneRenderDebugDraw* dd);
+
 	void DestroyObjects();
 
 	float GetPointSize() const {
@@ -294,9 +324,9 @@ private:
 
 	ZoneRenderManager* m_mgr;
 
-	std::shared_ptr<NavMeshProject> m_navMesh;
+	std::shared_ptr<NavMeshProject> m_navMeshProject;
 	const dtNavMeshQuery* m_query = nullptr;
-	uint32_t m_flags = 0;
+	uint32_t m_flags = DEFAULT_DRAW_FLAGS;
 	bool m_dirty = false;
 	float m_pointSize = 0.5f;
 	mq::Signal<>::ScopedConnection m_navMeshConn;

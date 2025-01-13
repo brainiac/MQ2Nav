@@ -8,6 +8,7 @@
 #include "eqglib/eqg_loader.h"
 
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <map>
 #include <unordered_map>
@@ -46,6 +47,9 @@ public:
 	bool HasDynamicObjects() const { return m_hasDynamicObjects; }
 
 	bool IsLoaded() const { return m_loaded; }
+
+	int GetNumArchives() const;
+	eqg::Archive* GetArchive(int index) const;
 
 private:
 	void Clear();
@@ -117,6 +121,7 @@ private:
 	int m_dynamicObjects = 0;
 	bool m_hasDynamicObjects = false;
 
+	mutable std::mutex m_archiveMutex;
 	std::vector<std::unique_ptr<eqg::Archive>> m_archives;
 	std::vector<std::unique_ptr<eqg::WLDLoader>> m_wldLoaders;
 	std::vector<std::unique_ptr<eqg::EQGLoader>> m_eqgLoaders;

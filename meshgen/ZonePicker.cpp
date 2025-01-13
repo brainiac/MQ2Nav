@@ -13,9 +13,9 @@
 #include <mq/base/String.h>
 #include <algorithm>
 #include <ranges>
+#include <filesystem>
 
-
-#define EXPANSION_BUTTONS 1
+namespace fs = std::filesystem;
 
 static constexpr const char* s_dialogName = "Open Zone##ZonePicker";
 
@@ -114,39 +114,87 @@ ZonePicker::~ZonePicker()
 
 void ZonePicker::LoadZones()
 {
-	if (m_loaded)
+	if (m_lastEQDirectory != g_config.GetEverquestPath())
+	{
+		ClearZones();
+		m_lastEQDirectory = g_config.GetEverquestPath();
+	}
+
+	fs::path eqPath(m_lastEQDirectory);
+	std::error_code ec;
+
+	if (!fs::is_directory(eqPath, ec))
 		return;
 
-	auto& mapList = g_config.GetMapList();
-	for (const auto& [exp, maps] : mapList)
+	if (!m_loadedZones)
 	{
-		for (const auto& map : maps)
+		auto& mapList = g_config.GetMapList();
+
+		for (const auto& [exp, maps] : mapList)
 		{
-			m_allMaps.emplace_back(map.first, map.second, exp);
+			m_mapsByExpansion.emplace_back(exp, decltype(maps)());
+			auto& myExp = m_mapsByExpansion.back();
+
+			for (const auto& map : maps)
+			{
+				// Only list maps that actually exist
+				if (fs::is_regular_file((eqPath / map.second).replace_extension(".s3d"), ec)
+					|| fs::is_regular_file((eqPath / map.second).replace_extension(".eqg"), ec))
+				{
+					m_allMaps.emplace_back(map.first, map.second, exp);
+					myExp.second.emplace(map.second, map.first);
+				}
+			}
+		}
+
+		// Pop stuff off the back while the last expansion is empty
+		while (!m_mapsByExpansion.empty() && m_mapsByExpansion.back().second.empty())
+		{
+			m_mapsByExpansion.pop_back();
+		}
+
+		m_loadedZones = true;
+	}
+
+	if (!m_loadedImages)
+	{
+		bool anyMissing = false;
+
+		for (const auto& expansionFile : ExpansionLogoFiles)
+		{
+			fs::path path = eqPath / expansionFile.filename;
+
+			if (!fs::is_regular_file(path))
+			{
+				anyMissing = true;
+				break;
+			}
+
+			std::string textureFileName = path.string();
+
+			bgfx::TextureHandle texture = g_resourceMgr->LoadTexture(textureFileName.c_str());
+			m_textures.push_back(texture);
+		}
+
+		// If we failed to load all the texture then disable the buttons
+		if (anyMissing || std::ranges::all_of(m_textures, [](const auto& tex) { return !isValid(tex); }))
+		{
+			for (auto& texture : m_textures)
+			{
+				if (isValid(texture))
+					bgfx::destroy(texture);
+			}
+
+			m_textures.clear();
+			m_showExpansionButtons = false;
+		}
+		else
+		{
+			PopulateExpansionLogoImages();
+			m_loadedImages = true;
+			m_showExpansionButtons = true;
 		}
 	}
-
-	std::string eqDirectory = g_config.GetEverquestPath();
-
-	for (const auto& expansionFile : ExpansionLogoFiles)
-	{
-		std::string path = eqDirectory + "\\" + expansionFile.filename;
-
-		bgfx::TextureHandle texture = g_resourceMgr->LoadTexture(path.c_str());
-		m_textures.push_back(texture);
-	}
-
-	// If we failed to load all the texture then disable the buttons
-	if (std::ranges::all_of(m_textures, [](const auto& tex) { return !isValid(tex); }))
-	{
-		m_showExpansionButtons = false;
-	}
-	else
-	{
-		PopulateExpansionLogoImages();
-	}
-
-	m_loaded = true;
 }
 
 void ZonePicker::ClearZones()
@@ -157,10 +205,12 @@ void ZonePicker::ClearZones()
 			bgfx::destroy(texture);
 	}
 
+	m_mapsByExpansion.clear();
 	m_allMaps.clear();
 	m_textures.clear();
 	m_selectedExpansion = -1;
-	m_loaded = false;
+	m_loadedZones = false;
+	m_loadedImages = false;
 	m_filterText[0] = 0;
 	m_selectedIndex = -1;
 	m_lastSelectedIndex = -1;
@@ -319,7 +369,6 @@ bool ZonePicker::Draw()
 
 	ImGui::SetNextWindowPos(ImVec2(xPos, yPos), ImGuiCond_Always);
 	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
-	const auto& mapList = g_config.GetMapList();
 	bool open = m_isShowing;
 	bool closeWindow = false;
 
@@ -335,14 +384,22 @@ bool ZonePicker::Draw()
 		if (ImGui::InputText("##ZonePickerFilter", m_filterText, 64, ImGuiInputTextFlags_EnterReturnsTrue))
 			enterPressed = true;
 
+		if (ImGui::IsItemActive())
+		{
+			ImGuiID item_id = ImGui::GetItemID();
+			ImGui::SetKeyOwner(ImGuiKey_DownArrow, item_id);
+			ImGui::SetKeyOwner(ImGuiKey_UpArrow, item_id);
+			ImGui::SetKeyOwner(ImGuiMod_Ctrl, item_id);
+		}
+
 		int newSelectedExpansion = -1;
 
 		if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
 		{
-			if (ImGui::IsKeyDown(ImGuiMod_Ctrl) && !mapList.empty())
+			if (ImGui::IsKeyDown(ImGuiMod_Ctrl) && !m_mapsByExpansion.empty())
 			{
 				if (m_selectedExpansion == -1)
-					m_selectedExpansion = static_cast<int>(mapList.size()) - 1;
+					m_selectedExpansion = static_cast<int>(m_mapsByExpansion.size()) - 1;
 				else
 					m_selectedExpansion = std::max(0, m_selectedExpansion - 1);
 
@@ -361,12 +418,12 @@ bool ZonePicker::Draw()
 		}
 		else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
 		{
-			if (ImGui::IsKeyDown(ImGuiMod_Ctrl) && !mapList.empty())
+			if (ImGui::IsKeyDown(ImGuiMod_Ctrl) && !m_mapsByExpansion.empty())
 			{
 				if (m_selectedExpansion == -1)
 					m_selectedExpansion = 0;
 				else
-					m_selectedExpansion = std::min(static_cast<int>(mapList.size()) - 1, m_selectedExpansion + 1);
+					m_selectedExpansion = std::min(static_cast<int>(m_mapsByExpansion.size()) - 1, m_selectedExpansion + 1);
 
 				newSelectedExpansion = m_selectedExpansion;
 			}
@@ -386,7 +443,7 @@ bool ZonePicker::Draw()
 		ImGui::NavMoveRequestCancel();
 
 		// Ensure that we keep focus on the input box
-		if (m_setFocus || !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+		if (m_setFocus || enterPressed)
 		{
 			ImGui::SetKeyboardFocusHere(-1);
 			m_setFocus = false;
@@ -401,7 +458,7 @@ bool ZonePicker::Draw()
 			ImGui::BeginChild("##ExpansionList", ImVec2(148, ImGui::GetWindowHeight() - BottomBarHeight),
 				0, ImGuiWindowFlags_NoFocusOnAppearing);
 
-			for (int i = static_cast<int>(mapList.size()) - 1; i >= 0; --i)
+			for (int i = static_cast<int>(m_mapsByExpansion.size()) - 1; i >= 0; --i)
 			{
 				ImGui::PushID(i);
 				if (auto data = FindExpansionImage(i, m_selectedExpansion == i); data.first < static_cast<int>(m_textures.size()))
@@ -441,7 +498,7 @@ bool ZonePicker::Draw()
 					int index = 0;
 
 					// if there is no filter we will display the tree of zones
-					for (const auto& expansionInfo : mapList)
+					for (const auto& expansionInfo : m_mapsByExpansion)
 					{
 						const std::string& expansionName = expansionInfo.first;
 
@@ -491,7 +548,7 @@ bool ZonePicker::Draw()
 				}
 				else
 				{
-					const ApplicationConfig::Expansion& expansion = mapList[m_selectedExpansion];
+					const ApplicationConfig::Expansion& expansion = m_mapsByExpansion[m_selectedExpansion];
 
 					auto filterByExpansion = [&](const MapInfo& map) {
 						return map.expansion == expansion.first;
