@@ -57,7 +57,14 @@ public:
 
 	~ScopedStyleStack()
 	{
+		if (m_count)
+			ImGui::PopStyleVar(m_count);
+	}
+
+	void pop()
+	{
 		ImGui::PopStyleVar(m_count);
+		m_count = 0;
 	}
 
 private:
