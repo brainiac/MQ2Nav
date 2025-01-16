@@ -223,15 +223,12 @@ bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
 	// Load terrain data
 	auto loading_terrain = std::make_shared<Terrain>(params);
 
-	EQG_LOG_DEBUG("Parsing zone data file.");
 	if (!loading_terrain->Load(m_archive))
 	{
 		EQG_LOG_ERROR("Failed to parse zone data.");
 		return false;
 	}
 
-	EQG_LOG_DEBUG("Parsing water data file.");
-	LoadWaterSheets(loading_terrain);
 
 	EQG_LOG_DEBUG("Parsing invisible walls file.");
 	LoadInvisibleWalls(loading_terrain);
@@ -403,136 +400,6 @@ bool EQGLoader::ParseLOD(const std::vector<char>& buffer, const std::string& tag
 		return false;
 
 	lod_lists.push_back(lodList);
-	return true;
-}
-
-bool EQGLoader::LoadWaterSheets(std::shared_ptr<Terrain>& terrain)
-{
-	std::vector<char> wat;
-	if (!m_archive->Get("water.dat", wat))
-	{
-		return false;
-	}
-
-	std::vector<std::string> tokens = ParseConfigFile(wat.data(), wat.size());
-
-	std::shared_ptr<WaterSheet> ws;
-
-	for (size_t i = 1; i < tokens.size();)
-	{
-		std::string_view token = tokens[i];
-
-		if (token.compare("*WATERSHEET") == 0)
-		{
-			ws = std::make_shared<WaterSheet>();
-			ws->SetTile(false);
-
-			++i;
-		}
-		else if (token.compare("*END_SHEET") == 0)
-		{
-			if (ws)
-			{
-				EQG_LOG_TRACE("Adding finite water sheet.");
-				terrain->AddWaterSheet(ws);
-			}
-
-			++i;
-		}
-		else if (token.compare("*WATERSHEETDATA") == 0)
-		{
-			ws = std::make_shared<WaterSheet>();
-			ws->SetTile(true);
-
-			++i;
-		}
-		else if (token.compare("*ENDWATERSHEETDATA") == 0)
-		{
-			if (ws)
-			{
-				EQG_LOG_TRACE("Adding infinite water sheet.");
-				terrain->AddWaterSheet(ws);
-			}
-
-			++i;
-		}
-		else if (token.compare("*INDEX") == 0)
-		{
-			if (i + 1 >= tokens.size())
-			{
-				break;
-			}
-
-			int32_t index = std::stoi(tokens[i + 1]);
-			ws->SetIndex(index);
-			i += 2;
-		}
-		else if (token.compare("*MINX") == 0)
-		{
-			if (i + 1 >= tokens.size())
-			{
-				break;
-			}
-
-			float min_x = std::stof(tokens[i + 1]);
-			ws->SetMinX(min_x);
-
-			i += 2;
-		}
-		else if (token.compare("*MINY") == 0)
-		{
-			if (i + 1 >= tokens.size())
-			{
-				break;
-			}
-
-			float min_y = std::stof(tokens[i + 1]);
-			ws->SetMinY(min_y);
-
-			i += 2;
-		}
-		else if (token.compare("*MAXX") == 0)
-		{
-			if (i + 1 >= tokens.size())
-			{
-				break;
-			}
-
-			float max_x = std::stof(tokens[i + 1]);
-			ws->SetMaxX(max_x);
-
-			i += 2;
-		}
-		else if (token.compare("*MAXY") == 0)
-		{
-			if (i + 1 >= tokens.size())
-			{
-				break;
-			}
-
-			float max_y = std::stof(tokens[i + 1]);
-			ws->SetMaxY(max_y);
-
-			i += 2;
-		}
-		else if (token.compare("*ZHEIGHT") == 0)
-		{
-			if (i + 1 >= tokens.size())
-			{
-				break;
-			}
-
-			float z = std::stof(tokens[i + 1]);
-			ws->SetZHeight(z);
-
-			i += 2;
-		}
-		else
-		{
-			++i;
-		}
-	}
-
 	return true;
 }
 

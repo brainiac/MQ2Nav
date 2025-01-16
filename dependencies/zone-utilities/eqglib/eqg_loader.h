@@ -58,7 +58,6 @@ private:
 
 	bool ParseTerrainProject(const std::vector<char>& buffer);
 	void LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params);
-	bool LoadWaterSheets(std::shared_ptr<Terrain>& terrain);
 	bool LoadInvisibleWalls(std::shared_ptr<Terrain>& terrain);
 
 	Archive* m_archive = nullptr;

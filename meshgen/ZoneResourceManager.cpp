@@ -522,62 +522,62 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 			{
 				auto& sheet = water_sheets[i];
 
-				if (sheet->GetTile())
-				{
-					for (const auto& tile : terrain->tiles)
-					{
-						float x = tile->tile_pos.x;
-						float y = tile->tile_pos.y;
-						float z = tile->base_water_level;
+				//if (sheet->GetTile())
+				//{
+				//	for (const auto& tile : terrain->tiles)
+				//	{
+				//		float x = tile->tile_pos.x;
+				//		float y = tile->tile_pos.y;
+				//		float z = tile->base_water_level;
 
-						float QuadVertex1X = x;
-						float QuadVertex1Y = y;
-						float QuadVertex1Z = z;
+				//		float QuadVertex1X = x;
+				//		float QuadVertex1Y = y;
+				//		float QuadVertex1Z = z;
 
-						float QuadVertex2X = QuadVertex1X + (terrain->GetParams().quads_per_tile * terrain->GetParams().units_per_vert);
-						float QuadVertex2Y = QuadVertex1Y;
-						float QuadVertex2Z = QuadVertex1Z;
+				//		float QuadVertex2X = QuadVertex1X + (terrain->GetParams().quads_per_tile * terrain->GetParams().units_per_vert);
+				//		float QuadVertex2Y = QuadVertex1Y;
+				//		float QuadVertex2Z = QuadVertex1Z;
 
-						float QuadVertex3X = QuadVertex2X;
-						float QuadVertex3Y = QuadVertex1Y + (terrain->GetParams().quads_per_tile * terrain->GetParams().units_per_vert);
-						float QuadVertex3Z = QuadVertex1Z;
+				//		float QuadVertex3X = QuadVertex2X;
+				//		float QuadVertex3Y = QuadVertex1Y + (terrain->GetParams().quads_per_tile * terrain->GetParams().units_per_vert);
+				//		float QuadVertex3Z = QuadVertex1Z;
 
-						float QuadVertex4X = QuadVertex1X;
-						float QuadVertex4Y = QuadVertex3Y;
-						float QuadVertex4Z = QuadVertex1Z;
+				//		float QuadVertex4X = QuadVertex1X;
+				//		float QuadVertex4Y = QuadVertex3Y;
+				//		float QuadVertex4Z = QuadVertex1Z;
 
-						uint32_t current_vert = (uint32_t)non_collide_verts.size() + 3;
-						non_collide_verts.push_back(glm::vec3(QuadVertex1X, QuadVertex1Y, QuadVertex1Z));
-						non_collide_verts.push_back(glm::vec3(QuadVertex2X, QuadVertex2Y, QuadVertex2Z));
-						non_collide_verts.push_back(glm::vec3(QuadVertex3X, QuadVertex3Y, QuadVertex3Z));
-						non_collide_verts.push_back(glm::vec3(QuadVertex4X, QuadVertex4Y, QuadVertex4Z));
+				//		uint32_t current_vert = (uint32_t)non_collide_verts.size() + 3;
+				//		non_collide_verts.push_back(glm::vec3(QuadVertex1X, QuadVertex1Y, QuadVertex1Z));
+				//		non_collide_verts.push_back(glm::vec3(QuadVertex2X, QuadVertex2Y, QuadVertex2Z));
+				//		non_collide_verts.push_back(glm::vec3(QuadVertex3X, QuadVertex3Y, QuadVertex3Z));
+				//		non_collide_verts.push_back(glm::vec3(QuadVertex4X, QuadVertex4Y, QuadVertex4Z));
 
-						non_collide_indices.push_back(current_vert);
-						non_collide_indices.push_back(current_vert - 2);
-						non_collide_indices.push_back(current_vert - 1);
+				//		non_collide_indices.push_back(current_vert);
+				//		non_collide_indices.push_back(current_vert - 2);
+				//		non_collide_indices.push_back(current_vert - 1);
 
-						non_collide_indices.push_back(current_vert);
-						non_collide_indices.push_back(current_vert - 3);
-						non_collide_indices.push_back(current_vert - 2);
-					}
-				}
-				else
-				{
-					uint32_t id = (uint32_t)non_collide_verts.size();
+				//		non_collide_indices.push_back(current_vert);
+				//		non_collide_indices.push_back(current_vert - 3);
+				//		non_collide_indices.push_back(current_vert - 2);
+				//	}
+				//}
+				//else
+				//{
+				//	uint32_t id = (uint32_t)non_collide_verts.size();
 
-					non_collide_verts.push_back(glm::vec3(sheet->GetMinY(), sheet->GetMinX(), sheet->GetZHeight()));
-					non_collide_verts.push_back(glm::vec3(sheet->GetMinY(), sheet->GetMaxX(), sheet->GetZHeight()));
-					non_collide_verts.push_back(glm::vec3(sheet->GetMaxY(), sheet->GetMinX(), sheet->GetZHeight()));
-					non_collide_verts.push_back(glm::vec3(sheet->GetMaxY(), sheet->GetMaxX(), sheet->GetZHeight()));
+				//	non_collide_verts.push_back(glm::vec3(sheet->GetMinY(), sheet->GetMinX(), sheet->GetZHeight()));
+				//	non_collide_verts.push_back(glm::vec3(sheet->GetMinY(), sheet->GetMaxX(), sheet->GetZHeight()));
+				//	non_collide_verts.push_back(glm::vec3(sheet->GetMaxY(), sheet->GetMinX(), sheet->GetZHeight()));
+				//	non_collide_verts.push_back(glm::vec3(sheet->GetMaxY(), sheet->GetMaxX(), sheet->GetZHeight()));
 
-					non_collide_indices.push_back(id);
-					non_collide_indices.push_back(id + 1);
-					non_collide_indices.push_back(id + 2);
+				//	non_collide_indices.push_back(id);
+				//	non_collide_indices.push_back(id + 1);
+				//	non_collide_indices.push_back(id + 2);
 
-					non_collide_indices.push_back(id + 1);
-					non_collide_indices.push_back(id + 3);
-					non_collide_indices.push_back(id + 2);
-				}
+				//	non_collide_indices.push_back(id + 1);
+				//	non_collide_indices.push_back(id + 3);
+				//	non_collide_indices.push_back(id + 2);
+				//}
 			}
 
 			// Invisible wals

@@ -9,6 +9,7 @@
 #include "log_internal.h"
 
 #include <glm/gtx/matrix_decompose.hpp>
+#include <mq2nav-develop-meshgen/meshgen/compat/msvc/stdbool.h>
 
 namespace eqg {
 
@@ -70,11 +71,26 @@ static float HeightWithinQuad(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec
 bool Terrain::Load(Archive* archive)
 {
 	m_archive = archive;
+	EQG_LOG_DEBUG("Parsing zone data from terrain for {}.", m_params.name);
 
+	EQG_LOG_DEBUG("Parsing water data file.");
+	LoadWaterSheets();
+
+	if (!LoadTiles())
+	{
+		EQG_LOG_ERROR("Failed to load terrain tiles.");
+		return false;
+	}
+
+	return true;
+}
+
+bool Terrain::LoadTiles()
+{
 	std::string filename = m_params.name + ".dat";
 	std::vector<char> buffer;
 
-	if (!archive->Get(filename, buffer))
+	if (!m_archive->Get(filename, buffer))
 	{
 		EQG_LOG_ERROR("Failed to open {}.", filename);
 		return false;
@@ -160,9 +176,61 @@ void Terrain::LoadInvisibleWalls()
 	
 }
 
-void Terrain::LoadWaterSheets()
+bool Terrain::LoadWaterSheets()
 {
-	
+	std::vector<char> dat_buffer;
+	if (!m_archive->Get("water.dat", dat_buffer))
+	{
+		return false;
+	}
+
+	std::vector<std::string> tokens = EQGLoader::ParseConfigFile(dat_buffer.data(), dat_buffer.size());
+	if (tokens.empty())
+	{
+		return true;
+	}
+
+	std::shared_ptr<WaterSheet> ws;
+	size_t k = 0;
+
+	std::string_view token = tokens[k++];
+
+	if (token == "*BEGIN_WATERSHEETS")
+	{
+		while (k < tokens.size())
+		{
+			token = tokens[k++];
+
+			if (token == "*END_WATERSHEETS")
+				break;
+
+			if (token == "*WATERSHEET")
+			{
+				auto ws = std::make_shared<WaterSheet>(this, tokens[k++]);
+				ws->Load(tokens, k);
+
+				water_sheets.push_back(ws);
+			}
+		}
+	}
+
+	while (k < tokens.size())
+	{
+		token = tokens[k++];
+
+		if (token == "*END_WATERSHEETDATA")
+			break;
+
+		if (token == "*WATERSHEETDATA")
+		{
+			auto ws = std::make_shared<WaterSheetData>();
+			ws->Load(tokens, k);
+
+			water_sheet_data.push_back(ws);
+		}
+	}
+
+	return true;
 }
 
 TerrainObjectGroupDefinition* Terrain::GetObjectGroupDefinition(const std::string& name)
@@ -178,6 +246,17 @@ TerrainObjectGroupDefinition* Terrain::GetObjectGroupDefinition(const std::strin
 
 	group_definitions.push_back(group_definition);
 	return group_definition.get();
+}
+
+std::shared_ptr<WaterSheetData> Terrain::GetWaterSheetData(uint32_t index) const
+{
+	for (const auto& pData : water_sheet_data)
+	{
+		if (pData->index == index)
+			return pData;
+	}
+
+	return nullptr;
 }
 
 glm::vec3 TerrainTile::GetPosInTile(const glm::vec3& pos) const
@@ -279,6 +358,19 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 		{
 			if (!reader.read_multiple(water_sheet_min_x, water_sheet_max_x, water_sheet_min_y, water_sheet_max_y))
 				return false;
+
+			std::string name = fmt::format("WS_{}_{}", tile_loc.x + 100000, tile_loc.y + 100000);
+
+			auto p_water_sheet = std::make_shared<WaterSheet>(terrain, name, terrain->GetWaterSheetData(water_data_index));
+			p_water_sheet->min_x = tile_start_x + water_sheet_min_x;
+			p_water_sheet->max_x = tile_start_x + water_sheet_max_x;
+			p_water_sheet->min_y = tile_start_y + water_sheet_min_y;
+			p_water_sheet->max_y = tile_start_y + water_sheet_max_y;
+			p_water_sheet->z_height = base_water_level;
+
+			terrain->water_sheets.push_back(p_water_sheet);
+
+			water_sheet = p_water_sheet.get();
 		}
 	}
 
@@ -656,5 +748,251 @@ bool TerrainObjectGroupDefinition::Load(Archive* archive, const std::string& gro
 
 	return true;
 }
+
+static uint32_t s_waterSheetDataIndex = 10000;
+
+WaterSheet::WaterSheet(Terrain* terrain, const std::string& name, const std::shared_ptr<WaterSheetData>& data)
+	: m_terrain(terrain)
+	, m_name(name)
+	, m_data(data)
+{
+	if (m_data == nullptr)
+	{
+		m_data = std::make_shared<WaterSheetData>();
+		m_data->index = s_waterSheetDataIndex++;
+	}
+}
+
+bool WaterSheet::Load(const std::vector<std::string>& tokens, size_t& k)
+{
+	while (k < tokens.size())
+	{
+		const auto& token = tokens[k++];
+
+		if (token == "*END_SHEET")
+		{
+			break;
+		}
+
+		if (!ParseToken(token, tokens, k))
+		{
+			m_data->ParseToken(token, tokens, k);
+		}
+	}
+
+	int units_per_tile = static_cast<int>(m_terrain->GetParams().units_per_tile + 0.5f);
+	int sheet_start_x = static_cast<int>(min_x + 0.5f) % units_per_tile;
+	int sheet_start_y = static_cast<int>(min_y + 0.5f) % units_per_tile;
+
+	if (sheet_start_x < 0)
+		sheet_start_x += units_per_tile;
+	if (sheet_start_y < 0)
+		sheet_start_y += units_per_tile;
+
+	m_definitionName = fmt::format("WS_{}_{}_{}_{}_{}_ACTORDEF", m_data->index, sheet_start_x, sheet_start_y,
+		static_cast<int>(sheet_start_x + max_x - min_x), static_cast<int>(sheet_start_y + max_y - min_y));
+
+	// TODO: Generate ActorDef for water sheet
+
+	return true;
+}
+
+bool WaterSheet::ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k)
+{
+	if (token == "*MINX")
+	{
+		if (k < tokens.size())
+		{
+			min_x = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+
+	if (token == "*MINY")
+	{
+		if (k < tokens.size())
+		{
+			min_y = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+	
+	if (token == "*MAXX")
+	{
+		if (k < tokens.size())
+		{
+			max_x = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+	
+	if (token == "*MAXY")
+	{
+		if (k < tokens.size())
+		{
+			max_y = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+
+	if (token == "*ZHEIGHT")
+	{
+		if (k < tokens.size())
+		{
+			z_height = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool WaterSheetData::Load(const std::vector<std::string>& tokens, size_t& k)
+{
+	while (k < tokens.size())
+	{
+		const auto& token = tokens[k++];
+
+		if (token == "*ENDWATERSHEETDATA")
+		{
+			break;
+		}
+
+		ParseToken(token, tokens, k);
+	}
+
+	return true;
+}
+
+bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k)
+{
+	if (token == "*INDEX")
+	{
+		if (k < tokens.size())
+		{
+			index = (uint32_t)std::stoul(tokens[k++]);
+		}
+
+		return true;
+	}
+
+	if (token == "*FRESNELBIAS")
+	{
+		if (k < tokens.size())
+		{
+			fresnel_bias = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+	
+	if (token == "*FRESNELPOWER")
+	{
+		if (k < tokens.size())
+		{
+			fresnel_power = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+
+	if (token == "*REFLECTIONAMOUNT")
+	{
+		if (k < tokens.size())
+		{
+			reflection_amount = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+
+	if (token == "*UVSCALE")
+	{
+		if (k < tokens.size())
+		{
+			uv_scale = std::stof(tokens[k++]);
+		}
+
+		return true;
+	}
+
+	if (token == "*REFLECTIONCOLOR")
+	{
+		if (k + 3 < tokens.size())
+		{
+			reflection_color = glm::vec4(
+				std::stof(tokens[k]),
+				std::stof(tokens[k+1]),
+				std::stof(tokens[k+2]),
+				std::stof(tokens[k+3])
+			);
+			k += 4;
+		}
+
+		return true;
+	}
+	
+	if (token == "*WATERCOLOR1")
+	{
+		if (k + 3 < tokens.size())
+		{
+			water_color1 = glm::vec4(
+				std::stof(tokens[k]),
+				std::stof(tokens[k + 1]),
+				std::stof(tokens[k + 2]),
+				std::stof(tokens[k + 3])
+			);
+			k += 4;
+		}
+
+		return true;
+	}
+	
+	if (token == "*WATERCOLOR2")
+	{
+		if (k + 3 < tokens.size())
+		{
+			water_color2 = glm::vec4(
+				std::stof(tokens[k]),
+				std::stof(tokens[k + 1]),
+				std::stof(tokens[k + 2]),
+				std::stof(tokens[k + 3])
+			);
+			k += 4;
+		}
+
+		return true;
+	}
+	
+	if (token == "*NORMALMAP")
+	{
+		if (k < tokens.size())
+		{
+			normal_map = tokens[k++];
+		}
+		
+		return true;
+	}
+
+	if (token == "*ENVIRONMENTMAP")
+	{
+		if (k < tokens.size())
+		{
+			environment_map = tokens[k++];
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+
+
 
 } // namespace eqg

@@ -27,32 +27,46 @@ public:
 	std::vector<glm::vec3> verts;
 };
 
+class WaterSheetData;
+
 class WaterSheet
 {
 public:
-	void SetMinX(float x) { min_x = x; }
-	void SetMinY(float y) { min_y = y; }
-	void SetMaxX(float x) { max_x = x; }
-	void SetMaxY(float y) { max_y = y; }
-	void SetZHeight(float z) { z_height = z; }
-	void SetTile(bool v) { tile = v; }
-	void SetIndex(int i) { index = i; }
+	WaterSheet(Terrain* terrain, const std::string& name, const std::shared_ptr<WaterSheetData>& data = nullptr);
 
-	float GetMinX() { return min_x; }
-	float GetMinY() { return min_y; }
-	float GetMaxX() { return max_x; }
-	float GetMaxY() { return max_y; }
-	float GetZHeight() { return z_height; }
-	bool GetTile() { return tile; }
-	int GetIndex() { return index; }
+	std::string m_name;
+	std::shared_ptr<WaterSheetData> m_data;
+	std::string m_definitionName;
 
 	float min_x = 0.0f;
 	float min_y = 0.0f;
 	float max_x = 0.0f;
 	float max_y = 0.0f;
-	float z_height;
-	bool tile;
-	int index;
+	float z_height = 0.0f;
+
+	Terrain* m_terrain = nullptr;
+
+	bool Load(const std::vector<std::string>& tokens, size_t& k);
+	bool ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k);
+};
+
+class WaterSheetData
+{
+public:
+	uint32_t index = 0;
+
+	float fresnel_bias = 0.25f;
+	float fresnel_power = 8.0f;
+	float reflection_amount = 0.7f;
+	float uv_scale = 1.0f;
+	glm::vec4 reflection_color = { 0.7f, 1.0f, 1.0f, 1.0f };
+	glm::vec4 water_color1 = { 0.0f, 0.04f, 0.11f, 1.0f };
+	glm::vec4 water_color2 = { 0.0f, 0.23f, 0.17f, 1.0f };
+	std::string normal_map = "Resources\\WaterSwap\\water_n.dds";
+	std::string environment_map = "Resources\\WaterSwap\\water_e.dds";
+
+	bool Load(const std::vector<std::string>& tokens, size_t& k);
+	bool ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k);
 };
 
 struct TerrainObjectGroupDefinitionObjectElement
@@ -222,8 +236,11 @@ public:
 
 	TerrainObjectGroupDefinition* GetObjectGroupDefinition(const std::string& name);
 
+	std::shared_ptr<WaterSheetData> GetWaterSheetData(uint32_t index) const;
+
 private:
-	void LoadWaterSheets();
+	bool LoadTiles();
+	bool LoadWaterSheets();
 	void LoadInvisibleWalls();
 
 	SEQZoneParameters m_params;
@@ -239,6 +256,7 @@ public:
 	std::vector<std::shared_ptr<TerrainTile>> tiles;
 
 	std::vector<std::shared_ptr<WaterSheet>> water_sheets;
+	std::vector<std::shared_ptr<WaterSheetData>> water_sheet_data;
 	std::vector<std::shared_ptr<InvisWall>> invis_walls;
 
 	std::vector<std::shared_ptr<TerrainArea>> areas;
