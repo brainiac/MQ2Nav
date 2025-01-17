@@ -1,9 +1,6 @@
 
 #pragma once
 
-#define SafeVarAllocParse(type, var_name) if(idx + sizeof(type) > (uint32_t)buffer.size()) { return false; } \
-	type var_name = *(type*)&buffer[idx]; \
-	idx += sizeof(type);
 
 #define SafeStructAllocParse(type, var_name) if(idx + sizeof(type) > (uint32_t)buffer.size()) { return false; } \
 	type *var_name = (type*)&buffer[idx]; \

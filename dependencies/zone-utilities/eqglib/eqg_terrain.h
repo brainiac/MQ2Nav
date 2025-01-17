@@ -217,10 +217,11 @@ class Terrain
 	friend class TerrainTile;
 
 public:
-	Terrain(const SEQZoneParameters& params);
+	Terrain(Archive* archive);
 	~Terrain();
 
-	bool Load(Archive* archive);
+	bool Load(const char* zonBuffer, size_t size);
+	bool Load(const SEQZoneParameters& params);
 
 	void AddTile(const std::shared_ptr<TerrainTile>& t) { tiles.push_back(t); }
 	void AddWaterSheet(const std::shared_ptr<WaterSheet>& s) { water_sheets.push_back(s); }
@@ -238,10 +239,12 @@ public:
 
 	std::shared_ptr<WaterSheetData> GetWaterSheetData(uint32_t index) const;
 
+	static void LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params);
+
 private:
 	bool LoadTiles();
 	bool LoadWaterSheets();
-	void LoadInvisibleWalls();
+	bool LoadInvisibleWalls();
 
 	SEQZoneParameters m_params;
 	Archive* m_archive = nullptr;

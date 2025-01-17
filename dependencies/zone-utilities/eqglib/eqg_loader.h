@@ -43,8 +43,6 @@ public:
 	std::vector<std::string> mesh_names;
 	std::vector<std::string> actor_tags;
 
-	static std::vector<std::string> ParseConfigFile(const char* buffer, size_t size);
-
 	Archive* GetArchive() const { return m_archive; }
 
 private:
@@ -55,10 +53,7 @@ private:
 	bool ParseModel(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag);
 	bool ParseTerrain(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag);
 	bool ParseLOD(const std::vector<char>& buffer, const std::string& tag);
-
 	bool ParseTerrainProject(const std::vector<char>& buffer);
-	void LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params);
-	bool LoadInvisibleWalls(std::shared_ptr<Terrain>& terrain);
 
 	Archive* m_archive = nullptr;
 	std::string m_fileName;

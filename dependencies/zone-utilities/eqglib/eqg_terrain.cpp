@@ -13,8 +13,8 @@
 
 namespace eqg {
 
-Terrain::Terrain(const SEQZoneParameters& params_)
-	: m_params(params_)
+Terrain::Terrain(Archive* archive_)
+	: m_archive(archive_)
 {
 }
 
@@ -22,6 +22,7 @@ Terrain::~Terrain()
 {
 }
 
+// Given x and y, Interpolate z across a quad defined by 4 points.
 static float HeightWithinQuad(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 p4, float x, float y)
 {
 	int inTriangle = 0;
@@ -67,14 +68,35 @@ static float HeightWithinQuad(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec
 	return (((n.x) * (x - a.x) + (n.y) * (y - a.y)) / -n.z) + a.z;
 }
 
-
-bool Terrain::Load(Archive* archive)
+bool Terrain::Load(const char* zonBuffer, size_t size)
 {
-	m_archive = archive;
+	if (size < 5)
+		return false;
+
+	if (strncmp(zonBuffer, "EQTZP", 5) == 0)
+	{
+		EQG_LOG_ERROR("Input .zon buffer is not an EQTZP file");
+		return false;
+	}
+
+	SEQZoneParameters params;
+	LoadZoneParameters(zonBuffer, size, params);
+
+	return Load(params);
+}
+
+bool Terrain::Load(const SEQZoneParameters& params)
+{
+	m_params = params;
+
 	EQG_LOG_DEBUG("Parsing zone data from terrain for {}.", m_params.name);
 
+	// Start with water sheets so that we have the data ready when tiles reference it.
 	EQG_LOG_DEBUG("Parsing water data file.");
 	LoadWaterSheets();
+
+	EQG_LOG_DEBUG("Parsing invisible walls file.");
+	LoadInvisibleWalls();
 
 	if (!LoadTiles())
 	{
@@ -83,6 +105,187 @@ bool Terrain::Load(Archive* archive)
 	}
 
 	return true;
+}
+
+static std::vector<std::string> ParseConfigFile(const char* buffer, size_t size)
+{
+	std::vector<std::string> tokens;
+
+	std::string cur;
+	for (size_t i = 0; i < size; ++i)
+	{
+		char c = buffer[i];
+
+		if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f')
+		{
+			if (cur.size() > 0)
+			{
+				tokens.push_back(cur);
+				cur.clear();
+			}
+		}
+		else
+		{
+			cur.push_back(c);
+		}
+	}
+
+	return tokens;
+}
+
+
+void Terrain::LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params)
+{
+	params.min_lng = -1000000;
+	params.min_lat = -1000000;
+	params.max_lng = 1000000;
+	params.max_lat = 1000000;
+	params.units_per_vert = 12.0f;
+	params.quads_per_tile = 16;
+	params.layer_map_input_size = 1024;
+	params.cover_map_input_size = 256;
+	params.version = 1;
+
+	std::vector<std::string> tokens = ParseConfigFile(buffer, size);
+
+	for (size_t i = 1; i < tokens.size();)
+	{
+		std::string_view token = tokens[i];
+
+		if (token.compare("*NAME") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.name = tokens[i + 1];
+			i += 2;
+		}
+		else if (token.compare("*MINLNG") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.min_lng = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*MAXLNG") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.max_lng = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*MINLAT") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.min_lat = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*MAXLAT") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.max_lat = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*MIN_EXTENTS") == 0)
+		{
+			if (i + 3 >= tokens.size())
+			{
+				break;
+			}
+
+			params.min_extents[0] = std::stof(tokens[i + 1]);
+			params.min_extents[1] = std::stof(tokens[i + 2]);
+			params.min_extents[2] = std::stof(tokens[i + 3]);
+			i += 4;
+		}
+		else if (token.compare("*MAX_EXTENTS") == 0)
+		{
+			if (i + 3 >= tokens.size())
+			{
+				break;
+			}
+
+			params.max_extents[0] = std::stof(tokens[i + 1]);
+			params.max_extents[1] = std::stof(tokens[i + 2]);
+			params.max_extents[2] = std::stof(tokens[i + 3]);
+			i += 4;
+		}
+		else if (token.compare("*UNITSPERVERT") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.units_per_vert = std::stof(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*QUADSPERTILE") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.quads_per_tile = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*COVERMAPINPUTSIZE") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.cover_map_input_size = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*LAYERINGMAPINPUTSIZE") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.layer_map_input_size = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else if (token.compare("*VERSION") == 0)
+		{
+			if (i + 1 >= tokens.size())
+			{
+				break;
+			}
+
+			params.version = std::stoi(tokens[i + 1]);
+			i += 2;
+		}
+		else
+		{
+			++i;
+		}
+	}
+
+	params.units_per_tile = params.units_per_vert * params.quads_per_tile;
+	params.tiles_per_chunk = 16;
+	params.units_per_chunk = params.units_per_tile * params.tiles_per_chunk;
+	params.verts_per_tile = params.quads_per_tile + 1;
 }
 
 bool Terrain::LoadTiles()
@@ -171,9 +374,39 @@ bool Terrain::LoadTiles()
 	return true;
 }
 
-void Terrain::LoadInvisibleWalls()
+bool Terrain::LoadInvisibleWalls()
 {
-	
+	std::vector<char> buffer;
+	if (!m_archive->Get("InvW.dat", buffer))
+	{
+		return false;
+	}
+
+	BufferReader reader(buffer);
+
+	uint32_t count = reader.read<uint32_t>();
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const char* name = reader.read_cstr();
+		std::shared_ptr<InvisWall> invisWall = std::make_shared<InvisWall>(name);
+
+		reader.read(invisWall->wall_top_height);
+
+		uint32_t vert_count;
+		reader.read(vert_count);
+
+		invisWall->verts.resize(vert_count);
+
+		for (uint32_t j = 0; j < vert_count; ++j)
+		{
+			reader.read(invisWall->verts[j]);
+		}
+
+		invis_walls.push_back(invisWall);
+	}
+
+	return true;
 }
 
 bool Terrain::LoadWaterSheets()
