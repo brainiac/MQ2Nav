@@ -9,7 +9,6 @@
 #include "log_internal.h"
 
 #include <glm/gtx/matrix_decompose.hpp>
-#include <mq2nav-develop-meshgen/meshgen/compat/msvc/stdbool.h>
 
 namespace eqg {
 
@@ -73,7 +72,7 @@ bool Terrain::Load(const char* zonBuffer, size_t size)
 	if (size < 5)
 		return false;
 
-	if (strncmp(zonBuffer, "EQTZP", 5) == 0)
+	if (strncmp(zonBuffer, "EQTZP", 5) != 0)
 	{
 		EQG_LOG_ERROR("Input .zon buffer is not an EQTZP file");
 		return false;
@@ -374,6 +373,21 @@ bool Terrain::LoadTiles()
 	return true;
 }
 
+bool InvisibleWall::Load(BufferReader& reader)
+{
+	reader.read(m_wallTopHeight);
+
+	uint32_t vert_count;
+	reader.read(vert_count);
+
+	m_vertices.resize(vert_count);
+
+	if (!reader.read_array(m_vertices.data(), m_vertices.size()))
+		return false;
+
+	return true;
+}
+
 bool Terrain::LoadInvisibleWalls()
 {
 	std::vector<char> buffer;
@@ -389,19 +403,10 @@ bool Terrain::LoadInvisibleWalls()
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		const char* name = reader.read_cstr();
-		std::shared_ptr<InvisWall> invisWall = std::make_shared<InvisWall>(name);
+		std::shared_ptr<InvisibleWall> invisWall = std::make_shared<InvisibleWall>(name);
 
-		reader.read(invisWall->wall_top_height);
-
-		uint32_t vert_count;
-		reader.read(vert_count);
-
-		invisWall->verts.resize(vert_count);
-
-		for (uint32_t j = 0; j < vert_count; ++j)
-		{
-			reader.read(invisWall->verts[j]);
-		}
+		if (!invisWall->Load(reader))
+			return false;
 
 		invis_walls.push_back(invisWall);
 	}
@@ -417,7 +422,7 @@ bool Terrain::LoadWaterSheets()
 		return false;
 	}
 
-	std::vector<std::string> tokens = EQGLoader::ParseConfigFile(dat_buffer.data(), dat_buffer.size());
+	std::vector<std::string> tokens = ParseConfigFile(dat_buffer.data(), dat_buffer.size());
 	if (tokens.empty())
 	{
 		return true;
@@ -957,7 +962,7 @@ bool TerrainObjectGroupDefinition::Load(Archive* archive, const std::string& gro
 	
 	EQG_LOG_TRACE("Loading terrain object group {}.tog.", group_name);
 
-	std::vector<std::string> tokens = EQGLoader::ParseConfigFile(tog_buffer.data(), tog_buffer.size());
+	std::vector<std::string> tokens = ParseConfigFile(tog_buffer.data(), tog_buffer.size());
 
 	for (size_t k = 0; k < tokens.size();)
 	{
@@ -1224,8 +1229,5 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 
 	return false;
 }
-
-
-
 
 } // namespace eqg

@@ -73,14 +73,8 @@ public:
 	// model collision mesh
 	struct ModelEntry
 	{
-		struct Poly
-		{
-			glm::ivec3 indices;
-			uint8_t vis;
-			uint32_t flags;
-		};
 		std::vector<glm::vec3> verts;
-		std::vector<Poly> polys;
+		std::vector<eqg::SFace> polys;
 	};
 	std::unordered_map<std::string_view, std::shared_ptr<ModelEntry>> m_models;
 

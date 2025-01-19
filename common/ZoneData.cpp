@@ -75,19 +75,19 @@ public:
 					if (!archive.Open(asset_file))
 						continue;
 
-					std::vector<std::string> models = archive.GetFileNames("mod");
-					for (auto& modelName : models)
-					{
-						EQGGeometryPtr model;
+					//std::vector<std::string> models = archive.GetFileNames("mod");
+					//for (auto& modelName : models)
+					//{
+					//	EQGGeometryPtr model;
 
-						eqg::LoadEQGModel(archive, modelName, model);
-						if (model)
-						{
-							model->SetName(modelName);
-							m_modelsByFile[modelName] = model;
-							loadedSomething = true;
-						}
-					}
+					//	eqg::LoadEQGModel(archive, modelName, model);
+					//	if (model)
+					//	{
+					//		model->SetName(modelName);
+					//		m_modelsByFile[modelName] = model;
+					//		loadedSomething = true;
+					//	}
+					//}
 				}
 			}
 		}
@@ -110,36 +110,36 @@ public:
 			return iter->second;
 		}
 
-		EQGGeometryPtr model;
-		if (eqg::LoadEQGModel(m_archive, name, model))
-		{
-			model->SetName(modelName);
-			m_models[modelName] = model;
-		}
+		//EQGGeometryPtr model;
+		//if (eqg::LoadEQGModel(m_archive, name, model))
+		//{
+		//	model->SetName(modelName);
+		//	m_models[modelName] = model;
+		//}
 
-		return model;
+		//return model;
 	}
 
 	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
-		if (EQGGeometryPtr model = GetModel(modelName))
-		{
-			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
+		//if (EQGGeometryPtr model = GetModel(modelName))
+		//{
+		//	std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
 
-			for (auto& vert : model->GetVertices())
-			{
-				modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
-				modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
-				modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
+		//	for (auto& vert : model->verts)
+		//	{
+		//		modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
+		//		modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
+		//		modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
 
-				modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
-				modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
-				modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
-			}
+		//		modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
+		//		modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
+		//		modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
+		//	}
 
-			modelInfo->newModel = model;
-			return modelInfo;
-		}
+		//	modelInfo->newModel = model;
+		//	return modelInfo;
+		//}
 
 		return nullptr;
 	}
@@ -241,15 +241,14 @@ public:
 
 					for (auto& modelName : models)
 					{
-						EQGGeometryPtr model;
-
-						eqg::LoadEQGModel(archive, modelName, model);
-						if (model)
-						{
-							model->SetName(modelName);
-							m_eqgModels[modelName] = model;
-							loadedSomething = true;
-						}
+						//EQGGeometryPtr model;
+						//eqg::LoadEQGModel(archive, modelName, model);
+						//if (model)
+						//{
+						//	model->SetName(modelName);
+						//	m_eqgModels[modelName] = model;
+						//	loadedSomething = true;
+						//}
 					}
 				}
 			}
@@ -283,44 +282,44 @@ public:
 	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
 		// try to find the s3d model first, that is the most common
-		if (S3DGeometryPtr model = GetS3dModel(modelName))
-		{
-			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
+		//if (S3DGeometryPtr model = GetS3dModel(modelName))
+		//{
+		//	std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
 
-			for (auto& vert : model->GetVertices())
-			{
-				modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
-				modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
-				modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
+		//	for (auto& vert : model->GetVertices())
+		//	{
+		//		modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
+		//		modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
+		//		modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
 
-				modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
-				modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
-				modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
-			}
+		//		modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
+		//		modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
+		//		modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
+		//	}
 
-			modelInfo->oldModel = model;
-			return modelInfo;
-		}
+		//	modelInfo->oldModel = model;
+		//	return modelInfo;
+		//}
 
 		// otherwise, if we have eqg models, try them too
-		if (EQGGeometryPtr model = GetEQGModel(modelName))
-		{
-			std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
+		//if (EQGGeometryPtr model = GetEQGModel(modelName))
+		//{
+		//	std::shared_ptr<ModelInfo> modelInfo = std::make_shared<ModelInfo>();
 
-			for (auto& vert : model->GetVertices())
-			{
-				modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
-				modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
-				modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
+		//	for (auto& vert : model->verts)
+		//	{
+		//		modelInfo->min.x = std::min(vert.pos.y, modelInfo->min.x);
+		//		modelInfo->min.y = std::min(vert.pos.x, modelInfo->min.y);
+		//		modelInfo->min.z = std::min(vert.pos.z, modelInfo->min.z);
 
-				modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
-				modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
-				modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
-			}
+		//		modelInfo->max.x = std::max(vert.pos.y, modelInfo->max.x);
+		//		modelInfo->max.y = std::max(vert.pos.x, modelInfo->max.y);
+		//		modelInfo->max.z = std::max(vert.pos.z, modelInfo->max.z);
+		//	}
 
-			modelInfo->newModel = model;
-			return modelInfo;
-		}
+		//	modelInfo->newModel = model;
+		//	return modelInfo;
+		//}
 
 		return nullptr;
 	}

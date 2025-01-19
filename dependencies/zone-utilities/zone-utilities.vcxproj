@@ -45,6 +45,7 @@
   <ItemGroup>
     <ClCompile Include="eqglib\eqglib.cpp" />
     <ClCompile Include="eqglib\eqg_loader.cpp" />
+    <ClCompile Include="eqglib\eqg_material.cpp" />
     <ClCompile Include="eqglib\eqg_model_loader.cpp" />
     <ClCompile Include="eqglib\eqg_terrain.cpp" />
     <ClCompile Include="eqglib\oriented_bounding_box.cpp" />

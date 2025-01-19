@@ -174,18 +174,6 @@ void ZoneCollisionMesh::addPolys(const std::vector<glm::vec3>& verts, const std:
 	}
 }
 
-// 0x10 = invisible
-// 0x01 = no collision
-auto isVisible = [](int flags)
-	{
-		bool invisible = false; // (flags & 0x01) || (flags & 0x10);
-
-		return !invisible;
-	};
-
-// or?
-// bool visible = (iter->flags & 0x11) == 0;
-
 void ZoneCollisionMesh::addModel(std::string_view name, const S3DGeometryPtr& model)
 {
 	std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
@@ -197,14 +185,11 @@ void ZoneCollisionMesh::addModel(std::string_view name, const S3DGeometryPtr& mo
 
 	for (const auto& poly : model->GetPolygons())
 	{
-		bool visible = isVisible(poly.flags);
-
-		entry->polys.emplace_back(
-			ModelEntry::Poly{
-				.indices = glm::ivec3{poly.verts[0], poly.verts[1], poly.verts[2]},
-				.vis = visible,
-				.flags = poly.flags
-			});
+		eqg::SFace face;
+		face.indices = glm::u32vec3{ poly.verts[0], poly.verts[1], poly.verts[2] };
+		face.flags = eqg::EQG_FACEFLAG_NONE; // FIXME
+		face.materialIndex = 0;
+		entry->polys.push_back(face);
 	}
 
 	m_models.emplace(name, std::move(entry));
@@ -213,23 +198,8 @@ void ZoneCollisionMesh::addModel(std::string_view name, const S3DGeometryPtr& mo
 void ZoneCollisionMesh::addModel(std::string_view name, const EQGGeometryPtr& model)
 {
 	std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
-
-	for (const auto& vert : model->GetVertices())
-	{
-		entry->verts.push_back(vert.pos);
-	}
-
-	for (const auto& poly : model->GetPolygons())
-	{
-		bool visible = isVisible(poly.flags);
-
-		entry->polys.emplace_back(
-			ModelEntry::Poly{
-				.indices = glm::ivec3{poly.verts[0], poly.verts[1], poly.verts[2]},
-				.vis = visible,
-				.flags = poly.flags
-			});
-	}
+	std::ranges::transform(model->vertices, std::back_inserter(entry->verts), [](const eqg::SEQMVertex& p) { return p.pos; });
+	entry->polys = model->faces;
 
 	m_models.emplace(name, std::move(entry));
 }
@@ -262,7 +232,7 @@ void ZoneCollisionMesh::addModelInstance(const PlaceablePtr& obj)
 	const auto& model = modelIter->second;
 	for (const auto& poly : model->polys)
 	{
-		if (!poly.vis)
+		if (!poly.IsCollidable())
 			continue;
 
 		addTriangle(
@@ -294,18 +264,14 @@ void ZoneCollisionMesh::addZoneGeometry(const S3DGeometryPtr& model)
 
 void ZoneCollisionMesh::addZoneGeometry(const EQGGeometryPtr& model)
 {
-	auto& mod_polys = model->GetPolygons();
-	auto& mod_verts = model->GetVertices();
-
-	for (uint32_t j = 0; j < mod_polys.size(); ++j)
+	for (const auto& current_poly : model->faces)
 	{
-		auto& current_poly = mod_polys[j];
-		auto v1 = mod_verts[current_poly.verts[0]];
-		auto v2 = mod_verts[current_poly.verts[1]];
-		auto v3 = mod_verts[current_poly.verts[2]];
-
-		if ((current_poly.flags & 0x01) == 0)
+		if (current_poly.IsCollidable())
 		{
+			auto v1 = model->vertices[current_poly.indices[0]];
+			auto v2 = model->vertices[current_poly.indices[1]];
+			auto v3 = model->vertices[current_poly.indices[2]];
+
 			addTriangle(v1.pos, v2.pos, v3.pos);
 		}
 	}

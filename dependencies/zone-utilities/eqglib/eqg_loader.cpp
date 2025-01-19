@@ -182,16 +182,275 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 	return success;
 }
 
-bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag)
+struct SMaterialFaceVertexData
 {
-	std::shared_ptr<eqg::Geometry> model;
+	SEQMVertexOld* verts_old;
+	SEQMVertex* verts;
+	SEQMFace* faces;
+	std::shared_ptr<MaterialPalette> material_palette;
+};
 
-	if (!LoadEQGModel(buffer, fileName, model))
+bool EQGLoader::ParseMaterialsFacesAndVertices(BufferReader& reader, const char* string_pool, const std::string& tag,
+	uint32_t num_faces, uint32_t num_vertices, uint32_t num_materials, bool new_format, SMaterialFaceVertexData* out_data)
+{
+	// Read material data
+	struct StoredMaterial
 	{
+		SEQMMaterial* material;
+		SEQMFXParameter* parameters;
+	};
+	std::vector<StoredMaterial> stored_materials;
+	stored_materials.resize(num_materials);
+
+	for (uint32_t material = 0; material < num_materials; ++material)
+	{
+		StoredMaterial& stored_material = stored_materials[material];
+		stored_material.material = reader.read_ptr<SEQMMaterial>();
+		stored_material.parameters = reader.read_array<SEQMFXParameter>(stored_material.material->num_params);
+	}
+
+	// Read vertex data
+	if (new_format)
+	{
+		out_data->verts = reader.read_array<SEQMVertex>(num_vertices);
+		out_data->verts_old = nullptr;
+	}
+	else
+	{
+		out_data->verts_old = reader.read_array<SEQMVertexOld>(num_vertices);
+		out_data->verts = nullptr;
+	}
+
+	// Read faces
+	out_data->faces = reader.read_array<SEQMFace>(num_faces);
+
+	// Figure out which materials are actually used, and count them up.
+	std::vector<uint32_t> material_counts(num_materials, 0);
+	uint32_t num_material_counts = 0;
+
+	for (uint32_t face = 0; face < num_faces; ++face)
+	{
+		uint32_t material = out_data->faces[face].material;
+
+		if (material < num_materials)
+		{
+			if (material_counts[material]++ == 0)
+				++num_material_counts;
+		}
+	}
+
+	struct UsedMaterial
+	{
+		uint32_t material_index;
+		SEQMMaterial* material;
+		int name_index;
+		uint32_t first_usage;
+		SEQMMaterial* first_usage_material;
+		SEQMFXParameter* first_usage_material_params;
+	};
+	std::vector<UsedMaterial> used_materials;
+
+	for (uint32_t material = 0; material < num_materials; ++material)
+	{
+		// Skip materials that are not in use.
+		if (material_counts[material] == 0)
+			continue;
+
+		StoredMaterial& stored_material = stored_materials[material];
+
+		UsedMaterial used_mat;
+		used_mat.material_index = material;
+		used_mat.material = stored_material.material;
+		used_mat.name_index = stored_material.material->name_index;
+
+		// find first material matching this material name.
+		for (uint32_t i = 0; i < num_materials; ++i)
+		{
+			StoredMaterial& s = stored_materials[material];
+
+			if (std::string_view{ string_pool + used_mat.name_index } == std::string_view{ string_pool + s.material->name_index })
+			{
+				used_mat.first_usage = i;
+				used_mat.first_usage_material = s.material;
+				used_mat.first_usage_material_params = s.parameters;
+				break;
+			}
+		}
+
+		used_materials.push_back(used_mat);
+	}
+
+	std::string material_tag = fmt::format("{}_MP", tag);
+
+	// Create new material palette
+	std::shared_ptr<MaterialPalette> palette = std::make_shared<MaterialPalette>(tag, num_material_counts);
+
+	for (uint32_t cur_material = 0; cur_material < num_material_counts; ++cur_material)
+	{
+		// Get/Create material instance
+		SEQMMaterial* material = used_materials[cur_material].first_usage_material;
+		SEQMFXParameter* params = used_materials[cur_material].first_usage_material_params;
+
+		std::string mat_tag = string_pool + material->name_index;
+		std::shared_ptr<Material> material_instance;
+
+		auto iter = this->materials.find(mat_tag);
+		if (iter != this->materials.end())
+		{
+			material_instance = iter->second;
+		}
+		else
+		{
+			material_instance = std::make_shared<Material>();
+			material_instance->InitFromEQMData(material, params, m_archive, string_pool);
+
+			this->materials[mat_tag] = material_instance;
+		}
+
+		// This material index duplicates another material with the same index. Use this one and replace all instances of
+		// the other index with this one.
+		if (used_materials[cur_material].material_index != cur_material)
+		{
+			for (uint32_t face = 0; face < num_faces; ++face)
+			{
+				if (out_data->faces[face].material == used_materials[cur_material].material_index)
+				{
+					out_data->faces[face].material = cur_material;
+				}
+			}
+		}
+
+		palette->SetMaterial(cur_material, material_instance);
+	}
+
+	if (num_materials != num_material_counts)
+	{
+		EQG_LOG_WARN("Material palette {} has {} materials, but only {} are used.", tag, num_materials, num_material_counts);
+	}
+
+	if (material_palettes.contains(tag))
+	{
+		EQG_LOG_WARN("Material palette {} already exists.", tag);
 		return false;
 	}
 
-	model->SetName(tag + "_ACTORDEF");
+	material_palettes[tag] = palette;
+	out_data->material_palette = palette;
+	return true;
+}
+
+bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag)
+{
+	BufferReader reader(buffer);
+
+	SEQMHeader* header = reader.read_ptr<SEQMHeader>();
+
+	if (strncmp(header->magic, "EQGM", 4) != 0 || header->version == 0)
+	{
+		EQG_LOG_ERROR("Unable to load \"{}\"; unexpected header", tag);
+		return false;
+	}
+	
+	const char* string_pool = reader.read_array<const char>(header->string_pool_size);
+	bool new_vertices = header->version > 2;
+
+	SMaterialFaceVertexData vertex_data;
+
+	if (!ParseMaterialsFacesAndVertices(reader, string_pool, tag, header->num_faces, header->num_vertices,
+		header->num_materials, new_vertices, &vertex_data))
+	{
+		EQG_LOG_ERROR("Failed to read materials and vertices from model data for \"{}\"", tag);
+		return false;
+	}
+
+	SEQMFace* eqm_faces = vertex_data.faces;
+	SEQMVertex* eqm_vertices = vertex_data.verts;
+	SEQMUVSet* uv_set = nullptr;
+
+	std::vector<SEQMVertex> vertices(header->num_vertices);
+
+	// Load secondary UV
+	if (header->version == 2)
+	{
+		int num_uv_sets = reader.read<int>();
+
+		if (num_uv_sets == 1)
+		{
+			uv_set = reader.read_array<SEQMUVSet>(header->num_vertices);
+		}
+	}
+
+	// Convert old vertices to new vertices
+	if (eqm_vertices == nullptr)
+	{
+		SEQMVertexOld* old_verts = vertex_data.verts_old;
+
+		for (uint32_t index = 0; index < header->num_vertices; ++index)
+		{
+			SEQMVertex& new_vertex = vertices[index];
+			SEQMVertexOld& old_vertex = old_verts[index];
+
+			new_vertex.pos = old_vertex.pos;
+			new_vertex.normal = old_vertex.normal;
+			new_vertex.color = 0xFF808080;
+			new_vertex.uv = old_vertex.uv;
+
+			if (uv_set != nullptr)
+			{
+				new_vertex.uv2 = uv_set[index].uv;
+			}
+			else
+			{
+				new_vertex.uv2 = { 0.0f, 0.0f };
+			}
+		}
+	}
+	else
+	{
+		memcpy(vertices.data(), eqm_vertices, vertices.size() * sizeof(SEQMVertex));
+	}
+
+	// TODO: Load .pts / EQPT
+	// TODO: Load .prt / PTCL
+
+	SEQMBone* bones = nullptr;
+	SEQMSkinData* skin_data = nullptr;
+
+	if (header->num_bones > 0)
+	{
+		// This is an animated (hierarchical) model
+		bones = reader.read_array<SEQMBone>(header->num_bones);
+		std::vector<std::string_view> bone_names(header->num_bones);
+
+		for (uint32_t i = 0; i < header->num_bones; ++i)
+		{
+			bone_names[i] = string_pool + bones[i].name_index;
+		}
+
+		skin_data = reader.read_array<SEQMSkinData>(header->num_vertices);
+
+		// TODO: Create hierarchical model
+	}
+	else
+	{
+		// TODO: Create simple model
+	}
+
+	std::vector<SFace> faces(header->num_faces);
+	for (size_t i = 0; i < header->num_faces; ++i)
+	{
+		faces[i].indices[0] = eqm_faces[i].vertices[0];
+		faces[i].indices[1] = eqm_faces[i].vertices[1];
+		faces[i].indices[2] = eqm_faces[i].vertices[2];
+		faces[i].flags = static_cast<EQG_FACEFLAGS>(eqm_faces[i].flags);
+		faces[i].materialIndex = eqm_faces[i].material;
+	}
+
+	std::shared_ptr<eqg::Geometry> model = std::make_shared<eqg::Geometry>();
+	model->tag = fmt::format("{}_ACTORDEF", tag);
+	model->vertices = std::move(vertices);
+	model->faces = std::move(faces);
+	model->material_palette = vertex_data.material_palette;
 
 	models.push_back(model);
 	return true;
@@ -199,15 +458,100 @@ bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& f
 
 bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag)
 {
-	std::shared_ptr<eqg::Geometry> model;
+	BufferReader reader(buffer);
 
-	if (!LoadEQGModel(buffer, tag, model))
+	STERHeader* header = reader.read_ptr<STERHeader>();
+
+	if (strncmp(header->magic, "EQGT", 4) != 0 || header->version == 0)
 	{
+		EQG_LOG_ERROR("Unable to load TER data for \"{}\"; unexpected header", tag);
 		return false;
 	}
 
+	const char* string_pool = reader.read_array<const char>(header->string_pool_size);
+	bool new_vertices = header->version > 2;
+
+	SMaterialFaceVertexData vertex_data;
+
+	if (!ParseMaterialsFacesAndVertices(reader, string_pool, tag, header->num_faces, header->num_vertices,
+		header->num_materials, new_vertices, &vertex_data))
+	{
+		EQG_LOG_ERROR("Failed to read materials and vertices from TER data for \"{}\"", tag);
+		return false;
+	}
+
+	SEQMFace* eqm_faces = vertex_data.faces;
+	SEQMVertex* eqm_vertices = vertex_data.verts;
+	SEQMUVSet* uv_set = nullptr;
+
+	std::vector<SEQMVertex> vertices(header->num_vertices);
+
+	// Load secondary UV
+	if (header->version == 2)
+	{
+		int num_uv_sets = reader.read<int>();
+
+		if (num_uv_sets > 0)
+		{
+			uv_set = reader.read_array<SEQMUVSet>(header->num_vertices);
+		}
+		
+		if (num_uv_sets > 1)
+		{
+			reader.read_array<SEQMUVSet>(header->num_vertices);
+		}
+	}
+
+	// Convert old vertices to new vertices
+	if (eqm_vertices == nullptr)
+	{
+		SEQMVertexOld* old_verts = vertex_data.verts_old;
+
+		for (uint32_t index = 0; index < header->num_vertices; ++index)
+		{
+			SEQMVertex& new_vertex = vertices[index];
+			SEQMVertexOld& old_vertex = old_verts[index];
+
+			new_vertex.pos = old_vertex.pos;
+			new_vertex.normal = old_vertex.normal;
+			new_vertex.color = 0xFF808080;
+			new_vertex.uv = old_vertex.uv;
+
+			if (uv_set != nullptr)
+			{
+				new_vertex.uv2 = uv_set[index].uv;
+			}
+			else
+			{
+				new_vertex.uv2 = { 0.0f, 0.0f };
+			}
+		}
+	}
+	else
+	{
+		memcpy(vertices.data(), eqm_vertices, vertices.size() * sizeof(SEQMVertex));
+	}
+
+	// TODO: Load .lit data
+
+	std::vector<SFace> faces(header->num_faces);
+	for (size_t i = 0; i < header->num_faces; ++i)
+	{
+		faces[i].indices[0] = eqm_faces[i].vertices[0];
+		faces[i].indices[1] = eqm_faces[i].vertices[1];
+		faces[i].indices[2] = eqm_faces[i].vertices[2];
+		faces[i].flags = static_cast<EQG_FACEFLAGS>(eqm_faces[i].flags);
+		faces[i].materialIndex = eqm_faces[i].material;
+	}
+
+	// TODO: Load this data and WLD regions directly into a terrain geometry object
+	std::shared_ptr<eqg::Geometry> model = std::make_shared<eqg::Geometry>();
+	model->tag = fmt::format("{}_ACTORDEF", tag);
+	model->vertices = std::move(vertices);
+	model->faces = std::move(faces);
+	model->material_palette = vertex_data.material_palette;
+
 	terrain_model = model;
-	terrain_model->name = fileName;
 	return true;
 }
 

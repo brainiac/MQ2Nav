@@ -499,7 +499,7 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 	// Import models
 	for (const auto& model : loader->models)
 	{
-		map_eqg_models[model->name] = model;
+		map_eqg_models[model->tag] = model;
 	}
 
 	// Import the terrain (only once)
@@ -584,7 +584,8 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 			auto& invis_walls = terrain->GetInvisWalls();
 			for (auto& wall : invis_walls)
 			{
-				auto& verts = wall->verts;
+				auto& verts = wall->GetVertices();
+				float wallHeight = wall->GetWallHeight();
 
 				for (int j = 0; j < (int)verts.size() - 1; ++j)
 				{
@@ -592,10 +593,10 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 					glm::vec3 v2 = verts[j + 1].yxz;
 
 					glm::vec3 v3 = v1;
-					v3.z += wall->wall_top_height;
+					v3.z += wallHeight;
 
 					glm::vec3 v4 = v2;
-					v4.z += wall->wall_top_height;
+					v4.z += wallHeight;
 
 					AddFace(v2, v1, v3, true);
 					AddFace(v3, v4, v2, true);

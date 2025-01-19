@@ -317,4 +317,12 @@ inline float str_to_float(const std::string_view svString, float fReturnOnFail)
 	return fReturnOnFail;
 }
 
+inline int str_to_int(const std::string_view svString, int iReturnOnFail)
+{
+	auto trimmed = trim(svString);
+	auto result = std::from_chars(trimmed.data(), trimmed.data() + trimmed.size(), iReturnOnFail);
+	// Could error check here, but failures don't modify the value and we're not returning meaningful errors.
+	return iReturnOnFail;
+}
+
 } // namespace eqg

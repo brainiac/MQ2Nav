@@ -15,16 +15,22 @@ class Light;
 class Terrain;
 class WaterSheet;
 
-class InvisWall
+class InvisibleWall
 {
 public:
-	InvisWall(std::string_view name_)
-		: name(name_) {}
+	explicit InvisibleWall(std::string_view name_)
+		: m_name(name_) {}
 
-	std::string name;
+	const std::string& GetName() const { return m_name; }
+	float GetWallHeight() const { return m_wallTopHeight; }
+	const std::vector<glm::vec3>& GetVertices() const { return m_vertices; }
 
-	float wall_top_height;
-	std::vector<glm::vec3> verts;
+	bool Load(BufferReader& reader);
+
+private:
+	std::string m_name;
+	float m_wallTopHeight = 100.0f;
+	std::vector<glm::vec3> m_vertices;
 };
 
 class WaterSheetData;
@@ -33,6 +39,9 @@ class WaterSheet
 {
 public:
 	WaterSheet(Terrain* terrain, const std::string& name, const std::shared_ptr<WaterSheetData>& data = nullptr);
+
+	bool Load(const std::vector<std::string>& tokens, size_t& k);
+	bool ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k);
 
 	std::string m_name;
 	std::shared_ptr<WaterSheetData> m_data;
@@ -45,9 +54,6 @@ public:
 	float z_height = 0.0f;
 
 	Terrain* m_terrain = nullptr;
-
-	bool Load(const std::vector<std::string>& tokens, size_t& k);
-	bool ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k);
 };
 
 class WaterSheetData
@@ -176,6 +182,8 @@ public:
 	TerrainTile(Terrain* parent);
 	~TerrainTile();
 
+	bool Load(BufferReader& reader, int version);
+
 	glm::vec3 GetPosInTile(const glm::vec3& pos) const;
 
 	// Tile coordinates in tile grid
@@ -208,8 +216,6 @@ public:
 	std::vector<std::shared_ptr<Light>> m_lights;
 
 	Terrain* terrain = nullptr;
-
-	bool Load(BufferReader& reader, int version);
 };
 
 class Terrain
@@ -223,15 +229,11 @@ public:
 	bool Load(const char* zonBuffer, size_t size);
 	bool Load(const SEQZoneParameters& params);
 
-	void AddTile(const std::shared_ptr<TerrainTile>& t) { tiles.push_back(t); }
-	void AddWaterSheet(const std::shared_ptr<WaterSheet>& s) { water_sheets.push_back(s); }
-	void AddInvisWall(std::shared_ptr<InvisWall> w) { invis_walls.push_back(w); }
-
 	std::vector<std::shared_ptr<TerrainTile>>& GetTiles() { return tiles; }
 	uint32_t GetQuadsPerTile() { return m_params.quads_per_tile; }
 	float GetUnitsPerVertex() { return m_params.units_per_vert; }
 	std::vector<std::shared_ptr<WaterSheet>>& GetWaterSheets() { return water_sheets; }
-	std::vector<std::shared_ptr<InvisWall>>& GetInvisWalls() { return invis_walls; }
+	std::vector<std::shared_ptr<InvisibleWall>>& GetInvisWalls() { return invis_walls; }
 
 	const SEQZoneParameters& GetParams() const { return m_params; }
 
@@ -260,7 +262,7 @@ public:
 
 	std::vector<std::shared_ptr<WaterSheet>> water_sheets;
 	std::vector<std::shared_ptr<WaterSheetData>> water_sheet_data;
-	std::vector<std::shared_ptr<InvisWall>> invis_walls;
+	std::vector<std::shared_ptr<InvisibleWall>> invis_walls;
 
 	std::vector<std::shared_ptr<TerrainArea>> areas;
 	std::vector<std::shared_ptr<Light>> lights;

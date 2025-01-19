@@ -22,6 +22,7 @@ class Terrain;
 class TerrainArea;
 struct SEQZoneParameters;
 struct SZONInstanceNew;
+struct SMaterialFaceVertexData;
 
 class EQGLoader
 {
@@ -43,6 +44,9 @@ public:
 	std::vector<std::string> mesh_names;
 	std::vector<std::string> actor_tags;
 
+	std::map<std::string, std::shared_ptr<MaterialPalette>> material_palettes;
+	std::map<std::string, std::shared_ptr<Material>> materials;
+
 	Archive* GetArchive() const { return m_archive; }
 
 private:
@@ -55,12 +59,18 @@ private:
 	bool ParseLOD(const std::vector<char>& buffer, const std::string& tag);
 	bool ParseTerrainProject(const std::vector<char>& buffer);
 
+
+
+	bool ParseMaterialsFacesAndVertices(BufferReader& reader, const char* stringPool, const std::string& tag,
+		uint32_t num_faces, uint32_t num_vertices, uint32_t num_materials, bool new_format, SMaterialFaceVertexData* out_data);
+
+
 	Archive* m_archive = nullptr;
 	std::string m_fileName;
 };
 
-bool LoadEQGModel(Archive& archive, const std::string& model, std::shared_ptr<Geometry>& model_out);
-bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std::shared_ptr<Geometry>& model_out);
+//bool LoadEQGModel(Archive& archive, const std::string& model, std::shared_ptr<Geometry>& model_out);
+//bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std::shared_ptr<Geometry>& model_out);
 
 struct LODListElement
 {

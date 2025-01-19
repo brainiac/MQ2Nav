@@ -2,6 +2,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -9,8 +10,9 @@
 
 namespace eqg {
 
-enum EQG_FACEFLAGS
+enum EQG_FACEFLAGS : uint16_t
 {
+	EQG_FACEFLAG_NONE                = 0,
 	EQG_FACEFLAG_PASSABLE            = 0x01,
 	EQG_FACEFLAG_TRANSPARENT         = 0x02,
 	EQG_FACEFLAG_COLLISION_REQUIRED  = 0x04,
@@ -75,7 +77,6 @@ struct SZONLight
 	float radius;
 };
 
-
 struct SEQMHeader
 {
 	char magic[4];
@@ -87,70 +88,93 @@ struct SEQMHeader
 	uint32_t num_bones;
 };
 
-struct mod_header
+struct SEQMVertexOld
 {
-	char magic[4];
-	uint32_t version;
-	uint32_t list_length;
-	uint32_t material_count;
-	uint32_t vert_count;
-	uint32_t tri_count;
+	glm::vec3 pos;
+	glm::vec3 normal;
+	glm::vec2 uv;
 };
 
+struct SEQMVertex
+{
+	glm::vec3 pos;
+	glm::vec3 normal;
+	uint32_t color;
+	glm::vec2 uv;
+	glm::vec2 uv2;
+};
 
-struct mod_material
+struct SEQMFace
+{
+	uint32_t vertices[3];
+	uint32_t material;
+	uint32_t flags;
+};
+
+struct SEQMMaterial
 {
 	uint32_t index;
-	uint32_t name_offset;
-	uint32_t shader_offset;
-	uint32_t property_count;
+	int name_index;
+	int effect_name_index;
+	uint32_t num_params;
 };
 
-struct mod_material_property
+enum eEQMFXParameterType
 {
-	uint32_t name_offset;
-	uint32_t type;
+	eEQMFXParameterUnused,
+	eEQMFXParameterInt,
+	eEQMFXParameterTexture,
+	eEQMFXParameterColor,
+};
+
+struct SEQMFXParameter
+{
+	int name_index;
+	eEQMFXParameterType type;
+
 	union
 	{
-		uint32_t i_value;
+		uint32_t n_value;
 		float f_value;
 	};
 };
 
-struct mod_vertex
+struct SEQMUVSet
 {
-	float x;
-	float y;
-	float z;
-	float i;
-	float j;
-	float k;
-	float u;
-	float v;
+	glm::vec2 uv;
 };
 
-struct mod_vertex3
+struct SEQMBone
 {
-	float x;
-	float y;
-	float z;
-	float i;
-	float j;
-	float k;
-	uint32_t color;
-	float unknown036;
-	float unknown040;
-	float u;
-	float v;
+	int name_index;
+	int next_index;
+	uint32_t num_children;
+	int first_child_index;
+	glm::vec3 pivot;
+	glm::quat quat;
+	glm::vec3 scale;
 };
 
-struct mod_polygon
+struct SEQMSkinData
 {
-	uint32_t v1;
-	uint32_t v2;
-	uint32_t v3;
-	int32_t material;
-	uint32_t flags;
+	uint32_t num_weights;
+
+	struct Weights
+	{
+		int bone;
+		float weight;
+	};
+	Weights weights[4];
 };
 
-} // namespace eqg
+struct STERHeader
+{
+	char magic[4];
+	uint32_t version;
+	uint32_t string_pool_size;
+	uint32_t num_materials;
+	uint32_t num_vertices;
+	uint32_t num_faces;
+};
+
+}; // namespace eqg

@@ -9,8 +9,8 @@
 #if !defined(GLM_FORCE_RADIANS)
 #error Missing GLM_FORCE_RADIANS define!
 #endif
-#if !defined(GLM_FORCE_CTOR_INIT)
-#error Missing GLM_FORCE_CTOR_INIT define!
+#if defined(GLM_FORCE_CTOR_INIT)
+#undef GLM_FORCE_CTOR_INIT
 #endif
 #if !defined(GLM_ENABLE_EXPERIMENTAL)
 #error Missing GLM_ENABLE_EXPERIMENTAL define!

@@ -239,7 +239,6 @@ bool WLDLoader::ParseWLDObjects()
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
 		S3DFileObject& obj = m_objects[i];
-		EQG_LOG_TRACE("Dispatching WLD object of type {} (0x{:x})", static_cast<int>(obj.type), static_cast<int>(obj.type));
 
 		switch (obj.type)
 		{
