@@ -157,7 +157,7 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 					for (uint32_t index = 0; index < m_textureSet->textures.size(); ++index)
 					{
 						m_textureSet->textures[index].flags = 0;
-						m_textureSet->textures[index].filename = string_pool + eqm_material->effect_name_index;
+						m_textureSet->textures[index].filename = filename;
 					}
 				}
 			}

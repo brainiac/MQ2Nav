@@ -323,10 +323,10 @@ bool EQGLoader::ParseMaterialsFacesAndVertices(BufferReader& reader, const char*
 		palette->SetMaterial(cur_material, material_instance);
 	}
 
-	if (num_materials != num_material_counts)
-	{
-		EQG_LOG_WARN("Material palette {} has {} materials, but only {} are used.", tag, num_materials, num_material_counts);
-	}
+	//if (num_materials != num_material_counts)
+	//{
+	//	EQG_LOG_WARN("Material palette {} has {} materials, but only {} are used.", tag, num_materials, num_material_counts);
+	//}
 
 	if (material_palettes.contains(tag))
 	{
