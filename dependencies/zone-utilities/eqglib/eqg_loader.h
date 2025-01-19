@@ -69,9 +69,6 @@ private:
 	std::string m_fileName;
 };
 
-//bool LoadEQGModel(Archive& archive, const std::string& model, std::shared_ptr<Geometry>& model_out);
-//bool LoadEQGModel(const std::vector<char>& buffer, const std::string& model, std::shared_ptr<Geometry>& model_out);
-
 struct LODListElement
 {
 	LODListElement(std::string_view data);

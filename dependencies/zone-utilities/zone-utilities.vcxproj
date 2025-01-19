@@ -38,7 +38,6 @@
     <ClInclude Include="eqglib\str_util.h" />
     <ClInclude Include="eqglib\wld_loader.h" />
     <ClInclude Include="eqglib\s3d_types.h" />
-    <ClInclude Include="eqglib\safe_alloc.h" />
     <ClInclude Include="eqglib\wld_fragment.h" />
     <ClInclude Include="eqglib\wld_structs.h" />
   </ItemGroup>
@@ -46,7 +45,6 @@
     <ClCompile Include="eqglib\eqglib.cpp" />
     <ClCompile Include="eqglib\eqg_loader.cpp" />
     <ClCompile Include="eqglib\eqg_material.cpp" />
-    <ClCompile Include="eqglib\eqg_model_loader.cpp" />
     <ClCompile Include="eqglib\eqg_terrain.cpp" />
     <ClCompile Include="eqglib\oriented_bounding_box.cpp" />
     <ClCompile Include="eqglib\pch.cpp">
