@@ -7,6 +7,8 @@
 #include <glm/gtx/quaternion.hpp>
 #include <memory>
 
+#include "eqg_material.h"
+
 namespace eqg::s3d {
 
 class TextureBrushSet;
@@ -61,17 +63,16 @@ public:
 	};
 
 	void SetName(std::string nname) { tag = nname; }
-	void SetTextureBrushSet(std::shared_ptr<TextureBrushSet> tbs) { tex = tbs; }
 
 	std::vector<Vertex>& GetVertices() { return verts; }
 	std::vector<Polygon>& GetPolygons() { return polys; }
 	std::string& GetName() { return tag; }
-	std::shared_ptr<TextureBrushSet> GetTextureBrushSet() { return tex; }
 
 	std::string tag;
 	std::vector<Vertex> verts;
 	std::vector<Polygon> polys;
-	std::shared_ptr<TextureBrushSet> tex;
+
+	std::shared_ptr<MaterialPalette> materialPalette;
 };
 
 class SkeletonTrack // SHSpriteDefWLDData
@@ -99,37 +100,6 @@ public:
 	std::vector<std::shared_ptr<Bone>> bones;
 
 	std::vector<int> attached_skeleton_dag_index;
-};
-
-
-class Texture
-{
-public:
-	std::vector<std::string>& GetTextureFrames() { return frames; }
-
-	std::vector<std::string> frames;
-};
-
-
-class TextureBrushSet
-{
-public:
-	std::vector<std::shared_ptr<TextureBrush>>& GetTextureSet() { return texture_sets; }
-
-	std::vector<std::shared_ptr<TextureBrush>> texture_sets;
-};
-
-
-class TextureBrush
-{
-public:
-	void SetFlags(uint32_t f) { flags = f; }
-
-	std::vector<std::shared_ptr<Texture>>& GetTextures() { return brush_textures; }
-	uint32_t GetFlags() { return flags; }
-
-	std::vector<std::shared_ptr<Texture>> brush_textures;
-	uint32_t flags = 0;
 };
 
 } // namespace eqg::s3d

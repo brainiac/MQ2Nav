@@ -91,6 +91,8 @@ private:
 	bool m_doorsLoaded = false;
 	bool m_loaded = false;
 
+	std::unique_ptr<eqg::ResourceManager> m_resourceMgr;
+
 	std::vector<glm::vec3> collide_verts;
 	std::vector<uint32_t> collide_indices;
 

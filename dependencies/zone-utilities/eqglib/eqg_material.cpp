@@ -1,26 +1,67 @@
 #include "pch.h"
 #include "eqg_material.h"
 
-#include <mq/base/String.h>
-
 #include "archive.h"
 #include "buffer_reader.h"
+#include "eqg_resource_manager.h"
 #include "eqg_structs.h"
+#include "wld_fragment.h"
 
 namespace eqg {
 
-Material::Material()
+//-------------------------------------------------------------------------------------------------
+
+EQGBitmap::EQGBitmap()
+	: Resource(ResourceType::Bitmap)
 {
-	
+}
+
+EQGBitmap::~EQGBitmap()
+{
+	if (m_rawData != nullptr)
+	{
+		delete[] m_rawData;
+	}
+}
+
+bool EQGBitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, ResourceManager* resourceMgr)
+{
+	m_fileName = wldData->fileName;
+	m_detailScale = wldData->detailScale;
+	m_grassDensity = wldData->grassDensity;
+	m_objectIndex = wldData->objectIndex;
+
+	if (wldData->createTexture)
+	{
+		if (!resourceMgr->CreateTexture(this, archive))
+		{
+			SPDLOG_ERROR("Failed to create texture for {}", m_fileName);
+			return false;
+		}
+		m_hasTexture = true;
+	}
+	else
+	{
+		if (!resourceMgr->LoadBitmapData(this, archive))
+		{
+			SPDLOG_ERROR("Failed to load bitmap data for {}", m_fileName);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+//-------------------------------------------------------------------------------------------------
+
+Material::Material()
+	: Resource(ResourceType::Material)
+{
 }
 
 Material::~Material()
 {
-	if (m_textureSet != nullptr)
-	{
-		delete m_textureSet;
-		m_textureSet = nullptr;
-	}
 }
 
 void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_fx_params, Archive* archive, const char* string_pool)
@@ -94,9 +135,9 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 		}
 	}
 
-	m_textureSet = new STextureSet();
+	m_textureSet = std::make_unique<STextureSet>();
 	m_textureSet->textures.resize(max_frames);
-	m_textureSet->update_interval = frame_interval;
+	m_textureSet->updateInterval = frame_interval;
 	m_effectParams.resize(num_effect_params);
 
 	if (type == 2) // detail palette
@@ -163,6 +204,192 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 			}
 		}
 	}
+}
+
+bool Material::InitFromWLDData(
+	std::string_view tag,
+	WLD_OBJ_MATERIALDEFINITION* pWLDMaterialDef,
+	WLD_OBJ_SIMPLESPRITEINSTANCE* pSimpleSpriteInst,
+	ParsedSimpleSpriteDef* pParsedSimpleSpriteDef,
+	ParsedBMInfo* pParsedBMPalette)
+{
+	m_tag = tag;
+	// something something item slot
+
+	BufferReader materiaDefReader((const uint8_t*)(pWLDMaterialDef + 1), 0x100000); // we have no idea how long these buffers are
+
+	if (pWLDMaterialDef->flags & WLD_OBJ_MATOPT_TWOSIDED)
+	{
+		m_twoSided = true;
+	}
+	if (pWLDMaterialDef->flags & WLD_OBJ_MATOPT_HASUVSHIFTPERMS)
+	{
+		materiaDefReader.read(m_uvShift);
+	}
+
+	m_renderMethod = pWLDMaterialDef->render_method;
+	m_scaledAmbient = pWLDMaterialDef->scaled_ambient;
+	m_constantAmbient = pWLDMaterialDef->brightness;
+
+	if (pSimpleSpriteInst != nullptr)
+	{
+		m_textureSet = std::make_unique<STextureSet>();
+		WLD_OBJ_SIMPLESPRITEDEFINITION* pSimpleSpriteDef = pParsedSimpleSpriteDef->definition;
+
+		BufferReader spriteDefReader((const uint8_t*)(pSimpleSpriteDef + 1), 0x100000);
+
+		if (pSimpleSpriteDef->flags & WLD_OBJ_SPROPT_HAVECURRENTFRAME)
+		{
+			spriteDefReader.read(m_textureSet->currentFrame);
+		}
+		if (pSimpleSpriteDef->flags & WLD_OBJ_SPROPT_HAVESLEEP)
+		{
+			spriteDefReader.read(m_textureSet->updateInterval);
+		}
+		if (pSimpleSpriteDef->flags & WLD_OBJ_SPROPT_SKIPFRAMES)
+		{
+			m_textureSet->skipFrames = true;
+		}
+
+		m_textureSet->textures.resize(pSimpleSpriteDef->num_frames);
+		const std::vector<std::shared_ptr<ParsedBMInfo>>& parsedBitmaps = pParsedSimpleSpriteDef->parsedBitmaps;
+
+		for (uint32_t i = 0; i < pSimpleSpriteDef->num_frames; ++i)
+		{
+			auto bitmap = parsedBitmaps[i]->bitmaps[0];
+			m_textureSet->textures[i].flags = 0;
+			m_textureSet->textures[i].filename = bitmap->GetFileName();
+
+			// TODO: Figure out how to properly set/load texture?
+			m_textureSet->textures[i].textures[0] = bitmap;
+
+			// If there are two, check the 2nd one.
+			if (parsedBitmaps[i]->bitmaps.size() == 2
+				&& (bitmap->GetType() == eBitmapTypeLayer || parsedBitmaps[i]->bitmaps[1]->GetType() == eBitmapTypeLayer))
+			{
+				m_textureSet->textures[i].textures[1] = parsedBitmaps[i]->bitmaps[1];
+				m_type = 3;
+
+				if (m_tag.length() >= 3 && m_tag[0] == 'I' && m_tag[1] == 'T' && isdigit(m_tag[2]))
+				{
+					m_type = 4;
+				}
+			}
+			else if (parsedBitmaps[i]->bitmaps.size() == 2
+				&& bitmap->GetType() == eBitmapTypeSingleDetail)
+			{
+				auto bitmap = parsedBitmaps[i]->bitmaps[1];
+
+				m_textureSetAlt = std::make_unique<STextureSet>();
+				m_textureSetAlt->updateInterval = m_textureSet->updateInterval;
+				m_textureSetAlt->nextUpdate = m_textureSet->nextUpdate;
+				m_textureSetAlt->currentFrame = m_textureSet->currentFrame;
+				m_textureSetAlt->skipFrames = m_textureSet->skipFrames;
+				m_textureSetAlt->textures.resize(m_textureSet->textures.size());
+
+				m_textureSetAlt->textures[0].flags = 0;
+				m_textureSetAlt->textures[0].filename = bitmap->GetFileName();
+				m_textureSetAlt->textures[0].textures[0] = bitmap;
+
+				m_type = 1;
+				m_detailScale = bitmap->GetDetailScale();
+			}
+			else if (bitmap->GetType() == eBitmapTypePaletteDetailMain)
+			{
+				m_detailPalette = std::make_unique<DetailPaletteInfo>();
+				m_detailPalette->material = this;
+
+				auto bitmap = pParsedBMPalette->bitmaps[1];
+				m_detailPalette->paletteFileName = bitmap->GetFileName();
+				m_detailPalette->width = bitmap->GetWidth();
+				m_detailPalette->height = bitmap->GetHeight();
+				m_detailPalette->paletteData = bitmap->GetRawData();
+
+				uint32_t numDetail = (uint32_t)pParsedBMPalette->bitmaps.size();
+				m_detailPalette->detailInfo.resize(numDetail - 2);
+				for (uint32_t curDetail = 0; curDetail < numDetail - 2; ++curDetail)
+				{
+					auto bitmap = pParsedBMPalette->bitmaps[curDetail + 2];
+
+					m_detailPalette->detailInfo[curDetail].fileName = bitmap->GetFileName();
+					m_detailPalette->detailInfo[curDetail].scaleFactor = (int)bitmap->GetDetailScale();
+					m_detailPalette->detailInfo[curDetail].grassDensity = bitmap->GetGrassDensity();
+
+					auto detailMaterial = std::make_shared<Material>();
+					detailMaterial->InitFromBitmap(bitmap);
+
+					m_detailPalette->detailInfo[curDetail].material = detailMaterial;
+				}
+
+				m_type = 2;
+			}
+		}
+
+		if (pSimpleSpriteInst->flags & WLD_OBJ_SPROPT_HAVESKIPFRAMES)
+		{
+			if (pSimpleSpriteInst->flags & WLD_OBJ_SPROPT_SKIPFRAMES)
+			{
+				m_textureSet->skipFrames = true;
+			}
+		}
+	}
+
+	// TODO: Process material type, render method, transparency, etc
+
+	return true;
+}
+
+bool Material::InitFromBitmap(const std::shared_ptr<EQGBitmap>& bitmap)
+{
+	m_tag = bitmap->GetFileName();
+	m_renderMethod = 0x80000002;
+	m_scaledAmbient = 0.0f;
+	m_constantAmbient = 0.0f;
+
+	m_textureSet = std::make_unique<STextureSet>();
+	m_textureSet->textures.resize(1);
+	m_textureSet->textures[0].flags = 0;
+	m_textureSet->textures[0].filename = bitmap->GetFileName();
+	m_textureSet->textures[0].textures[0] = bitmap;
+
+	m_detailScale = bitmap->GetDetailScale();
+	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
+
+MaterialPalette::MaterialPalette()
+	: Resource(ResourceType::MaterialPalette)
+{
+}
+
+MaterialPalette::MaterialPalette(std::string_view tag_, uint32_t num_materials_)
+	: Resource(ResourceType::MaterialPalette)
+	, m_tag(tag_)
+	, m_materials(num_materials_)
+{
+}
+
+MaterialPalette::~MaterialPalette()
+{
+}
+
+bool MaterialPalette::InitFromWLDData(std::string_view tag, ParsedMaterialPalette* materialPalette)
+{
+	m_tag = tag;
+
+	m_materials.resize(materialPalette->matPalette->num_entries);
+	for (size_t i = 0; i < m_materials.size(); ++i)
+	{
+		m_materials[i].material = materialPalette->materials[i];
+
+		if (!m_requiresUpdate && m_materials[i].material->RequiresUpdate())
+		{
+			m_requiresUpdate = true;
+		}
+	}
+
+	return true;
 }
 
 } // namespace eqg

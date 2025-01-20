@@ -24,6 +24,7 @@
     <ClInclude Include="eqglib\eqg_geometry.h" />
     <ClInclude Include="eqglib\eqg_loader.h" />
     <ClInclude Include="eqglib\eqg_material.h" />
+    <ClInclude Include="eqglib\eqg_resource_manager.h" />
     <ClInclude Include="eqglib\eqg_structs.h" />
     <ClInclude Include="eqglib\eqg_terrain.h" />
     <ClInclude Include="eqglib\light.h" />
@@ -45,6 +46,7 @@
     <ClCompile Include="eqglib\eqglib.cpp" />
     <ClCompile Include="eqglib\eqg_loader.cpp" />
     <ClCompile Include="eqglib\eqg_material.cpp" />
+    <ClCompile Include="eqglib\eqg_resource_manager.cpp" />
     <ClCompile Include="eqglib\eqg_terrain.cpp" />
     <ClCompile Include="eqglib\oriented_bounding_box.cpp" />
     <ClCompile Include="eqglib\pch.cpp">

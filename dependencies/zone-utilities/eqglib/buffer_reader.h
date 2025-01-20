@@ -166,23 +166,19 @@ public:
 	template <typename T>
 	T* read_array(size_t count)
 	{
-		size_t len = sizeof(T) * count;
-		if (pos_ + len > size_)
-			return nullptr;
-
-		T* arr = (T*)(buffer_ + pos_);
-		pos_ += len;
-		return arr;
+		T* ptr = nullptr;
+		read_array(ptr, count);
+		return ptr;
 	}
 
 	template <typename T>
-	bool read_array(T* out, size_t count)
+	bool read_array(T*& out_ptr, size_t count)
 	{
 		size_t len = sizeof(T) * count;
 		if (pos_ + len > size_)
 			return false;
 
-		memcpy(out, buffer_ + pos_, len);
+		out_ptr = (T*)(buffer_ + pos_);
 		pos_ += len;
 		return true;
 	}

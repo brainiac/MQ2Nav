@@ -9,6 +9,9 @@
 #include <cstdint>
 #include <memory>
 
+#include "eqg_material.h"
+#include "wld_fragment.h"
+
 namespace eqg {
 
 class WLDLoader;
@@ -41,8 +44,8 @@ enum S3DObjectType : uint32_t
 	WLD_OBJ_DMSPRITEDEFINITION_TYPE           = 44, // (0x2C)
 	WLD_OBJ_DMSPRITEINSTANCE_TYPE             = 45, // (0x2D)
 
-	WLD_OBJ_MATERIALDEFINITION_TYPE           = 48, // (0x30) TextureBrush
-	WLD_OBJ_MATERIALPALETTE_TYPE              = 49, // (0x31) TextureBrushSet
+	WLD_OBJ_MATERIALDEFINITION_TYPE           = 48, // (0x30)
+	WLD_OBJ_MATERIALPALETTE_TYPE              = 49, // (0x31)
 
 	WLD_OBJ_DMRGBTRACKDEFINITION_TYPE         = 50, // (0x32)
 	WLD_OBJ_DMRGBTRACKINSTANCE_TYPE           = 51, // (0x33)
@@ -76,30 +79,20 @@ public:
 };
 
 // WLD_OBJ_BMINFO_TYPE
-class WLDFragment03 : public WLDFragment
+struct ParsedBMInfo : public WLDFragment
 {
-public:
-	WLDFragment03(WLDLoader* loader, S3DFileObject* obj);
+	ParsedBMInfo(S3DFileObject* obj_) : WLDFragment(obj_) {}
 
-	std::shared_ptr<s3d::Texture> texture;
+	std::vector<std::shared_ptr<EQGBitmap>> bitmaps;
 };
 
-// WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE
-class WLDFragment04 : public WLDFragment
+struct ParsedSimpleSpriteDef : public WLDFragment
 {
-public:
-	WLDFragment04(WLDLoader* loader, S3DFileObject* obj);
+	ParsedSimpleSpriteDef(S3DFileObject* obj_) : WLDFragment(obj_) {}
 
-	std::shared_ptr<s3d::TextureBrush> brush;
-};
-
-// WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE
-class WLDFragment05 : public WLDFragment
-{
-public:
-	WLDFragment05(WLDLoader* loader, S3DFileObject* obj);
-
-	uint32_t def_id = 0;
+	WLD_OBJ_SIMPLESPRITEDEFINITION* definition = nullptr;
+	std::vector<std::shared_ptr<ParsedBMInfo>> parsedBitmaps;
+	std::shared_ptr<ParsedBMInfo> pParsedBMInfoForPalette;
 };
 
 // WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE
@@ -232,22 +225,14 @@ public:
 	uint32_t sprite_id = 0;
 };
 
-// WLD_OBJ_MATERIALDEFINITION_TYPE
-class WLDFragment30 : public WLDFragment
+struct ParsedMaterialPalette : public WLDFragment
 {
-public:
-	WLDFragment30(WLDLoader* loader, S3DFileObject* obj);
+	ParsedMaterialPalette(S3DFileObject* obj_) : WLDFragment(obj_) {}
 
-	std::shared_ptr<s3d::TextureBrush> texture_brush;
-};
+	WLD_OBJ_MATERIALPALETTE* matPalette = nullptr;
+	std::vector<std::shared_ptr<Material>> materials;
 
-// WLD_OBJ_MATERIALPALETTE_TYPE
-class WLDFragment31 : public WLDFragment
-{
-public:
-	WLDFragment31(WLDLoader* loader, S3DFileObject* obj);
-
-	std::shared_ptr<s3d::TextureBrushSet> texture_brush_set;
+	std::shared_ptr<MaterialPalette> palette;
 };
 
 // WLD_OBJ_DMSPRITEDEFINITION2_TYPE

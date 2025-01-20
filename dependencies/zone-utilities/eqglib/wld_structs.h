@@ -2,17 +2,12 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 namespace eqg {
 
-// flags for sprite objects
-enum WLDOBJ_SPROPT
-{
-	WLD_OBJ_SPROPT_HAVECENTEROFFSET                  = 1,
-	WLD_OBJ_SPROPT_HAVEBOUNDINGRADIUS                = 2,
-
-	WLD_OBJ_SPROPT_HAVEATTACHEDSKINS                 = 0x0200,
-};
+class EQGBitmap;
+class MaterialPalette;
 
 // flags for actor objects
 enum WLDOBJ_ACTOROPT
@@ -39,6 +34,13 @@ enum WLDOBJ_LIGHTOPT
 	WLD_OBJ_LIGHTOPT_HAVECOLORS                      = 0x0010,
 };
 
+// flags for material objects
+enum WLDOBJ_MATOPT
+{
+	WLD_OBJ_MATOPT_TWOSIDED                          = 0x0001,
+	WLD_OBJ_MATOPT_HASUVSHIFTPERMS                   = 0x0002,
+};
+
 // flags for region objects
 enum WLDOBJ_REGOPT
 {
@@ -50,6 +52,20 @@ enum WLDOBJ_REGOPT
 	WLD_OBJ_REGOPT_HAVEREGIONDMSPRITE                = 0x0040,
 	WLD_OBJ_REGOPT_ENCODEDVISIBILITY2                = 0x0080,
 	WLD_OBJ_REGOPT_HAVEREGIONDMSPRITEDEF             = 0x0100,
+};
+
+// flags for sprite objects
+enum WLDOBJ_SPROPT
+{
+	WLD_OBJ_SPROPT_HAVECENTEROFFSET                  = 0x0001,
+	WLD_OBJ_SPROPT_HAVEBOUNDINGRADIUS                = 0x0002,
+	WLD_OBJ_SPROPT_HAVECURRENTFRAME                  = 0x0004,
+	WLD_OBJ_SPROPT_HAVESLEEP                         = 0x0008,
+	WLD_OBJ_SPROPT_HAVESKIPFRAMES                    = 0x0010,
+
+	WLD_OBJ_SPROPT_SKIPFRAMES                        = 0x0040,
+
+	WLD_OBJ_SPROPT_HAVEATTACHEDSKINS                 = 0x0200,
 };
 
 enum ECollisionVolumeType
@@ -123,7 +139,7 @@ struct WLD_OBJ_SIMPLESPRITEDEFINITION // WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE (0x
 {
 	int tag;
 	uint32_t flags;
-	uint32_t texture_count;
+	uint32_t num_frames;
 };
 
 struct WLD_OBJ_SIMPLESPRITEINSTANCE // WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE (0x5)
@@ -345,7 +361,7 @@ struct WLD_PNORMAL
 struct WLD_DMFACE2
 {
 	uint16_t flags;
-	uint16_t indices[3];
+	glm::u16vec3 indices;
 };
 
 struct WLD_SKINGROUP
@@ -359,5 +375,47 @@ struct WLD_MATERIALGROUP
 	uint16_t group_size;
 	uint16_t material_id;
 };
+
+struct SDMSpriteDef2WLDData
+{
+	std::string_view tag;
+	float vertexScaleFactor;
+
+	uint32_t numVertices;
+	glm::i16vec3* vertices;
+
+	uint32_t numUVs;
+	bool uvsUsingOldForm;
+	glm::vec2* uvs;
+	glm::u16vec2* uvsOldForm;
+
+	uint32_t numVertexNormals;
+	glm::u8vec3* vertexNormals;
+
+	uint32_t numRGBs;
+	uint32_t* rgbData;
+
+	uint32_t numFaces;
+	WLD_DMFACE2* faces;
+
+	uint32_t numSkinGroups;
+	WLD_SKINGROUP* skinGroups;
+
+	uint32_t numFaceMaterialGroups;
+	WLD_MATERIALGROUP* faceMaterialGroups;
+
+	uint32_t numVertexMaterialGroups;
+	WLD_MATERIALGROUP* vertexMaterialGroups;
+
+	std::shared_ptr<MaterialPalette> materialPalette;
+
+	WLD_OBJ_TRACKINSTANCE* trackInstance;
+	WLD_OBJ_TRACKDEFINITION* trackDefinition;
+	// TODO: COllision Volume
+
+	glm::vec3 centerOffset;
+	float boundingRadius;
+};
+
 
 } // namespace eqg

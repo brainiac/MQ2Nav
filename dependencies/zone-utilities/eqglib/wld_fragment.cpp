@@ -14,74 +14,6 @@ namespace eqg {
 
 constexpr float EQ_TO_DEG = 360.0f / 512.0f;
 
-// WLD_BITMAP_INFO
-WLDFragment03::WLDFragment03(WLDLoader* loader, S3DFileObject* obj)
-	: WLDFragment(obj)
-{
-	BufferReader reader(obj->data, obj->size);
-
-	WLD_OBJ_BMINFO* header = reader.read_ptr<WLD_OBJ_BMINFO>();
-	uint32_t count = header->num_mip_levels;
-	if (!count)
-		count = 1;
-
-	texture = std::make_shared<Texture>();
-	texture->frames.reserve(count);
-
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		uint16_t name_len = reader.read<uint16_t>();
-
-		char* texture_name = reader.read_array<char>(name_len);
-		decode_s3d_string(texture_name, name_len);
-
-		texture->frames.emplace_back(texture_name);
-	}
-}
-
-WLDFragment04::WLDFragment04(WLDLoader* loader, S3DFileObject* obj)
-	: WLDFragment(obj)
-{
-	BufferReader reader(obj->data, obj->size);
-
-	WLD_OBJ_SIMPLESPRITEDEFINITION* def = reader.read_ptr<WLD_OBJ_SIMPLESPRITEDEFINITION>();
-
-	brush = std::make_shared<TextureBrush>();
-
-	if (def->flags & 0x4)
-		reader.skip<uint32_t>();
-
-	if (def->flags & 0x8)
-		reader.skip<uint32_t>();
-
-	uint32_t count = def->texture_count;
-	if (!count)
-		count = 1;
-
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		uint32_t tagId = reader.read<uint32_t>();
-
-		WLDFragment03* bitmap = static_cast<WLDFragment03*>(loader->GetObjectFromID(tagId).parsed_data);
-		if (!bitmap)
-		{
-			EQG_LOG_WARN("missing bitmap: {}!", obj->tag);
-			continue;
-		}
-		brush->brush_textures.push_back(bitmap->texture);
-	}
-}
-
-WLDFragment05::WLDFragment05(WLDLoader* loader, S3DFileObject* obj)
-	: WLDFragment(obj)
-{
-	BufferReader reader(obj->data, obj->size);
-
-	auto* inst = reader.read_ptr<WLD_OBJ_SIMPLESPRITEINSTANCE>();
-
-	def_id = loader->GetObjectIndexFromID(inst->definition_id);
-}
-
 // WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE
 WLDFragment10::WLDFragment10(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
@@ -524,79 +456,6 @@ WLDFragment2D::WLDFragment2D(WLDLoader* loader, S3DFileObject* obj)
 	sprite_id = header->definition_id;
 }
 
-// WLD_OBJ_MATERIALDEFINITION_TYPE
-WLDFragment30::WLDFragment30(WLDLoader* loader, S3DFileObject* obj)
-	: WLDFragment(obj)
-{
-	BufferReader reader(obj->data, obj->size);
-	auto* header = reader.read_ptr<WLD_OBJ_MATERIALDEFINITION>();
-
-	if (!header->flags)
-	{
-		reader.skip(sizeof(uint32_t) * 2); // ???
-	}
-
-	if (!header->render_method || !header->sprite_or_bminfo)
-	{
-		texture_brush = std::make_shared<TextureBrush>();
-		auto texture = std::make_shared<Texture>();
-		texture->GetTextureFrames().push_back("collide.dds");
-		
-		texture_brush->brush_textures.push_back(texture);
-		texture_brush->flags = 1;
-		return;
-	}
-
-	S3DFileObject& sprite_obj = loader->GetObjectFromID(header->sprite_or_bminfo);
-	uint32_t tex_ref = 0;
-	if (sprite_obj.type == WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE)
-	{
-		WLDFragment05* simple_sprite_inst = static_cast<WLDFragment05*>(sprite_obj.parsed_data);
-
-		tex_ref = simple_sprite_inst->def_id;
-	}
-
-	S3DFileObject& sprite_def_obj = loader->GetObjectFromID(tex_ref);
-	if (sprite_def_obj.type == WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE)
-	{
-		WLDFragment04* simple_sprite_def = static_cast<WLDFragment04*>(sprite_def_obj.parsed_data);
-
-		texture_brush = std::make_shared<TextureBrush>();
-		*texture_brush = *simple_sprite_def->brush;
-		 
-		// ????
-
-		if (header->render_method & (1 << 1) || header->render_method & (1 << 2) || header->render_method & (1 << 3) || header->render_method & (1 << 4))
-			texture_brush->flags = 1;
-		else
-			texture_brush->flags = 0;
-	}
-}
-
-// WLD_OBJ_MATERIALPALETTE_TYPE
-WLDFragment31::WLDFragment31(WLDLoader* loader, S3DFileObject* obj)
-	: WLDFragment(obj)
-{
-	BufferReader reader(obj->data, obj->size);
-	auto* header = reader.read_ptr<WLD_OBJ_MATERIALPALETTE>();
-
-	texture_brush_set = std::make_shared<TextureBrushSet>();
-	texture_brush_set->texture_sets.reserve(header->num_entries);
-
-	for (uint32_t i = 0; i < header->num_entries; ++i)
-	{
-		int ref_id = reader.read<int>();
-
-		S3DFileObject& frag = loader->GetObjectFromID(ref_id);
-		if (frag.type == WLD_OBJ_MATERIALDEFINITION_TYPE)
-		{
-			WLDFragment30* parsed_data = static_cast<WLDFragment30*>(frag.parsed_data);
-
-			texture_brush_set->texture_sets.push_back(parsed_data->texture_brush);
-		}
-	}
-}
-
 WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 	: WLDFragment(obj)
 {
@@ -614,9 +473,9 @@ WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 	S3DFileObject& frag = loader->GetObjectFromID(header->material_palette_id);
 	if (frag.type == WLD_OBJ_MATERIALPALETTE_TYPE)
 	{
-		WLDFragment31* material_palette = static_cast<WLDFragment31*>(frag.parsed_data);
+		ParsedMaterialPalette* material_palette = static_cast<ParsedMaterialPalette*>(frag.parsed_data);
 
-		model->SetTextureBrushSet(material_palette->texture_brush_set);
+		model->materialPalette = (material_palette->palette);
 	}
 
 	// Vertices

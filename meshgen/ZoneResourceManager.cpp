@@ -47,6 +47,7 @@ ZoneResourceManager::ZoneResourceManager(const std::string& zoneShortName,
 	, m_eqPath(everquest_path)
 	, m_meshPath(mesh_path)
 {
+	m_resourceMgr = std::make_unique<eqg::ResourceManager>();
 }
 
 ZoneResourceManager::~ZoneResourceManager()
@@ -681,8 +682,11 @@ eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::s
 			return loader.get();
 	}
 
-	auto loader = std::make_unique<eqg::WLDLoader>();
+	auto loader = std::make_unique<eqg::WLDLoader>(m_resourceMgr.get());
 	if (!loader->Init(archive, fileName))
+		return nullptr;
+
+	if (!loader->ParseAll())
 		return nullptr;
 
 	// Load objects from the .wld

@@ -15,16 +15,24 @@
 
 namespace eqg {
 
-void decode_s3d_string(char* str, size_t len);
+std::string_view decode_s3d_string(char* str, size_t len);
+
+class ResourceManager;
 
 class WLDLoader
 {
 public:
-	WLDLoader();
+	WLDLoader(ResourceManager* resourceMgr);
 	~WLDLoader();
 
 	// Typically, the archive would be <zonename>.s3d and the file would be <zonename>.wld
 	bool Init(Archive* archive, const std::string& fileName);
+
+	// Parse everything
+	bool ParseAll();
+
+	// Parse only specified object. Used for loading models
+	bool ParseObject(std::string_view tag);
 
 	void Reset();
 
@@ -45,19 +53,21 @@ public:
 		return &m_stringPool[-nID];
 	}
 
-	static bool ParseWLDFile(WLDLoader& loader,
-		const std::string& file_name, const std::string& wld_name);
-
 	bool IsOldVersion() const { return m_oldVersion; }
 	bool IsValid() const { return m_valid; }
 
 	const std::string& GetFileName() const { return m_fileName; }
 
-private:
-	bool ParseWLDObjects();
+	uint32_t GetConstantAmbient() const { return m_constantAmbient; }
 
 private:
+	bool ParseBitmap(uint32_t objectIndex);
+	bool ParseMaterial(uint32_t objectIndex);
+	bool ParseMaterialPalette(uint32_t objectIndex);
+	bool ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSpriteDef2WLDData>& outData);
+
 	Archive*                   m_archive = nullptr;
+	ResourceManager*           m_resourceMgr = nullptr;
 	std::string                m_fileName;
 	std::unique_ptr<uint8_t[]> m_wldFileContents;
 	uint32_t                   m_wldFileSize = 0;
@@ -71,6 +81,7 @@ private:
 	std::vector<S3DFileObject> m_objects;
 	bool                       m_oldVersion = false;
 	bool                       m_valid = false;
+	uint32_t                   m_constantAmbient = 0;
 };
 
 } // namespace eqg

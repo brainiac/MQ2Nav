@@ -4,6 +4,8 @@
 
 #include "archive.h"
 #include "buffer_reader.h"
+#include "eqg_material.h"
+#include "eqg_resource_manager.h"
 #include "log_internal.h"
 #include "wld_structs.h"
 
@@ -13,15 +15,18 @@ namespace eqg {
 
 static const uint8_t decoder_array[] = { 0x95, 0x3A, 0xC5, 0x2A, 0x95, 0x7A, 0x95, 0x6A };
 
-void decode_s3d_string(char* str, size_t len)
+std::string_view decode_s3d_string(char* str, size_t len)
 {
 	for (size_t i = 0; i < len; ++i)
 	{
 		str[i] ^= decoder_array[i % 8];
 	}
+
+	return std::string_view(str, len);
 }
 
-WLDLoader::WLDLoader()
+WLDLoader::WLDLoader(ResourceManager* resourceMgr)
+	: m_resourceMgr(resourceMgr)
 {
 }
 
@@ -143,11 +148,20 @@ bool WLDLoader::Init(Archive* archive, const std::string& wld_name)
 		}
 
 		// Read the tag
-		if (type == WLD_OBJ_DEFAULTPALETTEFILE_TYPE || type == WLD_OBJ_WORLD_USERDATA_TYPE)
+		if (type == WLD_OBJ_DEFAULTPALETTEFILE_TYPE
+			|| type == WLD_OBJ_WORLD_USERDATA_TYPE
+			|| type == WLD_OBJ_CONSTANTAMBIENT_TYPE)
 		{
-			EQG_LOG_WARN("Not going to read tag ID ({}) type ({}).", index, type);
+			// These types do not have a tag.
+
+			if (type == WLD_OBJ_CONSTANTAMBIENT_TYPE)
+			{
+				// This doesn't adhere to the typical structure. It is very simple so just read it
+				// directly here.
+				m_constantAmbient = *reinterpret_cast<uint32_t*>(obj.data);
+			}
 		}
-		else if (type != WLD_OBJ_CONSTANTAMBIENT_TYPE)
+		else
 		{
 			BufferReader tagBuffer(obj.data, obj.size);
 
@@ -170,9 +184,6 @@ bool WLDLoader::Init(Archive* archive, const std::string& wld_name)
 		EQG_LOG_WARN("Failed to read all objects ({} < {}).", index, m_numObjects);
 		return false;
 	}
-
-	if (!ParseWLDObjects())
-		return false;
 
 	m_valid = true;
 	return true;
@@ -215,45 +226,118 @@ uint32_t WLDLoader::GetObjectIndexFromID(int nID, uint32_t currID)
 	return 0;
 }
 
-bool WLDLoader::ParseWLDFile(WLDLoader& loader,
-	const std::string& file_name, const std::string& wld_name)
+bool WLDLoader::ParseAll()
 {
-	Archive archive;
-	if (!archive.Open(file_name))
+	/// Actual loading sequence:
+	///
+	/// ParseBitmapsAndMaterials
+	///     ParseBitmap                                    WLD_OBJ_BMINFO_TYPE
+	///         CEQGBitMap::InitFromWLDData -> Add to resource manager
+	///     ParseMaterial                                  WLD_OBJ_MATERIALDEFINITION_TYPE
+	///         read WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE
+	///             read WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE
+	///                 Create material with InitFromWLDData -> Add to resource manager
+	///     ParseMaterialPalette                           WLD_OBJ_MATERIALPALETTE_TYPE
+	///         create palette with InitFromWLDData -> Add to resource manager
+	///
+	/// ParseBlitSprites
+	///
+	/// ParsePClouds                                       WLD_OBJ_PCLOUDDEFINITION_TYPE
+	///     ParsePCloudDef
+	///
+	/// ParseTrack                                         WLD_OBJ_TRACKINSTANCE_TYPE
+	///     Create STrack from instance with transform from definition. store on WLD object
+	///
+	/// ParseAnimations
+	///     Find tracks that are animations:
+	///         ParseAnimation
+	///             Create animation with InitFromWLDData -> Add to resource manager
+	///
+	/// ParseActorDefinitions                              WLD_OBJ_ACTORDEFINITION_TYPE
+	///     sprite index -> model type:
+	///         ParseSimpleModel                           WLD_OBJ_DMSPRITEINSTANCE_TYPE
+	///             ParseDMSpriteDef2                      WLD_OBJ_DMSPRITEDEFINITION2_TYPE
+	///             create simple model definition with InitFromWLDData -> Add to resource manager
+	///         ParseHierarchicalModel                     WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE
+	///             read definition data                   WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE
+	///             read tracks
+	///             recurse (its hierarchical, duh)
+	///                 ParseSimpleModel                   WLD_OBJ_DMSPRITEINSTANCE_TYPE
+	///                 ParseHierarchicalModelv            WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE
+	///                 ParsePCloudDef                     WLD_OBJ_PCLOUDDEFINITION_TYPE
+	///             parse skins
+	///                 ParseDMSpriteDef2
+	///             create hierarchical model definition with InitFromWLDData -> Add to resource manager
+	///     create actor definition -> Add to resource manager
+	///
+	/// ParseActorInstances                                WLD_OBJ_ACTORINSTANCE_TYPE
+	///     ParseDMRGBTrack                                WLD_OBJ_DMRGBTRACKINSTANCE_TYPE
+	///         parse definition                           WLD_OBJ_DMRGBTRACKDEFINITION_TYPE
+	///            store on actor instance
+	///     get definition from resource manager
+	///     instance tag: ZoneActor_%05d
+	///     create hierarchical actor or simple actor, store on object
+	///
+	/// ParsePClouds agian?
+	///
+	/// ParseTerrain
+	///     find all regions and parse them:
+	///         ParseRegion                                WLD_OBJ_REGION_TYPE
+	///             ParseDMSpriteDef2                      WLD_OBJ_DMSPRITEDEFINITION2_TYPE
+	///         gather counts of all region geometry, send to CTerrain->PreInit
+	///     find all areas
+	///         ParseArea                                  WLD_OBJ_ZONE_TYPE
+	///             add areas to terrain
+	///     add regions to terrain
+	///     ParseWorldTree                                 WLD_OBJ_WORLDTREE_TYPE
+	///     add world tree to terrain
+	///     ParseConstantAmbient                           WLD_OBJ_CONSTANTAMBIENT_TYPE
+	///         Set constant ambient to scene
+	///
+	/// ParseLights                                        WLD_OBJ_POINTLIGHT_TYPE
+	///     get light instance                             WLD_OBJ_LIGHTINSTANCE_TYPE
+	///         get light definition                       WLD_OBJ_LIGHTDEFINITION_TYPE
+	///             add light definition to resource manager
+	///         add light to scene
+	///
+	
+	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
-		EQG_LOG_WARN("Unable to open file {}.", file_name);
-		return false;
+		if (m_objects[i].type == WLD_OBJ_BMINFO_TYPE)
+		{
+			if (!ParseBitmap(i))
+			{
+				SPDLOG_ERROR("Failed to parse bitmap: {}", m_objects[i].tag);
+				return false;
+			}
+		}
 	}
 
-	if (!loader.Init(&archive, wld_name))
+	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
-		EQG_LOG_WARN("Unable to open wld file {}.", wld_name);
-		return false;
+		if (m_objects[i].type == WLD_OBJ_MATERIALDEFINITION_TYPE)
+		{
+			if (!ParseMaterial(i))
+				return false;
+		}
 	}
 
-	return true;
-}
+	for (uint32_t i = 0; i <= m_numObjects; ++i)
+	{
+		if (m_objects[i].type == WLD_OBJ_MATERIALPALETTE_TYPE)
+		{
+			if (!ParseMaterialPalette(i))
+				return false;
+		}
+	}
 
-bool WLDLoader::ParseWLDObjects()
-{
+
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
 		S3DFileObject& obj = m_objects[i];
 
 		switch (obj.type)
 		{
-		case WLD_OBJ_BMINFO_TYPE: {
-			obj.parsed_data = new WLDFragment03(this, &obj);
-			break;
-		}
-		case WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE: {
-			obj.parsed_data = new WLDFragment04(this, &obj);
-			break;
-		}
-		case WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE: {
-			obj.parsed_data = new WLDFragment05(this, &obj);
-			break;
-		}
 		case WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE: {
 			obj.parsed_data = new WLDFragment10(this, &obj);
 			break;
@@ -306,18 +390,18 @@ bool WLDLoader::ParseWLDObjects()
 			obj.parsed_data = new WLDFragment2D(this, &obj);
 			break;
 		}
-		case WLD_OBJ_MATERIALDEFINITION_TYPE: {
-			obj.parsed_data = new WLDFragment30(this, &obj);
-			break;
-		}
-		case WLD_OBJ_MATERIALPALETTE_TYPE: {
-			obj.parsed_data = new WLDFragment31(this, &obj);
-			break;
-		}
 		case WLD_OBJ_DMSPRITEDEFINITION2_TYPE: {
 			obj.parsed_data = new WLDFragment36(this, &obj);
 			break;
 		}
+
+		case WLD_OBJ_BMINFO_TYPE:
+		case WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE:
+		case WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE:
+		case WLD_OBJ_MATERIALDEFINITION_TYPE:
+		case WLD_OBJ_MATERIALPALETTE_TYPE:
+			break;
+
 		default:
 			obj.parsed_data = new WLDFragment(&obj);
 			break;
@@ -326,5 +410,515 @@ bool WLDLoader::ParseWLDObjects()
 
 	return true;
 }
+
+bool WLDLoader::ParseObject(std::string_view tag)
+{
+	return false;
+}
+
+bool WLDLoader::ParseBitmap(uint32_t objectIndex)
+{
+	S3DFileObject& wldObj = m_objects[objectIndex];
+	if (wldObj.type != WLD_OBJ_BMINFO_TYPE)
+	{
+		return false;
+	}
+
+	SPDLOG_INFO("Parsing bitmap: {} ({})", wldObj.tag, objectIndex);
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	WLD_OBJ_BMINFO* pWLDBMInfo = reader.read_ptr<WLD_OBJ_BMINFO>();
+	constexpr size_t MAX_MIP_LEVELS = 16;
+	std::string_view fileNames[MAX_MIP_LEVELS];
+	float scale = 1.0f;
+	EBitmapType type = eBitmapTypeNormal;
+
+	uint16_t fileNameLength;
+	if (!reader.read(fileNameLength))
+		return false;
+	char* fileName;
+	if (!reader.read_array(fileName, fileNameLength))
+		return false;
+
+	fileNames[0] = decode_s3d_string(fileName, fileNameLength);
+	bool hasPaletteMain = false;
+
+	if (pWLDBMInfo->num_mip_levels > 0)
+	{
+		if (pWLDBMInfo->num_mip_levels < MAX_MIP_LEVELS)
+		{
+			for (uint32_t i = 1; i < pWLDBMInfo->num_mip_levels; ++i)
+			{
+				if (!reader.read(fileNameLength))
+					return false;
+				if (!reader.read_array(fileName, fileNameLength))
+					return false;
+
+				fileNames[i] = decode_s3d_string(fileName, fileNameLength);
+			}
+
+			if (pWLDBMInfo->num_mip_levels == 1)
+			{
+				if (auto idx = fileNames[1].find("_LAYER"); idx != std::string_view::npos)
+				{
+					fileNames[1] = fileNames[1].substr(0, idx);
+					type = eBitmapTypeLayer;
+				}
+				else if (idx = fileNames[1].find("_DETAIL"); idx != std::string_view::npos)
+				{
+					// Formatted like _DETAIL_<num>
+					std::string_view detailNum = fileNames[1].substr(idx + 8);
+					scale = str_to_float(detailNum, 1.0f);
+
+					fileNames[1] = fileNames[1].substr(0, idx);
+
+					type = eBitmapTypeSingleDetail;
+				}
+			}
+			else if (pWLDBMInfo->num_mip_levels > 1)
+			{
+				type = eBitmapTypePaletteDetailMain;
+				hasPaletteMain = true;
+			}
+		}
+		else
+		{
+			SPDLOG_ERROR("Too many mip levels in bitmap {}!", wldObj.tag);
+			return false;
+		}
+	}
+
+	auto parsedBitmaps = std::make_unique<ParsedBMInfo>(&wldObj);
+	parsedBitmaps->bitmaps.resize(pWLDBMInfo->num_mip_levels + 1);
+
+	for (uint32_t bitmapIndex = 0; bitmapIndex < pWLDBMInfo->num_mip_levels + 1; ++bitmapIndex)
+	{
+		SBitmapWLDData wldData;
+		wldData.fileName = fileNames[bitmapIndex];
+		wldData.detailScale = scale;
+		wldData.grassDensity = 0;
+		wldData.createTexture = true;
+		wldData.objectIndex = (uint32_t)-1;
+
+		if (hasPaletteMain)
+		{
+			wldData.objectIndex = objectIndex;
+
+			if (bitmapIndex == 1)
+			{
+				type = eBitmapTypePaletteDetailPalette;
+				wldData.createTexture = false;
+			}
+			else if (bitmapIndex > 1)
+			{
+				type = eBitmapTypePaletteDetailDetail;
+
+				auto parts = split_view(fileNames[bitmapIndex], ',');
+
+				// Blindly assumes that this has 4 parts, because the eqg code didn't check for it...
+				wldData.detailScale = str_to_float(parts[1], 1.0f);
+				wldData.grassDensity = str_to_int(parts[2], 0);
+				wldData.fileName = parts[3];
+				fileNames[bitmapIndex] = parts[3];
+			}
+		}
+
+		// Have we already made a bitmap for this one?
+		if (auto existingBM = m_resourceMgr->Get<EQGBitmap>(wldData.fileName))
+		{
+			parsedBitmaps->bitmaps[bitmapIndex] = existingBM;
+			continue;
+		}
+
+		std::shared_ptr<EQGBitmap> newBitmap = std::make_shared<EQGBitmap>();
+		if (!newBitmap->InitFromWLDData(&wldData, m_archive, m_resourceMgr))
+		{
+			SPDLOG_ERROR("Failed to create bitmap {}!", wldData.fileName);
+			return false;
+		}
+
+		newBitmap->SetType(type);
+
+		if (!m_resourceMgr->Add(wldData.fileName, newBitmap))
+		{
+			SPDLOG_ERROR("Failed to add bitmap {} to resource manager!", wldData.fileName);
+			return false;
+		}
+
+		parsedBitmaps->bitmaps[bitmapIndex] = newBitmap;
+	}
+
+	wldObj.parsed_data = parsedBitmaps.release();
+	return true;
+}
+
+bool WLDLoader::ParseMaterial(uint32_t objectIndex)
+{
+	S3DFileObject& wldObj = m_objects[objectIndex];
+	if (wldObj.type != WLD_OBJ_MATERIALDEFINITION_TYPE)
+	{
+		return false;
+	}
+
+	// Check if it already exists
+	if (m_resourceMgr->Contains(wldObj.tag, ResourceType::Material))
+	{
+		return true;
+	}
+
+	SPDLOG_INFO("Parsing material: {} ({})", wldObj.tag, objectIndex);
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	auto* pWLDMaterialDef = reader.read_ptr<WLD_OBJ_MATERIALDEFINITION>();
+
+	S3DFileObject& simpleSpriteInstanceObj = GetObjectFromID(pWLDMaterialDef->sprite_or_bminfo, objectIndex);
+	WLD_OBJ_SIMPLESPRITEINSTANCE* pWLDSimpleSpriteInst = (WLD_OBJ_SIMPLESPRITEINSTANCE*)simpleSpriteInstanceObj.data;
+
+	ParsedSimpleSpriteDef* pParsedSpriteDef = nullptr;
+	std::shared_ptr<ParsedBMInfo> pParsedBMInfoForPalette;
+
+	if (pWLDSimpleSpriteInst != nullptr)
+	{
+		if (simpleSpriteInstanceObj.type != WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE)
+		{
+			SPDLOG_ERROR("Material's sprite_or_bminfo is not a SimpleSpriteInstance: {}", wldObj.tag);
+			return false;
+		}
+
+		S3DFileObject& simpleSpriteDefinitionObj = GetObjectFromID(pWLDSimpleSpriteInst->definition_id, objectIndex);
+		if (simpleSpriteDefinitionObj.type != WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE)
+		{
+			SPDLOG_ERROR("SimpleSpriteInstance's definition isn't a SimpleSpriteDefinition!", simpleSpriteInstanceObj.tag);
+			return false;
+		}
+
+		BufferReader spriteDefReader(simpleSpriteDefinitionObj.data, simpleSpriteDefinitionObj.size);
+
+		// Only need to do this once.
+		if (simpleSpriteDefinitionObj.parsed_data == nullptr)
+		{
+			// Parse the data for the SIMPLESPRITEDEFINITION.
+			WLD_OBJ_SIMPLESPRITEDEFINITION* pWLDSpriteDef = spriteDefReader.read_ptr<WLD_OBJ_SIMPLESPRITEDEFINITION>();
+			pParsedSpriteDef = new ParsedSimpleSpriteDef(&simpleSpriteDefinitionObj);
+			pParsedSpriteDef->definition = pWLDSpriteDef;
+
+			if (pWLDSpriteDef->flags & WLD_OBJ_SPROPT_HAVECURRENTFRAME)
+				spriteDefReader.skip<uint32_t>();
+			if (pWLDSpriteDef->flags & WLD_OBJ_SPROPT_HAVESLEEP)
+				spriteDefReader.skip<uint32_t>();
+
+			// We are reading from an array of Ids and turning them into bitmap references. We already should have
+			// parsed all the bitmaps, so we can just look them up here.
+			for (uint32_t i = 0; i < pWLDSpriteDef->num_frames; ++i)
+			{
+				std::shared_ptr<ParsedBMInfo> pParsedBMInfo;
+
+				int bmID = spriteDefReader.read<int>();
+				if (bmID < 0)
+				{
+					// An object that we can look up by name.
+					auto bitmap = m_resourceMgr->Get<EQGBitmap>(GetString(bmID));
+					if (!bitmap)
+					{
+						SPDLOG_ERROR("Failed to find bitmap {} (id={})", GetString(bmID), bmID);
+						delete pParsedSpriteDef;
+						return false;
+					}
+
+					pParsedBMInfo = std::make_shared<ParsedBMInfo>(&simpleSpriteDefinitionObj);
+					pParsedBMInfo->bitmaps.push_back(bitmap);
+				}
+				else
+				{
+					// An object that we can look up by ID.
+					S3DFileObject& bmObj = m_objects[bmID];
+					if (bmObj.type != WLD_OBJ_BMINFO_TYPE)
+					{
+						SPDLOG_ERROR("Bitmap {} (id: {}) is not a BMINFO object!?", bmObj.tag, bmID);
+						delete pParsedSpriteDef;
+						return false;
+					}
+
+					// Copy into a new ParsedBMInfo object that our ParsedSimpleSpriteDef owns.
+					pParsedBMInfo = std::make_shared<ParsedBMInfo>(*(ParsedBMInfo*)bmObj.parsed_data);
+				}
+
+				// Add this new ParsedBMInfo to our ParsedSpriteDef. If this is the main palette then also save that.
+				pParsedSpriteDef->parsedBitmaps.push_back(pParsedBMInfo);
+				if (pParsedBMInfo->bitmaps[0]->GetType() == eBitmapTypePaletteDetailMain
+					&& pParsedBMInfo->bitmaps[0]->GetObjectIndex() != (uint32_t)-1)
+				{
+					pParsedBMInfoForPalette = pParsedBMInfo;
+				}
+			}
+
+			simpleSpriteDefinitionObj.parsed_data = pParsedSpriteDef;
+		}
+		else
+		{
+			pParsedSpriteDef = (ParsedSimpleSpriteDef*)simpleSpriteDefinitionObj.parsed_data;
+		}
+	}
+
+	// create the material
+	auto newMaterial = std::make_shared<Material>();
+	if (!newMaterial->InitFromWLDData(wldObj.tag, pWLDMaterialDef, pWLDSimpleSpriteInst, pParsedSpriteDef,
+		pParsedBMInfoForPalette.get()))
+	{
+		SPDLOG_ERROR("Failed to create material {}!", wldObj.tag);
+		return false;
+	}
+
+	if (!m_resourceMgr->Add(wldObj.tag, newMaterial))
+	{
+		SPDLOG_ERROR("Failed to add new material to resource manager: {}", wldObj.tag);
+		return false;
+	}
+
+	//wldObj.parsed_data = newMaterial.get();
+	return true;
+}
+
+bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
+{
+	S3DFileObject& wldObj = m_objects[objectIndex];
+	if (wldObj.type != WLD_OBJ_MATERIALPALETTE_TYPE)
+	{
+		return false;
+	}
+
+	ParsedMaterialPalette* parsedPalette;
+
+	// Check if it already exists
+	if (auto existingMP = m_resourceMgr->Get<MaterialPalette>(wldObj.tag))
+	{
+		// re-create a ParsedPalette from this existing object.
+		parsedPalette = new ParsedMaterialPalette(&wldObj);
+		parsedPalette->palette = existingMP;
+		wldObj.parsed_data = parsedPalette;
+
+		return true;
+	}
+
+	SPDLOG_INFO("Parsing material palette: {} ({})", wldObj.tag, objectIndex);
+
+	BufferReader reader(wldObj.data, wldObj.size);
+
+	if (wldObj.parsed_data == nullptr)
+	{
+		parsedPalette = new ParsedMaterialPalette(&wldObj);
+
+		parsedPalette->matPalette = reader.read_ptr<WLD_OBJ_MATERIALPALETTE>();
+		parsedPalette->materials.resize(parsedPalette->matPalette->num_entries);
+
+		for (size_t i = 0; i < parsedPalette->materials.size(); ++i)
+		{
+			int materialID = reader.read<int>();
+
+			if (materialID < 0)
+			{
+				auto material = m_resourceMgr->Get<Material>(GetString(materialID));
+				if (!material)
+				{
+					SPDLOG_ERROR("Failed to find material {} (id={})", GetString(materialID), materialID);
+					delete parsedPalette;
+					return false;
+				}
+				parsedPalette->materials[i] = material;
+			}
+			else
+			{
+				S3DFileObject& materialObj = m_objects[materialID];
+				if (materialObj.type != WLD_OBJ_MATERIALDEFINITION_TYPE)
+				{
+					SPDLOG_ERROR("Material {} (id: {}) is not a MATERIALDEFINITION object!?", materialObj.tag, materialID);
+					delete parsedPalette;
+					return false;
+				}
+
+				auto material = m_resourceMgr->Get<Material>(materialObj.tag);
+				if (!material)
+				{
+					SPDLOG_ERROR("Failed to find material {} (id={})", materialObj.tag, materialID);
+					delete parsedPalette;
+					return false;
+				}
+
+				parsedPalette->materials[i] = material;
+			}
+		}
+
+		wldObj.parsed_data = parsedPalette;
+	}
+	else
+	{
+		parsedPalette = (ParsedMaterialPalette*)wldObj.parsed_data;
+	}
+
+	std::shared_ptr<MaterialPalette> palette = std::make_shared<MaterialPalette>();
+
+	if (!palette->InitFromWLDData(wldObj.tag, parsedPalette))
+	{
+		SPDLOG_ERROR("Failed to create material palette {}!", wldObj.tag);
+		return false;
+	}
+
+	if (!m_resourceMgr->Add(wldObj.tag, palette))
+	{
+		SPDLOG_ERROR("Failed to add new material palette to resource manager: {}", wldObj.tag);
+		return false;
+	}
+
+	parsedPalette->palette = palette;
+
+	return true;
+}
+
+bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSpriteDef2WLDData>& pSpriteDef)
+{
+	S3DFileObject& wldObj = m_objects[objectIndex];
+
+	if (wldObj.type == WLD_OBJ_DMSPRITEDEFINITION_TYPE)
+	{
+		pSpriteDef.reset();
+		return true; // Old type seems to be completely ignored
+	}
+
+	if (wldObj.type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+	{
+		return false; // Everything else that isn't a dmspritedef2 is a fail
+	}
+
+	pSpriteDef = std::make_unique<SDMSpriteDef2WLDData>();
+	memset(pSpriteDef.get(), 0, sizeof(SDMSpriteDef2WLDData));
+	pSpriteDef->tag = wldObj.tag;
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	WLD_OBJ_DMSPRITEDEFINITION2* pWLDObj = reader.read_ptr<WLD_OBJ_DMSPRITEDEFINITION2>();
+	pSpriteDef->vertexScaleFactor = 1.0f / (float)(1 << pWLDObj->scale);
+
+	if (pWLDObj->num_vertices)
+	{
+		pSpriteDef->numVertices = pWLDObj->num_vertices;
+		if (!reader.read_array(pSpriteDef->vertices, pSpriteDef->numVertices))
+			return false;
+	}
+
+	if (pWLDObj->num_uvs)
+	{
+		pSpriteDef->numUVs = pWLDObj->num_uvs;
+		
+		if (IsOldVersion())
+		{
+			pSpriteDef->uvsUsingOldForm = true;
+			if (!reader.read_array(pSpriteDef->uvsOldForm, pSpriteDef->numUVs))
+				return false;
+		}
+		else
+		{
+			pSpriteDef->uvsUsingOldForm = false;
+			if (!reader.read_array(pSpriteDef->uvs, pSpriteDef->numUVs))
+				return false;
+		}
+	}
+
+	if (pWLDObj->num_vertex_normals)
+	{
+		pSpriteDef->numVertexNormals = pWLDObj->num_vertex_normals;
+		if (!reader.read_array(pSpriteDef->vertexNormals, pSpriteDef->numVertexNormals))
+			return false;
+	}
+
+	if (pWLDObj->num_rgb_colors)
+	{
+		pSpriteDef->numRGBs = pWLDObj->num_rgb_colors;
+		if (!reader.read_array(pSpriteDef->rgbData, pSpriteDef->numRGBs))
+			return false;
+	}
+
+	if (pWLDObj->num_faces)
+	{
+		pSpriteDef->numFaces = pWLDObj->num_faces;
+		if (!reader.read_array(pSpriteDef->faces, pSpriteDef->numFaces))
+			return false;
+	}
+
+	if (pWLDObj->num_skin_groups)
+	{
+		pSpriteDef->numSkinGroups = pWLDObj->num_skin_groups;
+		if (!reader.read_array(pSpriteDef->skinGroups, pSpriteDef->numSkinGroups))
+			return false;
+	}
+
+	if (pWLDObj->num_fmaterial_groups)
+	{
+		pSpriteDef->numFaceMaterialGroups = pWLDObj->num_fmaterial_groups;
+		if (!reader.read_array(pSpriteDef->faceMaterialGroups, pSpriteDef->numFaceMaterialGroups))
+			return false;
+	}
+
+	if (pWLDObj->num_vmaterial_groups)
+	{
+		pSpriteDef->numVertexMaterialGroups = pWLDObj->num_vmaterial_groups;
+		if (!reader.read_array(pSpriteDef->vertexMaterialGroups, pSpriteDef->numVertexMaterialGroups))
+			return false;
+	}
+
+	// MeshOps at the end are ignored/unused
+
+	// TODO: Clean up interface to other objects
+	S3DFileObject& materialObj = m_objects[GetObjectIndexFromID(pWLDObj->material_palette_id)];
+	if (materialObj.type == WLD_OBJ_MATERIALPALETTE_TYPE)
+	{
+		pSpriteDef->materialPalette = static_cast<ParsedMaterialPalette*>(materialObj.parsed_data)->palette;
+	}
+	else
+	{
+		SPDLOG_ERROR("Material palette does not point to a material palette!");
+		return false;
+	}
+
+	if (pWLDObj->dm_track_id)
+	{
+		S3DFileObject& trackInstObj = m_objects[GetObjectIndexFromID(pWLDObj->dm_track_id)];
+		if (trackInstObj.type == WLD_OBJ_TRACKINSTANCE_TYPE)
+		{
+			pSpriteDef->trackInstance = (WLD_OBJ_TRACKINSTANCE*)trackInstObj.data;
+			S3DFileObject& trackDefObj = m_objects[GetObjectIndexFromID(pSpriteDef->trackInstance->track_id)];
+
+			if (trackDefObj.type == WLD_OBJ_TRACKDEFINITION_TYPE)
+			{
+				pSpriteDef->trackDefinition = (WLD_OBJ_TRACKDEFINITION*)trackDefObj.data;
+			}
+			else
+			{
+				SPDLOG_ERROR("Track instance does not point to a track definition!");
+			}
+		}
+		else
+		{
+			SPDLOG_ERROR("Track instance in DMSpriteDef2 does not point to a track instance!");
+		}
+	}
+
+	// TODO: Assign collision data
+
+	if (pWLDObj->flags & WLD_OBJ_SPROPT_HAVECENTEROFFSET)
+	{
+		pSpriteDef->centerOffset = *(glm::vec3*)&pWLDObj->center_offset;
+	}
+
+	if (pWLDObj->flags & WLD_OBJ_SPROPT_HAVEBOUNDINGRADIUS)
+	{
+		pSpriteDef->boundingRadius = pWLDObj->bounding_radius;
+	}
+	else
+	{
+		pSpriteDef->boundingRadius = 1.0f;
+	}
+
+	return true;
+}
+
 
 } //  namespace eqg

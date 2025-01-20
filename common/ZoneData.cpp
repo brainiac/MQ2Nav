@@ -17,6 +17,8 @@
 #include <iterator>
 #include <filesystem>
 
+#include "meshgen/ResourceManager.h"
+
 namespace fs = std::filesystem;
 
 class ZoneDataLoader
@@ -187,27 +189,28 @@ public:
 			std::string wld_name = m_zd->GetZoneName() + suffix + ".wld";
 			std::string file_name = fmt::format("{}\\{}.s3d", m_zd->GetEQPath(), m_zd->GetZoneName() + suffix);
 
-			eqg::WLDLoader loader;
+			eqg::ResourceManager mgr;
+			eqg::WLDLoader loader(&mgr);
 
-			if (loader.ParseWLDFile(loader, file_name, wld_name))
-			{
-				for (uint32_t i = 1; i < loader.GetNumObjects(); ++i)
-				{
-					auto& frag = loader.GetObject(i);
+			//if (loader.ParseWLDFile(loader, file_name, wld_name))
+			//{
+			//	for (uint32_t i = 1; i < loader.GetNumObjects(); ++i)
+			//	{
+			//		auto& frag = loader.GetObject(i);
 
-					if (frag.type == eqg::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
-					{
-						eqg::WLDFragment36* frag36 = static_cast<eqg::WLDFragment36*>(frag.parsed_data);
-						auto model = frag36->geometry;
+			//		if (frag.type == eqg::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+			//		{
+			//			eqg::WLDFragment36* frag36 = static_cast<eqg::WLDFragment36*>(frag.parsed_data);
+			//			auto model = frag36->geometry;
 
-						if (!m_s3dModels.contains(model->GetName()))
-						{
-							m_s3dModels[model->GetName()] = model;
-							loadedSomething = true;
-						}
-					}
-				}
-			}
+			//			if (!m_s3dModels.contains(model->GetName()))
+			//			{
+			//				m_s3dModels[model->GetName()] = model;
+			//				loadedSomething = true;
+			//			}
+			//		}
+			//	}
+			//}
 		}
 
 		// next we need to try to read an _assets file and load more eqg based data.

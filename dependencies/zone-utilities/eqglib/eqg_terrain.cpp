@@ -382,7 +382,7 @@ bool InvisibleWall::Load(BufferReader& reader)
 
 	m_vertices.resize(vert_count);
 
-	if (!reader.read_array(m_vertices.data(), m_vertices.size()))
+	if (!reader.read(m_vertices.data(), m_vertices.size()))
 		return false;
 
 	return true;
@@ -552,13 +552,13 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 	baked_lighting.resize(terrain->vert_count);
 	quad_flags.resize(terrain->quad_count);
 
-	if (!reader.read_array(height_field.data(), terrain->vert_count))
+	if (!reader.read(height_field.data(), terrain->vert_count))
 		return false;
-	if (!reader.read_array(vertex_color.data(), terrain->vert_count))
+	if (!reader.read(vertex_color.data(), terrain->vert_count))
 		return false;
-	if (!reader.read_array(baked_lighting.data(), terrain->vert_count))
+	if (!reader.read(baked_lighting.data(), terrain->vert_count))
 		return false;
-	if (!reader.read_array(quad_flags.data(), terrain->quad_count))
+	if (!reader.read(quad_flags.data(), terrain->quad_count))
 		return false;
 
 	bool tile_is_flat = true;
