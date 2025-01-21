@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include "s3d_types.h"
+
 #include <cstdint>
 #include <memory>
 
@@ -66,15 +68,8 @@ enum WLDOBJ_SPROPT
 	WLD_OBJ_SPROPT_SKIPFRAMES                        = 0x0040,
 
 	WLD_OBJ_SPROPT_HAVEATTACHEDSKINS                 = 0x0200,
-};
 
-enum ECollisionVolumeType
-{
-	eCollisionVolumeNone,
-	eCollisionVolumeModel,
-	eCollisionVolumeSphere,
-	eCollisionVolumeDag,
-	eCollisionVolumeBox,
+	WLD_OBJ_SPROPT_SPRITEDEFPOLYHEDRON               = 0x10000,
 };
 
 enum S3D_FACEFLAGS
@@ -185,6 +180,17 @@ struct WLD_OBJ_TRACKINSTANCE
 	int tag;
 	uint32_t track_id;
 	uint32_t flags;
+};
+
+struct WLD_OBJ_DMTRACKDEFINITION2
+{
+	int tag;
+	uint32_t flags;
+	uint16_t num_vertices;
+	uint16_t num_frames;
+	uint16_t sleep;
+	uint16_t current_frame;
+	uint16_t scale;
 };
 
 struct EQG_S3D_PFRAMETRANSFORM
@@ -373,7 +379,7 @@ struct WLD_SKINGROUP
 struct WLD_MATERIALGROUP
 {
 	uint16_t group_size;
-	uint16_t material_id;
+	uint16_t material_index;
 };
 
 struct SDMSpriteDef2WLDData
@@ -410,11 +416,11 @@ struct SDMSpriteDef2WLDData
 	std::shared_ptr<MaterialPalette> materialPalette;
 
 	WLD_OBJ_TRACKINSTANCE* trackInstance;
-	WLD_OBJ_TRACKDEFINITION* trackDefinition;
-	// TODO: COllision Volume
+	WLD_OBJ_DMTRACKDEFINITION2* trackDefinition;
 
 	glm::vec3 centerOffset;
 	float boundingRadius;
+	bool noCollision;
 };
 
 

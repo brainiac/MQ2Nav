@@ -574,7 +574,7 @@ WLDFragment36::WLDFragment36(WLDLoader* loader, S3DFileObject* obj)
 				break;
 			}
 
-			model->polys[pc++].tex = tm.material_id;
+			model->polys[pc++].tex = tm.material_index;
 		}
 	}
 

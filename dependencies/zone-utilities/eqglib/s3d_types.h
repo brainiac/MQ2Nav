@@ -1,8 +1,6 @@
 
 #pragma once
 
-#include "s3d_types.h"
-
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <memory>

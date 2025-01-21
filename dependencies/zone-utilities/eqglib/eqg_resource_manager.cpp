@@ -3,6 +3,7 @@
 
 #include "archive.h"
 #include "buffer_reader.h"
+#include "eqg_geometry.h"
 #include "eqg_material.h"
 
 #include <ddraw.h> // for DDSURFACEDESC2
@@ -61,6 +62,11 @@ bool ResourceManager::Contains(std::string_view tag, ResourceType type) const
 std::shared_ptr<EQGBitmap> ResourceManager::CreateBitmap() const
 {
 	return std::make_shared<EQGBitmap>();
+}
+
+std::shared_ptr<SimpleModelDefinition> ResourceManager::CreateSimpleModelDefinition() const
+{
+	return std::make_shared<SimpleModelDefinition>();
 }
 
 //-------------------------------------------------------------------------------------------------

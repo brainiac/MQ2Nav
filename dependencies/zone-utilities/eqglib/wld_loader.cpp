@@ -4,6 +4,7 @@
 
 #include "archive.h"
 #include "buffer_reader.h"
+#include "eqg_geometry.h"
 #include "eqg_material.h"
 #include "eqg_resource_manager.h"
 #include "log_internal.h"
@@ -424,7 +425,7 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 		return false;
 	}
 
-	SPDLOG_INFO("Parsing bitmap: {} ({})", wldObj.tag, objectIndex);
+	SPDLOG_TRACE("Parsing bitmap: {} ({})", wldObj.tag, objectIndex);
 
 	BufferReader reader(wldObj.data, wldObj.size);
 	WLD_OBJ_BMINFO* pWLDBMInfo = reader.read_ptr<WLD_OBJ_BMINFO>();
@@ -566,7 +567,7 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 		return true;
 	}
 
-	SPDLOG_INFO("Parsing material: {} ({})", wldObj.tag, objectIndex);
+	SPDLOG_TRACE("Parsing material: {} ({})", wldObj.tag, objectIndex);
 
 	BufferReader reader(wldObj.data, wldObj.size);
 	auto* pWLDMaterialDef = reader.read_ptr<WLD_OBJ_MATERIALDEFINITION>();
@@ -675,7 +676,6 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 		return false;
 	}
 
-	//wldObj.parsed_data = newMaterial.get();
 	return true;
 }
 
@@ -700,7 +700,7 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 		return true;
 	}
 
-	SPDLOG_INFO("Parsing material palette: {} ({})", wldObj.tag, objectIndex);
+	SPDLOG_TRACE("Parsing material palette: {} ({})", wldObj.tag, objectIndex);
 
 	BufferReader reader(wldObj.data, wldObj.size);
 
@@ -771,6 +771,78 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 
 	parsedPalette->palette = palette;
 
+	return true;
+}
+
+bool WLDLoader::ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleModelDefinition>& outModel)
+{
+	S3DFileObject& wldObj = m_objects[objectIndex];
+	outModel.reset();
+
+	if (wldObj.type != WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+		return false;
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	WLD_OBJ_DMSPRITEINSTANCE* pDMSpriteInst = reader.read_ptr<WLD_OBJ_DMSPRITEINSTANCE>();
+
+	uint32_t dmSpriteDefIndex = GetObjectIndexFromID(pDMSpriteInst->definition_id);
+	if (dmSpriteDefIndex <= 0)
+	{
+		SPDLOG_ERROR("Invalid DMSpriteDef index {} from DMSpriteInstance {} ({})",
+			dmSpriteDefIndex, wldObj.tag, objectIndex);
+		return false;
+	}
+
+	S3DFileObject& dmSpriteDefObj = m_objects[dmSpriteDefIndex];
+
+	// DMSpriteDefinitions are always DMSPRITEDEF2's.
+	if (dmSpriteDefObj.type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+	{
+		SPDLOG_ERROR("definition {} is not a DMSPRITEDEF2 (it is {}) for DMSpriteInstance {} ({}) ",
+			dmSpriteDefIndex, (int)dmSpriteDefObj.type, wldObj.tag, objectIndex);
+		return false;
+	}
+
+	// Check if we already have this object
+	if (auto simpleModelDef = m_resourceMgr->Get<SimpleModelDefinition>(dmSpriteDefObj.tag))
+	{
+		outModel = simpleModelDef;
+
+		if (dmSpriteDefObj.parsed_data == nullptr)
+		{
+			// Fill in the parsed_data, as some other object may need it.
+			auto parsedData = new ParsedDMSpriteDefinition2(&wldObj);
+			parsedData->simpleModelDefinition = simpleModelDef;
+
+			dmSpriteDefObj.parsed_data = parsedData;
+		}
+
+		return true;
+	}
+
+	std::unique_ptr<SDMSpriteDef2WLDData> dmSpriteDefData;
+	if (!ParseDMSpriteDef2(dmSpriteDefIndex, dmSpriteDefData))
+	{
+		SPDLOG_ERROR("Failed to parse DMSpriteDef2 for DMSpriteInstance {} ({})", dmSpriteDefObj.tag, objectIndex);
+		return false;
+	}
+
+	auto simpleModelDef = m_resourceMgr->CreateSimpleModelDefinition();
+	if (!simpleModelDef->InitFromWLDData(dmSpriteDefObj.tag, dmSpriteDefData.get()))
+	{
+		SPDLOG_ERROR("Failed to create SimpleModelDefinition {} from DMSpriteDef2 {} ({})",
+			wldObj.tag, dmSpriteDefObj.tag, dmSpriteDefIndex);
+		return false;
+	}
+
+	m_resourceMgr->Add(wldObj.tag, simpleModelDef);
+
+	outModel = simpleModelDef;
+
+	auto parsedData = new ParsedDMSpriteDefinition2(&wldObj);
+	parsedData->simpleModelDefinition = simpleModelDef;
+
+	dmSpriteDefObj.parsed_data = parsedData;
 	return true;
 }
 
@@ -886,14 +958,7 @@ bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSprit
 			pSpriteDef->trackInstance = (WLD_OBJ_TRACKINSTANCE*)trackInstObj.data;
 			S3DFileObject& trackDefObj = m_objects[GetObjectIndexFromID(pSpriteDef->trackInstance->track_id)];
 
-			if (trackDefObj.type == WLD_OBJ_TRACKDEFINITION_TYPE)
-			{
-				pSpriteDef->trackDefinition = (WLD_OBJ_TRACKDEFINITION*)trackDefObj.data;
-			}
-			else
-			{
-				SPDLOG_ERROR("Track instance does not point to a track definition!");
-			}
+			pSpriteDef->trackDefinition = (WLD_OBJ_DMTRACKDEFINITION2*)trackDefObj.data;
 		}
 		else
 		{
@@ -901,7 +966,19 @@ bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSprit
 		}
 	}
 
-	// TODO: Assign collision data
+	// The only piece of collision info that is used is whether this is set or not.
+	if ((pWLDObj->flags & WLD_OBJ_SPROPT_SPRITEDEFPOLYHEDRON) != 0)
+	{
+		// ignored
+	}
+	else if (pWLDObj->collision_volume_id == 0)
+	{
+		// This is checked later when creating a simple model, but we can do it here and simplify a bit.
+		if (!ci_starts_with(m_archive->GetFileName(), "gequip"))
+		{
+			pSpriteDef->noCollision = true;
+		}
+	}
 
 	if (pWLDObj->flags & WLD_OBJ_SPROPT_HAVECENTEROFFSET)
 	{

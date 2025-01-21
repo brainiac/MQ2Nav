@@ -4,6 +4,7 @@
 
 #include "archive.h"
 #include "buffer_reader.h"
+#include "eqg_material.h"
 #include "eqg_structs.h"
 #include "log_internal.h"
 

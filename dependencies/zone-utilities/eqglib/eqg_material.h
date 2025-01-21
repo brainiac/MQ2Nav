@@ -27,6 +27,8 @@ class ResourceManager;
 struct SEQMMaterial;
 struct SEQMFXParameter;
 
+using std::chrono::steady_clock;
+
 enum EBitmapType
 {
 	eBitmapTypeNormal,
@@ -72,24 +74,24 @@ public:
 	bool InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, ResourceManager* resourceMgr);
 
 private:
-	std::string           m_fileName;
-	EBitmapType           m_type = eBitmapTypeNormal;
-	uint32_t              m_sourceWidth = 0;
-	uint32_t              m_sourceHeight = 0;
-	float                 m_detailScale = 1.0f;
-	uint32_t              m_grassDensity = 0;
-	uint32_t              m_width = 0;
-	uint32_t              m_height = 0;
-	uint32_t              m_objectIndex = (uint32_t)-1;
-	bool                  m_hasTexture = false;
-	char*                 m_rawData = nullptr;
-	uint32_t              m_byteSize = 0;
+	std::string              m_fileName;
+	EBitmapType              m_type = eBitmapTypeNormal;
+	uint32_t                 m_sourceWidth = 0;
+	uint32_t                 m_sourceHeight = 0;
+	float                    m_detailScale = 1.0f;
+	uint32_t                 m_grassDensity = 0;
+	uint32_t                 m_width = 0;
+	uint32_t                 m_height = 0;
+	uint32_t                 m_objectIndex = (uint32_t)-1;
+	bool                     m_hasTexture = false;
+	char*                    m_rawData = nullptr;
+	uint32_t                 m_byteSize = 0;
 };
 
 struct STexture
 {
-	std::string filename;
-	uint32_t flags = 0;
+	std::string              filename;
+	uint32_t                 flags = 0;
 
 	// This is what actually gets drawn as a texture
 	std::shared_ptr<EQGBitmap> textures[8];
@@ -97,11 +99,11 @@ struct STexture
 
 struct STextureSet
 {
-	uint32_t updateInterval = 0;
-	std::chrono::steady_clock::time_point nextUpdate = std::chrono::steady_clock::now();
-	uint32_t currentFrame = 0;
-	std::vector<STexture> textures;
-	bool skipFrames = false;
+	uint32_t                 updateInterval = 0;
+	steady_clock::time_point nextUpdate = steady_clock::now();
+	uint32_t                 currentFrame = 0;
+	std::vector<STexture>    textures;
+	bool                     skipFrames = false;
 };
 
 enum eFXParameterType
@@ -165,20 +167,20 @@ public:
 		ParsedSimpleSpriteDef* pParsedSimpleSpriteDef, ParsedBMInfo* pParsedBMPalette);
 	bool InitFromBitmap(const std::shared_ptr<EQGBitmap>& bitmap);
 
-	std::string m_tag;
-	std::string m_effectName;
-	float m_twoSided = false;
-	glm::vec2 m_uvShift = glm::vec2(0.0f);
-	uint32_t m_renderMethod = 0;
-	float m_scaledAmbient = 0.0f;
-	float m_constantAmbient = 0.0f;
-	int m_type = 0;
-	float m_detailScale = 1.0f;
+	std::string                 m_tag;
+	std::string                 m_effectName;
+	float                       m_twoSided = false;
+	glm::vec2                   m_uvShift = glm::vec2(0.0f);
+	uint32_t                    m_renderMethod = 0;
+	float                       m_scaledAmbient = 0.0f;
+	float                       m_constantAmbient = 0.0f;
+	int                         m_type = 0;
+	float                       m_detailScale = 1.0f;
 
 	std::unique_ptr<STextureSet> m_textureSet;
 	std::unique_ptr<STextureSet> m_textureSetAlt;
 	std::unique_ptr<DetailPaletteInfo> m_detailPalette;
-	std::vector<SFXParameter> m_effectParams;
+	std::vector<SFXParameter>   m_effectParams;
 };
 
 class MaterialPalette : public Resource
@@ -187,6 +189,13 @@ public:
 	MaterialPalette();
 	MaterialPalette(std::string_view tag_, uint32_t num_materials_);
 	~MaterialPalette() override;
+
+	struct PaletteData
+	{
+		std::shared_ptr<Material> material;
+		uint32_t                  tint = (uint32_t)-1;
+		uint32_t                  secondary_tint = (uint32_t)-1;
+	};
 
 	static ResourceType GetStaticResourceType() { return ResourceType::MaterialPalette; }
 
@@ -199,23 +208,16 @@ public:
 			m_materials[index].material = material;
 		}
 	}
+	Material* GetMaterial(uint32_t index) const { return m_materials[index].material.get(); }
+	uint32_t GetNumMaterials() const { return (uint32_t)m_materials.size(); }
 
 	bool InitFromWLDData(std::string_view tag, ParsedMaterialPalette* materialPalette);
 
 private:
-	std::string m_tag;
-	std::chrono::steady_clock::time_point m_lastUpdate = std::chrono::steady_clock::now();
-	bool m_requiresUpdate = false;
-
-	struct PaletteData
-	{
-		std::shared_ptr<Material> material;
-		uint32_t tint = (uint32_t)-1;
-		uint32_t secondary_tint = (uint32_t)-1;
-	};
+	std::string              m_tag;
+	steady_clock::time_point m_lastUpdate = steady_clock::now();
+	bool                     m_requiresUpdate = false;
 	std::vector<PaletteData> m_materials;
-
-
 };
 
 

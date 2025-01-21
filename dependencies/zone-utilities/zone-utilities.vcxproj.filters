@@ -81,6 +81,9 @@
     <ClInclude Include="eqglib\eqg_resource_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="eqglib\eqg_resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqglib\eqg_loader.cpp">
@@ -114,6 +117,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="eqglib\eqg_resource_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="eqglib\eqg_geometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

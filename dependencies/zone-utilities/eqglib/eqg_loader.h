@@ -17,6 +17,7 @@ class Archive;
 class BufferReader;
 class Light;
 class LODList;
+class Material;
 class Placeable;
 class Terrain;
 class TerrainArea;

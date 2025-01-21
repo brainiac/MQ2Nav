@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "eqg_material.h"
 #include "light.h"
 #include "placeable.h"
 #include "s3d_types.h"
@@ -8,9 +9,6 @@
 
 #include <cstdint>
 #include <memory>
-
-#include "eqg_material.h"
-#include "wld_fragment.h"
 
 namespace eqg {
 
@@ -243,6 +241,14 @@ public:
 	~WLDFragment36() {}
 
 	std::shared_ptr<s3d::Geometry> geometry;
+};
+
+class ParsedDMSpriteDefinition2 : public WLDFragment
+{
+public:
+	ParsedDMSpriteDefinition2(S3DFileObject* obj_) : WLDFragment(obj_) {}
+
+	std::shared_ptr<SimpleModelDefinition> simpleModelDefinition;
 };
 
 } // namespace eqg

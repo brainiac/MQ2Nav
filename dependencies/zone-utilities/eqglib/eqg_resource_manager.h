@@ -1,5 +1,7 @@
 #pragma once
 
+#include "eqg_resource.h"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -10,35 +12,13 @@ namespace eqg {
 
 class Archive;
 class EQGBitmap;
+class SimpleModelDefinition;
 
 namespace detail
 {
 	template <class T>
 	concept StringLike = std::is_convertible_v<T, std::string_view>;
 }
-
-enum class ResourceType
-{
-	Bitmap,
-	Material,
-	MaterialPalette,
-
-	Max,
-};
-
-// Base class for resources loaded by the eqg resource system
-class Resource
-{
-public:
-	Resource(ResourceType type) : m_resourceType(type) {}
-	virtual ~Resource() = default;
-
-	ResourceType GetResourceType() const { return m_resourceType; }
-	virtual std::string_view GetTag() const { return ""; }
-
-private:
-	ResourceType m_resourceType;
-};
 
 template <class T>
 concept ResourceConcept = std::is_base_of_v<Resource, T>&& requires(T t)
@@ -152,6 +132,7 @@ public:
 
 	// Factory creation of resource objects
 	virtual std::shared_ptr<EQGBitmap> CreateBitmap() const;
+	virtual std::shared_ptr<SimpleModelDefinition> CreateSimpleModelDefinition() const;
 
 	virtual bool CreateTexture(EQGBitmap* bitmap, Archive* archive) { return true; }
 	virtual bool LoadBitmapData(EQGBitmap* bitmap, Archive* archive);

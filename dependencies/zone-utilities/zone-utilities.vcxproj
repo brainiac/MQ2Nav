@@ -36,6 +36,7 @@
     <ClInclude Include="eqglib\archive.h" />
     <ClInclude Include="eqglib\pfs_crc.h" />
     <ClInclude Include="eqglib\placeable.h" />
+    <ClInclude Include="eqglib\eqg_resource.h" />
     <ClInclude Include="eqglib\str_util.h" />
     <ClInclude Include="eqglib\wld_loader.h" />
     <ClInclude Include="eqglib\s3d_types.h" />
@@ -44,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqglib\eqglib.cpp" />
+    <ClCompile Include="eqglib\eqg_geometry.cpp" />
     <ClCompile Include="eqglib\eqg_loader.cpp" />
     <ClCompile Include="eqglib\eqg_material.cpp" />
     <ClCompile Include="eqglib\eqg_resource_manager.cpp" />
