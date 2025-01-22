@@ -72,6 +72,14 @@ enum WLDOBJ_SPROPT
 	WLD_OBJ_SPROPT_SPRITEDEFPOLYHEDRON               = 0x10000,
 };
 
+// flags for track instances
+enum WLDOBJ_TRKOPT
+{
+	WLD_OBJ_TRKOPT_HAVESLEEP                         = 0x0001,
+	WLD_OBJ_TRKOPT_REVERSE                           = 0x0002,
+	WLD_OBJ_TRKOPT_INTERPOLATE                       = 0x0004,
+};
+
 enum S3D_FACEFLAGS
 {
 	S3D_FACEFLAG_PASSABLE = 0x10

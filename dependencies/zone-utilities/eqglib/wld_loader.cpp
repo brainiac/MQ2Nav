@@ -319,7 +319,10 @@ bool WLDLoader::ParseAll()
 		if (m_objects[i].type == WLD_OBJ_MATERIALDEFINITION_TYPE)
 		{
 			if (!ParseMaterial(i))
+			{
+				SPDLOG_ERROR("Failed to parse material: {}", m_objects[i].tag);
 				return false;
+			}
 		}
 	}
 
@@ -328,7 +331,22 @@ bool WLDLoader::ParseAll()
 		if (m_objects[i].type == WLD_OBJ_MATERIALPALETTE_TYPE)
 		{
 			if (!ParseMaterialPalette(i))
+			{
+				SPDLOG_ERROR("Failed to parse material palette: {}", m_objects[i].tag);
 				return false;
+			}
+		}
+	}
+
+	for (uint32_t i = 0; i <= m_numObjects; ++i)
+	{
+		if (m_objects[i].type == WLD_OBJ_TRACKINSTANCE_TYPE)
+		{
+			if (!ParseTrack(i))
+			{
+				SPDLOG_ERROR("Failed to track instance: {}", m_objects[i].tag);
+				return false;
+			}
 		}
 	}
 
@@ -770,6 +788,116 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 	}
 
 	parsedPalette->palette = palette;
+
+	return true;
+}
+
+bool WLDLoader::ParseTrack(uint32_t objectIndex)
+{
+	S3DFileObject& wldObj = m_objects[objectIndex];
+
+	if (wldObj.type != WLD_OBJ_TRACKINSTANCE_TYPE)
+	{
+		return false;
+	}
+
+	if (wldObj.parsed_data != nullptr)
+	{
+		return true;
+	}
+
+	if (wldObj.tag.empty())
+	{
+		SPDLOG_ERROR("Track instance {} has no tag!", objectIndex);
+		return false;
+	}
+
+	SPDLOG_TRACE("Parsing track: {} ({})", wldObj.tag, objectIndex);
+
+	// Create the track and set some defaults.
+	std::shared_ptr<STrack> track = std::make_shared<STrack>();
+	track->tag = wldObj.tag;
+	track->sleepTime = 100;
+	track->speed = 1.0f;
+	track->reverse = false;
+	track->interpolate = false;
+	track->numFrames = 0;
+	track->attachedToModel = !(::isalpha(wldObj.tag[0]) && ::isdigit(wldObj.tag[1]) && ::isdigit(wldObj.tag[2]));
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	WLD_OBJ_TRACKINSTANCE* pTrackInst = reader.read_ptr<WLD_OBJ_TRACKINSTANCE>();
+
+	if (pTrackInst->flags & WLD_OBJ_TRKOPT_HAVESLEEP)
+	{
+		track->sleepTime = reader.read<uint32_t>();
+	}
+
+	if (pTrackInst->flags & WLD_OBJ_TRKOPT_REVERSE)
+	{
+		track->reverse = true;
+	}
+
+	if (pTrackInst->flags & WLD_OBJ_TRKOPT_INTERPOLATE)
+	{
+		track->interpolate = true;
+	}
+
+	// Look up track definition.
+	S3DFileObject& trackDefObj = GetObjectFromID(pTrackInst->track_id, objectIndex);
+	if (trackDefObj.type != WLD_OBJ_TRACKDEFINITION_TYPE)
+	{
+		SPDLOG_ERROR("Track instance {} ({}) has invalid track definition!", wldObj.tag, objectIndex);
+		return false;
+	}
+
+	if (trackDefObj.parsed_data != nullptr)
+	{
+		SPDLOG_ERROR("Parsed track def {} ({}) twice!", trackDefObj.tag, pTrackInst->track_id);
+		return false;
+	}
+
+	// Parse the track definition.
+	BufferReader trackDefReader(trackDefObj.data, trackDefObj.size);
+	WLD_OBJ_TRACKDEFINITION* pTrackDef = trackDefReader.read_ptr<WLD_OBJ_TRACKDEFINITION>();
+
+	track->numFrames = pTrackDef->num_frames;
+
+	// Read transforms from the track def
+	track->frameTransforms.resize(track->numFrames);
+
+	constexpr float ORIENTATION_SCALE = 1.0f / 16384.0f;
+	constexpr float PIVOT_SCALE = 1.0f / 256.0f;
+
+	for (uint32_t i = 0; i < track->numFrames; ++i)
+	{
+		EQG_S3D_PFRAMETRANSFORM* packedTransform = trackDefReader.read_ptr<EQG_S3D_PFRAMETRANSFORM>();
+		SFrameTransform& transform = track->frameTransforms[i];
+
+		transform.rotation = glm::quat(
+			-static_cast<float>(packedTransform->rot_q3) * ORIENTATION_SCALE,
+			static_cast<float>(packedTransform->rot_q0) * ORIENTATION_SCALE,
+			static_cast<float>(packedTransform->rot_q1) * ORIENTATION_SCALE,
+			static_cast<float>(packedTransform->rot_q2) * ORIENTATION_SCALE
+		);
+		transform.pivot = glm::vec3(
+			static_cast<float>(packedTransform->pivot_x) * PIVOT_SCALE,
+			static_cast<float>(packedTransform->pivot_y) * PIVOT_SCALE,
+			static_cast<float>(packedTransform->pivot_z) * PIVOT_SCALE
+		);
+		transform.scale = static_cast<float>(packedTransform->scale) * PIVOT_SCALE;
+	}
+
+	// TODO: Something about luclin animations
+
+	// TODO: Something about IT61 and  IT157
+
+	ParsedTrackInstance* parsedTrackInst = new ParsedTrackInstance(&wldObj);
+	parsedTrackInst->track = track;
+	wldObj.parsed_data = parsedTrackInst;
+
+	ParsedTrackDefinition* parsedTrackDef = new ParsedTrackDefinition(&trackDefObj);
+	parsedTrackDef->track = track;
+	wldObj.parsed_data = parsedTrackDef;
 
 	return true;
 }

@@ -12,6 +12,7 @@
 
 namespace eqg {
 
+struct STrack;
 class WLDLoader;
 
 enum S3DObjectType : uint32_t
@@ -128,6 +129,20 @@ public:
 	WLDFragment13(WLDLoader* loader, S3DFileObject* obj);
 
 	uint32_t def_id = 0;
+};
+
+struct ParsedTrackInstance : public WLDFragment
+{
+	ParsedTrackInstance(S3DFileObject* obj_) : WLDFragment(obj_) {}
+
+	std::shared_ptr<STrack> track;
+};
+
+struct ParsedTrackDefinition : public WLDFragment
+{
+	ParsedTrackDefinition(S3DFileObject* obj_) : WLDFragment(obj_) {}
+
+	std::shared_ptr<STrack> track;
 };
 
 // WLD_OBJ_ACTORDEFINITION_TYPE

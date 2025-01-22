@@ -15,6 +15,26 @@ struct SDMSpriteDef2WLDData;
 
 class MaterialPalette;
 
+struct SFrameTransform
+{
+	glm::quat rotation;
+	glm::vec3 pivot;
+	float     scale;
+};
+
+// Maybe this goes into eqg_animation.h?
+struct STrack
+{
+	std::string_view tag;
+	float            speed;
+	bool             reverse;
+	bool             interpolate;
+	uint32_t         sleepTime;
+	uint32_t         numFrames;
+	std::vector<SFrameTransform> frameTransforms;
+	bool             attachedToModel;
+};
+
 struct SFace
 {
 	glm::u32vec3  indices;

@@ -65,6 +65,7 @@ private:
 	bool ParseBitmap(uint32_t objectIndex);
 	bool ParseMaterial(uint32_t objectIndex);
 	bool ParseMaterialPalette(uint32_t objectIndex);
+	bool ParseTrack(uint32_t objectIndex);
 	bool ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleModelDefinition>& outModel);
 	bool ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSpriteDef2WLDData>& outData);
 
