@@ -117,23 +117,26 @@ struct wld_header
 	uint32_t unk3;
 };
 
-struct wld_fragment_header
-{
-	uint32_t size;
-	uint32_t id;
-	uint32_t name_ref;
-};
-
-struct wld_fragment_reference
-{
-	int32_t id;
-};
-
-
 struct SPlanarEquation
 {
 	glm::vec3 normal;
 	float dist;
+};
+
+struct STextureDataDefinition
+{
+	uint32_t columns = 0;
+	uint32_t rows = 0;
+	uint32_t width = 0;
+	uint32_t height = 0;
+	uint32_t numFrames = 0;
+	uint32_t currentFrame = 0;
+	uint32_t updateInterval = 1;
+	uint32_t renderMethod = 0;
+	bool valid = false;
+	bool skipFrames = false;
+
+	std::vector<std::shared_ptr<Bitmap>> sourceTextures;
 };
 
 class BSPRegion
@@ -174,6 +177,14 @@ struct WLD_OBJ_BMINFO // WLD_OBJ_BMINFO_TYPE (0x3)
 	int tag;
 	uint32_t num_mip_levels;
 	//uint16_t filepath_length;
+};
+
+struct WLD_OBJ_BLITSPRITEDEFINITION
+{
+	int tag;
+	uint32_t flags;
+	int simple_sprite_id;
+	uint32_t render_method;
 };
 
 struct WLD_OBJ_SIMPLESPRITEDEFINITION // WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE (0x4)
@@ -516,6 +527,5 @@ struct SHSpriteDefWLDData
 	std::vector<std::unique_ptr<SDMSpriteDef2WLDData>> attachedSkins;
 	int* skeletonDagIndices = nullptr;
 };
-
 
 } // namespace eqg

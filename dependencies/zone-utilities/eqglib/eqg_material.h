@@ -64,14 +64,17 @@ public:
 	uint32_t GetGrassDensity() const { return m_grassDensity; }
 	uint32_t GetWidth() const { return m_width; }
 	uint32_t GetHeight() const { return m_height; }
-	char* GetRawData() const { return m_rawData; }
+
+	virtual bool LoadTexture() { return true; }
 
 	void SetType(EBitmapType type) { m_type = type; }
 	void SetSize(uint32_t width, uint32_t height) { m_width = width; m_height = height; }
 	void SetSourceSize(uint32_t width, uint32_t height) { m_sourceWidth = width; m_sourceHeight = height; }
-	void SetRawData(char* rawData, size_t rawDatasize) { m_rawData = rawData; m_byteSize = (uint32_t)rawDatasize; }
 
 	bool InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, ResourceManager* resourceMgr);
+
+	virtual char* GetRawData() const { return nullptr; }
+	virtual void SetRawData(std::unique_ptr<char[]> rawData, size_t rawDatasize) { /*m_rawData = rawData; m_byteSize = (uint32_t)rawDatasize;*/ }
 
 private:
 	std::string              m_fileName;
@@ -84,9 +87,11 @@ private:
 	uint32_t                 m_height = 0;
 	uint32_t                 m_objectIndex = (uint32_t)-1;
 	bool                     m_hasTexture = false;
-	char*                    m_rawData = nullptr;
-	uint32_t                 m_byteSize = 0;
+
+	//std::unique_ptr<char[]>  m_rawData;
+	//uint32_t                 m_byteSize = 0;
 };
+using BitmapPtr = std::shared_ptr<Bitmap>;
 
 struct STexture
 {
@@ -222,6 +227,36 @@ private:
 	steady_clock::time_point m_lastUpdate = steady_clock::now();
 	bool                     m_requiresUpdate = false;
 	std::vector<PaletteData> m_materials;
+};
+
+
+class BlitSpriteDefinition : public Resource
+{
+public:
+	BlitSpriteDefinition();
+	~BlitSpriteDefinition() override;
+
+	static ResourceType GetStaticResourceType() { return ResourceType::BlitSpriteDefinition; }
+
+	std::string_view GetTag() const override { return m_tag; }
+
+	virtual bool Init(std::string_view tag, const STextureDataDefinition& definition);
+
+	void CopyDefinition(STextureDataDefinition& outDefinition);
+
+	std::string m_tag;
+
+	uint32_t m_columns = 0;
+	uint32_t m_rows = 0;
+	uint32_t m_width = 0;
+	uint32_t m_height = 0;
+	uint32_t m_numFrames = 0;
+	uint32_t m_currentFrame = 0;
+	uint32_t m_updateInterval = 1;
+	uint32_t m_renderMethod = 0;
+	bool m_valid = false;
+	bool m_skipFrames = false;
+	std::vector<BitmapPtr> m_sourceTextures;
 };
 
 

@@ -27,10 +27,10 @@ std::string_view decode_s3d_string(char* str, size_t len)
 		str[i] ^= decoder_array[i % 8];
 	}
 
-	return std::string_view(str, len);
+	return std::string_view(str, len - 1);
 }
 
-std::string_view ObjectTypeToString(S3DObjectType type)
+std::string_view ObjectTypeToString(WLDObjectType type)
 {
 	switch (type)
 	{
@@ -50,6 +50,8 @@ std::string_view ObjectTypeToString(S3DObjectType type)
 	case WLD_OBJ_LIGHTINSTANCE_TYPE: return "LIGHTINSTANCE";
 	case WLD_OBJ_WORLDTREE_TYPE: return "WORLDTREE";
 	case WLD_OBJ_REGION_TYPE: return "REGION";
+	case WLD_OBJ_BLITSPRITEDEFINITION_TYPE: return "BLITSPRITEDEFINITION";
+	case WLD_OBJ_BLITSPRITEINSTANCE_TYPE: return "BLITSPRITEINSTANCE";
 	case WLD_OBJ_POINTLIGHT_TYPE: return "POINTLIGHT";
 	case WLD_OBJ_ZONE_TYPE: return "ZONE";
 	case WLD_OBJ_DMSPRITEDEFINITION_TYPE: return "DMSPRITEDEFINITION";
@@ -178,7 +180,7 @@ bool WLDLoader::Init(Archive* archive, const std::string& wld_name)
 
 		auto& obj = m_objects[index + 1];
 		obj.size = objectSize;
-		obj.type = static_cast<S3DObjectType>(type);
+		obj.type = static_cast<WLDObjectType>(type);
 
 		// Read the raw data from the buffer
 		obj.data = m_wldFileContents.get() + reader.pos();
@@ -283,7 +285,7 @@ public:
 	};
 
 	ObjectCountHelper(std::vector<WLDFileObject>& objects, uint32_t numObjects)
-		: objectCounts(WLD_OBJ_LAST_TYPE + 1)
+		: objectCounts(WLD_OBJ_LAST_TYPE)
 	{
 		// Count the number of each object type and the ranges of their indices
 		for (uint32_t i = 1; i <= numObjects; ++i)
@@ -308,13 +310,13 @@ public:
 			if (count == 0)
 				continue;
 
-			std::string_view typeName = ObjectTypeToString(static_cast<S3DObjectType>(type));
+			std::string_view typeName = ObjectTypeToString(static_cast<WLDObjectType>(type));
 			EQG_LOG_DEBUG("- {} ({}) = {}", typeName, type, count);
 		}
 	}
 
-	uint32_t count(S3DObjectType type) const { return objectCounts[type].count; }
-	std::pair<uint32_t, uint32_t> range(S3DObjectType type) const { return objectCounts[type].range(); }
+	uint32_t count(WLDObjectType type) const { return objectCounts[type].count; }
+	std::pair<uint32_t, uint32_t> range(WLDObjectType type) const { return objectCounts[type].range(); }
 
 private:
 	std::vector<ObjectTypeCounts> objectCounts;
@@ -408,6 +410,9 @@ bool WLDLoader::ParseAll()
 	{
 		return false;
 	}
+
+	if (!ParseBlitSprites(objectCounts.range(WLD_OBJ_BLITSPRITEDEFINITION_TYPE), std::string_view()))
+		return false;
 	
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
@@ -513,7 +518,7 @@ bool WLDLoader::ParseBitmapsAndMaterials(
 	std::pair<uint32_t, uint32_t> materialPaletteRange,
 	std::string_view npcTag)
 {
-	for (uint32_t i : std::views::iota(bitmapRange.first, bitmapRange.second))
+	for (uint32_t i = bitmapRange.first; i < bitmapRange.second; ++i)
 	{
 		if (m_objects[i].type == WLD_OBJ_BMINFO_TYPE)
 		{
@@ -529,7 +534,7 @@ bool WLDLoader::ParseBitmapsAndMaterials(
 		}
 	}
 
-	for (uint32_t i : std::views::iota(materialRange.first, materialRange.second))
+	for (uint32_t i = materialRange.first; i < materialRange.second; ++i)
 	{
 		if (m_objects[i].type == WLD_OBJ_MATERIALDEFINITION_TYPE)
 		{
@@ -545,7 +550,7 @@ bool WLDLoader::ParseBitmapsAndMaterials(
 		}
 	}
 
-	for (uint32_t i : std::views::iota(materialPaletteRange.first, materialPaletteRange.second))
+	for (uint32_t i = materialPaletteRange.first; i < materialPaletteRange.second; ++i)
 	{
 		if (m_objects[i].type == WLD_OBJ_MATERIALPALETTE_TYPE)
 		{
@@ -595,7 +600,7 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 	{
 		if (pWLDBMInfo->num_mip_levels < MAX_MIP_LEVELS)
 		{
-			for (uint32_t i = 1; i < pWLDBMInfo->num_mip_levels; ++i)
+			for (uint32_t i = 1; i <= pWLDBMInfo->num_mip_levels; ++i)
 			{
 				if (!reader.read(fileNameLength))
 					return false;
@@ -917,6 +922,205 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 	}
 
 	parsedPalette->palette = palette;
+
+	return true;
+}
+
+bool WLDLoader::ParseBlitSprites(std::pair<uint32_t, uint32_t> blitSpriteRange, std::string_view npcTag)
+{
+	for (uint32_t i = blitSpriteRange.first; i < blitSpriteRange.second; ++i)
+	{
+		if (m_objects[i].type == WLD_OBJ_BLITSPRITEDEFINITION_TYPE)
+		{
+			// If NPC tag is provided, only process if the first three characters match.
+			if (npcTag.empty() || ci_starts_with(m_objects[i].tag, npcTag.substr(0, 3)))
+			{
+				if (!ParseBlitSprite(i))
+				{
+					EQG_LOG_WARN("Failed to parse blitsprite: {}", m_objects[i].tag);
+					//return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+bool WLDLoader::ParseBlitSprite(uint32_t objectIndex)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+
+	if (m_resourceMgr->Contains(wldObj.tag, ResourceType::BlitSpriteDefinition))
+		return true;
+
+	EQG_LOG_TRACE("Parsing blitsprite: {} ({})", wldObj.tag, objectIndex);
+	WLD_OBJ_BLITSPRITEDEFINITION* pBlitSpriteDef = (WLD_OBJ_BLITSPRITEDEFINITION*)wldObj.data;
+
+	STextureDataDefinition textureDataDef;
+
+	if (!ParseTextureDataDefinition(GetObjectIndexFromID(pBlitSpriteDef->simple_sprite_id), textureDataDef))
+	{
+		return false;
+	}
+
+	textureDataDef.renderMethod = pBlitSpriteDef->render_method;
+	auto pBlitSprite = m_resourceMgr->CreateBlitSpriteDefinition();
+
+	if (!pBlitSprite->Init(wldObj.tag, textureDataDef))
+	{
+		EQG_LOG_ERROR("Failed to create blitsprite: {}", wldObj.tag);
+		return false;
+	}
+
+	m_resourceMgr->Add(pBlitSprite);
+	return true;
+}
+
+bool WLDLoader::ParseTextureDataDefinition(uint32_t objectIndex, STextureDataDefinition& dataDef)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+
+	if (wldObj.type == WLD_OBJ_BLITSPRITEDEFINITION_TYPE)
+	{
+		if (auto pSpriteDef = m_resourceMgr->Get<BlitSpriteDefinition>(wldObj.tag))
+		{
+			pSpriteDef->CopyDefinition(dataDef);
+			return true;
+		}
+
+		WLD_OBJ_BLITSPRITEDEFINITION* pBlitSpriteDef = (WLD_OBJ_BLITSPRITEDEFINITION*)wldObj.data;
+		uint32_t simpleSpriteID = GetObjectIndexFromID(pBlitSpriteDef->simple_sprite_id, objectIndex);
+
+		if (!ParseTextureDataDefinitionFromSimpleSpriteInst(simpleSpriteID, dataDef))
+			return false;
+
+		dataDef.renderMethod = pBlitSpriteDef->render_method;
+	}
+	else if (wldObj.type == WLD_OBJ_BMINFO_TYPE)
+	{
+		// This creates a texture directly from the parsed bitmap.
+		ParsedBMInfo* parsedBMInfo = (ParsedBMInfo*)wldObj.parsed_data;
+
+		auto bitmap = parsedBMInfo->bitmaps[0];
+
+		dataDef.sourceTextures.push_back(bitmap);
+		dataDef.width = bitmap->GetWidth();
+		dataDef.height = bitmap->GetHeight();
+		dataDef.numFrames = 1;
+		dataDef.columns = 1;
+		dataDef.rows = 1;
+	}
+	else if (wldObj.type == WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE)
+	{
+		if (!ParseTextureDataDefinitionFromSimpleSpriteDef(objectIndex, dataDef))
+			return false;
+	}
+	else if (wldObj.type == WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE)
+	{
+		if (!ParseTextureDataDefinitionFromSimpleSpriteInst(objectIndex, dataDef))
+			return false;
+	}
+	else
+	{
+		return false;
+	}
+
+	dataDef.valid = true;
+	return true;
+}
+
+bool WLDLoader::ParseTextureDataDefinitionFromSimpleSpriteDef(uint32_t objectIndex, STextureDataDefinition& dataDef)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+	BufferReader reader(wldObj.data, wldObj.size);
+
+	WLD_OBJ_SIMPLESPRITEDEFINITION* pSpriteDef = reader.read_ptr<WLD_OBJ_SIMPLESPRITEDEFINITION>();
+	if (pSpriteDef->flags & WLD_OBJ_SPROPT_HAVECURRENTFRAME)
+		dataDef.currentFrame = reader.read<uint32_t>();
+	if (pSpriteDef->flags & WLD_OBJ_SPROPT_HAVESLEEP)
+		dataDef.updateInterval = reader.read<uint32_t>();
+	if (pSpriteDef->flags & WLD_OBJ_SPROPT_HAVESKIPFRAMES)
+		dataDef.skipFrames = (pSpriteDef->flags & WLD_OBJ_SPROPT_SKIPFRAMES) != 0;
+
+	std::vector<uint32_t> frameIDs;
+	int width = -1;
+	int height = -1;
+	frameIDs.reserve(pSpriteDef->num_frames);
+	for (uint32_t i = 0; i < pSpriteDef->num_frames; ++i)
+	{
+		uint32_t bmID = GetObjectIndexFromID(reader.read<uint32_t>());
+		if (bmID == 0)
+			return false;
+		frameIDs.push_back(bmID);
+
+		ParsedBMInfo* parsedBMInfo = (ParsedBMInfo*)m_objects[bmID].parsed_data;
+		if (parsedBMInfo == nullptr)
+			return false;
+
+		if (width == -1 || height == -1)
+		{
+			width = parsedBMInfo->bitmaps[0]->GetWidth();
+			height = parsedBMInfo->bitmaps[0]->GetHeight();
+		}
+	}
+
+	if (!frameIDs.empty())
+	{
+		ParsedBMInfo* parsedBMInfo = (ParsedBMInfo*)m_objects[frameIDs[0]].parsed_data;
+		auto firstBitmap = parsedBMInfo->bitmaps[0];
+
+		dataDef.width = firstBitmap->GetWidth();
+		dataDef.height = firstBitmap->GetHeight();
+		dataDef.numFrames = (uint32_t)parsedBMInfo->bitmaps.size();
+
+		if (dataDef.numFrames == 1)
+		{
+			dataDef.columns = 1;
+			dataDef.rows = 1;
+		}
+		else if (dataDef.numFrames <= 4)
+		{
+			dataDef.columns = 2;
+			dataDef.columns = 2;
+		}
+		else if (dataDef.numFrames <= 8)
+		{
+			dataDef.columns = 4;
+			dataDef.rows = 2;
+		}
+		else if (dataDef.numFrames <= 16)
+		{
+			dataDef.columns = 4;
+			dataDef.rows = 4;
+		}
+		else
+		{
+			return false;
+		}
+
+		// TODO: Combine the frames from the bitmap into a single texture.
+		dataDef.sourceTextures = parsedBMInfo->bitmaps;
+	}
+
+	return true;
+}
+
+bool WLDLoader::ParseTextureDataDefinitionFromSimpleSpriteInst(uint32_t objectIndex, STextureDataDefinition& dataDef)
+{
+	WLD_OBJ_SIMPLESPRITEINSTANCE* pSpriteInst = (WLD_OBJ_SIMPLESPRITEINSTANCE*)m_objects[objectIndex].data;
+	uint32_t spriteDefID = GetObjectIndexFromID(pSpriteInst->definition_id);
+
+	if (spriteDefID == 0)
+		return false;
+	if (m_objects[spriteDefID].type != WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE)
+		return false;
+
+	if (pSpriteInst->flags & WLD_OBJ_SPROPT_HAVESKIPFRAMES)
+		dataDef.skipFrames = (pSpriteInst->flags & WLD_OBJ_SPROPT_SKIPFRAMES) != 0;
+
+	if (!ParseTextureDataDefinitionFromSimpleSpriteDef(spriteDefID, dataDef))
+		return false;
 
 	return true;
 }
@@ -1535,112 +1739,109 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 	// Handle skins
 	if (pHierSpriteDef->flags & WLD_OBJ_SPROPT_HAVEATTACHEDSKINS)
 	{
-		uint32_t numAttachedSkins = defReader.read<uint32_t>();
+		uint32_t numAttachedSkinsActual = defReader.read<uint32_t>();
 		hSpriteWLDData->activeSkin = (uint32_t)-1;
-		hSpriteWLDData->numAttachedSkins = numAttachedSkins;
+		hSpriteWLDData->numAttachedSkins = numAttachedSkinsActual;
 
-		for (uint32_t skin = 0; skin < numAttachedSkins; ++skin)
+		uint32_t attachedSkinIndex = GetObjectIndexFromID(defReader.read<uint32_t>());
+
+		if (m_objects[attachedSkinIndex].type != WLD_OBJ_DMSPRITEINSTANCE_TYPE)
 		{
-			uint32_t attachedSkinIndex = GetObjectIndexFromID(defReader.read<uint32_t>());
-
-			if (m_objects[attachedSkinIndex].type != WLD_OBJ_DMSPRITEINSTANCE_TYPE)
-			{
-				EQG_LOG_ERROR("Attached skin {} ({}) is not a DMSPRITEINSTANCE for HierarchicalSpriteDef {} ({})",
-					m_objects[attachedSkinIndex].tag, attachedSkinIndex, wldObj.tag, objectIndex);
-				return false;
-			}
-
-			WLD_OBJ_DMSPRITEINSTANCE* pDMSpriteInst = (WLD_OBJ_DMSPRITEINSTANCE*)m_objects[attachedSkinIndex].data;
-			uint32_t DMSpriteDefIndex = GetObjectIndexFromID(pDMSpriteInst->definition_id);
-
-			WLDFileObject& DMSpriteDefObj = m_objects[DMSpriteDefIndex];
-			auto tag = DMSpriteDefObj.tag;
-
-			uint32_t firstIndex = DMSpriteDefIndex;
-			uint32_t lastIndex = firstIndex;
-
-			if ((tag.size() >= 3 && tag[0] == 'I' && tag[1] == 'T' && ::isdigit(tag[2]))
-				|| ci_starts_with(DMSpriteDefObj.tag, "POKLAMP502")
-				|| ci_starts_with(DMSpriteDefObj.tag, "CDTHRONE"))
-			{
-				lastIndex = firstIndex + numAttachedSkins;
-				hSpriteWLDData->activeSkin = 0;
-			}
-			else
-			{
-				// I guess we're searching for skins because we don't trust numAttachedSkins!
-				for (lastIndex = firstIndex; lastIndex < firstIndex + 20; ++lastIndex)
-				{
-					if (lastIndex > m_numObjects || m_objects[lastIndex].type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
-						break;
-				}
-
-				while (true)
-				{
-					if (firstIndex < 0 || m_objects[firstIndex].type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE || m_objects[firstIndex].parsed_data == nullptr)
-					{
-						++firstIndex;
-						break;
-					}
-
-					--firstIndex;
-					++hSpriteWLDData->activeSkin;
-				}
-
-				firstIndex = std::min(firstIndex, lastIndex);
-			}
-
-			numAttachedSkins = std::max(lastIndex - firstIndex, numAttachedSkins);
-
-			if (numAttachedSkins > 0)
-			{
-				hSpriteWLDData->attachedSkins.resize(numAttachedSkins);
-
-				for (uint32_t skinIndex = 0; skinIndex < numAttachedSkins; ++skinIndex)
-				{
-					std::unique_ptr<SDMSpriteDef2WLDData> pDMSpriteDef2;
-
-					if (!ParseDMSpriteDef2(firstIndex + skinIndex, pDMSpriteDef2))
-					{
-						EQG_LOG_ERROR("Failed to parse DMSpriteDef2 for attached skin {} ({}) in HierarchicalSpriteDef {} ({}) "
-							"numAttachedSkins={} firstIndex={} lastIndex={} actual={}",
-							m_objects[firstIndex + skinIndex].tag, firstIndex + skinIndex, wldObj.tag, objectIndex,
-							numAttachedSkins, firstIndex, lastIndex, hSpriteWLDData->numAttachedSkins);
-						return false;
-					}
-
-					if (pDMSpriteDef2)
-					{
-						if (!hSpriteWLDData->materialPalette)
-						{
-							hSpriteWLDData->materialPalette = pDMSpriteDef2->materialPalette;
-						}
-
-						if (pDMSpriteDef2->tag.empty())
-						{
-							pDMSpriteDef2->tag = m_objects[firstIndex + skinIndex].tag;
-						}
-
-						if (!pDMSpriteDef2->tag.empty())
-						{
-							if (ci_starts_with(pDMSpriteDef2->tag, "PIFHE01")
-								|| ci_starts_with(pDMSpriteDef2->tag, "FAFHE01"))
-							{
-								const_cast<char*>(pDMSpriteDef2->tag.data())[3] = 'W'; // neat!
-							}
-						}
-					}
-
-					hSpriteWLDData->attachedSkins[skinIndex] = std::move(pDMSpriteDef2);
-
-					// I guess we are skipping reading the indices from the data?
-					if (skinIndex < hSpriteWLDData->numAttachedSkins)
-						defReader.skip<uint32_t>();
-				}
-			}
-
-			hSpriteWLDData->skeletonDagIndices = defReader.read_array<int>(hSpriteWLDData->numAttachedSkins);
+			EQG_LOG_ERROR("Attached skin {} ({}) is not a DMSPRITEINSTANCE for HierarchicalSpriteDef {} ({})",
+				m_objects[attachedSkinIndex].tag, attachedSkinIndex, wldObj.tag, objectIndex);
+			return false;
 		}
+
+		WLD_OBJ_DMSPRITEINSTANCE* pDMSpriteInst = (WLD_OBJ_DMSPRITEINSTANCE*)m_objects[attachedSkinIndex].data;
+		uint32_t DMSpriteDefIndex = GetObjectIndexFromID(pDMSpriteInst->definition_id);
+
+		WLDFileObject& DMSpriteDefObj = m_objects[DMSpriteDefIndex];
+		auto tag = DMSpriteDefObj.tag;
+
+		int firstIndex = DMSpriteDefIndex;
+		int lastIndex = firstIndex;
+
+		if ((tag.size() >= 3 && tag[0] == 'I' && tag[1] == 'T' && ::isdigit(tag[2]))
+			|| ci_starts_with(DMSpriteDefObj.tag, "POKLAMP502")
+			|| ci_starts_with(DMSpriteDefObj.tag, "CDTHRONE"))
+		{
+			lastIndex = firstIndex + numAttachedSkinsActual;
+			hSpriteWLDData->activeSkin = 0;
+		}
+		else
+		{
+			// I guess we're searching for skins because we don't trust numAttachedSkins!
+			for (lastIndex = firstIndex; lastIndex < firstIndex + 20; ++lastIndex)
+			{
+				if (lastIndex > (int)m_numObjects || m_objects[lastIndex].type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+					break;
+			}
+
+			int origFirstIndex = firstIndex;
+			for (; firstIndex > origFirstIndex - 20; --firstIndex)
+			{
+				if (firstIndex < 0 || m_objects[firstIndex].type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE || m_objects[firstIndex].parsed_data != nullptr)
+				{
+					++firstIndex;
+					break;
+				}
+
+				++hSpriteWLDData->activeSkin;
+			}
+
+			firstIndex = std::min(firstIndex, lastIndex);
+		}
+
+		numAttachedSkinsActual = std::max((uint32_t)lastIndex - (uint32_t)firstIndex, numAttachedSkinsActual);
+
+		if (numAttachedSkinsActual > 0)
+		{
+			hSpriteWLDData->attachedSkins.resize(numAttachedSkinsActual);
+
+			for (uint32_t skinIndex = 0; skinIndex < numAttachedSkinsActual; ++skinIndex)
+			{
+				std::unique_ptr<SDMSpriteDef2WLDData> pDMSpriteDef2;
+
+				if (!ParseDMSpriteDef2(firstIndex + skinIndex, pDMSpriteDef2))
+				{
+					EQG_LOG_ERROR("Failed to parse DMSpriteDef2 for attached skin {} ({}) in HierarchicalSpriteDef {} ({}) "
+						"numAttachedSkins={} firstIndex={} lastIndex={} actual={}",
+						m_objects[firstIndex + skinIndex].tag, firstIndex + skinIndex, wldObj.tag, objectIndex,
+						numAttachedSkinsActual, firstIndex, lastIndex, hSpriteWLDData->numAttachedSkins);
+					return false;
+				}
+
+				if (pDMSpriteDef2)
+				{
+					if (!hSpriteWLDData->materialPalette)
+					{
+						hSpriteWLDData->materialPalette = pDMSpriteDef2->materialPalette;
+					}
+
+					if (pDMSpriteDef2->tag.empty())
+					{
+						pDMSpriteDef2->tag = m_objects[firstIndex + skinIndex].tag;
+					}
+
+					if (!pDMSpriteDef2->tag.empty())
+					{
+						if (ci_starts_with(pDMSpriteDef2->tag, "PIFHE01")
+							|| ci_starts_with(pDMSpriteDef2->tag, "FAFHE01"))
+						{
+							const_cast<char*>(pDMSpriteDef2->tag.data())[3] = 'W'; // neat!
+						}
+					}
+				}
+
+				hSpriteWLDData->attachedSkins[skinIndex] = std::move(pDMSpriteDef2);
+
+				// I guess we are skipping reading the indices from the data?
+				if (skinIndex < hSpriteWLDData->numAttachedSkins)
+					defReader.skip<uint32_t>();
+			}
+		}
+
+		hSpriteWLDData->skeletonDagIndices = defReader.read_array<int>(hSpriteWLDData->numAttachedSkins);
 	}
 
 	HierarchicalModelDefinitionPtr pHierarchicalModelDef = std::make_shared<HierarchicalModelDefinition>();
@@ -1773,17 +1974,10 @@ bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSprit
 	if (pWLDObj->dm_track_id)
 	{
 		WLDFileObject& trackInstObj = m_objects[GetObjectIndexFromID(pWLDObj->dm_track_id)];
-		if (trackInstObj.type == WLD_OBJ_TRACKINSTANCE_TYPE)
-		{
-			pSpriteDef->trackInstance = (WLD_OBJ_TRACKINSTANCE*)trackInstObj.data;
-			WLDFileObject& trackDefObj = m_objects[GetObjectIndexFromID(pSpriteDef->trackInstance->track_id)];
+		pSpriteDef->trackInstance = (WLD_OBJ_TRACKINSTANCE*)trackInstObj.data;
 
-			pSpriteDef->trackDefinition = (WLD_OBJ_DMTRACKDEFINITION2*)trackDefObj.data;
-		}
-		else
-		{
-			EQG_LOG_ERROR("Track instance in DMSpriteDef2 does not point to a track instance!");
-		}
+		WLDFileObject& trackDefObj = m_objects[GetObjectIndexFromID(pSpriteDef->trackInstance->track_id)];
+		pSpriteDef->trackDefinition = (WLD_OBJ_DMTRACKDEFINITION2*)trackDefObj.data;
 	}
 
 	// The only piece of collision info that is used is whether this is set or not.

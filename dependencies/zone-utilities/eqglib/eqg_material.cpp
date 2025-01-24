@@ -5,6 +5,7 @@
 #include "buffer_reader.h"
 #include "eqg_resource_manager.h"
 #include "eqg_structs.h"
+#include "log_internal.h"
 #include "wld_fragment.h"
 
 namespace eqg {
@@ -18,10 +19,6 @@ Bitmap::Bitmap()
 
 Bitmap::~Bitmap()
 {
-	if (m_rawData != nullptr)
-	{
-		delete[] m_rawData;
-	}
 }
 
 bool Bitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, ResourceManager* resourceMgr)
@@ -33,9 +30,9 @@ bool Bitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, Resource
 
 	if (wldData->createTexture)
 	{
-		if (!resourceMgr->CreateTexture(this, archive))
+		if (!resourceMgr->LoadTexture(this, archive))
 		{
-			SPDLOG_ERROR("Failed to create texture for {}", m_fileName);
+			EQG_LOG_ERROR("Failed to create texture for {}", m_fileName);
 			return false;
 		}
 		m_hasTexture = true;
@@ -44,7 +41,7 @@ bool Bitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, Resource
 	{
 		if (!resourceMgr->LoadBitmapData(this, archive))
 		{
-			SPDLOG_ERROR("Failed to load bitmap data for {}", m_fileName);
+			EQG_LOG_ERROR("Failed to load bitmap data for {}", m_fileName);
 			return false;
 		}
 	}
@@ -443,6 +440,52 @@ std::shared_ptr<MaterialPalette> MaterialPalette::Clone(bool deep) const
 		}
 	}
 	return copy;
+}
+
+//-------------------------------------------------------------------------------------------------
+
+BlitSpriteDefinition::BlitSpriteDefinition()
+	: Resource(GetStaticResourceType())
+{
+}
+
+BlitSpriteDefinition::~BlitSpriteDefinition()
+{
+}
+
+bool BlitSpriteDefinition::Init(std::string_view tag, const STextureDataDefinition& definition)
+{
+	m_tag = tag;
+	m_columns = definition.columns;
+	m_rows = definition.rows;
+	m_width = definition.width;
+	m_height = definition.height;
+	m_numFrames = definition.numFrames;
+	m_currentFrame = definition.currentFrame;
+	m_updateInterval = definition.updateInterval;
+	m_renderMethod = definition.renderMethod;
+	m_valid = definition.valid;
+	m_skipFrames = definition.skipFrames;
+
+	// TODO: Init texture from frames of bitmap
+	m_sourceTextures = definition.sourceTextures;
+
+	return true;
+}
+
+void BlitSpriteDefinition::CopyDefinition(STextureDataDefinition& outDefinition)
+{
+	outDefinition.columns = m_columns;
+	outDefinition.rows = m_rows;
+	outDefinition.width = m_width;
+	outDefinition.height = m_height;
+	outDefinition.numFrames = m_numFrames;
+	outDefinition.currentFrame = m_currentFrame;
+	outDefinition.updateInterval = m_updateInterval;
+	outDefinition.renderMethod = m_renderMethod;
+	outDefinition.valid = m_valid;
+	outDefinition.skipFrames = m_skipFrames;
+	outDefinition.sourceTextures = m_sourceTextures;
 }
 
 } // namespace eqg

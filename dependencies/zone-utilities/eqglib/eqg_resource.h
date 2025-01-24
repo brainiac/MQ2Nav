@@ -9,6 +9,7 @@ enum class ResourceType
 	Bitmap,
 	Material,
 	MaterialPalette,
+	BlitSpriteDefinition,
 
 	SimpleModelDefinition,
 	HierarchicalModelDefinition,

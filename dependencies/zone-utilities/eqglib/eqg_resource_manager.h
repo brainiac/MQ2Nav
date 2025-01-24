@@ -14,6 +14,7 @@ namespace eqg {
 
 class Archive;
 class Bitmap;
+class BlitSpriteDefinition;
 class SimpleModelDefinition;
 class SimpleModel;
 class HierarchicalModelDefinition;
@@ -141,8 +142,9 @@ public:
 	virtual std::shared_ptr<SimpleModel> CreateSimpleModel() const;
 	virtual std::shared_ptr<HierarchicalModelDefinition> CreateHierarchicalModelDefinition() const;
 	virtual std::shared_ptr<HierarchicalModel> CreateHierarchicalModel() const;
+	virtual std::shared_ptr<BlitSpriteDefinition> CreateBlitSpriteDefinition() const;
 
-	virtual bool CreateTexture(Bitmap* bitmap, Archive* archive) { return true; }
+	virtual bool LoadTexture(Bitmap* bitmap, Archive* archive);
 	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);
 
 private:

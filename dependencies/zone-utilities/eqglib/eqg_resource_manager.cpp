@@ -5,6 +5,7 @@
 #include "buffer_reader.h"
 #include "eqg_geometry.h"
 #include "eqg_material.h"
+#include "log_internal.h"
 
 #include <ddraw.h> // for DDSURFACEDESC2
 
@@ -84,8 +85,17 @@ std::shared_ptr<HierarchicalModel> ResourceManager::CreateHierarchicalModel() co
 	return std::make_shared<HierarchicalModel>();
 }
 
+std::shared_ptr<BlitSpriteDefinition> ResourceManager::CreateBlitSpriteDefinition() const
+{
+	return std::make_shared<BlitSpriteDefinition>();
+}
 
 //-------------------------------------------------------------------------------------------------
+
+bool ResourceManager::LoadTexture(Bitmap* bitmap, Archive* archive)
+{
+	return LoadBitmapData(bitmap, archive);
+}
 
 bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 {
@@ -94,13 +104,15 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 	std::vector<char> buffer;
 	if (!archive->Get(bitmap->GetFileName(), buffer))
 	{
-		SPDLOG_ERROR("Failed to load {} from {}", bitmap->GetFileName(), archive->GetFileName());
+		EQG_LOG_ERROR("Failed to load {} from {}", bitmap->GetFileName(), archive->GetFileName());
 		return false;
 	}
 
 	BufferReader reader(buffer);
 
 	char* magic = reader.peek<char>();
+	std::unique_ptr<char[]> rawDataCopy;
+	uint32_t rawDataSize = 0;
 
 	if (strncmp(magic, "MP", 2) == 0)
 	{
@@ -112,12 +124,9 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 		bitmap->SetSourceSize(bmpInfo->biWidth, bmpInfo->biHeight);
 
 		char* rawData = buffer.data() + bmpHeader->bfOffBits;
-		uint32_t rawDataSize = (uint32_t)buffer.size() - bmpHeader->bfOffBits;
-
-		char* rawDataCopy = new char[rawDataSize];
-		memcpy(rawDataCopy, rawData, rawDataSize);
-
-		bitmap->SetRawData(rawDataCopy, rawDataSize);
+		rawDataSize = (uint32_t)buffer.size() - bmpHeader->bfOffBits;
+		rawDataCopy = std::make_unique<char[]>(rawDataSize);
+		memcpy(rawDataCopy.get(), rawData, rawDataSize);
 	}
 	else if (strncmp(magic, "DDS", 3) == 0)
 	{
@@ -131,17 +140,19 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 
 		uint32_t dataOffset = sizeof(uint32_t) + sizeof(DDSURFACEDESC2);
 		char* rawData = buffer.data() + sizeof(uint32_t) + sizeof(DDSURFACEDESC2);
-		uint32_t rawDataSize = (uint32_t)buffer.size() - dataOffset;
-
-		char* rawDataCopy = new char[rawDataSize];
-		memcpy(rawDataCopy, rawData, rawDataSize);
-
-		bitmap->SetRawData(rawDataCopy, rawDataSize);
+		rawDataSize = (uint32_t)buffer.size() - dataOffset;
+		rawDataCopy = std::make_unique<char[]>(rawDataSize);
+		memcpy(rawDataCopy.get(), rawData, rawDataSize);
 	}
 	else
 	{
-		SPDLOG_ERROR("Unrecognized bitmap format in {}", bitmap->GetFileName());
+		EQG_LOG_ERROR("Unrecognized bitmap format in {}", bitmap->GetFileName());
 		return false;
+	}
+
+	if (rawDataCopy && rawDataSize)
+	{
+		bitmap->SetRawData(std::move(rawDataCopy), rawDataSize);
 	}
 
 	return true;

@@ -70,10 +70,15 @@ private:
 		std::pair<uint32_t, uint32_t> materialRange,
 		std::pair<uint32_t, uint32_t> materialPaletteRange,
 		std::string_view npcTag);
-
 	bool ParseBitmap(uint32_t objectIndex);
 	bool ParseMaterial(uint32_t objectIndex);
 	bool ParseMaterialPalette(uint32_t objectIndex);
+	bool ParseBlitSprites(std::pair<uint32_t, uint32_t> blitSpriteRange, std::string_view npcTag);
+	bool ParseBlitSprite(uint32_t objectIndex);
+	bool ParseTextureDataDefinition(uint32_t objectIndex, STextureDataDefinition& dataDef);
+	bool ParseTextureDataDefinitionFromSimpleSpriteDef(uint32_t objectIndex, STextureDataDefinition& dataDef);
+	bool ParseTextureDataDefinitionFromSimpleSpriteInst(uint32_t objectIndex, STextureDataDefinition& dataDef);
+
 	bool ParseTrack(uint32_t objectIndex);
 	bool ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleModelDefinition>& outModel);
 	bool ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<HierarchicalModelDefinition>& outModel);

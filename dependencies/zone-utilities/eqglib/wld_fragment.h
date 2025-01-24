@@ -14,7 +14,7 @@ struct STrack;
 class WLDLoader;
 class HierarchicalModelDefinition;
 
-enum S3DObjectType : uint32_t
+enum WLDObjectType : uint32_t
 {
 	WLD_NONE                                  = 0,
 	WLD_OBJ_DEFAULTPALETTEFILE_TYPE           = 1,
@@ -36,6 +36,8 @@ enum S3DObjectType : uint32_t
 	WLD_OBJ_WORLDTREE_TYPE                    = 33, // (0x21) BSPTree
 	WLD_OBJ_REGION_TYPE                       = 34, // (0x22)
 
+	WLD_OBJ_BLITSPRITEDEFINITION_TYPE         = 38,
+	WLD_OBJ_BLITSPRITEINSTANCE_TYPE           = 39,
 	WLD_OBJ_POINTLIGHT_TYPE                   = 40, // (0x28)
 	WLD_OBJ_ZONE_TYPE                         = 41, // (0x29)
 
@@ -51,7 +53,7 @@ enum S3DObjectType : uint32_t
 	WLD_OBJ_CONSTANTAMBIENT_TYPE              = 53, // (0x35)
 	WLD_OBJ_DMSPRITEDEFINITION2_TYPE          = 54, // (0x36)
 
-	WLD_OBJ_LAST_TYPE,
+	WLD_OBJ_LAST_TYPE                         = 56,
 };
 
 class ParsedObject
@@ -64,7 +66,7 @@ public:
 struct WLDFileObject
 {
 	uint32_t size;
-	S3DObjectType type;
+	WLDObjectType type;
 	std::string_view tag;
 	uint8_t* data;
 	ParsedObject* parsed_data = nullptr;
