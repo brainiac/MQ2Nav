@@ -8,11 +8,16 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "eqg_geometry.h"
+
 namespace eqg {
 
 class Archive;
-class EQGBitmap;
+class Bitmap;
 class SimpleModelDefinition;
+class SimpleModel;
+class HierarchicalModelDefinition;
+class HierarchicalModel;
 
 namespace detail
 {
@@ -131,11 +136,14 @@ public:
 	bool Contains(std::string_view tag, ResourceType type) const;
 
 	// Factory creation of resource objects
-	virtual std::shared_ptr<EQGBitmap> CreateBitmap() const;
+	virtual std::shared_ptr<Bitmap> CreateBitmap() const;
 	virtual std::shared_ptr<SimpleModelDefinition> CreateSimpleModelDefinition() const;
+	virtual std::shared_ptr<SimpleModel> CreateSimpleModel() const;
+	virtual std::shared_ptr<HierarchicalModelDefinition> CreateHierarchicalModelDefinition() const;
+	virtual std::shared_ptr<HierarchicalModel> CreateHierarchicalModel() const;
 
-	virtual bool CreateTexture(EQGBitmap* bitmap, Archive* archive) { return true; }
-	virtual bool LoadBitmapData(EQGBitmap* bitmap, Archive* archive);
+	virtual bool CreateTexture(Bitmap* bitmap, Archive* archive) { return true; }
+	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);
 
 private:
 	ResourceManager* m_parent;

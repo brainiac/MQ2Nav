@@ -11,6 +11,8 @@ enum class ResourceType
 	MaterialPalette,
 
 	SimpleModelDefinition,
+	HierarchicalModelDefinition,
+	ActorDefinition,
 
 	Max,
 };

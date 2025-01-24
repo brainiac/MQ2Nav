@@ -174,26 +174,26 @@ void ZoneCollisionMesh::addPolys(const std::vector<glm::vec3>& verts, const std:
 	}
 }
 
-void ZoneCollisionMesh::addModel(std::string_view name, const S3DGeometryPtr& model)
-{
-	std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
-
-	for (const auto& vert : model->GetVertices())
-	{
-		entry->verts.push_back(vert.pos);
-	}
-
-	for (const auto& poly : model->GetPolygons())
-	{
-		eqg::SFace face;
-		face.indices = glm::u32vec3{ poly.verts[0], poly.verts[1], poly.verts[2] };
-		face.flags = eqg::EQG_FACEFLAG_NONE; // FIXME
-		face.materialIndex = 0;
-		entry->polys.push_back(face);
-	}
-
-	m_models.emplace(name, std::move(entry));
-}
+//void ZoneCollisionMesh::addModel(std::string_view name, const S3DGeometryPtr& model)
+//{
+//	std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
+//
+//	for (const auto& vert : model->GetVertices())
+//	{
+//		entry->verts.push_back(vert.pos);
+//	}
+//
+//	for (const auto& poly : model->GetPolygons())
+//	{
+//		eqg::SFace face;
+//		face.indices = glm::u32vec3{ poly.verts[0], poly.verts[1], poly.verts[2] };
+//		face.flags = eqg::EQG_FACEFLAG_NONE; // FIXME
+//		face.materialIndex = 0;
+//		entry->polys.push_back(face);
+//	}
+//
+//	m_models.emplace(name, std::move(entry));
+//}
 
 void ZoneCollisionMesh::addModel(std::string_view name, const EQGGeometryPtr& model)
 {
@@ -243,24 +243,24 @@ void ZoneCollisionMesh::addModelInstance(const PlaceablePtr& obj)
 	}
 }
 
-void ZoneCollisionMesh::addZoneGeometry(const S3DGeometryPtr& model)
-{
-	auto& mod_polys = model->GetPolygons();
-	auto& mod_verts = model->GetVertices();
-
-	for (uint32_t j = 0; j < mod_polys.size(); ++j)
-	{
-		auto& current_poly = mod_polys[j];
-		auto v1 = mod_verts[current_poly.verts[0]];
-		auto v2 = mod_verts[current_poly.verts[1]];
-		auto v3 = mod_verts[current_poly.verts[2]];
-
-		if ((current_poly.flags & eqg::S3D_FACEFLAG_PASSABLE) == 0)
-		{
-			addTriangle(v1.pos, v2.pos, v3.pos);
-		}
-	}
-}
+//void ZoneCollisionMesh::addZoneGeometry(const S3DGeometryPtr& model)
+//{
+//	auto& mod_polys = model->GetPolygons();
+//	auto& mod_verts = model->GetVertices();
+//
+//	for (uint32_t j = 0; j < mod_polys.size(); ++j)
+//	{
+//		auto& current_poly = mod_polys[j];
+//		auto v1 = mod_verts[current_poly.verts[0]];
+//		auto v2 = mod_verts[current_poly.verts[1]];
+//		auto v3 = mod_verts[current_poly.verts[2]];
+//
+//		if ((current_poly.flags & eqg::S3D_FACEFLAG_PASSABLE) == 0)
+//		{
+//			addTriangle(v1.pos, v2.pos, v3.pos);
+//		}
+//	}
+//}
 
 void ZoneCollisionMesh::addZoneGeometry(const EQGGeometryPtr& model)
 {

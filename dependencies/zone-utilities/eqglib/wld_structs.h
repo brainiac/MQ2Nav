@@ -1,15 +1,19 @@
 
 #pragma once
 
-#include "s3d_types.h"
-
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace eqg {
 
-class EQGBitmap;
+class Bitmap;
 class MaterialPalette;
+
+class ActorDefinition;
+using ActorDefinitionPtr = std::shared_ptr<ActorDefinition>;
+
+struct STrack;
 
 // flags for actor objects
 enum WLDOBJ_ACTOROPT
@@ -70,6 +74,7 @@ enum WLDOBJ_SPROPT
 	WLD_OBJ_SPROPT_HAVEATTACHEDSKINS                 = 0x0200,
 
 	WLD_OBJ_SPROPT_SPRITEDEFPOLYHEDRON               = 0x10000,
+	WLD_OBJ_SPROPT_DAGCOLLISIONS                     = 0x20000, // ???
 };
 
 // flags for track instances
@@ -123,6 +128,39 @@ struct wld_fragment_reference
 {
 	int32_t id;
 };
+
+
+struct SPlanarEquation
+{
+	glm::vec3 normal;
+	float dist;
+};
+
+class BSPRegion
+{
+public:
+	uint32_t flags;
+	std::vector<uint32_t> regions;
+	std::string tag;
+	std::string old_style_tag;
+};
+
+class BSPTree // SWorldTreeWLDData
+{
+public:
+	struct BSPNode // SAreaBSPTree
+	{
+		SPlanarEquation plane;
+		uint32_t region;
+		uint32_t front;
+		uint32_t back;
+	};
+
+	std::vector<BSPNode>& GetNodes() { return nodes; }
+
+	std::vector<BSPNode> nodes;
+};
+
 
 struct WLD_OBJ_XYZ
 {
@@ -255,7 +293,7 @@ struct WLD_OBJ_WORLDTREE
 
 struct WLD_OBJ_WORLDTREE_NODE
 {
-	s3d::SPlanarEquation plane;
+	SPlanarEquation plane;
 	uint32_t region;
 	uint32_t node[2];
 };
@@ -289,6 +327,23 @@ struct WLD_OBJ_ZONE
 	int tag;
 	uint32_t flags;
 	uint32_t num_regions;
+};
+
+struct WLD_OBJ_DMRGBTRACKINSTANCE
+{
+	int tag;
+	int definition_id;
+	uint32_t flags;
+};
+
+struct WLD_OBJ_DMRGBTRACKDEFINITION
+{
+	int tag;
+	uint32_t flags;
+	uint32_t num_vertices;
+	uint32_t num_frames;
+	uint32_t sleep;
+	uint32_t current_frame;
 };
 
 struct WLD_OBJ_DMSPRITEINSTANCE
@@ -390,6 +445,13 @@ struct WLD_MATERIALGROUP
 	uint16_t material_index;
 };
 
+struct SDMRGBTrackWLDData
+{
+	uint32_t numRGBs;
+	uint32_t* RGBs;
+	bool hasAlphas;
+};
+
 struct SDMSpriteDef2WLDData
 {
 	std::string_view tag;
@@ -429,6 +491,30 @@ struct SDMSpriteDef2WLDData
 	glm::vec3 centerOffset;
 	float boundingRadius;
 	bool noCollision;
+};
+
+struct SDagWLDData
+{
+	std::string_view tag;
+
+	ActorDefinitionPtr attachedActor;
+	std::shared_ptr<STrack> track;
+	std::vector<SDagWLDData*> subDags; // TODO: Just store as index
+};
+
+struct SHSpriteDefWLDData
+{
+	std::string_view tag;
+	glm::vec3 centerOffset = glm::vec3(0.0f);
+	float boundingRadius = 1.0f;
+
+	std::vector<SDagWLDData> dags;
+	std::shared_ptr<MaterialPalette> materialPalette;
+
+	uint32_t activeSkin = 0;
+	uint32_t numAttachedSkins = 0;
+	std::vector<std::unique_ptr<SDMSpriteDef2WLDData>> attachedSkins;
+	int* skeletonDagIndices = nullptr;
 };
 
 

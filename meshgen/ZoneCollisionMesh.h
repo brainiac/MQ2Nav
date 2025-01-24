@@ -29,10 +29,10 @@ public:
 	void addTerrain(const TerrainPtr& terrain);
 	void addPolys(const std::vector<glm::vec3>& verts, const std::vector<uint32_t>& indices);
 
-	void addModel(std::string_view name, const S3DGeometryPtr& model);
+	//void addModel(std::string_view name, const S3DGeometryPtr& model);
 	void addModel(std::string_view name, const EQGGeometryPtr& model);
 	void addModelInstance(const PlaceablePtr& inst);
-	void addZoneGeometry(const S3DGeometryPtr& model); // For s3d zone geometry
+	//void addZoneGeometry(const S3DGeometryPtr& model); // For s3d zone geometry
 	void addZoneGeometry(const EQGGeometryPtr& model); // For TER zone geometry
 
 	bool finalize();

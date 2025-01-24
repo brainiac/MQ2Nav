@@ -190,7 +190,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 			groupStart = face;
 		}
 
-		m_faces[face].indices = pWldData->faces[face].indices;
+		m_faces[face].indices = glm::u32vec3(pWldData->faces[face].indices).zyx;
 		m_faces[face].materialIndex = materialIndex;
 
 		EQG_FACEFLAGS flags = EQG_FACEFLAG_NONE;
@@ -277,6 +277,221 @@ void SimpleModelDefinition::InitCollisionData(bool forceModel)
 	m_hasCollision = hasCollision;
 }
 
+//-------------------------------------------------------------------------------------------------
 
+SimpleModel::SimpleModel()
+	: m_worldTransform(1.0f)
+	, m_currentFrame(0)
+	, m_lastUpdate(steady_clock::now())
+	, m_nextUpdate(steady_clock::now())
+	, m_shadeFactor(1.0f)
+{
+}
+
+SimpleModel::~SimpleModel()
+{
+}
+
+void SimpleModel::Init(const SimpleModelDefinitionPtr& definition)
+{
+	m_definition = definition;
+
+	if (definition->GetMaterialPalette())
+	{
+		m_materialPalette = definition->GetMaterialPalette()->Clone();
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+
+BoneDefinition::BoneDefinition(const SDagWLDData& wldData)
+{
+	m_tag = wldData.tag;
+
+	// TODO: Some sort of exclusion for particle clouds
+	m_attachedActor = wldData.attachedActor;
+
+	m_subBones.reserve(wldData.subDags.size());
+
+	// Combose a matrix from the parameters of the transform.
+	SFrameTransform* pTransform = &wldData.track->frameTransforms[0];
+
+	if (m_tag.empty() || m_tag != "IT36_TRACK")
+	{
+		m_mtx = glm::toMat4(pTransform->rotation);
+		m_mtx[3] = glm::vec4(pTransform->pivot, 1.0f);
+		m_mtx = glm::scale(m_mtx, glm::vec3(pTransform->scale));
+	}
+	else
+	{
+		m_mtx = glm::identity<glm::mat4x4>();
+	}
+
+	m_defaultPoseMtx = glm::identity<glm::mat4x4>();
+}
+
+void BoneDefinition::AddSubBone(BoneDefinition* subBone)
+{
+	m_subBones.push_back(subBone);
+}
+
+//-------------------------------------------------------------------------------------------------
+
+HierarchicalModelDefinition::HierarchicalModelDefinition()
+	: Resource(GetStaticResourceType())
+{
+}
+
+HierarchicalModelDefinition::~HierarchicalModelDefinition()
+{
+}
+
+bool HierarchicalModelDefinition::InitFromWLDData(std::string_view tag, SHSpriteDefWLDData* pWldData)
+{
+	m_tag = tag;
+	m_materialPalette = pWldData->materialPalette;
+	m_boundingRadius = pWldData->boundingRadius;
+	m_centerOffset = pWldData->centerOffset;
+
+	// Load bones
+	m_numBones = (uint32_t)pWldData->dags.size();
+	m_numSubBones = 0;
+
+	if (m_numBones != 0)
+	{
+		m_bones.reserve(m_numBones);
+
+		for (uint32_t i = 0; i < m_numBones; ++i)
+		{
+			m_bones.emplace_back(pWldData->dags[i]);
+		}
+
+		for (uint32_t i = 0; i < m_numBones; ++i)
+		{
+			for (uint32_t j = 0; j < (uint32_t)pWldData->dags[i].subDags.size(); ++j)
+			{
+				m_bones[i].AddSubBone(&m_bones[pWldData->dags[i].subDags[j] - &pWldData->dags[0]]);
+				++m_numSubBones;
+			}
+		}
+
+		for (uint32_t i = 0; i < m_numBones; ++i)
+		{
+			if (pWldData->dags[i].track && pWldData->dags[i].track->numFrames > 1)
+			{
+				// TODO: Create animation
+				break;
+			}
+		}
+
+		// TODO: Attachment points
+		// TODO: SPOffsets.ini
+	}
+
+	// TODO: Load Skins
+
+	// TODO: Read additional properties from Resources\\moddat.ini
+
+	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
+
+ActorDefinition::ActorDefinition(std::string_view tag, const SimpleModelDefinitionPtr& simpleModel)
+	: Resource(GetStaticResourceType())
+	, m_tag(tag)
+	, m_simpleModelDefinition(simpleModel)
+{
+}
+
+ActorDefinition::ActorDefinition(std::string_view tag, const HierarchicalModelDefinitionPtr& hierchicalModel)
+	: Resource(GetStaticResourceType())
+	, m_tag(tag)
+	, m_hierarchicalModelDefinition(hierchicalModel)
+{
+}
+
+ActorDefinition::~ActorDefinition()
+{
+}
+
+//-------------------------------------------------------------------------------------------------
+
+HierarchicalModel::HierarchicalModel()
+{
+}
+
+HierarchicalModel::~HierarchicalModel()
+{
+}
+
+void HierarchicalModel::Init(const HierarchicalModelDefinitionPtr& definition)
+{
+	m_definition = definition;
+}
+
+//-------------------------------------------------------------------------------------------------
+
+ActorInstance::ActorInstance()
+{
+}
+
+ActorInstance::~ActorInstance()
+{
+}
+
+//-------------------------------------------------------------------------------------------------
+
+SimpleActor::SimpleActor(
+	ResourceManager* resourceMgr,
+	std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef,
+	const glm::vec3& position,
+	const glm::vec3& orientation,
+	float scalFactor,
+	float boundingRadius,
+	ECollisionVolumeType collisionVolumeType,
+	int actorIndex,
+	SDMRGBTrackWLDData* DMRGBTrackWLDData,
+	uint32_t* RGBs,
+	uint32_t numRGBs,
+	std::string_view actorName)
+{
+	m_tag = std::string(actorTag);
+	m_actorName = std::string(actorName);
+	m_actorIndex = actorIndex;
+	m_definition = actorDef;
+
+	// TODO: Get LOD data
+
+	m_model = std::make_shared<SimpleModel>();
+}
+
+//-------------------------------------------------------------------------------------------------
+
+HierarchicalActor::HierarchicalActor(
+	ResourceManager* resourceMgr,
+	std::string_view actorTag,
+	ActorDefinitionPtr actorDef,
+	const glm::vec3& position,
+	const glm::vec3& orientation,
+	float boundingRadius,
+	float scaleFactor,
+	ECollisionVolumeType collisionVolumeType,
+	int actorIndex,
+	SDMRGBTrackWLDData* DMRGBTrackWLDData,
+	uint32_t* RGBs,
+	uint32_t numRGBs,
+	std::string_view actorName)
+{
+	m_tag = std::string(actorTag);
+	m_actorName = std::string(actorName);
+	m_actorIndex = actorIndex;
+	m_definition = actorDef;
+
+	m_model = std::make_shared<HierarchicalModel>();
+}
+
+//-------------------------------------------------------------------------------------------------
 
 } // namespace eqg

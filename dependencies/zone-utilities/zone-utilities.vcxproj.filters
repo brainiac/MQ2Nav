@@ -51,9 +51,6 @@
     <ClInclude Include="eqglib\wld_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="eqglib\s3d_types.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="eqglib\wld_fragment.h">
       <Filter>Header Files</Filter>
     </ClInclude>

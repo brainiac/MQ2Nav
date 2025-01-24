@@ -68,7 +68,7 @@ bool ZoneResourceManager::Load()
 		return false;
 	}
 
-	LoadGlobalData();
+	//LoadGlobalData();
 
 	if (!LoadZone())
 	{
@@ -98,18 +98,18 @@ bool ZoneResourceManager::BuildCollisionMesh(ZoneCollisionMesh& collisionMesh)
 		collisionMesh.addZoneGeometry(terrain_model);
 	}
 
-	for (auto& model : map_s3d_geometry)
-	{
-		collisionMesh.addZoneGeometry(model);
-	}
+	//for (auto& model : map_s3d_geometry)
+	//{
+	//	collisionMesh.addZoneGeometry(model);
+	//}
 
 	collisionMesh.addPolys(collide_verts, collide_indices);
 
 	// Load models
-	for (auto& [name, model] : map_models)
-	{
-		collisionMesh.addModel(name, model);
-	}
+	//for (auto& [name, model] : map_models)
+	//{
+	//	collisionMesh.addModel(name, model);
+	//}
 
 	for (auto& [name, model] : map_eqg_models)
 	{
@@ -316,12 +316,12 @@ void ZoneResourceManager::Clear()
 	collide_vert_to_index.clear();
 	non_collide_vert_to_index.clear();
 	terrain.reset();
-	map_models.clear();
-	map_anim_models.clear();
+	//map_models.clear();
+	//map_anim_models.clear();
 	map_eqg_models.clear();
 
 	map_placeables.clear();
-	map_s3d_geometry.clear();
+	//map_s3d_geometry.clear();
 	m_dynamicObjects = 0;
 	m_hasDynamicObjects = false;
 
@@ -711,53 +711,53 @@ eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::s
 				auto& sprite_obj = loader->GetObject(region_frag->region_sprite_index);
 				if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
 				{
-					auto model = static_cast<eqg::WLDFragment36*>(sprite_obj.parsed_data)->geometry;
+					//auto model = static_cast<eqg::WLDFragment36*>(sprite_obj.parsed_data)->geometry;
 
-					map_s3d_geometry.push_back(model);
+					//map_s3d_geometry.push_back(model);
 				}
 			}
 		}
-		else if (obj.type == eqg::WLD_OBJ_ACTORINSTANCE_TYPE)
-		{
-			eqg::WLDFragment15* frag = static_cast<eqg::WLDFragment15*>(obj.parsed_data);
-			if (!frag->placeable)
-				continue;
+		//else if (obj.type == eqg::WLD_OBJ_ACTORINSTANCE_TYPE)
+		//{
+		//	eqg::WLDFragment15* frag = static_cast<eqg::WLDFragment15*>(obj.parsed_data);
+		//	if (!frag->placeable)
+		//		continue;
 
-			//map_s3d_model_instances.push_back(frag->placeable);
-			LoadModelInst(frag->placeable);
-		}
-		else if (obj.type == eqg::WLD_OBJ_ACTORDEFINITION_TYPE)
-		{
-			std::string_view tag = obj.tag;
-			if (tag.empty())
-				continue;
+		//	//map_s3d_model_instances.push_back(frag->placeable);
+		//	LoadModelInst(frag->placeable);
+		//}
+		//else if (obj.type == eqg::WLD_OBJ_ACTORDEFINITION_TYPE)
+		//{
+		//	std::string_view tag = obj.tag;
+		//	if (tag.empty())
+		//		continue;
 
-			eqg::WLDFragment14* obj_frag = static_cast<eqg::WLDFragment14*>(obj.parsed_data);
-			int sprite_id = obj_frag->sprite_id;
+		//	eqg::WLDFragment14* obj_frag = static_cast<eqg::WLDFragment14*>(obj.parsed_data);
+		//	int sprite_id = obj_frag->sprite_id;
 
-			auto& sprite_obj = loader->GetObjectFromID(sprite_id);
+		//	auto& sprite_obj = loader->GetObjectFromID(sprite_id);
 
-			if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEINSTANCE_TYPE)
-			{
-				eqg::WLDFragment2D* r_frag = static_cast<eqg::WLDFragment2D*>(sprite_obj.parsed_data);
-				auto m_ref = r_frag->sprite_id;
+		//	if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+		//	{
+		//		eqg::WLDFragment2D* r_frag = static_cast<eqg::WLDFragment2D*>(sprite_obj.parsed_data);
+		//		auto m_ref = r_frag->sprite_id;
 
-				eqg::WLDFragment36* mod_frag = static_cast<eqg::WLDFragment36*>(loader->GetObjectFromID(m_ref).parsed_data);
-				auto mod = mod_frag->geometry;
+		//		//eqg::WLDFragment36* mod_frag = static_cast<eqg::WLDFragment36*>(loader->GetObjectFromID(m_ref).parsed_data);
+		//		//auto mod = mod_frag->geometry;
 
-				map_models.emplace(tag, mod);
-			}
-			else if (sprite_obj.type == eqg::WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
-			{
-				eqg::WLDFragment11* r_frag = static_cast<eqg::WLDFragment11*>(sprite_obj.parsed_data);
-				auto s_ref = r_frag->def_id;
+		//		//map_models.emplace(tag, mod);
+		//	}
+		//	else if (sprite_obj.type == eqg::WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
+		//	{
+		//		eqg::WLDFragment11* r_frag = static_cast<eqg::WLDFragment11*>(sprite_obj.parsed_data);
+		//		auto s_ref = r_frag->def_id;
 
-				eqg::WLDFragment10* skeleton_frag = static_cast<eqg::WLDFragment10*>(loader->GetObjectFromID(s_ref).parsed_data);
-				auto skele = skeleton_frag->track;
+		//		eqg::WLDFragment10* skeleton_frag = static_cast<eqg::WLDFragment10*>(loader->GetObjectFromID(s_ref).parsed_data);
+		//		auto skele = skeleton_frag->track;
 
-				map_anim_models.emplace(tag, skele);
-			}
-		}
+		//		map_anim_models.emplace(tag, skele);
+		//	}
+		//}
 	}
 	
 	m_wldLoaders.push_back(std::move(loader));
@@ -801,61 +801,61 @@ void ZoneResourceManager::LoadAssetsFile()
 	}
 }
 
-void ZoneResourceManager::TraverseBone(
-	std::shared_ptr<eqg::s3d::SkeletonTrack::Bone> bone,
-	glm::vec3 parent_trans,
-	glm::vec3 parent_rot,
-	glm::vec3 parent_scale)
-{
-	glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-	glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
-	glm::vec3 scale = parent_scale;
-
-	if (!bone->transforms.empty())
-	{
-		auto& transform = bone->transforms[0];
-
-		if (transform.scale != 0)
-		{
-			pos = transform.pivot * transform.scale;
-		}
-
-		if (transform.rotation.w != 0)
-		{
-			rot.x = transform.rotation.x / transform.rotation.w;
-			rot.y = transform.rotation.y / transform.rotation.w;
-			rot.z = transform.rotation.z / transform.rotation.w;
-
-			rot = glm::radians(rot);
-		}
-	}
-
-	RotateVertex(pos, parent_rot.x, parent_rot.y, parent_rot.z);
-	pos += parent_trans;
-	rot += parent_rot;
-
-	if (bone->model)
-	{
-		if (!map_models.contains(bone->model->GetName()))
-		{
-			map_models[bone->model->GetName()] = bone->model;
-		}
-		
-		std::shared_ptr<eqg::Placeable> gen_plac = std::make_shared<eqg::Placeable>();
-		gen_plac->SetName(bone->model->GetName());
-		gen_plac->SetPosition(pos);
-		gen_plac->SetRotation(rot);
-		gen_plac->SetScale(scale);
-		map_placeables.push_back(gen_plac);
-
-		SPDLOG_TRACE("Adding placeable from bones {} at ({}, {}, {})", bone->model->GetName(), pos.x, pos.y, pos.z);
-	}
-
-	for (size_t i = 0; i < bone->children.size(); ++i)
-	{
-		TraverseBone(bone->children[i], pos, rot, parent_scale);
-	}
-}
+//void ZoneResourceManager::TraverseBone(
+//	std::shared_ptr<eqg::s3d::SkeletonTrack::Bone> bone,
+//	glm::vec3 parent_trans,
+//	glm::vec3 parent_rot,
+//	glm::vec3 parent_scale)
+//{
+//	glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+//	glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);
+//	glm::vec3 scale = parent_scale;
+//
+//	if (!bone->transforms.empty())
+//	{
+//		auto& transform = bone->transforms[0];
+//
+//		if (transform.scale != 0)
+//		{
+//			pos = transform.pivot * transform.scale;
+//		}
+//
+//		if (transform.rotation.w != 0)
+//		{
+//			rot.x = transform.rotation.x / transform.rotation.w;
+//			rot.y = transform.rotation.y / transform.rotation.w;
+//			rot.z = transform.rotation.z / transform.rotation.w;
+//
+//			rot = glm::radians(rot);
+//		}
+//	}
+//
+//	RotateVertex(pos, parent_rot.x, parent_rot.y, parent_rot.z);
+//	pos += parent_trans;
+//	rot += parent_rot;
+//
+//	if (bone->model)
+//	{
+//		if (!map_models.contains(bone->model->GetName()))
+//		{
+//			map_models[bone->model->GetName()] = bone->model;
+//		}
+//		
+//		std::shared_ptr<eqg::Placeable> gen_plac = std::make_shared<eqg::Placeable>();
+//		gen_plac->SetName(bone->model->GetName());
+//		gen_plac->SetPosition(pos);
+//		gen_plac->SetRotation(rot);
+//		gen_plac->SetScale(scale);
+//		map_placeables.push_back(gen_plac);
+//
+//		SPDLOG_TRACE("Adding placeable from bones {} at ({}, {}, {})", bone->model->GetName(), pos.x, pos.y, pos.z);
+//	}
+//
+//	for (size_t i = 0; i < bone->children.size(); ++i)
+//	{
+//		TraverseBone(bone->children[i], pos, rot, parent_scale);
+//	}
+//}
 
 bool ZoneResourceManager::LoadModelInst(const PlaceablePtr& inst)
 {
@@ -867,28 +867,28 @@ bool ZoneResourceManager::LoadModelInst(const PlaceablePtr& inst)
 		return true;
 	}
 
-	if (auto map_models_iter = map_models.find(inst->tag); map_models_iter != map_models.end())
-	{
-		map_placeables.push_back(inst);
+	//if (auto map_models_iter = map_models.find(inst->tag); map_models_iter != map_models.end())
+	//{
+	//	map_placeables.push_back(inst);
 
-		SPDLOG_TRACE("Adding model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
-		return true;
-	}
+	//	SPDLOG_TRACE("Adding model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
+	//	return true;
+	//}
 
-	if (auto map_anim_models_iter = map_anim_models.find(inst->tag); map_anim_models_iter != map_anim_models.end())
-	{
-		const auto& skel = map_anim_models_iter->second;
+	//if (auto map_anim_models_iter = map_anim_models.find(inst->tag); map_anim_models_iter != map_anim_models.end())
+	//{
+	//	const auto& skel = map_anim_models_iter->second;
 
-		auto& bones = skel->GetBones();
+	//	auto& bones = skel->GetBones();
 
-		if (!bones.empty())
-		{
-			TraverseBone(bones[0], inst->GetPosition(), inst->GetRotation(), inst->GetScale());
-		}
+	//	if (!bones.empty())
+	//	{
+	//		TraverseBone(bones[0], inst->GetPosition(), inst->GetRotation(), inst->GetScale());
+	//	}
 
-		SPDLOG_TRACE("Adding hierarchical model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
-		return true;
-	}
+	//	SPDLOG_TRACE("Adding hierarchical model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
+	//	return true;
+	//}
 	
 	SPDLOG_WARN("Could not find model for '{}'", inst->tag);
 	return false;

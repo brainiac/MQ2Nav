@@ -5,7 +5,6 @@
 #include "ZoneData.h"
 
 #include "eqglib/eqg_loader.h"
-#include "eqglib/s3d_types.h"
 
 #include <fmt/format.h>
 #include <mq/base/String.h>
@@ -16,8 +15,6 @@
 #include <fstream>
 #include <iterator>
 #include <filesystem>
-
-#include "meshgen/ResourceManager.h"
 
 namespace fs = std::filesystem;
 
@@ -260,16 +257,16 @@ public:
 		return loadedSomething;
 	}
 
-	S3DGeometryPtr GetS3dModel(const std::string& modelName)
-	{
-		std::string actualName = mq::to_upper_copy(modelName) + "_DMSPRITEDEF";
+	//EQGGeometryPtr GetS3dModel(const std::string& modelName)
+	//{
+	//	std::string actualName = mq::to_upper_copy(modelName) + "_DMSPRITEDEF";
 
-		auto iter = m_s3dModels.find(actualName);
-		if (iter != m_s3dModels.end())
-			return iter->second;
+	//	auto iter = m_s3dModels.find(actualName);
+	//	if (iter != m_s3dModels.end())
+	//		return iter->second;
 
-		return nullptr;
-	}
+	//	return nullptr;
+	//}
 
 	EQGGeometryPtr GetEQGModel(const std::string& modelName)
 	{
@@ -330,7 +327,7 @@ public:
 private:
 	ZoneData* m_zd;
 
-	std::map<std::string, S3DGeometryPtr> m_s3dModels;
+	//std::map<std::string, S3DGeometryPtr> m_s3dModels;
 	std::map<std::string, EQGGeometryPtr> m_eqgModels;
 };
 

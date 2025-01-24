@@ -77,7 +77,7 @@ private:
 	void LoadGlobalLoadFile();
 	void PerformGlobalLoad(int phase);
 
-	void TraverseBone(std::shared_ptr<eqg::s3d::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
+	//void TraverseBone(std::shared_ptr<eqg::s3d::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
 	bool LoadModelInst(const PlaceablePtr& model_inst);
 
 	void AddFace(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, bool collidable);
@@ -107,14 +107,14 @@ private:
 	std::unordered_map<glm::vec3, uint32_t, KeyFuncs, KeyFuncs> non_collide_vert_to_index;
 
 	TerrainPtr terrain;
-	std::map<std::string_view, S3DGeometryPtr> map_models;
-	std::map<std::string_view, SkeletonTrackPtr> map_anim_models;
+	//std::map<std::string_view, S3DGeometryPtr> map_models;
+	//std::map<std::string_view, SkeletonTrackPtr> map_anim_models;
 	std::map<std::string, EQGGeometryPtr> map_eqg_models;
 	EQGGeometryPtr terrain_model;
 	std::vector<std::shared_ptr<eqg::LODList>> lod_lists;
 
 	std::vector<PlaceablePtr> map_placeables;
-	std::vector<S3DGeometryPtr> map_s3d_geometry;
+	//std::vector<S3DGeometryPtr> map_s3d_geometry;
 	std::vector<TerrainAreaPtr> map_areas;
 	std::vector<std::shared_ptr<eqg::Light>> map_lights;
 

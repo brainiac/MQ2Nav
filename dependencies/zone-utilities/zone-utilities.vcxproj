@@ -39,7 +39,6 @@
     <ClInclude Include="eqglib\eqg_resource.h" />
     <ClInclude Include="eqglib\str_util.h" />
     <ClInclude Include="eqglib\wld_loader.h" />
-    <ClInclude Include="eqglib\s3d_types.h" />
     <ClInclude Include="eqglib\wld_fragment.h" />
     <ClInclude Include="eqglib\wld_structs.h" />
   </ItemGroup>

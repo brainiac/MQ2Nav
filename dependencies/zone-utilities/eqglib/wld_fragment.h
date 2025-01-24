@@ -3,8 +3,6 @@
 
 #include "eqg_material.h"
 #include "light.h"
-#include "placeable.h"
-#include "s3d_types.h"
 #include "wld_structs.h"
 
 #include <cstdint>
@@ -14,13 +12,14 @@ namespace eqg {
 
 struct STrack;
 class WLDLoader;
+class HierarchicalModelDefinition;
 
 enum S3DObjectType : uint32_t
 {
 	WLD_NONE                                  = 0,
 	WLD_OBJ_DEFAULTPALETTEFILE_TYPE           = 1,
 	WLD_OBJ_WORLD_USERDATA_TYPE               = 2,
-	WLD_OBJ_BMINFO_TYPE                       = 3,  // (0x03)
+	WLD_OBJ_BMINFO_TYPE                       = 3,
 	WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE       = 4,
 	WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE         = 5,
 
@@ -51,129 +50,103 @@ enum S3DObjectType : uint32_t
 	WLD_OBJ_PCLOUDDEFINITION_TYPE             = 52, // (0x34)
 	WLD_OBJ_CONSTANTAMBIENT_TYPE              = 53, // (0x35)
 	WLD_OBJ_DMSPRITEDEFINITION2_TYPE          = 54, // (0x36)
+
+	WLD_OBJ_LAST_TYPE,
 };
 
-class WLDFragment;
+class ParsedObject
+{
+public:
+	ParsedObject() {}
+	virtual ~ParsedObject() {}
+};
 
-struct S3DFileObject
+struct WLDFileObject
 {
 	uint32_t size;
 	S3DObjectType type;
 	std::string_view tag;
 	uint8_t* data;
-	WLDFragment* parsed_data = nullptr;
+	ParsedObject* parsed_data = nullptr;
 };
 
-class WLDFragment
+// WLD_OBJ_BMINFO_TYPE (3)
+struct ParsedBMInfo : ParsedObject
+{
+	std::vector<std::shared_ptr<Bitmap>> bitmaps;
+};
+
+// WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE (4)
+struct ParsedSimpleSpriteDef : ParsedObject
+{
+	WLD_OBJ_SIMPLESPRITEDEFINITION* definition = nullptr;
+	std::vector<std::shared_ptr<ParsedBMInfo>> parsedBitmaps;
+	std::shared_ptr<ParsedBMInfo> pParsedBMInfoForPalette;
+};
+
+struct ParsedHierarchicalModelDef : ParsedObject
+{
+	std::shared_ptr<HierarchicalModelDefinition> hierarchicalModelDef;
+};
+
+// WLD_OBJ_TRACKDEFINITION_TYPE (18)
+struct ParsedTrackInstance : ParsedObject
+{
+	std::shared_ptr<STrack> track;
+};
+
+// WLD_OBJ_TRACKINSTANCE_TYPE (19)
+struct ParsedTrackDefinition : ParsedObject
+{
+	std::shared_ptr<STrack> track;
+};
+
+// WLD_OBJ_ACTORDEFINITION_TYPE (20)
+struct ParsedActorDefinition : ParsedObject
+{
+	std::shared_ptr<ActorDefinition> actorDefinition;
+};
+
+// WLD_OBJ_ACTORINSTANCE_TYPE (21)
+struct ParsedActorInstance : ParsedObject
+{
+	std::shared_ptr<ActorInstance> actorInstance;
+};
+
+
+// WLD_OBJ_MATERIALDEFINITION_TYPE (48)
+struct ParsedMaterialPalette : ParsedObject
+{
+	WLD_OBJ_MATERIALPALETTE* matPalette = nullptr;
+	std::vector<std::shared_ptr<Material>> materials;
+
+	std::shared_ptr<MaterialPalette> palette;
+};
+
+// WLD_OBJ_DMSPRITEDEFINITION2_TYPE (54)
+struct ParsedDMSpriteDefinition2 : ParsedObject
+{
+	std::shared_ptr<SimpleModelDefinition> simpleModelDefinition;
+};
+
+class WLDFragment : public ParsedObject
 {
 public:
-	WLDFragment(S3DFileObject* obj_)
+	WLDFragment(WLDFileObject* obj_)
 		: obj(obj_)
 	{
 	}
 
 	virtual ~WLDFragment() = default;
 
-	S3DFileObject* obj;
-};
-
-// WLD_OBJ_BMINFO_TYPE
-struct ParsedBMInfo : public WLDFragment
-{
-	ParsedBMInfo(S3DFileObject* obj_) : WLDFragment(obj_) {}
-
-	std::vector<std::shared_ptr<EQGBitmap>> bitmaps;
-};
-
-struct ParsedSimpleSpriteDef : public WLDFragment
-{
-	ParsedSimpleSpriteDef(S3DFileObject* obj_) : WLDFragment(obj_) {}
-
-	WLD_OBJ_SIMPLESPRITEDEFINITION* definition = nullptr;
-	std::vector<std::shared_ptr<ParsedBMInfo>> parsedBitmaps;
-	std::shared_ptr<ParsedBMInfo> pParsedBMInfoForPalette;
-};
-
-// WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE
-class WLDFragment10 : public WLDFragment
-{
-public:
-	WLDFragment10(WLDLoader* loader, S3DFileObject* obj);
-
-	std::shared_ptr<s3d::SkeletonTrack> track;
-};
-
-// WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE
-class WLDFragment11 : public WLDFragment
-{
-public:
-	WLDFragment11(WLDLoader* loader, S3DFileObject* obj);
-
-	uint32_t def_id = 0;
-};
-
-// WLD_OBJ_TRACKDEFINITION_TYPE
-class WLDFragment12 : public WLDFragment
-{
-public:
-	WLDFragment12(WLDLoader* loader, S3DFileObject* obj);
-
-	using TransformList = std::vector<s3d::SkeletonTrack::FrameTransform>;
-	TransformList transforms;
-};
-
-// WLD_OBJ_TRACKINSTANCE_TYPE
-class WLDFragment13 : public WLDFragment
-{
-public:
-	WLDFragment13(WLDLoader* loader, S3DFileObject* obj);
-
-	uint32_t def_id = 0;
-};
-
-struct ParsedTrackInstance : public WLDFragment
-{
-	ParsedTrackInstance(S3DFileObject* obj_) : WLDFragment(obj_) {}
-
-	std::shared_ptr<STrack> track;
-};
-
-struct ParsedTrackDefinition : public WLDFragment
-{
-	ParsedTrackDefinition(S3DFileObject* obj_) : WLDFragment(obj_) {}
-
-	std::shared_ptr<STrack> track;
-};
-
-// WLD_OBJ_ACTORDEFINITION_TYPE
-class WLDFragment14 : public WLDFragment
-{
-public:
-	WLDFragment14(WLDLoader* loader, S3DFileObject* obj);
-
-	int sprite_id = 0;
-};
-
-// WLD_OBJ_ACTORINSTANCE_TYPE
-class WLDFragment15 : public WLDFragment
-{
-public:
-	WLDFragment15(WLDLoader* loader, S3DFileObject* obj);
-
-	// TODO: Fixme
-	std::shared_ptr<Placeable> placeable;
-	int actor_def_id = 0;
-	int collision_volume_id = 0;
-	int color_track_id = 0;
-	float bounding_radius = 0.0f;
-	float scale_factor = 1.0f;
+	WLDFileObject* obj;
 };
 
 // WLD_OBJ_LIGHTDEFINITION_TYPE
 class WLDFragment1B : public WLDFragment
 {
 public:
-	WLDFragment1B(WLDLoader* loader, S3DFileObject* obj);
+	WLDFragment1B(WLDLoader* loader, WLDFileObject* obj);
 
 	std::shared_ptr<Light> light;
 };
@@ -182,7 +155,7 @@ public:
 class WLDFragment1C : public WLDFragment
 {
 public:
-	WLDFragment1C(WLDLoader* loader, S3DFileObject* obj);
+	WLDFragment1C(WLDLoader* loader, WLDFileObject* obj);
 
 	int light_id = 0;
 };
@@ -191,16 +164,16 @@ public:
 class WLDFragment21 : public WLDFragment
 {
 public:
-	WLDFragment21(WLDLoader* loader, S3DFileObject* obj);
+	WLDFragment21(WLDLoader* loader, WLDFileObject* obj);
 
-	std::shared_ptr<s3d::BSPTree> tree;
+	std::shared_ptr<BSPTree> tree;
 };
 
 // WLD_OBJ_REGION_TYPE
 class WLDFragment22 : public WLDFragment
 {
 public:
-	WLDFragment22(WLDLoader* loader, S3DFileObject* obj);
+	WLDFragment22(WLDLoader* loader, WLDFileObject* obj);
 
 	int ambient_light_index = 0;
 	uint32_t encoded_visibility_type = 0;
@@ -213,57 +186,20 @@ public:
 	bool region_sprite_is_def = false;
 };
 
+// WLD_OBJ_POINTLIGHT_TYPE
 class WLDFragment28 : public WLDFragment
 {
 public:
-	WLDFragment28(WLDLoader* loader, S3DFileObject* obj);
-
+	WLDFragment28(WLDLoader* loader, WLDFileObject* obj);
 };
 
 // WLD_OBJ_ZONE_TYPE
 class WLDFragment29 : public WLDFragment
 {
 public:
-	WLDFragment29(WLDLoader* loader, S3DFileObject* obj);
+	WLDFragment29(WLDLoader* loader, WLDFileObject* obj);
 
-	std::shared_ptr<s3d::BSPRegion> region;
-};
-
-// WLD_OBJ_DMSPRITEINSTANCE_TYPE
-class WLDFragment2D : public WLDFragment
-{
-public:
-	WLDFragment2D(WLDLoader* loader, S3DFileObject* obj);
-
-	uint32_t sprite_id = 0;
-};
-
-struct ParsedMaterialPalette : public WLDFragment
-{
-	ParsedMaterialPalette(S3DFileObject* obj_) : WLDFragment(obj_) {}
-
-	WLD_OBJ_MATERIALPALETTE* matPalette = nullptr;
-	std::vector<std::shared_ptr<Material>> materials;
-
-	std::shared_ptr<MaterialPalette> palette;
-};
-
-// WLD_OBJ_DMSPRITEDEFINITION2_TYPE
-class WLDFragment36 : public WLDFragment
-{
-public:
-	WLDFragment36(WLDLoader* loader, S3DFileObject* obj);
-	~WLDFragment36() {}
-
-	std::shared_ptr<s3d::Geometry> geometry;
-};
-
-class ParsedDMSpriteDefinition2 : public WLDFragment
-{
-public:
-	ParsedDMSpriteDefinition2(S3DFileObject* obj_) : WLDFragment(obj_) {}
-
-	std::shared_ptr<SimpleModelDefinition> simpleModelDefinition;
+	std::shared_ptr<BSPRegion> region;
 };
 
 } // namespace eqg

@@ -48,11 +48,11 @@ struct SBitmapWLDData
 	uint32_t objectIndex;
 };
 
-class EQGBitmap : public eqg::Resource
+class Bitmap : public eqg::Resource
 {
 public:
-	EQGBitmap();
-	~EQGBitmap() override;
+	Bitmap();
+	~Bitmap() override;
 
 	static ResourceType GetStaticResourceType() { return ResourceType::Bitmap; }
 
@@ -94,7 +94,7 @@ struct STexture
 	uint32_t                 flags = 0;
 
 	// This is what actually gets drawn as a texture
-	std::shared_ptr<EQGBitmap> textures[8];
+	std::shared_ptr<Bitmap> textures[8];
 };
 
 struct STextureSet
@@ -162,10 +162,12 @@ public:
 		return m_textureSet != nullptr && (m_textureSet->textures.size() > 1 || m_uvShift != glm::vec2(0.0f));
 	}
 
+	std::shared_ptr<Material> Clone() const;
+
 	void InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_fx_params, Archive* archive, const char* string_pool);
 	bool InitFromWLDData(std::string_view tag, WLD_OBJ_MATERIALDEFINITION* pWLDMaterialDef, WLD_OBJ_SIMPLESPRITEINSTANCE* pSimpleSpriteInst,
 		ParsedSimpleSpriteDef* pParsedSimpleSpriteDef, ParsedBMInfo* pParsedBMPalette);
-	bool InitFromBitmap(const std::shared_ptr<EQGBitmap>& bitmap);
+	bool InitFromBitmap(const std::shared_ptr<Bitmap>& bitmap);
 
 	std::string                 m_tag;
 	std::string                 m_effectName;
@@ -212,6 +214,8 @@ public:
 	uint32_t GetNumMaterials() const { return (uint32_t)m_materials.size(); }
 
 	bool InitFromWLDData(std::string_view tag, ParsedMaterialPalette* materialPalette);
+
+	std::shared_ptr<MaterialPalette> Clone(bool deep = false) const;
 
 private:
 	std::string              m_tag;

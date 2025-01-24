@@ -8,7 +8,6 @@
 #include "eqglib/wld_loader.h"
 
 using EQGGeometryPtr = std::shared_ptr<eqg::Geometry>;
-using S3DGeometryPtr = std::shared_ptr<eqg::s3d::Geometry>;
 
 class ZoneDataLoader;
 
@@ -17,7 +16,7 @@ struct ModelInfo
 	glm::vec3 min = { 0, 0, 0 };
 	glm::vec3 max = { 0, 0, 0 };
 
-	S3DGeometryPtr oldModel;
+	EQGGeometryPtr oldModel;
 	EQGGeometryPtr newModel;
 };
 

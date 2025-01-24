@@ -2,6 +2,8 @@
 #include "pch.h"
 #include "wld_loader.h"
 
+#include <algorithm>
+
 #include "archive.h"
 #include "buffer_reader.h"
 #include "eqg_geometry.h"
@@ -10,9 +12,11 @@
 #include "log_internal.h"
 #include "wld_structs.h"
 
-using namespace eqg::s3d;
+#include <ranges>
 
 namespace eqg {
+
+constexpr float EQ_TO_RAD = glm::pi<float>() / 256.0f;
 
 static const uint8_t decoder_array[] = { 0x95, 0x3A, 0xC5, 0x2A, 0x95, 0x7A, 0x95, 0x6A };
 
@@ -24,6 +28,42 @@ std::string_view decode_s3d_string(char* str, size_t len)
 	}
 
 	return std::string_view(str, len);
+}
+
+std::string_view ObjectTypeToString(S3DObjectType type)
+{
+	switch (type)
+	{
+	case WLD_NONE: return "NONE";
+	case WLD_OBJ_DEFAULTPALETTEFILE_TYPE: return "DEFAULTPALETTEFILE";
+	case WLD_OBJ_WORLD_USERDATA_TYPE: return "WORLD_USERDATA";
+	case WLD_OBJ_BMINFO_TYPE: return "BMINFO";
+	case WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE: return "SIMPLESPRITEDEFINITION";
+	case WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE: return "SIMPLESPRITEINSTANCE";
+	case WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE: return "HIERARCHICALSPRITEDEFINITION";
+	case WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE: return "HIERARCHICALSPRITEINSTANCE";
+	case WLD_OBJ_TRACKDEFINITION_TYPE: return "TRACKDEFINITION";
+	case WLD_OBJ_TRACKINSTANCE_TYPE: return "TRACKINSTANCE";
+	case WLD_OBJ_ACTORDEFINITION_TYPE: return "ACTORDEFINITION";
+	case WLD_OBJ_ACTORINSTANCE_TYPE: return "ACTORINSTANCE";
+	case WLD_OBJ_LIGHTDEFINITION_TYPE: return "LIGHTDEFINITION";
+	case WLD_OBJ_LIGHTINSTANCE_TYPE: return "LIGHTINSTANCE";
+	case WLD_OBJ_WORLDTREE_TYPE: return "WORLDTREE";
+	case WLD_OBJ_REGION_TYPE: return "REGION";
+	case WLD_OBJ_POINTLIGHT_TYPE: return "POINTLIGHT";
+	case WLD_OBJ_ZONE_TYPE: return "ZONE";
+	case WLD_OBJ_DMSPRITEDEFINITION_TYPE: return "DMSPRITEDEFINITION";
+	case WLD_OBJ_DMSPRITEINSTANCE_TYPE: return "DMSPRITEINSTANCE";
+	case WLD_OBJ_MATERIALDEFINITION_TYPE: return "MATERIALDEFINITION";
+	case WLD_OBJ_MATERIALPALETTE_TYPE: return "MATERIALPALETTE";
+	case WLD_OBJ_DMRGBTRACKDEFINITION_TYPE: return "DMRGBTRACKDEFINITION";
+	case WLD_OBJ_DMRGBTRACKINSTANCE_TYPE: return "DMRGBTRACKINSTANCE";
+	case WLD_OBJ_PCLOUDDEFINITION_TYPE: return "PCLOUDDEFINITION";
+	case WLD_OBJ_CONSTANTAMBIENT_TYPE: return "CONSTANTAMBIENT";
+	case WLD_OBJ_DMSPRITEDEFINITION2_TYPE: return "DMSPRITEDEFINITION2";
+	case WLD_OBJ_LAST_TYPE: return "LAST";
+	default: return "UNKNOWN";
+	}
 }
 
 WLDLoader::WLDLoader(ResourceManager* resourceMgr)
@@ -118,7 +158,7 @@ bool WLDLoader::Init(Archive* archive, const std::string& wld_name)
 	EQG_LOG_TRACE("Parsing WLD objects.");
 
 	m_objects.resize(m_numObjects + 1);
-	memset(m_objects.data(), 0, sizeof(S3DFileObject) * (m_numObjects + 1));
+	memset(m_objects.data(), 0, sizeof(WLDFileObject) * (m_numObjects + 1));
 
 	uint32_t index = 0;
 	for (; index < m_numObjects; ++index)
@@ -227,6 +267,59 @@ uint32_t WLDLoader::GetObjectIndexFromID(int nID, uint32_t currID)
 	return 0;
 }
 
+class ObjectCountHelper
+{
+public:
+	struct ObjectTypeCounts
+	{
+		uint32_t count = 0;
+		uint32_t firstIndex = 0;
+		uint32_t lastIndex = 0;
+
+		std::pair<uint32_t, uint32_t> range() const
+		{
+			return std::make_pair(firstIndex, lastIndex + 1);
+		}
+	};
+
+	ObjectCountHelper(std::vector<WLDFileObject>& objects, uint32_t numObjects)
+		: objectCounts(WLD_OBJ_LAST_TYPE + 1)
+	{
+		// Count the number of each object type and the ranges of their indices
+		for (uint32_t i = 1; i <= numObjects; ++i)
+		{
+			WLDFileObject& obj = objects[i];
+
+			objectCounts[obj.type].count++;
+			objectCounts[obj.type].lastIndex = i;
+
+			if (objectCounts[obj.type].firstIndex == 0)
+			{
+				objectCounts[obj.type].firstIndex = i;
+			}
+		}
+	}
+
+	void LogObjectCounts() const
+	{
+		for (uint32_t type = 1; type < (uint32_t)objectCounts.size(); ++type)
+		{
+			uint32_t count = objectCounts[type].count;
+			if (count == 0)
+				continue;
+
+			std::string_view typeName = ObjectTypeToString(static_cast<S3DObjectType>(type));
+			EQG_LOG_DEBUG("- {} ({}) = {}", typeName, type, count);
+		}
+	}
+
+	uint32_t count(S3DObjectType type) const { return objectCounts[type].count; }
+	std::pair<uint32_t, uint32_t> range(S3DObjectType type) const { return objectCounts[type].range(); }
+
+private:
+	std::vector<ObjectTypeCounts> objectCounts;
+};
+
 bool WLDLoader::ParseAll()
 {
 	/// Actual loading sequence:
@@ -302,85 +395,64 @@ bool WLDLoader::ParseAll()
 	///         add light to scene
 	///
 	
-	for (uint32_t i = 0; i <= m_numObjects; ++i)
-	{
-		if (m_objects[i].type == WLD_OBJ_BMINFO_TYPE)
-		{
-			if (!ParseBitmap(i))
-			{
-				SPDLOG_ERROR("Failed to parse bitmap: {}", m_objects[i].tag);
-				return false;
-			}
-		}
-	}
+	ObjectCountHelper objectCounts(m_objects, m_numObjects);
 
-	for (uint32_t i = 0; i <= m_numObjects; ++i)
-	{
-		if (m_objects[i].type == WLD_OBJ_MATERIALDEFINITION_TYPE)
-		{
-			if (!ParseMaterial(i))
-			{
-				SPDLOG_ERROR("Failed to parse material: {}", m_objects[i].tag);
-				return false;
-			}
-		}
-	}
+	EQG_LOG_INFO("Reading {}:", m_fileName);
+	objectCounts.LogObjectCounts();
 
-	for (uint32_t i = 0; i <= m_numObjects; ++i)
+	if (!ParseBitmapsAndMaterials(
+		objectCounts.range(WLD_OBJ_BMINFO_TYPE),
+		objectCounts.range(WLD_OBJ_MATERIALDEFINITION_TYPE),
+		objectCounts.range(WLD_OBJ_MATERIALPALETTE_TYPE),
+		std::string_view()))
 	{
-		if (m_objects[i].type == WLD_OBJ_MATERIALPALETTE_TYPE)
-		{
-			if (!ParseMaterialPalette(i))
-			{
-				SPDLOG_ERROR("Failed to parse material palette: {}", m_objects[i].tag);
-				return false;
-			}
-		}
+		return false;
 	}
-
+	
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
 		if (m_objects[i].type == WLD_OBJ_TRACKINSTANCE_TYPE)
 		{
 			if (!ParseTrack(i))
 			{
-				SPDLOG_ERROR("Failed to track instance: {}", m_objects[i].tag);
+				EQG_LOG_ERROR("Failed to track instance: {}", m_objects[i].tag);
 				return false;
 			}
 		}
 	}
 
+	// TODO: ParseAnimations
 
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
-		S3DFileObject& obj = m_objects[i];
+		if (m_objects[i].type == WLD_OBJ_ACTORDEFINITION_TYPE)
+		{
+			if (!ParseActorDefinition(i))
+			{
+				EQG_LOG_ERROR("Failed to parse actor definition: {} ({})", m_objects[i].tag, i);
+				return false;
+			}
+		}
+	}
+
+	for (uint32_t i = 0; i <= m_numObjects; ++i)
+	{
+		if (m_objects[i].type == WLD_OBJ_ACTORINSTANCE_TYPE)
+		{
+			if (!ParseActorInstance(i))
+			{
+				EQG_LOG_ERROR("Failed to parse actor instance: {} ({})", m_objects[i].tag, i);
+				//return false;
+			}
+		}
+	}
+
+	for (uint32_t i = 0; i <= m_numObjects; ++i)
+	{
+		WLDFileObject& obj = m_objects[i];
 
 		switch (obj.type)
 		{
-		case WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE: {
-			obj.parsed_data = new WLDFragment10(this, &obj);
-			break;
-		}
-		case WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE: {
-			obj.parsed_data = new WLDFragment11(this, &obj);
-			break;
-		}
-		case WLD_OBJ_TRACKDEFINITION_TYPE: {
-			obj.parsed_data = new WLDFragment12(this, &obj);
-			break;
-		}
-		case WLD_OBJ_TRACKINSTANCE_TYPE: {
-			obj.parsed_data = new WLDFragment13(this, &obj);
-			break;
-		}
-		case WLD_OBJ_ACTORDEFINITION_TYPE: {
-			obj.parsed_data = new WLDFragment14(this, &obj);
-			break;
-		}
-		case WLD_OBJ_ACTORINSTANCE_TYPE: {
-			obj.parsed_data = new WLDFragment15(this, &obj);
-			break;
-		}
 		case WLD_OBJ_LIGHTDEFINITION_TYPE: {
 			obj.parsed_data = new WLDFragment1B(this, &obj);
 			break;
@@ -405,20 +477,20 @@ bool WLDLoader::ParseAll()
 			obj.parsed_data = new WLDFragment29(this, &obj);
 			break;
 		}
-		case WLD_OBJ_DMSPRITEINSTANCE_TYPE: {
-			obj.parsed_data = new WLDFragment2D(this, &obj);
-			break;
-		}
-		case WLD_OBJ_DMSPRITEDEFINITION2_TYPE: {
-			obj.parsed_data = new WLDFragment36(this, &obj);
-			break;
-		}
 
 		case WLD_OBJ_BMINFO_TYPE:
+		case WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE:
+		case WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE:
+		case WLD_OBJ_ACTORDEFINITION_TYPE:
+		case WLD_OBJ_ACTORINSTANCE_TYPE:
 		case WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE:
 		case WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE:
+		case WLD_OBJ_TRACKDEFINITION_TYPE:
+		case WLD_OBJ_TRACKINSTANCE_TYPE:
 		case WLD_OBJ_MATERIALDEFINITION_TYPE:
 		case WLD_OBJ_MATERIALPALETTE_TYPE:
+		case WLD_OBJ_DMSPRITEDEFINITION2_TYPE:
+		case WLD_OBJ_DMSPRITEINSTANCE_TYPE:
 			break;
 
 		default:
@@ -435,15 +507,72 @@ bool WLDLoader::ParseObject(std::string_view tag)
 	return false;
 }
 
+bool WLDLoader::ParseBitmapsAndMaterials(
+	std::pair<uint32_t, uint32_t> bitmapRange,
+	std::pair<uint32_t, uint32_t> materialRange,
+	std::pair<uint32_t, uint32_t> materialPaletteRange,
+	std::string_view npcTag)
+{
+	for (uint32_t i : std::views::iota(bitmapRange.first, bitmapRange.second))
+	{
+		if (m_objects[i].type == WLD_OBJ_BMINFO_TYPE)
+		{
+			// If NPC tag is provided, only process if the first three characters match.
+			if (npcTag.empty() || ci_starts_with(m_objects[i].tag, npcTag.substr(0, 3)))
+			{
+				if (!ParseBitmap(i))
+				{
+					EQG_LOG_ERROR("Failed to parse bitmap: {}", m_objects[i].tag);
+					return false;
+				}
+			}
+		}
+	}
+
+	for (uint32_t i : std::views::iota(materialRange.first, materialRange.second))
+	{
+		if (m_objects[i].type == WLD_OBJ_MATERIALDEFINITION_TYPE)
+		{
+			// If NPC tag is provided, only process if the first three characters match.
+			if (npcTag.empty() || ci_starts_with(m_objects[i].tag, npcTag.substr(0, 3)))
+			{
+				if (!ParseMaterial(i))
+				{
+					EQG_LOG_ERROR("Failed to parse material: {}", m_objects[i].tag);
+					return false;
+				}
+			}
+		}
+	}
+
+	for (uint32_t i : std::views::iota(materialPaletteRange.first, materialPaletteRange.second))
+	{
+		if (m_objects[i].type == WLD_OBJ_MATERIALPALETTE_TYPE)
+		{
+			// If NPC tag is provided, only process if the first three characters match.
+			if (npcTag.empty() || ci_starts_with(m_objects[i].tag, npcTag.substr(0, 3)))
+			{
+				if (!ParseMaterialPalette(i))
+				{
+					EQG_LOG_ERROR("Failed to parse material palette: {}", m_objects[i].tag);
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
 bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 {
-	S3DFileObject& wldObj = m_objects[objectIndex];
+	WLDFileObject& wldObj = m_objects[objectIndex];
 	if (wldObj.type != WLD_OBJ_BMINFO_TYPE)
 	{
 		return false;
 	}
 
-	SPDLOG_TRACE("Parsing bitmap: {} ({})", wldObj.tag, objectIndex);
+	EQG_LOG_TRACE("Parsing bitmap: {} ({})", wldObj.tag, objectIndex);
 
 	BufferReader reader(wldObj.data, wldObj.size);
 	WLD_OBJ_BMINFO* pWLDBMInfo = reader.read_ptr<WLD_OBJ_BMINFO>();
@@ -502,12 +631,12 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 		}
 		else
 		{
-			SPDLOG_ERROR("Too many mip levels in bitmap {}!", wldObj.tag);
+			EQG_LOG_ERROR("Too many mip levels in bitmap {}!", wldObj.tag);
 			return false;
 		}
 	}
 
-	auto parsedBitmaps = std::make_unique<ParsedBMInfo>(&wldObj);
+	auto parsedBitmaps = std::make_unique<ParsedBMInfo>();
 	parsedBitmaps->bitmaps.resize(pWLDBMInfo->num_mip_levels + 1);
 
 	for (uint32_t bitmapIndex = 0; bitmapIndex < pWLDBMInfo->num_mip_levels + 1; ++bitmapIndex)
@@ -543,16 +672,16 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 		}
 
 		// Have we already made a bitmap for this one?
-		if (auto existingBM = m_resourceMgr->Get<EQGBitmap>(wldData.fileName))
+		if (auto existingBM = m_resourceMgr->Get<Bitmap>(wldData.fileName))
 		{
 			parsedBitmaps->bitmaps[bitmapIndex] = existingBM;
 			continue;
 		}
 
-		std::shared_ptr<EQGBitmap> newBitmap = std::make_shared<EQGBitmap>();
+		std::shared_ptr<Bitmap> newBitmap = std::make_shared<Bitmap>();
 		if (!newBitmap->InitFromWLDData(&wldData, m_archive, m_resourceMgr))
 		{
-			SPDLOG_ERROR("Failed to create bitmap {}!", wldData.fileName);
+			EQG_LOG_ERROR("Failed to create bitmap {}!", wldData.fileName);
 			return false;
 		}
 
@@ -560,7 +689,7 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 
 		if (!m_resourceMgr->Add(wldData.fileName, newBitmap))
 		{
-			SPDLOG_ERROR("Failed to add bitmap {} to resource manager!", wldData.fileName);
+			EQG_LOG_ERROR("Failed to add bitmap {} to resource manager!", wldData.fileName);
 			return false;
 		}
 
@@ -573,7 +702,7 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 
 bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 {
-	S3DFileObject& wldObj = m_objects[objectIndex];
+	WLDFileObject& wldObj = m_objects[objectIndex];
 	if (wldObj.type != WLD_OBJ_MATERIALDEFINITION_TYPE)
 	{
 		return false;
@@ -585,12 +714,12 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 		return true;
 	}
 
-	SPDLOG_TRACE("Parsing material: {} ({})", wldObj.tag, objectIndex);
+	EQG_LOG_TRACE("Parsing material: {} ({})", wldObj.tag, objectIndex);
 
 	BufferReader reader(wldObj.data, wldObj.size);
 	auto* pWLDMaterialDef = reader.read_ptr<WLD_OBJ_MATERIALDEFINITION>();
 
-	S3DFileObject& simpleSpriteInstanceObj = GetObjectFromID(pWLDMaterialDef->sprite_or_bminfo, objectIndex);
+	WLDFileObject& simpleSpriteInstanceObj = GetObjectFromID(pWLDMaterialDef->sprite_or_bminfo, objectIndex);
 	WLD_OBJ_SIMPLESPRITEINSTANCE* pWLDSimpleSpriteInst = (WLD_OBJ_SIMPLESPRITEINSTANCE*)simpleSpriteInstanceObj.data;
 
 	ParsedSimpleSpriteDef* pParsedSpriteDef = nullptr;
@@ -600,14 +729,14 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 	{
 		if (simpleSpriteInstanceObj.type != WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE)
 		{
-			SPDLOG_ERROR("Material's sprite_or_bminfo is not a SimpleSpriteInstance: {}", wldObj.tag);
+			EQG_LOG_ERROR("Material's sprite_or_bminfo is not a SimpleSpriteInstance: {}", wldObj.tag);
 			return false;
 		}
 
-		S3DFileObject& simpleSpriteDefinitionObj = GetObjectFromID(pWLDSimpleSpriteInst->definition_id, objectIndex);
+		WLDFileObject& simpleSpriteDefinitionObj = GetObjectFromID(pWLDSimpleSpriteInst->definition_id, objectIndex);
 		if (simpleSpriteDefinitionObj.type != WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE)
 		{
-			SPDLOG_ERROR("SimpleSpriteInstance's definition isn't a SimpleSpriteDefinition!", simpleSpriteInstanceObj.tag);
+			EQG_LOG_ERROR("SimpleSpriteInstance's definition isn't a SimpleSpriteDefinition!", simpleSpriteInstanceObj.tag);
 			return false;
 		}
 
@@ -618,7 +747,7 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 		{
 			// Parse the data for the SIMPLESPRITEDEFINITION.
 			WLD_OBJ_SIMPLESPRITEDEFINITION* pWLDSpriteDef = spriteDefReader.read_ptr<WLD_OBJ_SIMPLESPRITEDEFINITION>();
-			pParsedSpriteDef = new ParsedSimpleSpriteDef(&simpleSpriteDefinitionObj);
+			pParsedSpriteDef = new ParsedSimpleSpriteDef();
 			pParsedSpriteDef->definition = pWLDSpriteDef;
 
 			if (pWLDSpriteDef->flags & WLD_OBJ_SPROPT_HAVECURRENTFRAME)
@@ -636,24 +765,24 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 				if (bmID < 0)
 				{
 					// An object that we can look up by name.
-					auto bitmap = m_resourceMgr->Get<EQGBitmap>(GetString(bmID));
+					auto bitmap = m_resourceMgr->Get<Bitmap>(GetString(bmID));
 					if (!bitmap)
 					{
-						SPDLOG_ERROR("Failed to find bitmap {} (id={})", GetString(bmID), bmID);
+						EQG_LOG_ERROR("Failed to find bitmap {} (id={})", GetString(bmID), bmID);
 						delete pParsedSpriteDef;
 						return false;
 					}
 
-					pParsedBMInfo = std::make_shared<ParsedBMInfo>(&simpleSpriteDefinitionObj);
+					pParsedBMInfo = std::make_shared<ParsedBMInfo>();
 					pParsedBMInfo->bitmaps.push_back(bitmap);
 				}
 				else
 				{
 					// An object that we can look up by ID.
-					S3DFileObject& bmObj = m_objects[bmID];
+					WLDFileObject& bmObj = m_objects[bmID];
 					if (bmObj.type != WLD_OBJ_BMINFO_TYPE)
 					{
-						SPDLOG_ERROR("Bitmap {} (id: {}) is not a BMINFO object!?", bmObj.tag, bmID);
+						EQG_LOG_ERROR("Bitmap {} (id: {}) is not a BMINFO object!?", bmObj.tag, bmID);
 						delete pParsedSpriteDef;
 						return false;
 					}
@@ -684,13 +813,13 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 	if (!newMaterial->InitFromWLDData(wldObj.tag, pWLDMaterialDef, pWLDSimpleSpriteInst, pParsedSpriteDef,
 		pParsedBMInfoForPalette.get()))
 	{
-		SPDLOG_ERROR("Failed to create material {}!", wldObj.tag);
+		EQG_LOG_ERROR("Failed to create material {}!", wldObj.tag);
 		return false;
 	}
 
 	if (!m_resourceMgr->Add(wldObj.tag, newMaterial))
 	{
-		SPDLOG_ERROR("Failed to add new material to resource manager: {}", wldObj.tag);
+		EQG_LOG_ERROR("Failed to add new material to resource manager: {}", wldObj.tag);
 		return false;
 	}
 
@@ -699,7 +828,7 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 
 bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 {
-	S3DFileObject& wldObj = m_objects[objectIndex];
+	WLDFileObject& wldObj = m_objects[objectIndex];
 	if (wldObj.type != WLD_OBJ_MATERIALPALETTE_TYPE)
 	{
 		return false;
@@ -711,20 +840,20 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 	if (auto existingMP = m_resourceMgr->Get<MaterialPalette>(wldObj.tag))
 	{
 		// re-create a ParsedPalette from this existing object.
-		parsedPalette = new ParsedMaterialPalette(&wldObj);
+		parsedPalette = new ParsedMaterialPalette();
 		parsedPalette->palette = existingMP;
 		wldObj.parsed_data = parsedPalette;
 
 		return true;
 	}
 
-	SPDLOG_TRACE("Parsing material palette: {} ({})", wldObj.tag, objectIndex);
+	EQG_LOG_TRACE("Parsing material palette: {} ({})", wldObj.tag, objectIndex);
 
 	BufferReader reader(wldObj.data, wldObj.size);
 
 	if (wldObj.parsed_data == nullptr)
 	{
-		parsedPalette = new ParsedMaterialPalette(&wldObj);
+		parsedPalette = new ParsedMaterialPalette();
 
 		parsedPalette->matPalette = reader.read_ptr<WLD_OBJ_MATERIALPALETTE>();
 		parsedPalette->materials.resize(parsedPalette->matPalette->num_entries);
@@ -738,7 +867,7 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 				auto material = m_resourceMgr->Get<Material>(GetString(materialID));
 				if (!material)
 				{
-					SPDLOG_ERROR("Failed to find material {} (id={})", GetString(materialID), materialID);
+					EQG_LOG_ERROR("Failed to find material {} (id={})", GetString(materialID), materialID);
 					delete parsedPalette;
 					return false;
 				}
@@ -746,10 +875,10 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 			}
 			else
 			{
-				S3DFileObject& materialObj = m_objects[materialID];
+				WLDFileObject& materialObj = m_objects[materialID];
 				if (materialObj.type != WLD_OBJ_MATERIALDEFINITION_TYPE)
 				{
-					SPDLOG_ERROR("Material {} (id: {}) is not a MATERIALDEFINITION object!?", materialObj.tag, materialID);
+					EQG_LOG_ERROR("Material {} (id: {}) is not a MATERIALDEFINITION object!?", materialObj.tag, materialID);
 					delete parsedPalette;
 					return false;
 				}
@@ -757,7 +886,7 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 				auto material = m_resourceMgr->Get<Material>(materialObj.tag);
 				if (!material)
 				{
-					SPDLOG_ERROR("Failed to find material {} (id={})", materialObj.tag, materialID);
+					EQG_LOG_ERROR("Failed to find material {} (id={})", materialObj.tag, materialID);
 					delete parsedPalette;
 					return false;
 				}
@@ -777,13 +906,13 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 
 	if (!palette->InitFromWLDData(wldObj.tag, parsedPalette))
 	{
-		SPDLOG_ERROR("Failed to create material palette {}!", wldObj.tag);
+		EQG_LOG_ERROR("Failed to create material palette {}!", wldObj.tag);
 		return false;
 	}
 
 	if (!m_resourceMgr->Add(wldObj.tag, palette))
 	{
-		SPDLOG_ERROR("Failed to add new material palette to resource manager: {}", wldObj.tag);
+		EQG_LOG_ERROR("Failed to add new material palette to resource manager: {}", wldObj.tag);
 		return false;
 	}
 
@@ -794,7 +923,7 @@ bool WLDLoader::ParseMaterialPalette(uint32_t objectIndex)
 
 bool WLDLoader::ParseTrack(uint32_t objectIndex)
 {
-	S3DFileObject& wldObj = m_objects[objectIndex];
+	WLDFileObject& wldObj = m_objects[objectIndex];
 
 	if (wldObj.type != WLD_OBJ_TRACKINSTANCE_TYPE)
 	{
@@ -808,11 +937,11 @@ bool WLDLoader::ParseTrack(uint32_t objectIndex)
 
 	if (wldObj.tag.empty())
 	{
-		SPDLOG_ERROR("Track instance {} has no tag!", objectIndex);
+		EQG_LOG_ERROR("Track instance {} has no tag!", objectIndex);
 		return false;
 	}
 
-	SPDLOG_TRACE("Parsing track: {} ({})", wldObj.tag, objectIndex);
+	EQG_LOG_TRACE("Parsing track: {} ({})", wldObj.tag, objectIndex);
 
 	// Create the track and set some defaults.
 	std::shared_ptr<STrack> track = std::make_shared<STrack>();
@@ -843,16 +972,16 @@ bool WLDLoader::ParseTrack(uint32_t objectIndex)
 	}
 
 	// Look up track definition.
-	S3DFileObject& trackDefObj = GetObjectFromID(pTrackInst->track_id, objectIndex);
+	WLDFileObject& trackDefObj = GetObjectFromID(pTrackInst->track_id, objectIndex);
 	if (trackDefObj.type != WLD_OBJ_TRACKDEFINITION_TYPE)
 	{
-		SPDLOG_ERROR("Track instance {} ({}) has invalid track definition!", wldObj.tag, objectIndex);
+		EQG_LOG_ERROR("Track instance {} ({}) has invalid track definition!", wldObj.tag, objectIndex);
 		return false;
 	}
 
 	if (trackDefObj.parsed_data != nullptr)
 	{
-		SPDLOG_ERROR("Parsed track def {} ({}) twice!", trackDefObj.tag, pTrackInst->track_id);
+		EQG_LOG_ERROR("Parsed track def {} ({}) twice!", trackDefObj.tag, pTrackInst->track_id);
 		return false;
 	}
 
@@ -891,20 +1020,297 @@ bool WLDLoader::ParseTrack(uint32_t objectIndex)
 
 	// TODO: Something about IT61 and  IT157
 
-	ParsedTrackInstance* parsedTrackInst = new ParsedTrackInstance(&wldObj);
+	ParsedTrackInstance* parsedTrackInst = new ParsedTrackInstance();
 	parsedTrackInst->track = track;
 	wldObj.parsed_data = parsedTrackInst;
 
-	ParsedTrackDefinition* parsedTrackDef = new ParsedTrackDefinition(&trackDefObj);
+	ParsedTrackDefinition* parsedTrackDef = new ParsedTrackDefinition();
 	parsedTrackDef->track = track;
 	wldObj.parsed_data = parsedTrackDef;
 
 	return true;
 }
 
+bool WLDLoader::ParseActorDefinition(uint32_t objectIndex)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+
+	if (wldObj.type != WLD_OBJ_ACTORDEFINITION_TYPE)
+		return false;
+
+	if (auto pExistingActorDef = m_resourceMgr->Get<ActorDefinition>(wldObj.tag))
+	{
+		if (wldObj.parsed_data == nullptr)
+		{
+			ParsedActorDefinition* parsedData = new ParsedActorDefinition();
+			parsedData->actorDefinition = pExistingActorDef;
+			wldObj.parsed_data = parsedData;
+		}
+
+		return true;
+	}
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	WLD_OBJ_ACTORDEFINITION* pWLDActorDef = reader.read_ptr<WLD_OBJ_ACTORDEFINITION>();
+
+	if (pWLDActorDef->flags & WLD_OBJ_ACTOROPT_HAVECURRENTACTION)
+		reader.skip<uint32_t>();
+	if (pWLDActorDef->flags & WLD_OBJ_ACTOROPT_HAVELOCATION)
+		reader.skip<uint32_t>(7);
+
+	if (pWLDActorDef->num_actions > 1)
+	{
+		EQG_LOG_ERROR("ActorDef {} ({}) has too many actions!", wldObj.tag, objectIndex);
+		return false;
+	}
+
+	if (pWLDActorDef->num_actions == 1)
+	{
+		uint32_t numLODs = reader.read<uint32_t>();
+		if (numLODs > 1)
+		{
+			EQG_LOG_ERROR("ActorDef {} ({}) has too many LODs!", wldObj.tag, objectIndex);
+			return false;
+		}
+
+		if (numLODs == 1)
+		{
+			reader.skip<uint32_t>(2);
+		}
+	}
+
+	if (pWLDActorDef->num_sprites > 1)
+	{
+		EQG_LOG_ERROR("ActorDef {} ({}) has too many sprites!", wldObj.tag, objectIndex);
+		return false;
+	}
+
+	SimpleModelDefinitionPtr simpleModelDef;
+	HierarchicalModelDefinitionPtr hierarchicalModelDef;
+
+	if (pWLDActorDef->num_sprites == 1)
+	{
+		uint32_t spriteIndex = reader.read<uint32_t>();
+
+		if (m_objects[spriteIndex].type == WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+		{
+			if (!ParseSimpleModel(spriteIndex, simpleModelDef))
+			{
+				EQG_LOG_ERROR("Failed to parse simple model {} ({}) for ActorDef {} ({})",
+					m_objects[spriteIndex].tag, spriteIndex, wldObj.tag, objectIndex);
+				return false;
+			}
+		}
+		else if (m_objects[spriteIndex].type == WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
+		{
+			if (!ParseHierarchicalModel(spriteIndex, hierarchicalModelDef))
+			{
+				EQG_LOG_ERROR("Failed to parse hierarchical model {} ({}) for ActorDef {} ({})",
+					m_objects[spriteIndex].tag, spriteIndex, wldObj.tag, objectIndex);
+				return false;
+			}
+		}
+		else
+		{
+			EQG_LOG_WARN("Skipped parsing of sprite {} ({}) type={} in ActorDef {} ({})",
+				m_objects[spriteIndex].tag, spriteIndex, (int)m_objects[spriteIndex].type, wldObj.tag, objectIndex);
+		}
+	}
+
+	reader.skip<uint32_t>();
+
+	ECollisionVolumeType collisionVolumeType = eCollisionVolumeNone;
+	if (pWLDActorDef->flags & WLD_OBJ_ACTOROPT_SPRITEVOLUMEONLY)
+	{
+		collisionVolumeType = eCollisionVolumeModel;
+	}
+
+	std::string_view callbackTag;
+	if (pWLDActorDef->callback_id < 0)
+	{
+		callbackTag = GetString(pWLDActorDef->callback_id);
+	}
+
+	std::shared_ptr<ActorDefinition> pNewActorDef;
+
+	if (hierarchicalModelDef)
+	{
+		pNewActorDef = std::make_shared<ActorDefinition>(wldObj.tag, hierarchicalModelDef);
+	}
+	else if (simpleModelDef)
+	{
+		pNewActorDef = std::make_shared<ActorDefinition>(wldObj.tag, simpleModelDef);
+	}
+	else
+	{
+		EQG_LOG_WARN("ActorDef {} ({}) has no parsed model!", wldObj.tag, objectIndex);
+	}
+
+	if (pNewActorDef)
+	{
+		if (!callbackTag.empty())
+		{
+			pNewActorDef->SetCallbackTag(callbackTag);
+		}
+
+		pNewActorDef->SetCollisionVolumeType(collisionVolumeType);
+
+		m_resourceMgr->Add(pNewActorDef);
+	}
+
+	ParsedActorDefinition* parsedActorDef = new ParsedActorDefinition;
+	parsedActorDef->actorDefinition = pNewActorDef;
+
+	wldObj.parsed_data = parsedActorDef;
+
+	return true;
+}
+
+bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+
+	if (wldObj.type != WLD_OBJ_ACTORINSTANCE_TYPE)
+		return false;
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	WLD_OBJ_ACTORINSTANCE* pWLDActorInst = reader.read_ptr<WLD_OBJ_ACTORINSTANCE>();
+
+	ECollisionVolumeType collisionVolumeType = eCollisionVolumeNone;
+	if (pWLDActorInst->flags & WLD_OBJ_ACTOROPT_SPRITEVOLUMEONLY)
+	{
+		collisionVolumeType = eCollisionVolumeModel;
+	}
+
+	bool boundingBox = (pWLDActorInst->flags & WLD_OBJ_ACTOROPT_USEBOUNDINGBOX) != 0;
+	float boundingRadius = 0.0f;
+	float scaleFactor = 0.0f;
+	SLocation* location = nullptr;
+	std::unique_ptr<SDMRGBTrackWLDData> pDMRGBTrackData;
+
+	if (pWLDActorInst->flags & WLD_OBJ_ACTOROPT_HAVECURRENTACTION)
+		reader.skip<uint32_t>();
+	if (pWLDActorInst->flags & WLD_OBJ_ACTOROPT_HAVELOCATION)
+		location = reader.read_ptr<SLocation>();
+	if (pWLDActorInst->flags & WLD_OBJ_ACTOROPT_HAVEBOUNDINGRADIUS)
+		boundingRadius = reader.read<float>();
+	if (pWLDActorInst->flags & WLD_OBJ_ACTOROPT_HAVESCALEFACTOR)
+		scaleFactor = reader.read<float>();
+
+	if (pWLDActorInst->flags & WLD_OBJ_ACTOROPT_HAVEDMRGBTRACK)
+	{
+		uint32_t DMRGBTrackIndex = GetObjectIndexFromID(reader.read<uint32_t>());
+
+		if (!ParseDMRGBTrack(DMRGBTrackIndex, pDMRGBTrackData))
+			return false;
+	}
+
+	// Find actor definition
+	if (pWLDActorInst->actor_def_id >= 0)
+	{
+		return false;
+	}
+
+	std::string_view actorDefTag = GetString(pWLDActorInst->actor_def_id);
+	ActorDefinitionPtr actorDef = m_resourceMgr->Get<ActorDefinition>(actorDefTag);
+
+	std::string actorTag = wldObj.tag.empty() ? fmt::format("ZoneActor_{:05}", objectIndex) : std::string(wldObj.tag);
+
+	// Convert positional information.
+	glm::vec3 position = glm::vec3(location->x, location->y, location->z);
+	glm::vec3 orientation = glm::vec3(
+		location->roll * EQ_TO_RAD,
+		-location->pitch * EQ_TO_RAD,
+		location->heading * EQ_TO_RAD
+	);
+
+	std::shared_ptr<ActorInstance> actor;
+
+	if (actorDef->GetSimpleModelDefinition())
+	{
+		actor = std::make_shared<SimpleActor>(
+			m_resourceMgr,
+			actorTag,
+			actorDef,
+			position,
+			orientation,
+			scaleFactor,
+			boundingRadius,
+			collisionVolumeType,
+			objectIndex,
+			pDMRGBTrackData.get());
+	}
+	else if (actorDef->GetHierarchicalModelDefinition())
+	{
+		actor = std::make_shared<HierarchicalActor>(
+			m_resourceMgr,
+			actorTag,
+			actorDef,
+			position,
+			orientation,
+			scaleFactor,
+			boundingRadius,
+			collisionVolumeType,
+			objectIndex,
+			pDMRGBTrackData.get());
+	}
+
+	if (!actor)
+	{
+		EQG_LOG_ERROR("Failed to create ActorInstance for {} ({})", wldObj.tag, objectIndex);
+		return true;
+	}
+
+	m_actors.push_back(actor);
+
+	auto parsedActorInstance = new ParsedActorInstance();
+	parsedActorInstance->actorInstance = actor;
+
+	wldObj.parsed_data = parsedActorInstance;
+	return true;
+}
+
+bool WLDLoader::ParseDMRGBTrack(uint32_t objectIndex, std::unique_ptr<SDMRGBTrackWLDData>& outData)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+	outData.reset();
+
+	if (wldObj.type != WLD_OBJ_DMRGBTRACKINSTANCE_TYPE)
+		return false;
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	WLD_OBJ_DMRGBTRACKINSTANCE* pDMRGBTrackInst = reader.read_ptr<WLD_OBJ_DMRGBTRACKINSTANCE>();
+
+	uint32_t DMRGBTrackDefID = GetObjectIndexFromID(pDMRGBTrackInst->definition_id);
+	if (DMRGBTrackDefID <= 0)
+	{
+		EQG_LOG_ERROR("Invalid DMRGBTrackDef index {} from DMRGBTrackInstance {} ({})",
+			DMRGBTrackDefID, wldObj.tag, objectIndex);
+		return false;
+	}
+
+	WLDFileObject& defWldObj = m_objects[DMRGBTrackDefID];
+	if (defWldObj.type != WLD_OBJ_DMRGBTRACKDEFINITION_TYPE)
+	{
+		EQG_LOG_ERROR("definition {} ({}) is not a DMRGBTrackDefinition for DMRGBTrackInstance {} ({})",
+			defWldObj.tag, DMRGBTrackDefID, wldObj.tag, objectIndex);
+		return false;
+	}
+
+	BufferReader defReader(defWldObj.data, defWldObj.size);
+	WLD_OBJ_DMRGBTRACKDEFINITION* pDMRGBTrackDef = defReader.read_ptr<WLD_OBJ_DMRGBTRACKDEFINITION>();
+
+	outData = std::make_unique<SDMRGBTrackWLDData>();
+	outData->numRGBs = pDMRGBTrackDef->num_vertices;
+	outData->RGBs = defReader.read_array<uint32_t>(outData->numRGBs);
+	outData->hasAlphas = (pDMRGBTrackDef->flags & 0x1);
+
+	return true;
+}
+
 bool WLDLoader::ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleModelDefinition>& outModel)
 {
-	S3DFileObject& wldObj = m_objects[objectIndex];
+	WLDFileObject& wldObj = m_objects[objectIndex];
 	outModel.reset();
 
 	if (wldObj.type != WLD_OBJ_DMSPRITEINSTANCE_TYPE)
@@ -916,17 +1322,17 @@ bool WLDLoader::ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleMod
 	uint32_t dmSpriteDefIndex = GetObjectIndexFromID(pDMSpriteInst->definition_id);
 	if (dmSpriteDefIndex <= 0)
 	{
-		SPDLOG_ERROR("Invalid DMSpriteDef index {} from DMSpriteInstance {} ({})",
+		EQG_LOG_ERROR("Invalid DMSpriteDef index {} from DMSpriteInstance {} ({})",
 			dmSpriteDefIndex, wldObj.tag, objectIndex);
 		return false;
 	}
 
-	S3DFileObject& dmSpriteDefObj = m_objects[dmSpriteDefIndex];
+	WLDFileObject& dmSpriteDefObj = m_objects[dmSpriteDefIndex];
 
 	// DMSpriteDefinitions are always DMSPRITEDEF2's.
 	if (dmSpriteDefObj.type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
 	{
-		SPDLOG_ERROR("definition {} is not a DMSPRITEDEF2 (it is {}) for DMSpriteInstance {} ({}) ",
+		EQG_LOG_ERROR("definition {} is not a DMSPRITEDEF2 (it is {}) for DMSpriteInstance {} ({}) ",
 			dmSpriteDefIndex, (int)dmSpriteDefObj.type, wldObj.tag, objectIndex);
 		return false;
 	}
@@ -939,7 +1345,7 @@ bool WLDLoader::ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleMod
 		if (dmSpriteDefObj.parsed_data == nullptr)
 		{
 			// Fill in the parsed_data, as some other object may need it.
-			auto parsedData = new ParsedDMSpriteDefinition2(&wldObj);
+			auto parsedData = new ParsedDMSpriteDefinition2();
 			parsedData->simpleModelDefinition = simpleModelDef;
 
 			dmSpriteDefObj.parsed_data = parsedData;
@@ -951,14 +1357,14 @@ bool WLDLoader::ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleMod
 	std::unique_ptr<SDMSpriteDef2WLDData> dmSpriteDefData;
 	if (!ParseDMSpriteDef2(dmSpriteDefIndex, dmSpriteDefData))
 	{
-		SPDLOG_ERROR("Failed to parse DMSpriteDef2 for DMSpriteInstance {} ({})", dmSpriteDefObj.tag, objectIndex);
+		EQG_LOG_ERROR("Failed to parse DMSpriteDef2 for DMSpriteInstance {} ({})", dmSpriteDefObj.tag, objectIndex);
 		return false;
 	}
 
 	auto simpleModelDef = m_resourceMgr->CreateSimpleModelDefinition();
 	if (!simpleModelDef->InitFromWLDData(dmSpriteDefObj.tag, dmSpriteDefData.get()))
 	{
-		SPDLOG_ERROR("Failed to create SimpleModelDefinition {} from DMSpriteDef2 {} ({})",
+		EQG_LOG_ERROR("Failed to create SimpleModelDefinition {} from DMSpriteDef2 {} ({})",
 			wldObj.tag, dmSpriteDefObj.tag, dmSpriteDefIndex);
 		return false;
 	}
@@ -967,16 +1373,302 @@ bool WLDLoader::ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleMod
 
 	outModel = simpleModelDef;
 
-	auto parsedData = new ParsedDMSpriteDefinition2(&wldObj);
+	auto parsedData = new ParsedDMSpriteDefinition2();
 	parsedData->simpleModelDefinition = simpleModelDef;
 
 	dmSpriteDefObj.parsed_data = parsedData;
 	return true;
 }
 
+bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<HierarchicalModelDefinition>& outModel)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+
+	if (wldObj.type != WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
+		return false;
+
+	BufferReader reader(wldObj.data, wldObj.size);
+	WLD_OBJ_HIERARCHICALSPRITEINSTANCE* pHierSpriteInst = reader.read_ptr<WLD_OBJ_HIERARCHICALSPRITEINSTANCE>();
+
+	WLDFileObject& defObj = GetObjectFromID(pHierSpriteInst->definition_id);
+	if (defObj.type != WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE)
+	{
+		EQG_LOG_ERROR("Invalid HierarchicalSpriteDef {} ({}) from HierarchicalSpriteInstance {} ({})",
+			defObj.tag, pHierSpriteInst->definition_id, wldObj.tag, objectIndex);
+		return false;
+	}
+
+	if (auto pExistingDef = m_resourceMgr->Get<HierarchicalModelDefinition>(defObj.tag))
+	{
+		if (defObj.parsed_data == nullptr)
+		{
+			auto parsedData = new ParsedHierarchicalModelDef();
+			parsedData->hierarchicalModelDef = pExistingDef;
+			defObj.parsed_data = parsedData;
+		}
+
+		outModel = pExistingDef;
+		return true;
+	}
+
+	BufferReader defReader(defObj.data, defObj.size);
+	WLD_OBJ_HIERARCHICALSPRITEDEFINITION* pHierSpriteDef = defReader.read_ptr<WLD_OBJ_HIERARCHICALSPRITEDEFINITION>();
+
+	std::unique_ptr<SHSpriteDefWLDData> hSpriteWLDData = std::make_unique<SHSpriteDefWLDData>();
+
+	ECollisionVolumeType collisionVolumeType = eCollisionVolumeNone;
+
+	if (pHierSpriteDef->flags & WLD_OBJ_SPROPT_DAGCOLLISIONS)
+	{
+		collisionVolumeType = eCollisionVolumeDag;
+	}
+	else if (pHierSpriteDef->collision_volume_id != 0)
+	{
+		// TODO
+	}
+
+	if (pHierSpriteDef->flags & WLD_OBJ_SPROPT_HAVECENTEROFFSET)
+	{
+		hSpriteWLDData->centerOffset = defReader.read<glm::vec3>();
+	}
+	if (pHierSpriteDef->flags & WLD_OBJ_SPROPT_HAVEBOUNDINGRADIUS)
+	{
+		hSpriteWLDData->boundingRadius = defReader.read<float>();
+	}
+
+	uint32_t numDags = pHierSpriteDef->num_dags;
+	hSpriteWLDData->dags.resize(numDags);
+
+	// Handle dags
+	for (uint32_t dagIndex = 0; dagIndex < numDags; ++dagIndex)
+	{
+		WLDDATA_DAG* pWldDag = defReader.read_ptr<WLDDATA_DAG>();
+		SDagWLDData& dagData = hSpriteWLDData->dags[dagIndex];
+
+		if (pWldDag->num_sub_dags != 0)
+		{
+			dagData.subDags.resize(pWldDag->num_sub_dags);
+			for (uint32_t subDagIndex = 0; subDagIndex < pWldDag->num_sub_dags; ++subDagIndex)
+			{
+				uint32_t subDagNum = defReader.read<uint32_t>();
+				dagData.subDags[subDagIndex] = &hSpriteWLDData->dags[subDagNum];
+			}
+		}
+
+		if (pWldDag->track_id != 0)
+		{
+			WLDFileObject& trackInstObj = GetObjectFromID(pWldDag->track_id);
+			if (trackInstObj.type != WLD_OBJ_TRACKINSTANCE_TYPE)
+			{
+				EQG_LOG_ERROR("Dag {} has invalid track instance {}", dagIndex, pWldDag->track_id);
+				return false;
+			}
+
+			if (trackInstObj.parsed_data == nullptr)
+			{
+				EQG_LOG_ERROR("track id {} is not parsed", pWldDag->track_id);
+				return false;
+			}
+
+			ParsedTrackInstance* parsedTrackInst = (ParsedTrackInstance*)trackInstObj.parsed_data;
+			dagData.track = parsedTrackInst->track;
+			dagData.track->frameTransforms[0].rotation.w = -dagData.track->frameTransforms[0].rotation.w;
+		}
+
+		if (dagData.track != nullptr && !dagData.track->tag.empty())
+		{
+			dagData.tag = dagData.track->tag;
+		}
+		else
+		{
+			dagData.tag = pWldDag->tag < 0 ? GetString(pWldDag->tag) : "";
+		}
+
+		if (ci_starts_with(dagData.tag, "PKLMPBN502A")) // ???
+		{
+			dagData.track->frameTransforms[0].pivot.x = -11.0f;
+			dagData.track->frameTransforms[0].pivot.z = 25.0f;
+		}
+
+		if (pWldDag->sprite_id != 0)
+		{
+			uint32_t spriteIndex = GetObjectIndexFromID(pWldDag->sprite_id);
+
+			if (m_objects[spriteIndex].type == WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+			{
+				SimpleModelDefinitionPtr simpleModelDef;
+				if (!ParseSimpleModel(spriteIndex, simpleModelDef))
+				{
+					EQG_LOG_ERROR("Failed to parse simple model {} ({}) while parsing hierchical model {} ({})",
+						m_objects[spriteIndex].tag, spriteIndex, wldObj.tag, objectIndex);
+					return false;
+				}
+
+				dagData.attachedActor = std::make_shared<ActorDefinition>("", simpleModelDef);
+			}
+			else if (m_objects[spriteIndex].type == WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
+			{
+				// Lol, here we goooooo....
+				HierarchicalModelDefinitionPtr hierModelDef;
+				if (!ParseHierarchicalModel(spriteIndex, hierModelDef))
+				{
+					EQG_LOG_ERROR("Failed to parse hierarchical model {} ({}) while parsing hierchical model {} ({})",
+						m_objects[spriteIndex].tag, spriteIndex, wldObj.tag, objectIndex);
+					return false;
+				}
+
+				dagData.attachedActor = std::make_shared<ActorDefinition>("", hierModelDef);
+			}
+			else if (m_objects[spriteIndex].type == WLD_OBJ_PCLOUDDEFINITION_TYPE)
+			{
+				EQG_LOG_WARN("Skipped PCloud in Hierarchical model {} ({})", wldObj.tag, objectIndex);
+			}
+			else
+			{
+				EQG_LOG_ERROR("Dag {} has invalid sprite type for {} ({}) in Hierarchical model {} ({})",
+					dagIndex, m_objects[spriteIndex].tag, spriteIndex, wldObj.tag, objectIndex);
+				return false;
+			}
+		}
+	}
+
+	// Handle skins
+	if (pHierSpriteDef->flags & WLD_OBJ_SPROPT_HAVEATTACHEDSKINS)
+	{
+		uint32_t numAttachedSkins = defReader.read<uint32_t>();
+		hSpriteWLDData->activeSkin = (uint32_t)-1;
+		hSpriteWLDData->numAttachedSkins = numAttachedSkins;
+
+		for (uint32_t skin = 0; skin < numAttachedSkins; ++skin)
+		{
+			uint32_t attachedSkinIndex = GetObjectIndexFromID(defReader.read<uint32_t>());
+
+			if (m_objects[attachedSkinIndex].type != WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+			{
+				EQG_LOG_ERROR("Attached skin {} ({}) is not a DMSPRITEINSTANCE for HierarchicalSpriteDef {} ({})",
+					m_objects[attachedSkinIndex].tag, attachedSkinIndex, wldObj.tag, objectIndex);
+				return false;
+			}
+
+			WLD_OBJ_DMSPRITEINSTANCE* pDMSpriteInst = (WLD_OBJ_DMSPRITEINSTANCE*)m_objects[attachedSkinIndex].data;
+			uint32_t DMSpriteDefIndex = GetObjectIndexFromID(pDMSpriteInst->definition_id);
+
+			WLDFileObject& DMSpriteDefObj = m_objects[DMSpriteDefIndex];
+			auto tag = DMSpriteDefObj.tag;
+
+			uint32_t firstIndex = DMSpriteDefIndex;
+			uint32_t lastIndex = firstIndex;
+
+			if ((tag.size() >= 3 && tag[0] == 'I' && tag[1] == 'T' && ::isdigit(tag[2]))
+				|| ci_starts_with(DMSpriteDefObj.tag, "POKLAMP502")
+				|| ci_starts_with(DMSpriteDefObj.tag, "CDTHRONE"))
+			{
+				lastIndex = firstIndex + numAttachedSkins;
+				hSpriteWLDData->activeSkin = 0;
+			}
+			else
+			{
+				// I guess we're searching for skins because we don't trust numAttachedSkins!
+				for (lastIndex = firstIndex; lastIndex < firstIndex + 20; ++lastIndex)
+				{
+					if (lastIndex > m_numObjects || m_objects[lastIndex].type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+						break;
+				}
+
+				while (true)
+				{
+					if (firstIndex < 0 || m_objects[firstIndex].type != WLD_OBJ_DMSPRITEDEFINITION2_TYPE || m_objects[firstIndex].parsed_data == nullptr)
+					{
+						++firstIndex;
+						break;
+					}
+
+					--firstIndex;
+					++hSpriteWLDData->activeSkin;
+				}
+
+				firstIndex = std::min(firstIndex, lastIndex);
+			}
+
+			numAttachedSkins = std::max(lastIndex - firstIndex, numAttachedSkins);
+
+			if (numAttachedSkins > 0)
+			{
+				hSpriteWLDData->attachedSkins.resize(numAttachedSkins);
+
+				for (uint32_t skinIndex = 0; skinIndex < numAttachedSkins; ++skinIndex)
+				{
+					std::unique_ptr<SDMSpriteDef2WLDData> pDMSpriteDef2;
+
+					if (!ParseDMSpriteDef2(firstIndex + skinIndex, pDMSpriteDef2))
+					{
+						EQG_LOG_ERROR("Failed to parse DMSpriteDef2 for attached skin {} ({}) in HierarchicalSpriteDef {} ({}) "
+							"numAttachedSkins={} firstIndex={} lastIndex={} actual={}",
+							m_objects[firstIndex + skinIndex].tag, firstIndex + skinIndex, wldObj.tag, objectIndex,
+							numAttachedSkins, firstIndex, lastIndex, hSpriteWLDData->numAttachedSkins);
+						return false;
+					}
+
+					if (pDMSpriteDef2)
+					{
+						if (!hSpriteWLDData->materialPalette)
+						{
+							hSpriteWLDData->materialPalette = pDMSpriteDef2->materialPalette;
+						}
+
+						if (pDMSpriteDef2->tag.empty())
+						{
+							pDMSpriteDef2->tag = m_objects[firstIndex + skinIndex].tag;
+						}
+
+						if (!pDMSpriteDef2->tag.empty())
+						{
+							if (ci_starts_with(pDMSpriteDef2->tag, "PIFHE01")
+								|| ci_starts_with(pDMSpriteDef2->tag, "FAFHE01"))
+							{
+								const_cast<char*>(pDMSpriteDef2->tag.data())[3] = 'W'; // neat!
+							}
+						}
+					}
+
+					hSpriteWLDData->attachedSkins[skinIndex] = std::move(pDMSpriteDef2);
+
+					// I guess we are skipping reading the indices from the data?
+					if (skinIndex < hSpriteWLDData->numAttachedSkins)
+						defReader.skip<uint32_t>();
+				}
+			}
+
+			hSpriteWLDData->skeletonDagIndices = defReader.read_array<int>(hSpriteWLDData->numAttachedSkins);
+		}
+	}
+
+	HierarchicalModelDefinitionPtr pHierarchicalModelDef = std::make_shared<HierarchicalModelDefinition>();
+	if (!pHierarchicalModelDef->InitFromWLDData(defObj.tag, hSpriteWLDData.get()))
+	{
+		EQG_LOG_ERROR("Failed to create HierarchicalModelDefinition from HierarchicalSpriteDef {} ({} -- instance {} ({}))",
+			defObj.tag, pHierSpriteInst->definition_id, wldObj.tag, objectIndex);
+		return false;
+	}
+
+	if (!m_resourceMgr->Add(pHierarchicalModelDef))
+	{
+		EQG_LOG_ERROR("Failed to add HierarchicalModelDefinition {} to resource manager!", defObj.tag);
+		return false;
+	}
+
+	auto parsedData = new ParsedHierarchicalModelDef();
+	parsedData->hierarchicalModelDef = pHierarchicalModelDef;
+
+	defObj.parsed_data = parsedData;
+
+	outModel = pHierarchicalModelDef;
+	return true;
+}
+
 bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSpriteDef2WLDData>& pSpriteDef)
 {
-	S3DFileObject& wldObj = m_objects[objectIndex];
+	WLDFileObject& wldObj = m_objects[objectIndex];
 
 	if (wldObj.type == WLD_OBJ_DMSPRITEDEFINITION_TYPE)
 	{
@@ -1067,30 +1759,30 @@ bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSprit
 	// MeshOps at the end are ignored/unused
 
 	// TODO: Clean up interface to other objects
-	S3DFileObject& materialObj = m_objects[GetObjectIndexFromID(pWLDObj->material_palette_id)];
+	WLDFileObject& materialObj = m_objects[GetObjectIndexFromID(pWLDObj->material_palette_id)];
 	if (materialObj.type == WLD_OBJ_MATERIALPALETTE_TYPE)
 	{
 		pSpriteDef->materialPalette = static_cast<ParsedMaterialPalette*>(materialObj.parsed_data)->palette;
 	}
 	else
 	{
-		SPDLOG_ERROR("Material palette does not point to a material palette!");
+		EQG_LOG_ERROR("Material palette does not point to a material palette!");
 		return false;
 	}
 
 	if (pWLDObj->dm_track_id)
 	{
-		S3DFileObject& trackInstObj = m_objects[GetObjectIndexFromID(pWLDObj->dm_track_id)];
+		WLDFileObject& trackInstObj = m_objects[GetObjectIndexFromID(pWLDObj->dm_track_id)];
 		if (trackInstObj.type == WLD_OBJ_TRACKINSTANCE_TYPE)
 		{
 			pSpriteDef->trackInstance = (WLD_OBJ_TRACKINSTANCE*)trackInstObj.data;
-			S3DFileObject& trackDefObj = m_objects[GetObjectIndexFromID(pSpriteDef->trackInstance->track_id)];
+			WLDFileObject& trackDefObj = m_objects[GetObjectIndexFromID(pSpriteDef->trackInstance->track_id)];
 
 			pSpriteDef->trackDefinition = (WLD_OBJ_DMTRACKDEFINITION2*)trackDefObj.data;
 		}
 		else
 		{
-			SPDLOG_ERROR("Track instance in DMSpriteDef2 does not point to a track instance!");
+			EQG_LOG_ERROR("Track instance in DMSpriteDef2 does not point to a track instance!");
 		}
 	}
 
@@ -1124,6 +1816,5 @@ bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSprit
 
 	return true;
 }
-
 
 } //  namespace eqg

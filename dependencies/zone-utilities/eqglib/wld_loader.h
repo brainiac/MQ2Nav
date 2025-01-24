@@ -17,6 +17,7 @@ namespace eqg {
 
 std::string_view decode_s3d_string(char* str, size_t len);
 
+class HierarchicalModelDefinition;
 class ResourceManager;
 class SimpleModelDefinition;
 
@@ -39,15 +40,15 @@ public:
 
 	uint32_t GetObjectIndexFromID(int nID, uint32_t currID = (uint32_t)-1);
 
-	S3DFileObject& GetObjectFromID(int nID, uint32_t currID = (uint32_t)-1)
+	WLDFileObject& GetObjectFromID(int nID, uint32_t currID = (uint32_t)-1)
 	{
 		return m_objects[GetObjectIndexFromID(nID, currID)];
 	}
 
 	uint32_t GetNumObjects() const { return (uint32_t)m_objects.size(); }
-	S3DFileObject& GetObject(uint32_t index) { return m_objects[index]; }
+	WLDFileObject& GetObject(uint32_t index) { return m_objects[index]; }
 
-	std::vector<S3DFileObject>& GetObjectList() { return m_objects; }
+	std::vector<WLDFileObject>& GetObjectList() { return m_objects; }
 
 	std::string_view GetString(int nID) const
 	{
@@ -61,13 +62,26 @@ public:
 
 	uint32_t GetConstantAmbient() const { return m_constantAmbient; }
 
+	std::vector<ActorInstancePtr> m_actors;
+
 private:
+	bool ParseBitmapsAndMaterials(
+		std::pair<uint32_t, uint32_t> bitmapRange,
+		std::pair<uint32_t, uint32_t> materialRange,
+		std::pair<uint32_t, uint32_t> materialPaletteRange,
+		std::string_view npcTag);
+
 	bool ParseBitmap(uint32_t objectIndex);
 	bool ParseMaterial(uint32_t objectIndex);
 	bool ParseMaterialPalette(uint32_t objectIndex);
 	bool ParseTrack(uint32_t objectIndex);
 	bool ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleModelDefinition>& outModel);
+	bool ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<HierarchicalModelDefinition>& outModel);
 	bool ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSpriteDef2WLDData>& outData);
+	bool ParseActorDefinition(uint32_t objectIndex);
+	bool ParseActorInstance(uint32_t objectIndex);
+	bool ParseDMRGBTrack(uint32_t objectIndex, std::unique_ptr<SDMRGBTrackWLDData>& outData);
+	bool ParseTerrain(uint32_t objectIndex);
 
 	Archive*                   m_archive = nullptr;
 	ResourceManager*           m_resourceMgr = nullptr;
@@ -81,13 +95,10 @@ private:
 	uint32_t                   m_stringPoolSize = 0;
 	uint32_t                   m_numStrings = 0;
 	char*                      m_stringPool = nullptr;
-	std::vector<S3DFileObject> m_objects;
+	std::vector<WLDFileObject> m_objects;
 	bool                       m_oldVersion = false;
 	bool                       m_valid = false;
 	uint32_t                   m_constantAmbient = 0;
 };
 
 } // namespace eqg
-
-using S3DGeometryPtr = std::shared_ptr<eqg::s3d::Geometry>;
-using SkeletonTrackPtr = std::shared_ptr<eqg::s3d::SkeletonTrack>;

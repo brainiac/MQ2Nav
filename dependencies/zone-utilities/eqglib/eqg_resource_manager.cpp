@@ -59,9 +59,9 @@ bool ResourceManager::Contains(std::string_view tag, ResourceType type) const
 
 //-------------------------------------------------------------------------------------------------
 
-std::shared_ptr<EQGBitmap> ResourceManager::CreateBitmap() const
+std::shared_ptr<Bitmap> ResourceManager::CreateBitmap() const
 {
-	return std::make_shared<EQGBitmap>();
+	return std::make_shared<Bitmap>();
 }
 
 std::shared_ptr<SimpleModelDefinition> ResourceManager::CreateSimpleModelDefinition() const
@@ -69,9 +69,25 @@ std::shared_ptr<SimpleModelDefinition> ResourceManager::CreateSimpleModelDefinit
 	return std::make_shared<SimpleModelDefinition>();
 }
 
+std::shared_ptr<SimpleModel> ResourceManager::CreateSimpleModel() const
+{
+	return std::make_shared<SimpleModel>();
+}
+
+std::shared_ptr<HierarchicalModelDefinition> ResourceManager::CreateHierarchicalModelDefinition() const
+{
+	return std::make_shared<HierarchicalModelDefinition>();
+}
+
+std::shared_ptr<HierarchicalModel> ResourceManager::CreateHierarchicalModel() const
+{
+	return std::make_shared<HierarchicalModel>();
+}
+
+
 //-------------------------------------------------------------------------------------------------
 
-bool ResourceManager::LoadBitmapData(EQGBitmap* bitmap, Archive* archive)
+bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 {
 	// Loads the raw bitmap data from the given archive for the provided bitmap.
 

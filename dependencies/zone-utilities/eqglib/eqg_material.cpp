@@ -11,12 +11,12 @@ namespace eqg {
 
 //-------------------------------------------------------------------------------------------------
 
-EQGBitmap::EQGBitmap()
+Bitmap::Bitmap()
 	: Resource(ResourceType::Bitmap)
 {
 }
 
-EQGBitmap::~EQGBitmap()
+Bitmap::~Bitmap()
 {
 	if (m_rawData != nullptr)
 	{
@@ -24,7 +24,7 @@ EQGBitmap::~EQGBitmap()
 	}
 }
 
-bool EQGBitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, ResourceManager* resourceMgr)
+bool Bitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, ResourceManager* resourceMgr)
 {
 	m_fileName = wldData->fileName;
 	m_detailScale = wldData->detailScale;
@@ -339,7 +339,7 @@ bool Material::InitFromWLDData(
 	return true;
 }
 
-bool Material::InitFromBitmap(const std::shared_ptr<EQGBitmap>& bitmap)
+bool Material::InitFromBitmap(const std::shared_ptr<Bitmap>& bitmap)
 {
 	m_tag = bitmap->GetFileName();
 	m_renderMethod = 0x80000002;
@@ -354,6 +354,40 @@ bool Material::InitFromBitmap(const std::shared_ptr<EQGBitmap>& bitmap)
 
 	m_detailScale = bitmap->GetDetailScale();
 	return true;
+}
+
+std::shared_ptr<Material> Material::Clone() const
+{
+	auto copy = std::make_shared<Material>();
+
+	copy->m_tag = m_tag;
+	copy->m_effectName = m_effectName;
+	copy->m_twoSided = m_twoSided;
+	copy->m_uvShift = m_uvShift;
+	copy->m_renderMethod = m_renderMethod;
+	copy->m_scaledAmbient = m_scaledAmbient;
+	copy->m_constantAmbient = m_constantAmbient;
+	copy->m_type = m_type;
+	copy->m_detailScale = m_detailScale;
+
+	if (m_textureSet)
+	{
+		copy->m_textureSet = std::make_unique<STextureSet>(*m_textureSet);
+	}
+
+	if (m_textureSetAlt)
+	{
+		copy->m_textureSetAlt = std::make_unique<STextureSet>(*m_textureSetAlt);
+	}
+
+	if (m_detailPalette)
+	{
+		copy->m_detailPalette = std::make_unique<DetailPaletteInfo>(*m_detailPalette);
+	}
+
+	copy->m_effectParams = m_effectParams;
+
+	return copy;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -390,6 +424,25 @@ bool MaterialPalette::InitFromWLDData(std::string_view tag, ParsedMaterialPalett
 	}
 
 	return true;
+}
+
+std::shared_ptr<MaterialPalette> MaterialPalette::Clone(bool deep) const
+{
+	std::shared_ptr<MaterialPalette> copy = std::make_shared<MaterialPalette>(m_tag, (uint32_t)m_materials.size());
+
+	copy->m_tag = m_tag;
+	copy->m_lastUpdate = m_lastUpdate;
+	copy->m_requiresUpdate = m_requiresUpdate;
+	copy->m_materials = m_materials;
+
+	if (deep)
+	{
+		for (PaletteData& paletteData : copy->m_materials)
+		{
+			paletteData.material = paletteData.material->Clone();
+		}
+	}
+	return copy;
 }
 
 } // namespace eqg
