@@ -83,7 +83,8 @@ public:
 	void FillFilterAreaCosts(dtQueryFilter& filter);
 
 	// returns the name of the file that the navmesh was loaded from
-	std::string GetDataFileName() const { return m_dataFile; }
+	const std::string& GetFullFilePath() const { return m_dataFilePath; }
+	const std::string& GetFileName() const { return m_fileName; }
 
 	bool ExportJson(const std::string& filename, PersistedDataFields fields);
 	bool ImportJson(const std::string& filename, PersistedDataFields fields);
@@ -220,7 +221,8 @@ private:
 	Context* m_ctx;
 	std::string m_navMeshDirectory;
 	std::string m_zoneName;
-	std::string m_dataFile;
+	std::string m_dataFilePath;
+	std::string m_fileName;
 	LoadResult m_lastLoadResult = LoadResult::None;
 	NavMeshHeaderVersion m_version = {};
 

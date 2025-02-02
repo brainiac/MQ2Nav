@@ -48,6 +48,8 @@ public:
 	bool LoadNavMesh();
 
 private:
+	void UpdateAutoReload();
+
 	NavMesh* m_navMesh = nullptr;
 
 	std::string m_zoneShortName;
@@ -57,8 +59,9 @@ private:
 
 	// auto reloading
 	bool m_autoReload = true;
-	FILETIME m_fileTime = { 0, 0 };
-
-	using clock = std::chrono::high_resolution_clock;
+	struct FileWatcher;
+	std::unique_ptr<FileWatcher> m_fileWatcher;
+	using clock = std::chrono::steady_clock;
 	clock::time_point m_lastUpdate = clock::now();
+	bool m_changed = false;
 };
