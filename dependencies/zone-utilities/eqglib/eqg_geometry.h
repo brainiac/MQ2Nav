@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "eqg_animation.h"
 #include "eqg_resource.h"
 #include "eqg_structs.h"
 #include "wld_structs.h"
@@ -84,26 +85,6 @@ enum EItemTextureSlot
 	eItemTextureSlotNeck,
 
 	eItemTextureSlotLastBody = eItemTextureSlotFeet,
-};
-
-struct SFrameTransform // TODO: Turn into mat4x4?
-{
-	glm::quat rotation;
-	glm::vec3 pivot;
-	float     scale;
-};
-
-// Maybe this goes into eqg_animation.h?
-struct STrack
-{
-	std::string_view tag;
-	float            speed;
-	bool             reverse;
-	bool             interpolate;
-	uint32_t         sleepTime;
-	uint32_t         numFrames;
-	std::vector<SFrameTransform> frameTransforms;
-	bool             attachedToModel;
 };
 
 struct SFace
@@ -246,6 +227,19 @@ protected:
 };
 using HierarchicalModelDefinitionPtr = std::shared_ptr<HierarchicalModelDefinition>;
 
+class ParticleCloudDefinition : public Resource
+{
+public:
+	ParticleCloudDefinition();
+	~ParticleCloudDefinition() override;
+
+	static ResourceType GetStaticResourceType() { return ResourceType::ParticleCloudDefinition; }
+
+	std::string_view GetTag() const override { return m_tag; }
+
+protected:
+	std::string                   m_tag;
+};
 
 // An actor definition is either a SimpleModelDefinition or a HierarchicalModelDefinition.
 class ActorDefinition : public Resource

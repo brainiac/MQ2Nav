@@ -6,6 +6,7 @@
 
 #include "archive.h"
 #include "buffer_reader.h"
+#include "eqg_animation.h"
 #include "eqg_geometry.h"
 #include "eqg_material.h"
 #include "eqg_resource_manager.h"
@@ -97,7 +98,7 @@ void WLDLoader::Reset()
 	m_objects.clear();
 }
 
-bool WLDLoader::Init(Archive* archive, const std::string& wld_name)
+bool WLDLoader::Init(Archive* archive, const std::string& wld_name, int loadFlags)
 {
 	if (archive == nullptr || wld_name.empty())
 	{
@@ -106,6 +107,17 @@ bool WLDLoader::Init(Archive* archive, const std::string& wld_name)
 
 	m_archive = archive;
 	m_fileName = wld_name;
+
+	if (loadFlags & LoadFlag_ItemAnims)
+		m_itemAnims = true;
+	if (loadFlags & LoadFlag_LuclinAnims)
+		m_luclinAnims = true;
+	if (loadFlags & LoadFlag_SkipSocials)
+		m_skipSocials = true;
+	if (loadFlags & LoadFlag_SkipOldAnims)
+		m_newAnims = true;
+	if (loadFlags & LoadFlag_OptimizeAnims)
+		m_optimizeAnims = true;
 
 	if (!archive->Exists(wld_name))
 	{
@@ -322,6 +334,11 @@ private:
 	std::vector<ObjectTypeCounts> objectCounts;
 };
 
+static bool IsAnimationCode(std::string_view code)
+{
+	return code.length() >= 3 && ::isalpha(code[0]) && ::isdigit(code[1]) && ::isdigit(code[2]);
+}
+
 bool WLDLoader::ParseAll()
 {
 	/// Actual loading sequence:
@@ -405,14 +422,18 @@ bool WLDLoader::ParseAll()
 	if (!ParseBitmapsAndMaterials(
 		objectCounts.range(WLD_OBJ_BMINFO_TYPE),
 		objectCounts.range(WLD_OBJ_MATERIALDEFINITION_TYPE),
-		objectCounts.range(WLD_OBJ_MATERIALPALETTE_TYPE),
-		std::string_view()))
+		objectCounts.range(WLD_OBJ_MATERIALPALETTE_TYPE)))
 	{
 		return false;
 	}
 
-	if (!ParseBlitSprites(objectCounts.range(WLD_OBJ_BLITSPRITEDEFINITION_TYPE), std::string_view()))
+	if (!ParseBlitSprites(objectCounts.range(WLD_OBJ_BLITSPRITEDEFINITION_TYPE)))
 		return false;
+
+	if (!ParseParticleClouds(objectCounts.range(WLD_OBJ_PCLOUDDEFINITION_TYPE)))
+		return false;
+
+	bool hasAnimationCode = false;
 	
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
@@ -423,10 +444,17 @@ bool WLDLoader::ParseAll()
 				EQG_LOG_ERROR("Failed to track instance: {}", m_objects[i].tag);
 				return false;
 			}
+
+			if (!hasAnimationCode && IsAnimationCode(m_objects[i].tag))
+				hasAnimationCode = true;
 		}
 	}
 
-	// TODO: ParseAnimations
+	if (hasAnimationCode)
+	{
+		if (!ParseAnimations(objectCounts.range(WLD_OBJ_TRACKINSTANCE_TYPE)))
+			return false;
+	}
 
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
@@ -446,8 +474,7 @@ bool WLDLoader::ParseAll()
 		{
 			if (!ParseActorInstance(i))
 			{
-				EQG_LOG_ERROR("Failed to parse actor instance: {} ({})", m_objects[i].tag, i);
-				//return false;
+				EQG_LOG_WARN("Failed to parse actor instance: {} ({})", m_objects[i].tag, i);
 			}
 		}
 	}
@@ -1125,6 +1152,85 @@ bool WLDLoader::ParseTextureDataDefinitionFromSimpleSpriteInst(uint32_t objectIn
 	return true;
 }
 
+bool WLDLoader::ParseParticleClouds(std::pair<uint32_t, uint32_t> pcloudRange, std::string_view npcTag)
+{
+	for (uint32_t i = pcloudRange.first; i < pcloudRange.second; ++i)
+	{
+		if (m_objects[i].type == WLD_OBJ_PCLOUDDEFINITION_TYPE)
+		{
+			// If NPC tag is provided, only process if the first three characters match.
+			if (npcTag.empty() || ci_starts_with(m_objects[i].tag, npcTag.substr(0, 3)))
+			{
+				if (!ParseParticleCloud(i, 1.0f))
+				{
+					EQG_LOG_WARN("Failed to parse pcloud: {}", m_objects[i].tag);
+					//return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+bool WLDLoader::ParseParticleCloud(uint32_t objectIndex, float scale)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+	if (wldObj.type != WLD_OBJ_PCLOUDDEFINITION_TYPE)
+	{
+		return false;
+	}
+
+	if (auto pExistingPCloud = m_resourceMgr->Get<ParticleCloudDefinition>(wldObj.tag))
+	{
+		if (wldObj.parsed_data == nullptr)
+		{
+			ParsedPCloudDefinition* parsedData = new ParsedPCloudDefinition();
+			parsedData->particleCloudDef = pExistingPCloud;
+			wldObj.parsed_data = parsedData;
+		}
+
+		return true;
+	}
+
+	// Already parsed?
+	if (wldObj.parsed_data != nullptr)
+		return true;
+
+	EQG_LOG_TRACE("Parsing pcloud: {} ({})", wldObj.tag, objectIndex);
+	BufferReader reader(wldObj.data, wldObj.size);
+
+	WLD_OBJ_PCLOUDDEFINITION* pWLDCloudDef = reader.read_ptr<WLD_OBJ_PCLOUDDEFINITION>();
+
+	BOUNDINGBOX* pSpawnBoundingBox = nullptr;
+	if (pWLDCloudDef->flags & WLD_OBJ_PCLOUDOPT_HASSPAWNBOX)
+	{
+		pSpawnBoundingBox = reader.read_ptr<BOUNDINGBOX>();
+	}
+
+	BOUNDINGBOX* pBoundingBox = nullptr;
+	if (pWLDCloudDef->flags & WLD_OBJ_PCLOUDOPT_HASBBOX)
+	{
+		pBoundingBox = reader.read_ptr<BOUNDINGBOX>();
+	}
+
+	STextureDataDefinition spriteTextureDef;
+	if (pWLDCloudDef->flags & WLD_OBJ_PCLOUDOPT_HASSPRITEDEF)
+	{
+		int spriteDefID = reader.read<int>();
+		
+		if (!ParseTextureDataDefinition(spriteDefID, spriteTextureDef))
+		{
+			EQG_LOG_ERROR("Failed to parse sprite definition {} for pcloud: {} ({})", spriteDefID, wldObj.tag, objectIndex);
+			return false;
+		}
+	}
+
+	// TODO: Convert to EQG format and assemble a particle cloud definition...
+
+	return true;
+}
+
 bool WLDLoader::ParseTrack(uint32_t objectIndex)
 {
 	WLDFileObject& wldObj = m_objects[objectIndex];
@@ -1155,7 +1261,7 @@ bool WLDLoader::ParseTrack(uint32_t objectIndex)
 	track->reverse = false;
 	track->interpolate = false;
 	track->numFrames = 0;
-	track->attachedToModel = !(::isalpha(wldObj.tag[0]) && ::isdigit(wldObj.tag[1]) && ::isdigit(wldObj.tag[2]));
+	track->attachedToModel = !IsAnimationCode(wldObj.tag);
 
 	BufferReader reader(wldObj.data, wldObj.size);
 	WLD_OBJ_TRACKINSTANCE* pTrackInst = reader.read_ptr<WLD_OBJ_TRACKINSTANCE>();
@@ -1235,6 +1341,490 @@ bool WLDLoader::ParseTrack(uint32_t objectIndex)
 	return true;
 }
 
+bool WLDLoader::ParseAnimations(std::pair<uint32_t, uint32_t> trackRange, std::string_view npcTag)
+{
+	for (uint32_t objectIndex = trackRange.first; objectIndex < trackRange.second; ++objectIndex)
+	{
+		if (m_objects[objectIndex].type == WLD_OBJ_TRACKINSTANCE_TYPE)
+		{
+			WLDFileObject& wldObj = m_objects[objectIndex];
+
+			if (wldObj.type != WLD_OBJ_TRACKINSTANCE_TYPE)
+			{
+				EQG_LOG_ERROR("Object {} is not a track instance!", objectIndex);
+				return false;
+			}
+
+			if (wldObj.parsed_data == nullptr)
+			{
+				EQG_LOG_ERROR("Track instance {} has not been parsed!", objectIndex);
+				return false;
+			}
+
+			if (wldObj.tag.empty())
+			{
+				EQG_LOG_WARN("Track instance {} has no tag!", objectIndex);
+				continue;
+			}
+
+			std::shared_ptr<STrack> pTrack = static_cast<ParsedTrackInstance*>(wldObj.parsed_data)->track;
+
+			if (!pTrack->attachedToModel && IsAnimationCode(wldObj.tag))
+			{
+				EQG_LOG_TRACE("Parsing animation: {} ({})", wldObj.tag, objectIndex);
+				std::string_view animTag;
+
+				if (wldObj.tag.size() >= 6 && wldObj.tag[3] == 'I' && wldObj.tag[4] == 'T' && ::isdigit(wldObj.tag[5]))
+				{
+					// animation code looks something like AB3IT1
+					// where AB3 checked by IsAnimationCode, and IT1 is checked above.
+					// this is an item animation.
+					uint32_t tagSize = 0;
+
+					for (uint32_t pos = 6; pos < wldObj.tag.size() - 5; ++pos)
+					{
+						char ch = wldObj.tag[pos];
+
+						if (!::isdigit(ch))
+						{
+							tagSize = pos;
+							break;
+						}
+					}
+
+					if (tagSize == 0)
+					{
+						EQG_LOG_ERROR("Failed to compute size of item tag length from item animation tag {} ({})",
+							wldObj.tag, objectIndex);
+						return false;
+					}
+
+					animTag = wldObj.tag.substr(0, tagSize);
+				}
+				else if (m_luclinAnims)
+				{
+					if (wldObj.tag.starts_with(wldObj.tag.substr(4, 3))
+						|| wldObj.tag.starts_with(wldObj.tag.substr(3, 3)))
+					{
+						continue;
+					}
+
+					animTag = wldObj.tag.substr(0, 7);
+
+					if (animTag.length() > 6 && animTag[6] == '_')
+					{
+						animTag = animTag.substr(0, 6);
+					}
+				}
+				else
+				{
+					if (wldObj.tag.starts_with(wldObj.tag.substr(3, 3)))
+					{
+						continue;
+					}
+
+					animTag = wldObj.tag.substr(0, 6);
+				}
+
+				uint32_t nextObjectIndex = objectIndex + 1;
+
+				if (!ParseAnimation(objectIndex, animTag, nextObjectIndex))
+				{
+					EQG_LOG_ERROR("Failed to parse animation {} ({}) \"{}\"", wldObj.tag, objectIndex, animTag);
+					return false;
+				}
+
+				objectIndex = nextObjectIndex - 1;
+			}
+		}
+	}
+
+	return true;
+}
+
+static bool IsSpecialCaseAnim(std::string_view animTag, std::string_view trackAnimTag)
+{
+	if (animTag.size() < 6 || trackAnimTag.size() < 6)
+		return false;
+
+	std::string_view animCode = animTag.substr(3, 3);
+	std::string_view tAnimTag = trackAnimTag.substr(3);
+
+	// Handle a bunch of special cases in the animation tags
+	// Not sure if these checks are for equality or just for prefix. Effectively they are the same.
+
+	switch (animCode[0])
+	{
+	case 'H':
+		if (animCode == "HSM" || animCode == "HSF" || animCode == "HSN")
+		{
+			if (tAnimTag.starts_with("POINT0") || tAnimTag.starts_with("RIDER"))
+			{
+				return true;
+			}
+		}
+		break;
+
+	case 'R':
+		if (animCode == "REM")
+		{
+			if (tAnimTag.starts_with("L_POINT") || tAnimTag.starts_with("R_POINT") || tAnimTag.starts_with("HEAD_POINT"))
+			{
+				return true;
+			}
+		}
+		break;
+
+	case 'N':
+		if (animCode == "NET")
+		{
+			if (tAnimTag.starts_with("POINT0"))
+			{
+				return true;
+			}
+		}
+		break;
+
+	case 'S':
+		if (animCode == "SER")
+		{
+			if (tAnimTag.starts_with("HEAD_POINT")
+				|| tAnimTag.starts_with("L_POINT")
+				|| tAnimTag.starts_with("R_POINT")
+				|| tAnimTag.starts_with("TUNIC_POINT"))
+			{
+				return true;
+			}
+		}
+		break;
+
+	default: break;
+	}
+
+	return false;
+}
+
+static bool IsSkippedAnimation(std::string_view animTag, bool newAnims, bool skipSocials)
+{
+	if (animTag.size() < 4)
+		return false;
+
+	// Anim code format:
+	// style 1 ("new anims"):
+	//   TNNVRRG
+	// style 2
+	//   TNNRRG
+	//
+	// T = type
+	// NN = anim number
+	// V = variant (new anims only)
+	// RR = race code
+	// G = gender code
+
+	int animNum = -1;
+	if (animTag[1] >= '0' && animTag[1] <= '9')
+	{
+		animNum = animTag[1] - '0';
+
+		if (animTag[2] >= '0' && animTag[2] <= '9')
+			animNum = animNum * 10 + animTag[2] - '0';
+	}
+
+	if (animNum == -1)
+		return false;
+
+	char animType = animTag[0];
+	char variant = 0;
+	std::string_view race;
+
+	if (newAnims)
+	{
+		if (animNum > 0)
+		{
+			variant = animTag[3];
+			race = animTag.substr(4, 2);
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (animNum > 0)
+		{
+			race = animTag.substr(3, 2);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	switch (animType)
+	{
+	case 'L':
+		if (animNum == 11 || animNum == 12)
+			return true;
+
+		break;
+
+	case 'S': // Social
+		if (skipSocials)
+		{
+			if (animNum > 0 && animNum < 99)
+				return true;
+		}
+		break;
+
+	case 'T':
+		if (newAnims)
+		{
+			switch (animNum)
+			{
+			case 1:
+			case 2:
+			case 3:
+				switch (race[0])
+				{
+				case 'G':
+					if (race[1] == 'N') // GN
+						return true;
+					break;
+				case 'H':
+					if (race[1] == 'O') // HO
+						return true;
+					break;
+				case 'D':
+					if (race[1] == 'W') // DW
+						return true;
+					break;
+				case 'B':
+					if (race[1] == 'A') // BA
+						return true;
+					break;
+				case 'I':
+					if (race[1] == 'K') // IK
+						return true;
+					break;
+				default: break;
+				}
+				break;
+
+			case 7:
+			case 8:
+			case 9:
+				switch (race[0])
+				{
+				case 'H':
+					switch (race[1])
+					{
+					case 'O': return true; // HO
+					case 'I': return true; // HI
+					case 'L': return true; // HL
+					default: break;
+					}
+					break;
+				case 'D':
+					switch (race[1])
+					{
+					case 'A': return true; // DA
+					case 'W': return true; // DW
+					default: break;
+					}
+					break;
+				case 'B':
+					if (race[1] == 'A') // BA
+						return true;
+					break;
+				case 'K':
+					if (race[1] == 'E') // KE
+						return true;
+					break;
+				case 'E':
+					if (race[1] == 'L') // EL
+						return true;
+					break;
+				case 'G':
+					if (race[1] == 'N') // GN
+						return true;
+					break;
+					default: break;
+				}
+				break;
+			default: break;
+			}
+		}
+		break;
+
+	case 'C':
+		if (newAnims)
+		{
+			switch (animNum)
+			{
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+			case 9:
+				if (variant == 'A')
+					return true;
+				break;
+
+			case 11:
+				switch (race[0])
+				{
+				case 'H':
+					switch (race[1])
+					{
+					case 'O': return true; // HO
+					case 'I': return true; // HI
+					case 'L': return true; // HL
+					default: break;
+					}
+					break;
+				case 'D':
+					switch (race[1])
+					{
+					case 'A': return true; // DA
+					case 'W': return true; // DW
+					default: break;
+					}
+					break;
+				case 'B':
+					if (race[1] == 'A') // BA
+						return true;
+					break;
+				case 'K':
+					if (race[1] == 'E') // KE
+						return true;
+					break;
+				case 'E':
+					if (race[1] == 'L') // EL
+						return true;
+					break;
+				case 'G':
+					if (race[1] == 'N') // GN
+						return true;
+					break;
+				default: break;
+				}
+				break;
+			default: break;
+			}
+		}
+		break;
+
+	default: break;
+	}
+
+	return false;
+}
+
+bool WLDLoader::ParseAnimation(uint32_t objectIndex, std::string_view animTag, uint32_t& nextObjectIndex)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+
+	uint32_t trackCount = 0;
+	uint32_t lastTrackIndex = objectIndex;
+
+	// Count number of tracks related to this animation that we need to process.
+
+	for (; lastTrackIndex <= m_numObjects; ++lastTrackIndex)
+	{
+		WLDFileObject& currObj = m_objects[lastTrackIndex];
+
+		if (currObj.type == WLD_OBJ_TRACKINSTANCE_TYPE)
+		{
+			if (currObj.tag.starts_with(animTag))
+			{
+				++trackCount;
+			}
+			else if (IsSpecialCaseAnim(animTag, currObj.tag))
+			{
+				++trackCount;
+			}
+			else
+			{
+				++lastTrackIndex;
+				break;
+			}
+		}
+		else if (currObj.type != WLD_OBJ_TRACKDEFINITION_TYPE)
+		{
+			++lastTrackIndex;
+			break;
+		}
+	}
+
+	nextObjectIndex = lastTrackIndex > m_numObjects ? lastTrackIndex : lastTrackIndex - 1;
+
+	// We can't leave early (except in error) before this point, because
+	// we need to ensure the next object index is correct, so we can skip over
+	// these tracks that we looked at.
+
+	if (animTag.substr(3, 3) == "VPM"
+		&& wldObj.tag.substr(6).starts_with("EYE_L"))
+	{
+		return true;
+	}
+
+	// Already parsed this animation
+	if (auto pExistingAnim = m_resourceMgr->Get<Animation>(animTag))
+	{
+		return true;
+	}
+
+	std::vector<std::shared_ptr<STrack>> tracks;
+
+	uint32_t numSkippedTracks = 0;
+
+	// Now process `trackCount` tracks in the range that we calculated previously.
+
+	for (uint32_t trackIndex = objectIndex; trackIndex < lastTrackIndex; ++trackIndex)
+	{
+		WLDFileObject& trackObj = m_objects[trackIndex];
+
+		if (trackObj.type == WLD_OBJ_TRACKINSTANCE_TYPE)
+		{
+			if (tracks.size() + numSkippedTracks >= trackCount)
+				break;
+			
+			if (IsSpecialCaseAnim(animTag, trackObj.tag))
+			{
+				++numSkippedTracks;
+			}
+			else
+			{
+				tracks.push_back(static_cast<ParsedTrackInstance*>(trackObj.parsed_data)->track);
+			}
+		}
+	}
+
+	if (tracks.size() < 2)
+	{
+		return true;
+	}
+
+	if (IsSkippedAnimation(animTag, m_newAnims, m_skipSocials))
+	{
+		EQG_LOG_DEBUG("Skipping anim: {}", animTag);
+		return true;
+	}
+
+	std::shared_ptr<Animation> pAnimation = m_resourceMgr->CreateAnimation();
+
+	if (!pAnimation->InitFromWLDData(animTag, tracks, m_optimizeAnims ? 1 : 0))
+	{
+		EQG_LOG_ERROR("Failed to initialize animation {} from WLD Data", animTag);
+		return false;
+	}
+
+	m_resourceMgr->Add(pAnimation);
+
+	return true;
+}
+
 bool WLDLoader::ParseActorDefinition(uint32_t objectIndex)
 {
 	WLDFileObject& wldObj = m_objects[objectIndex];
@@ -1296,28 +1886,45 @@ bool WLDLoader::ParseActorDefinition(uint32_t objectIndex)
 	{
 		uint32_t spriteIndex = reader.read<uint32_t>();
 
-		if (m_objects[spriteIndex].type == WLD_OBJ_DMSPRITEINSTANCE_TYPE)
+		WLDFileObject& spriteObj = m_objects[spriteIndex];
+
+		if (spriteObj.type == WLD_OBJ_DMSPRITEINSTANCE_TYPE)
 		{
 			if (!ParseSimpleModel(spriteIndex, simpleModelDef))
 			{
 				EQG_LOG_ERROR("Failed to parse simple model {} ({}) for ActorDef {} ({})",
-					m_objects[spriteIndex].tag, spriteIndex, wldObj.tag, objectIndex);
+					spriteObj.tag, spriteIndex, wldObj.tag, objectIndex);
 				return false;
 			}
 		}
-		else if (m_objects[spriteIndex].type == WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
+		else if (spriteObj.type == WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
 		{
 			if (!ParseHierarchicalModel(spriteIndex, hierarchicalModelDef))
 			{
 				EQG_LOG_ERROR("Failed to parse hierarchical model {} ({}) for ActorDef {} ({})",
-					m_objects[spriteIndex].tag, spriteIndex, wldObj.tag, objectIndex);
+					spriteObj.tag, spriteIndex, wldObj.tag, objectIndex);
 				return false;
 			}
+		}
+		else if (spriteObj.type == WLD_OBJ_BLITSPRITEINSTANCE_TYPE)
+		{
+			// Read the sprite instance
+			BufferReader spriteReader(spriteObj.data, spriteObj.size);
+			WLD_OBJ_BLITSPRITEINSTANCE* pSpriteInst = spriteReader.read_ptr<WLD_OBJ_BLITSPRITEINSTANCE>();
+
+			// Read the sprite definition
+			uint32_t spriteDefIndex = GetObjectIndexFromID(pSpriteInst->definition_id);
+			WLDFileObject& spriteDefObj = m_objects[spriteDefIndex];
+			//STextureDataDefinition dataDef;
+			//ParseTextureDataDefinition(spriteDefIndex, dataDef);
+
+			EQG_LOG_TRACE("Not processing BLITSPRITEDEFINITION {} in ActorDef {} ({})",
+				spriteDefObj.tag, wldObj.tag, objectIndex);
 		}
 		else
 		{
 			EQG_LOG_WARN("Skipped parsing of sprite {} ({}) type={} in ActorDef {} ({})",
-				m_objects[spriteIndex].tag, spriteIndex, (int)m_objects[spriteIndex].type, wldObj.tag, objectIndex);
+				m_objects[spriteIndex].tag, spriteIndex, (int)spriteObj.type, wldObj.tag, objectIndex);
 		}
 	}
 
@@ -1341,13 +1948,10 @@ bool WLDLoader::ParseActorDefinition(uint32_t objectIndex)
 	{
 		pNewActorDef = std::make_shared<ActorDefinition>(wldObj.tag, hierarchicalModelDef);
 	}
-	else if (simpleModelDef)
-	{
-		pNewActorDef = std::make_shared<ActorDefinition>(wldObj.tag, simpleModelDef);
-	}
 	else
 	{
-		EQG_LOG_WARN("ActorDef {} ({}) has no parsed model!", wldObj.tag, objectIndex);
+		// note: Takes in a null simple model if we didn't create one above.
+		pNewActorDef = std::make_shared<ActorDefinition>(wldObj.tag, simpleModelDef);
 	}
 
 	if (pNewActorDef)
@@ -1725,7 +2329,19 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 			}
 			else if (m_objects[spriteIndex].type == WLD_OBJ_PCLOUDDEFINITION_TYPE)
 			{
-				EQG_LOG_WARN("Skipped PCloud in Hierarchical model {} ({})", wldObj.tag, objectIndex);
+				std::shared_ptr<ParticleCloudDefinition> pCloudDef;
+
+				float scale = dagData.track ? dagData.track->frameTransforms[0].scale : 1.0f;
+
+				if (!ParseParticleCloud(spriteIndex, scale))
+				{
+					EQG_LOG_ERROR("Failed to parse particle cloud {} ({}) while parsing hierchical model {} ({})",
+						m_objects[spriteIndex].tag, spriteIndex, wldObj.tag, objectIndex);
+					return false;
+				}
+
+				// TODO: Create actor definition from particle cloud, and then add the actor definition as
+				// an attachment on the dag.
 			}
 			else
 			{

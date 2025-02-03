@@ -47,6 +47,14 @@ enum WLDOBJ_MATOPT
 	WLD_OBJ_MATOPT_HASUVSHIFTPERMS                   = 0x0002,
 };
 
+// flags for particle cloud emitters
+enum WLDOBJ_PCLOUDOPT
+{
+	WLD_OBJ_PCLOUDOPT_HASSPAWNBOX                    = 0x0001,
+	WLD_OBJ_PCLOUDOPT_HASBBOX                        = 0x0002,
+	WLD_OBJ_PCLOUDOPT_HASSPRITEDEF                  = 0x0004,
+};
+
 // flags for region objects
 enum WLDOBJ_REGOPT
 {
@@ -185,6 +193,13 @@ struct WLD_OBJ_BLITSPRITEDEFINITION
 	uint32_t flags;
 	int simple_sprite_id;
 	uint32_t render_method;
+};
+
+struct WLD_OBJ_BLITSPRITEINSTANCE
+{
+	int tag;
+	uint32_t definition_id;
+	uint32_t flags;
 };
 
 struct WLD_OBJ_SIMPLESPRITEDEFINITION // WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE (0x4)
@@ -382,10 +397,31 @@ struct WLD_OBJ_MATERIALPALETTE
 	uint32_t num_entries;
 };
 
+struct WLD_OBJ_PCLOUDDEFINITION
+{
+	int tag;
+	uint32_t flags;
+	uint32_t particle_type;
+	uint32_t spawn_type;
+	uint32_t pcloud_flags;
+	uint32_t size;
+	float gravity_multiplier;
+	glm::vec3 gravity;
+	uint32_t duration;
+	float spawn_radius;
+	float spawn_angle;
+	uint32_t lifespan;
+	float spawn_velocity_multiplier;
+	glm::vec3 spawn_velocity;
+	uint32_t spawn_rate;
+	float spawn_scale;
+	uint32_t tint;
+};
+
 struct BOUNDINGBOX
 {
-	WLD_OBJ_XYZ min;
-	WLD_OBJ_XYZ max;
+	glm::vec3 min;
+	glm::vec3 max;
 };
 
 struct WLD_OBJ_DMSPRITEDEFINITION2

@@ -413,6 +413,8 @@ bool ZoneProject::LoadZoneData()
 	m_zoneLongName = g_config.GetLongNameForShortName(m_zoneShortName);
 	m_displayName = fmt::format("{} ({})", m_zoneLongName, m_zoneShortName);
 
+	m_resourceMgr->SetLoadSocials(false);
+
 	if (!m_resourceMgr->Load())
 	{
 		SPDLOG_ERROR("LoadZone: Failed to load '{}'", m_zoneShortName);

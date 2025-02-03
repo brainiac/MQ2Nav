@@ -47,7 +47,8 @@ ZoneResourceManager::ZoneResourceManager(const std::string& zoneShortName,
 	, m_eqPath(everquest_path)
 	, m_meshPath(mesh_path)
 {
-	m_resourceMgr = std::make_unique<eqg::ResourceManager>();
+	m_globalResourceMgr = std::make_unique<eqg::ResourceManager>();
+	m_resourceMgr = std::make_unique<eqg::ResourceManager>(m_globalResourceMgr.get());
 }
 
 ZoneResourceManager::~ZoneResourceManager()
@@ -68,7 +69,7 @@ bool ZoneResourceManager::Load()
 		return false;
 	}
 
-	//LoadGlobalData();
+	LoadGlobalData();
 
 	if (!LoadZone())
 	{
@@ -293,10 +294,22 @@ void ZoneResourceManager::PerformGlobalLoad(int phase)
 			}
 			else
 			{
-				LoadS3D(asset.fileName);
+				int flags = 0;
+
+				if (asset.luclinAnims)
+					flags |= eqg::LoadFlag_LuclinAnims;
+				if (asset.itemAnims)
+					flags |= eqg::LoadFlag_ItemAnims;
+
+				LoadS3D(asset.fileName, flags);
 			}
 		}
 	}
+}
+
+void ZoneResourceManager::LoadGlobalChr()
+{
+	// TODO: Load GlobalLoad_chr.txt
 }
 
 //============================================================================
@@ -331,18 +344,97 @@ void ZoneResourceManager::Clear()
 
 bool ZoneResourceManager::LoadGlobalData()
 {
+	// Create dummy actor definition for PLAYER_1
+	auto simpleDef = m_globalResourceMgr->CreateSimpleModelDefinition();
+	eqg::ActorDefinitionPtr actorDef = std::make_shared<eqg::ActorDefinition>("PLAYER_1", simpleDef);
+	m_globalResourceMgr->Add(actorDef);
+
+	m_defaultLoadFlags = eqg::LoadFlag_GlobalLoad;
+
 	LoadGlobalLoadFile();
 
-	for (int i = 1; i <= 4; ++i)
+	PerformGlobalLoad(1);
+	PerformGlobalLoad(2);
+
+	m_defaultLoadFlags |= eqg::LoadFlag_SkipOldAnims | eqg::LoadFlag_OptimizeAnims | (m_skipSocials ? eqg::LoadFlag_SkipSocials : 0);
+
+	// TODO: Load Global Models etc
+#if 0
+	bool loadedLuclinModels = false;
+
+	if (m_loadLuclinModels)
 	{
-		PerformGlobalLoad(i);
+		// For each Race/Gender
+		if (ShouldLoadLuclinModel(race, gender))
+		{
+			// %s -> Tag for the race+gender of the model
+
+			LoadS3D("global%s_chr2", LoadFlag_LuclinAnims);
+			LoadS3D("global%s_chr", LoadFlag_LuclinAnims);
+
+			LoadS3D("VEquip"); // VahShir equipment models
+
+			// If we loaded any luclin models, set this to true.
+			loadedLuclinModels = true;
+		}
 	}
+#endif
+	m_defaultLoadFlags &= ~eqg::LoadFlag_SkipOldAnims;
+#if 0
+	// TOOD: Load Luclin Elementals
+	if (m_loadLuclinElementals)
+	{
+		// Luclin elementals and horses
+		LoadS3D("Global5_chr2");
+		LoadS3D("Global5_chr");
+
+		// Froglog mount animations
+		LoadS3D("frog_mount_chr");
+	}
+
+	if (loadedLuclinModels)
+	{
+		// Equipment for luclin models
+		LoadS3D("LGEquip_amr2");
+		LoadS3D("LGEquip_amr");
+
+		LoadS3D("LGEquip2");
+		LoadS3D("LGEquip");
+	}
+
+	if (false) // vah shir low poly models, if the good versions are off
+	{
+		LoadS3D("GEquip6");
+		LoadS3D("GEquip7_chr");
+	}
+#endif
+	m_defaultLoadFlags = eqg::LoadFlag_GlobalLoad;
+
+	PerformGlobalLoad(3);
+
+#if 0
+	if (oldModels || LoadVeliousArmorsWithLuclin)
+	{
+		// Velious armors
+		for (int i = 17; i < 24; ++i)
+		{
+			LoadS3D(fmt::format("global{}_amr", i));
+		}
+	}
+#endif
+
+	PerformGlobalLoad(4);
+
+	LoadGlobalChr();
+
+	// TODO: Stick figure bones
 
 	return true;
 }
 
 bool ZoneResourceManager::LoadZone()
 {
+	m_defaultLoadFlags = eqg::LoadFlag_None;
 
 	// Load <zonename>_EnvironmentEmitters.txt
 
@@ -364,6 +456,12 @@ bool ZoneResourceManager::LoadZone()
 		return false;
 	}
 
+	// If this is LDON zone, load obequip_lexit.s3d
+	if (g_config.GetExpansionForZone(m_zoneName) == "Lost Dungeons of Norrath")
+	{
+		LoadS3D("obequip_lexit", eqg::LoadFlag_ItemAnims);
+	}
+
 	if (!loadedEQG)
 	{
 		// Load zone data: <zonename>.s3d
@@ -374,11 +472,11 @@ bool ZoneResourceManager::LoadZone()
 		}
 	}
 
-	// If this is LDON zone, load obequip_lexit.s3d
-	if (g_config.GetExpansionForZone(m_zoneName) == "Lost Dungeons of Norrath")
-	{
-		LoadS3D("obequip_lexit");
-	}
+	// TODO: Load <zonename>_chr.txt
+
+	// Load <zonename>_assets.txt
+	LoadAssetsFile();
+
 
 	if (!loadedEQG)
 	{
@@ -388,14 +486,10 @@ bool ZoneResourceManager::LoadZone()
 			LoadEQG("poknowledge_obj3");
 		}
 
-		LoadS3D(m_zoneName + "_obj2");
-		LoadS3D(m_zoneName + "_obj");
-		LoadS3D(m_zoneName + "_2_obj");
+		LoadS3D(m_zoneName + "_obj2", eqg::LoadFlag_ItemAnims);
+		LoadS3D(m_zoneName + "_obj", eqg::LoadFlag_ItemAnims);
+		LoadS3D(m_zoneName + "_2_obj", eqg::LoadFlag_ItemAnims);
 	}
-
-	// Load <zonename>_chr.txt
-	// Load <zonename>_assets.txt
-	LoadAssetsFile();
 
 	if (!loadedEQG)
 	{
@@ -403,8 +497,8 @@ bool ZoneResourceManager::LoadZone()
 			return false;
 
 		// Load object placements
-		LoadS3D(m_zoneName, "objects.wld");
-		LoadS3D(m_zoneName, "lights.wld");
+		LoadS3D(m_zoneName, 0, "objects.wld");
+		LoadS3D(m_zoneName, 0, "lights.wld");
 	}
 
 	// Load our dynamic objects that we saved off from the plugin.
@@ -659,7 +753,7 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 	return m_eqgLoaders.back().get();
 }
 
-eqg::WLDLoader* ZoneResourceManager::LoadS3D(std::string_view fileName, std::string_view wldFile)
+eqg::WLDLoader* ZoneResourceManager::LoadS3D(std::string_view fileName, int loadFlags, std::string_view wldFile)
 {
 	// Combo load S3D archive and .WLD file by same name
 	std::string archivePath = (fs::path(m_eqPath) / fileName).replace_extension(".s3d").string();
@@ -671,10 +765,10 @@ eqg::WLDLoader* ZoneResourceManager::LoadS3D(std::string_view fileName, std::str
 		return nullptr;
 	}
 
-	return LoadWLD(archive, wldFileName);
+	return LoadWLD(archive, wldFileName, loadFlags);
 }
 
-eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::string& fileName)
+eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::string& fileName, int loadFlags)
 {
 	for (const auto& loader : m_wldLoaders)
 	{
@@ -682,8 +776,10 @@ eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::s
 			return loader.get();
 	}
 
-	auto loader = std::make_unique<eqg::WLDLoader>(m_resourceMgr.get());
-	if (!loader->Init(archive, fileName))
+	bool globalLoad = (loadFlags & eqg::LoadFlag_GlobalLoad) != 0;
+
+	auto loader = std::make_unique<eqg::WLDLoader>(globalLoad ? m_globalResourceMgr.get() : m_resourceMgr.get());
+	if (!loader->Init(archive, fileName, loadFlags))
 		return nullptr;
 
 	if (!loader->ParseAll())

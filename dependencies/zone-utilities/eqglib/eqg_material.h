@@ -20,6 +20,7 @@ struct WLD_OBJ_MATERIALDEFINITION;
 struct WLD_OBJ_MATERIALPALETTE;
 
 struct ParsedSimpleSpriteDef;
+struct STextureDataDefinition;
 
 class Archive;
 class Material;
@@ -228,7 +229,6 @@ private:
 	bool                     m_requiresUpdate = false;
 	std::vector<PaletteData> m_materials;
 };
-
 
 class BlitSpriteDefinition : public Resource
 {

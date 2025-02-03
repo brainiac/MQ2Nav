@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="eqglib\container_util.h" />
     <ClInclude Include="eqglib\eqglib.h" />
+    <ClInclude Include="eqglib\eqg_animation.h" />
     <ClInclude Include="eqglib\eqg_geometry.h" />
     <ClInclude Include="eqglib\eqg_loader.h" />
     <ClInclude Include="eqglib\eqg_material.h" />
@@ -44,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqglib\eqglib.cpp" />
+    <ClCompile Include="eqglib\eqg_animation.cpp" />
     <ClCompile Include="eqglib\eqg_geometry.cpp" />
     <ClCompile Include="eqglib\eqg_loader.cpp" />
     <ClCompile Include="eqglib\eqg_material.cpp" />

@@ -8,10 +8,9 @@
 #include <type_traits>
 #include <unordered_map>
 
-#include "eqg_geometry.h"
-
 namespace eqg {
 
+class Animation;
 class Archive;
 class Bitmap;
 class BlitSpriteDefinition;
@@ -96,6 +95,18 @@ struct ResourceKey
 
 using ResourceContainer = std::unordered_map<ResourceKey, std::shared_ptr<Resource>, ResourceKey::Hasher, ResourceKey::Equals>;
 
+// Load flags are used by the loaders to modify their behavior from the client code.
+enum LoadFlags
+{
+	LoadFlag_None             = 0x00,
+	LoadFlag_GlobalLoad       = 0x01,
+	LoadFlag_ItemAnims        = 0x02,
+	LoadFlag_LuclinAnims      = 0x04,
+	LoadFlag_SkipOldAnims     = 0x08,
+	LoadFlag_OptimizeAnims    = 0x10,
+	LoadFlag_SkipSocials      = 0x20,
+};
+
 // The resource manager manages all the resources created when loading data from eqg and s3d files.
 // In its default state, it will not create graphics device resources. However, it can be subclassed
 // to provide that functionality.
@@ -143,6 +154,7 @@ public:
 	virtual std::shared_ptr<HierarchicalModelDefinition> CreateHierarchicalModelDefinition() const;
 	virtual std::shared_ptr<HierarchicalModel> CreateHierarchicalModel() const;
 	virtual std::shared_ptr<BlitSpriteDefinition> CreateBlitSpriteDefinition() const;
+	virtual std::shared_ptr<Animation> CreateAnimation() const;
 
 	virtual bool LoadTexture(Bitmap* bitmap, Archive* archive);
 	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);

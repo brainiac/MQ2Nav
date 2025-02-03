@@ -17,6 +17,7 @@ namespace eqg {
 
 std::string_view decode_s3d_string(char* str, size_t len);
 
+class ActorInstance;
 class HierarchicalModelDefinition;
 class ResourceManager;
 class SimpleModelDefinition;
@@ -24,11 +25,14 @@ class SimpleModelDefinition;
 class WLDLoader
 {
 public:
+	// TODO: loading flags:
+	// - luclin animations
+
 	WLDLoader(ResourceManager* resourceMgr);
 	~WLDLoader();
 
 	// Typically, the archive would be <zonename>.s3d and the file would be <zonename>.wld
-	bool Init(Archive* archive, const std::string& fileName);
+	bool Init(Archive* archive, const std::string& fileName, int loadFlags = 0);
 
 	// Parse everything
 	bool ParseAll();
@@ -62,24 +66,27 @@ public:
 
 	uint32_t GetConstantAmbient() const { return m_constantAmbient; }
 
-	std::vector<ActorInstancePtr> m_actors;
+	std::vector<std::shared_ptr<ActorInstance>> m_actors;
 
 private:
 	bool ParseBitmapsAndMaterials(
 		std::pair<uint32_t, uint32_t> bitmapRange,
 		std::pair<uint32_t, uint32_t> materialRange,
 		std::pair<uint32_t, uint32_t> materialPaletteRange,
-		std::string_view npcTag);
+		std::string_view npcTag = {});
 	bool ParseBitmap(uint32_t objectIndex);
 	bool ParseMaterial(uint32_t objectIndex);
 	bool ParseMaterialPalette(uint32_t objectIndex);
-	bool ParseBlitSprites(std::pair<uint32_t, uint32_t> blitSpriteRange, std::string_view npcTag);
+	bool ParseBlitSprites(std::pair<uint32_t, uint32_t> blitSpriteRange, std::string_view npcTag = {});
 	bool ParseBlitSprite(uint32_t objectIndex);
 	bool ParseTextureDataDefinition(uint32_t objectIndex, STextureDataDefinition& dataDef);
 	bool ParseTextureDataDefinitionFromSimpleSpriteDef(uint32_t objectIndex, STextureDataDefinition& dataDef);
 	bool ParseTextureDataDefinitionFromSimpleSpriteInst(uint32_t objectIndex, STextureDataDefinition& dataDef);
-
+	bool ParseParticleClouds(std::pair<uint32_t, uint32_t> pcloudRange, std::string_view npcTag = {});
+	bool ParseParticleCloud(uint32_t objectIndex, float scale);
 	bool ParseTrack(uint32_t objectIndex);
+	bool ParseAnimations(std::pair<uint32_t, uint32_t> trackRange, std::string_view npcTag = {});
+	bool ParseAnimation(uint32_t objectIndex, std::string_view animTag, uint32_t& nextObjectIndex);
 	bool ParseSimpleModel(uint32_t objectIndex, std::shared_ptr<SimpleModelDefinition>& outModel);
 	bool ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<HierarchicalModelDefinition>& outModel);
 	bool ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSpriteDef2WLDData>& outData);
@@ -103,6 +110,11 @@ private:
 	std::vector<WLDFileObject> m_objects;
 	bool                       m_oldVersion = false;
 	bool                       m_valid = false;
+	bool                       m_luclinAnims = false;
+	bool                       m_itemAnims = true;
+	bool                       m_newAnims = false;
+	bool                       m_skipSocials = false;
+	bool                       m_optimizeAnims = false;
 	uint32_t                   m_constantAmbient = 0;
 };
 

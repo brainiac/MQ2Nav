@@ -11,8 +11,10 @@
 namespace eqg {
 
 struct STrack;
+class ActorInstance;
 class WLDLoader;
 class HierarchicalModelDefinition;
+class ParticleCloudDefinition;
 
 enum WLDObjectType : uint32_t
 {
@@ -36,8 +38,8 @@ enum WLDObjectType : uint32_t
 	WLD_OBJ_WORLDTREE_TYPE                    = 33, // (0x21) BSPTree
 	WLD_OBJ_REGION_TYPE                       = 34, // (0x22)
 
-	WLD_OBJ_BLITSPRITEDEFINITION_TYPE         = 38,
-	WLD_OBJ_BLITSPRITEINSTANCE_TYPE           = 39,
+	WLD_OBJ_BLITSPRITEDEFINITION_TYPE         = 38, // (0x26)
+	WLD_OBJ_BLITSPRITEINSTANCE_TYPE           = 39, // (0x27)
 	WLD_OBJ_POINTLIGHT_TYPE                   = 40, // (0x28)
 	WLD_OBJ_ZONE_TYPE                         = 41, // (0x29)
 
@@ -123,6 +125,11 @@ struct ParsedMaterialPalette : ParsedObject
 	std::vector<std::shared_ptr<Material>> materials;
 
 	std::shared_ptr<MaterialPalette> palette;
+};
+
+struct ParsedPCloudDefinition : ParsedObject
+{
+	std::shared_ptr<ParticleCloudDefinition> particleCloudDef;
 };
 
 // WLD_OBJ_DMSPRITEDEFINITION2_TYPE (54)

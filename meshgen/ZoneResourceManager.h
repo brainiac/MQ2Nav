@@ -43,6 +43,8 @@ public:
 
 	const std::string& getFileName() const { return m_zoneName; }
 
+	void SetLoadSocials(bool socials) { m_skipSocials = !socials; }
+
 	int GetDynamicObjectsCount() const { return m_dynamicObjects; }
 	bool HasDynamicObjects() const { return m_hasDynamicObjects; }
 
@@ -60,8 +62,8 @@ private:
 	eqg::Archive* LoadArchive(const std::string& path);
 	eqg::EQGLoader* LoadEQG(std::string_view fileName);
 	eqg::EQGLoader* LoadEQG(eqg::Archive* archive);
-	eqg::WLDLoader* LoadS3D(std::string_view fileName, std::string_view wldFile = "");
-	eqg::WLDLoader* LoadWLD(eqg::Archive* archive, const std::string& fileName);
+	eqg::WLDLoader* LoadS3D(std::string_view fileName, int loadFlags = 0, std::string_view wldFile = "");
+	eqg::WLDLoader* LoadWLD(eqg::Archive* archive, const std::string& fileName, int loadFlags = 0);
 
 	void LoadAssetsFile();
 	void LoadDoors();
@@ -76,6 +78,7 @@ private:
 	};
 	void LoadGlobalLoadFile();
 	void PerformGlobalLoad(int phase);
+	void LoadGlobalChr();
 
 	//void TraverseBone(std::shared_ptr<eqg::s3d::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
 	bool LoadModelInst(const PlaceablePtr& model_inst);
@@ -91,6 +94,11 @@ private:
 	bool m_doorsLoaded = false;
 	bool m_loaded = false;
 
+	bool m_skipSocials = false;
+	bool m_loadLuclinModels = false;
+	bool m_loadLuclinElementals = false; // luclin mounts/elementals
+	int m_defaultLoadFlags = 0;
+	std::unique_ptr<eqg::ResourceManager> m_globalResourceMgr;
 	std::unique_ptr<eqg::ResourceManager> m_resourceMgr;
 
 	std::vector<glm::vec3> collide_verts;

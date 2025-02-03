@@ -9,10 +9,13 @@ enum class ResourceType
 	Bitmap,
 	Material,
 	MaterialPalette,
+
 	BlitSpriteDefinition,
+	Animation,
 
 	SimpleModelDefinition,
 	HierarchicalModelDefinition,
+	ParticleCloudDefinition,
 	ActorDefinition,
 
 	Max,
