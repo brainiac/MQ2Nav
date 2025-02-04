@@ -140,6 +140,7 @@
     <None Include="..\resources\Zones.ini" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MeshgenHandler.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -167,6 +168,7 @@
     <ClInclude Include="imgui\imgui_impl_win32.h" />
     <ClInclude Include="KeybindHandler.h" />
     <ClInclude Include="MapAPI.h" />
+    <ClInclude Include="MeshgenHandler.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="MQ2Navigation.h" />
     <ClInclude Include="pch.h" />
