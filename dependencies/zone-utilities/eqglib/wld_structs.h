@@ -52,7 +52,7 @@ enum WLDOBJ_PCLOUDOPT
 {
 	WLD_OBJ_PCLOUDOPT_HASSPAWNBOX                    = 0x0001,
 	WLD_OBJ_PCLOUDOPT_HASBBOX                        = 0x0002,
-	WLD_OBJ_PCLOUDOPT_HASSPRITEDEF                  = 0x0004,
+	WLD_OBJ_PCLOUDOPT_HASSPRITEDEF                   = 0x0004,
 };
 
 // flags for region objects
@@ -62,6 +62,7 @@ enum WLDOBJ_REGOPT
 	WLD_OBJ_REGOPT_HAVEREVERBVOLUME                  = 0x0002,
 	WLD_OBJ_REGOPT_HAVEREVERBOFFSET                  = 0x0004,
 	WLD_OBJ_REGOPT_REGIONFOG                         = 0x0008,
+	WLD_OBJ_REGOPT_ENABLE_GOURAUD2                   = 0x0010,
 	WLD_OBJ_REGOPT_ENCODEDVISIBILITY                 = 0x0020,
 	WLD_OBJ_REGOPT_HAVEREGIONDMSPRITE                = 0x0040,
 	WLD_OBJ_REGOPT_ENCODEDVISIBILITY2                = 0x0080,
@@ -336,7 +337,7 @@ struct WLD_OBJ_REGION
 	uint32_t num_obstacles;
 	uint32_t num_cutting_obstacles;
 	uint32_t num_vis_nodes;
-	uint32_t nuim_vis_lists;
+	uint32_t num_vis_lists;
 };
 
 struct WLD_OBJ_POINTLIGHT
@@ -383,8 +384,8 @@ struct WLD_OBJ_MATERIALDEFINITION
 {
 	int tag;
 	uint32_t flags;
-	uint32_t render_method; // params1
-	uint32_t color; // params2
+	uint32_t render_method;
+	uint32_t color;
 	float brightness;
 	float scaled_ambient;
 	int sprite_or_bminfo;
@@ -562,6 +563,53 @@ struct SHSpriteDefWLDData
 	uint32_t numAttachedSkins = 0;
 	std::vector<std::unique_ptr<SDMSpriteDef2WLDData>> attachedSkins;
 	int* skeletonDagIndices = nullptr;
+};
+
+struct SAreaWLDData
+{
+	uint32_t numRegions;
+	uint32_t* regions;
+	std::string_view tag;
+	std::string_view userData;
+	uint32_t areaNum;
+};
+
+struct SRegionWLDData
+{
+	std::string_view tag;
+	uint32_t ambientLightIndex = 0;
+	uint32_t visibilityType = 0;
+	uint32_t range = 0;
+	uint8_t* encodedVisibility = nullptr;
+	glm::vec3 sphereCenter = glm::vec3{ 0.0f };
+	float sphereRadius = 0;
+	float reverbVolume = 0;
+	uint32_t reverbOffset = 0;
+	uint32_t regionSpriteIndex = (uint32_t)-1;
+	bool regionSpriteDef = false;
+	std::unique_ptr<SDMSpriteDef2WLDData> regionSprite;
+};
+
+struct SWorldTreeNodeWLDData
+{
+	SPlanarEquation plane;
+	uint32_t region;
+	uint32_t front;
+	uint32_t back;
+};
+
+struct SWorldTreeWLDData
+{
+	std::string_view tag;
+	std::vector<SWorldTreeNodeWLDData> nodes;
+};
+
+struct STerrainWLDData
+{
+	std::vector<SRegionWLDData> regions;
+	std::vector<SAreaWLDData> areas;
+	std::shared_ptr<SWorldTreeWLDData> worldTree;
+	uint32_t constantAmbientColor;
 };
 
 } // namespace eqg

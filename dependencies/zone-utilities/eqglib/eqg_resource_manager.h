@@ -14,10 +14,11 @@ class Animation;
 class Archive;
 class Bitmap;
 class BlitSpriteDefinition;
-class SimpleModelDefinition;
-class SimpleModel;
 class HierarchicalModelDefinition;
 class HierarchicalModel;
+class SimpleModelDefinition;
+class SimpleModel;
+class Terrain;
 
 namespace detail
 {
@@ -159,6 +160,9 @@ public:
 	virtual bool LoadTexture(Bitmap* bitmap, Archive* archive);
 	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);
 
+	virtual std::shared_ptr<Terrain> InitTerrain();
+	std::shared_ptr<Terrain> GetTerrain();
+
 private:
 	ResourceManager* m_parent;
 	ResourceContainer m_resources;
@@ -166,6 +170,9 @@ private:
 	// Track resources by type and by tag (sorted). This is useful for debugging and
 	// inspecting, but we'll use the ResourceContainer for actual lookups.
 	std::map<ResourceType, std::map<std::string_view, std::shared_ptr<Resource>>> m_sortedResources;
+
+	// There is only one terrain per zone.
+	std::shared_ptr<Terrain> m_terrain;
 };
 
 } // namespace eqg

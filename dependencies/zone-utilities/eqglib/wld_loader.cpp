@@ -10,6 +10,7 @@
 #include "eqg_geometry.h"
 #include "eqg_material.h"
 #include "eqg_resource_manager.h"
+#include "eqg_terrain.h"
 #include "log_internal.h"
 #include "wld_structs.h"
 
@@ -391,7 +392,7 @@ bool WLDLoader::ParseAll()
 	///     instance tag: ZoneActor_%05d
 	///     create hierarchical actor or simple actor, store on object
 	///
-	/// ParsePClouds agian?
+	/// ParsePClouds again?
 	///
 	/// ParseTerrain
 	///     find all regions and parse them:
@@ -456,9 +457,17 @@ bool WLDLoader::ParseAll()
 			return false;
 	}
 
+	int constantAmbientIndex = 0;
+	int worldTreeIndex = 0;
+
 	for (uint32_t i = 0; i <= m_numObjects; ++i)
 	{
-		if (m_objects[i].type == WLD_OBJ_ACTORDEFINITION_TYPE)
+		if (m_objects[i].type == WLD_OBJ_CONSTANTAMBIENT_TYPE)
+			constantAmbientIndex = i;
+		if (m_objects[i].type == WLD_OBJ_WORLDTREE_TYPE)
+			worldTreeIndex = i;
+
+		else if (m_objects[i].type == WLD_OBJ_ACTORDEFINITION_TYPE)
 		{
 			if (!ParseActorDefinition(i))
 			{
@@ -476,6 +485,15 @@ bool WLDLoader::ParseAll()
 			{
 				EQG_LOG_WARN("Failed to parse actor instance: {} ({})", m_objects[i].tag, i);
 			}
+		}
+	}
+
+	if (objectCounts.count(WLD_OBJ_REGION_TYPE) != 0)
+	{
+		if (!ParseTerrain(objectCounts.range(WLD_OBJ_REGION_TYPE), objectCounts.range(WLD_OBJ_ZONE_TYPE), worldTreeIndex, constantAmbientIndex))
+		{
+			EQG_LOG_WARN("Failed to parse terrain");
+			return false;
 		}
 	}
 
@@ -2622,6 +2640,186 @@ bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSprit
 	else
 	{
 		pSpriteDef->boundingRadius = 1.0f;
+	}
+
+	return true;
+}
+
+bool WLDLoader::ParseTerrain(
+	std::pair<uint32_t, uint32_t> regionRange,
+	std::pair<uint32_t, uint32_t> zoneRange,
+	int worldTreeIndex, int constantAmbientIndex)
+{
+	STerrainWLDData terrainData;
+	terrainData.worldTree = std::make_shared<SWorldTreeWLDData>();
+
+	for (uint32_t regionIndex = regionRange.first; regionIndex < regionRange.second; ++regionIndex)
+	{
+		if (m_objects[regionIndex].type == WLD_OBJ_REGION_TYPE)
+		{
+			if (!ParseRegion(regionIndex, terrainData))
+			{
+				EQG_LOG_ERROR("Failed to parse terrain region '{}'", m_objects[regionIndex].tag);
+				return false;
+			}
+		}
+	}
+
+	std::shared_ptr<Terrain> pTerrain = m_resourceMgr->InitTerrain();
+
+	// Parse areas, send them to the terrain
+	for (uint32_t objectIndex = zoneRange.first; objectIndex < zoneRange.second; ++objectIndex)
+	{
+		if (m_objects[objectIndex].type == WLD_OBJ_ZONE_TYPE)
+		{
+			if (!ParseArea(objectIndex, objectIndex - zoneRange.first, terrainData))
+			{
+				EQG_LOG_ERROR("Failed to parse terrain area '{}'", m_objects[objectIndex].tag);
+				return false;
+			}
+		}
+	}
+
+	if (!ParseWorldTree(worldTreeIndex, terrainData))
+	{
+		EQG_LOG_ERROR("Failed to parse world tree");
+		return false;
+	}
+
+	if (!ParseConstantAmbient(constantAmbientIndex, terrainData))
+	{
+		EQG_LOG_ERROR("Failed to parse constant ambient color");
+		return false;
+	}
+
+	if (!pTerrain->InitFromWLDData(terrainData))
+	{
+		EQG_LOG_ERROR("Failed to init terrain from wld data");
+		return false;
+	}
+
+	return true;
+}
+
+bool WLDLoader::ParseRegion(uint32_t objectIndex, STerrainWLDData& terrainData)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+	BufferReader reader(wldObj.data, wldObj.size);
+
+	SRegionWLDData& region = terrainData.regions.emplace_back();
+	WLD_OBJ_REGION* header = reader.read_ptr<WLD_OBJ_REGION>();
+
+	region.tag = wldObj.tag;
+	region.ambientLightIndex = GetObjectIndexFromID(header->ambient_light_id);
+
+	if (header->num_vis_nodes)
+	{
+		reader.skip<WLD_OBJ_XYZ>(header->num_vis_nodes);
+		reader.skip<uint32_t>(header->num_vis_nodes * 4);
+	}
+
+	if (header->flags & WLD_OBJ_REGOPT_ENCODEDVISIBILITY)
+		region.visibilityType = 1;
+	if (header->flags & WLD_OBJ_REGOPT_ENCODEDVISIBILITY2)
+		region.visibilityType = 2;
+
+	region.range = reader.read<uint16_t>();
+	region.encodedVisibility = reader.peek<uint8_t>();
+
+	// Skipping over visibility data
+	if (region.visibilityType != 2)
+		reader.skip<uint16_t>(region.range);
+	else
+		reader.skip<uint8_t>(region.range);
+
+	if (header->flags & WLD_OBJ_REGOPT_HAVESPHERE)
+	{
+		reader.read(region.sphereCenter);
+		reader.read(region.sphereRadius);
+	}
+
+	if (header->flags & WLD_OBJ_REGOPT_HAVEREVERBVOLUME)
+		reader.read(region.reverbVolume);
+	if (header->flags & WLD_OBJ_REGOPT_HAVEREVERBOFFSET)
+		reader.read(region.reverbOffset);
+
+	// Skipping over userdata
+	if (uint32_t udSize = reader.read<uint32_t>())
+		reader.skip(udSize);
+	
+	if (header->flags & WLD_OBJ_REGOPT_HAVEREGIONDMSPRITE)
+		region.regionSpriteIndex = GetObjectIndexFromID(reader.read<uint32_t>());
+	if (header->flags & WLD_OBJ_REGOPT_HAVEREGIONDMSPRITEDEF)
+	{
+		region.regionSpriteIndex = GetObjectIndexFromID(reader.read<uint32_t>());
+		region.regionSpriteDef = true;
+	}
+
+	if (region.regionSpriteDef)
+	{
+		if (!ParseDMSpriteDef2(region.regionSpriteIndex, region.regionSprite))
+		{
+			EQG_LOG_ERROR("Failed to parse DMSpriteDef2 ({}) for region {} ({})", region.regionSpriteIndex, wldObj.tag, objectIndex);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool WLDLoader::ParseArea(uint32_t objectIndex, uint32_t areaNum, STerrainWLDData& terrain)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+	BufferReader reader(wldObj.data, wldObj.size);
+
+	WLD_OBJ_ZONE* header = reader.read_ptr<WLD_OBJ_ZONE>();
+	SAreaWLDData& wldData = terrain.areas.emplace_back();
+	wldData.tag = wldObj.tag;
+	wldData.numRegions = header->num_regions;
+	wldData.regions = reader.read_array<uint32_t>(wldData.numRegions);
+	wldData.areaNum = areaNum;
+	
+	if (uint32_t userDataSize = reader.read<uint32_t>())
+		wldData.userData = decode_s3d_string(reader.read_array<char>(userDataSize), userDataSize);
+
+	return true;
+}
+
+bool WLDLoader::ParseWorldTree(uint32_t objectIndex, STerrainWLDData& terrain)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+	BufferReader reader(wldObj.data, wldObj.size);
+
+	WLD_OBJ_WORLDTREE* header = reader.read_ptr<WLD_OBJ_WORLDTREE>();
+
+	SWorldTreeWLDData& worldTree = *terrain.worldTree;
+	worldTree.tag = wldObj.tag;
+	worldTree.nodes.resize(header->num_world_nodes);
+	for (uint32_t i = 0; i < header->num_world_nodes; ++i)
+	{
+		WLD_OBJ_WORLDTREE_NODE* data = reader.read_ptr<WLD_OBJ_WORLDTREE_NODE>();
+		SWorldTreeNodeWLDData& node = worldTree.nodes[i];
+
+		node.plane = data->plane;
+		node.region = data->region;
+		node.front = data->node[0];
+		node.back = data->node[1];
+	}
+
+	return true;
+}
+
+bool WLDLoader::ParseConstantAmbient(uint32_t objectIndex, STerrainWLDData& terrain)
+{
+	terrain.constantAmbientColor = 0;
+
+	if (objectIndex != (uint32_t)-1 && m_objects[objectIndex].type == WLD_OBJ_CONSTANTAMBIENT_TYPE)
+	{
+		WLDFileObject& wldObj = m_objects[objectIndex];
+		BufferReader reader(wldObj.data, wldObj.size);
+
+		if (!reader.read(terrain.constantAmbientColor))
+			return false;
 	}
 
 	return true;

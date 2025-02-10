@@ -21,6 +21,7 @@ class ActorInstance;
 class HierarchicalModelDefinition;
 class ResourceManager;
 class SimpleModelDefinition;
+class Terrain;
 
 class WLDLoader
 {
@@ -93,7 +94,12 @@ private:
 	bool ParseActorDefinition(uint32_t objectIndex);
 	bool ParseActorInstance(uint32_t objectIndex);
 	bool ParseDMRGBTrack(uint32_t objectIndex, std::unique_ptr<SDMRGBTrackWLDData>& outData);
-	bool ParseTerrain(uint32_t objectIndex);
+	bool ParseTerrain(std::pair<uint32_t, uint32_t> regionRange, std::pair<uint32_t, uint32_t> zoneRange,
+		int worldTreeIndex, int constantAmbientIndex);
+	bool ParseRegion(uint32_t objectIndex, STerrainWLDData& terrainData);
+	bool ParseArea(uint32_t objectIndex, uint32_t areaNum, STerrainWLDData& terrain);
+	bool ParseWorldTree(uint32_t objectIndex, STerrainWLDData& terrain);
+	bool ParseConstantAmbient(uint32_t objectIndex, STerrainWLDData& terrain);
 
 	Archive*                   m_archive = nullptr;
 	ResourceManager*           m_resourceMgr = nullptr;

@@ -6,6 +6,7 @@
 #include "eqg_animation.h"
 #include "eqg_geometry.h"
 #include "eqg_material.h"
+#include "eqg_terrain.h"
 #include "log_internal.h"
 
 #include <ddraw.h> // for DDSURFACEDESC2
@@ -96,6 +97,14 @@ std::shared_ptr<Animation> ResourceManager::CreateAnimation() const
 	return std::make_shared<Animation>();
 }
 
+std::shared_ptr<Terrain> ResourceManager::InitTerrain()
+{
+	// Reset the terrain object
+	m_terrain = std::make_shared<Terrain>();
+
+	return m_terrain;
+}
+
 //-------------------------------------------------------------------------------------------------
 
 bool ResourceManager::LoadTexture(Bitmap* bitmap, Archive* archive)
@@ -165,6 +174,11 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 	}
 
 	return true;
+}
+
+std::shared_ptr<Terrain> ResourceManager::GetTerrain()
+{
+	return m_terrain;
 }
 
 } // namespace eqg

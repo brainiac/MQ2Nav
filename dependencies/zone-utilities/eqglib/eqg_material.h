@@ -40,6 +40,27 @@ enum EBitmapType
 	eBitmapTypePaletteDetailDetail,
 };
 
+// Render Method data
+
+// Render Method flags - Fill type
+constexpr uint32_t RM_FILL_MASK          = 0x00000003;
+constexpr uint32_t RM_FILL_TRANSPARENT   = 0;
+constexpr uint32_t RM_FILL_POINT         = 1;
+constexpr uint32_t RM_FILL_WIREFRAME     = 2;
+constexpr uint32_t RM_FILL_SOLID         = 3;
+
+// Render Method flags - Transparency type
+constexpr uint32_t RM_TRANSPARENCY_MASK  = 0x00000080;
+
+// Render Method flags - Texture type
+constexpr uint32_t RM_TEXTURE_MASK       = 0x0000ff00;
+
+// Render Method flags - Translucency type
+constexpr uint32_t RM_TRANSLUCENCY_MASK  = 0x01000000;
+
+// Render Method - custom type
+constexpr uint32_t RM_CUSTOM_MASK        = 0x80000000;
+
 struct SBitmapWLDData
 {
 	std::string fileName;
@@ -175,6 +196,8 @@ public:
 		ParsedSimpleSpriteDef* pParsedSimpleSpriteDef, ParsedBMInfo* pParsedBMPalette);
 	bool InitFromBitmap(const std::shared_ptr<Bitmap>& bitmap);
 
+	bool IsTransparent() const { return m_transparent; }
+
 	std::string                 m_tag;
 	std::string                 m_effectName;
 	float                       m_twoSided = false;
@@ -184,6 +207,7 @@ public:
 	float                       m_constantAmbient = 0.0f;
 	int                         m_type = 0;
 	float                       m_detailScale = 1.0f;
+	bool                        m_transparent = false;
 
 	std::unique_ptr<STextureSet> m_textureSet;
 	std::unique_ptr<STextureSet> m_textureSetAlt;

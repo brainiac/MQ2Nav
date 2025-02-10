@@ -333,6 +333,26 @@ bool Material::InitFromWLDData(
 
 	// TODO: Process material type, render method, transparency, etc
 
+	if (m_type == eBitmapTypeNormal)
+	{
+		uint32_t renderMethod = m_renderMethod;
+
+		if (renderMethod & RM_CUSTOM_MASK)
+		{
+			// TODO: Figure out how to get custom render method
+		}
+		else if ((renderMethod & RM_TEXTURE_MASK) == 0 && (renderMethod & RM_TRANSLUCENCY_MASK) == 0)
+		{
+			renderMethod = 0;
+		}
+
+		if ((renderMethod & RM_FILL_MASK) == RM_FILL_TRANSPARENT)
+		{
+			m_transparent = true;
+			return true;
+		}
+	}
+
 	return true;
 }
 

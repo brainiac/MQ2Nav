@@ -195,6 +195,11 @@ public:
 	bool region_sprite_is_def = false;
 };
 
+struct ParsedRegion : ParsedObject
+{
+	std::shared_ptr<SRegionWLDData> region;
+};
+
 // WLD_OBJ_POINTLIGHT_TYPE
 class WLDFragment28 : public WLDFragment
 {

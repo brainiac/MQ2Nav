@@ -90,7 +90,7 @@ enum EItemTextureSlot
 struct SFace
 {
 	glm::u32vec3  indices;
-	EQG_FACEFLAGS flags;
+	uint16_t      flags; // EQG_FACEFLAGS
 	int16_t       materialIndex;
 
 	SFace() = default; // default uninit

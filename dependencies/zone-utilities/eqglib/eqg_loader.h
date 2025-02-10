@@ -19,7 +19,7 @@ class Light;
 class LODList;
 class Material;
 class Placeable;
-class Terrain;
+class TerrainSystem;
 class TerrainArea;
 struct SEQZoneParameters;
 struct SZONInstanceNew;
@@ -37,7 +37,7 @@ public:
 	std::vector<std::shared_ptr<Placeable>> placeables;
 	std::vector<std::shared_ptr<TerrainArea>> areas;
 	std::vector<std::shared_ptr<Light>> lights;
-	std::shared_ptr<Terrain> terrain;
+	std::shared_ptr<TerrainSystem> terrain;
 	std::shared_ptr<Geometry> terrain_model;
 
 	std::vector<std::shared_ptr<LODList>> lod_lists;
@@ -102,5 +102,5 @@ public:
 
 using PlaceablePtr = std::shared_ptr<eqg::Placeable>;
 using EQGGeometryPtr = std::shared_ptr<eqg::Geometry>;
-using TerrainPtr = std::shared_ptr<eqg::Terrain>;
+using TerrainPtr = std::shared_ptr<eqg::TerrainSystem>;
 using TerrainAreaPtr = std::shared_ptr<eqg::TerrainArea>;

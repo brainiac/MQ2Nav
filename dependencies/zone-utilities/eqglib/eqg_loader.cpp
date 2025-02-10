@@ -559,7 +559,7 @@ bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string&
 bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
 {
 	// Load terrain data
-	auto loading_terrain = std::make_shared<Terrain>(m_archive);
+	auto loading_terrain = std::make_shared<TerrainSystem>(m_archive);
 
 	if (!loading_terrain->Load(buffer.data(), buffer.size()))
 	{
