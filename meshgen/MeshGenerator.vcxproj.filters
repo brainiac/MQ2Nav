@@ -80,7 +80,7 @@
     <ClCompile Include="imgui\imgui_impl_opengl2.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_impl_sdl.cpp">
+    <ClCompile Include="imgui\imgui_impl_sdl2.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
     <ClCompile Include="NavMeshInfoTool.cpp">
@@ -142,7 +142,7 @@
     <ClInclude Include="imgui\imgui_impl_opengl2.h">
       <Filter>Header Files\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="imgui\imgui_impl_sdl.h">
+    <ClInclude Include="imgui\imgui_impl_sdl2.h">
       <Filter>Header Files\imgui</Filter>
     </ClInclude>
     <ClInclude Include="NavMeshInfoTool.h">

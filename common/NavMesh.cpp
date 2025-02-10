@@ -55,7 +55,7 @@ void NavMesh::SetZoneName(const std::string& zoneShortName)
 	if (zoneShortName.empty() || zoneShortName == "UNKNOWN_ZONE")
 	{
 		m_zoneName.clear();
-		m_dataFile.clear();
+		m_dataFilePath.clear();
 
 		SPDLOG_DEBUG("Clearing current zone: {}", m_zoneName);
 		return;
@@ -85,11 +85,11 @@ void NavMesh::UpdateDataFile()
 		fs::path meshpath = m_navMeshDirectory;
 		meshpath /= m_zoneName + std::string(NAVMESH_FILE_EXTENSION);
 
-		m_dataFile = meshpath.string();
+		m_dataFilePath = meshpath.string();
 	}
 	else
 	{
-		m_dataFile.clear();
+		m_dataFilePath.clear();
 	}
 }
 
@@ -559,12 +559,12 @@ void NavMesh::SaveToProto(nav::NavMeshFile& proto, PersistedDataFields fields)
 
 NavMesh::LoadResult NavMesh::LoadNavMeshFile()
 {
-	if (m_dataFile.empty())
+	if (m_dataFilePath.empty())
 	{
 		return LoadResult::MissingFile;
 	}
 
-	m_lastLoadResult = LoadMesh(m_dataFile.c_str());
+	m_lastLoadResult = LoadMesh(m_dataFilePath.c_str());
 	OnNavMeshChanged();
 
 	return m_lastLoadResult;
@@ -581,7 +581,8 @@ NavMesh::LoadResult NavMesh::LoadNavMeshFile(const std::string& filename)
 NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 {
 	// cache the filename of the file we tried to load
-	m_dataFile = filename;
+	m_dataFilePath = filename;
+	m_fileName = fs::path(filename).filename().string();
 
 	FILE* file = _fsopen(filename, "rb", _SH_DENYNO);
 	if (!file)
@@ -705,12 +706,12 @@ NavMesh::LoadResult NavMesh::LoadMesh(const char* filename)
 
 bool NavMesh::SaveNavMeshFile()
 {
-	if (m_dataFile.empty())
+	if (m_dataFilePath.empty())
 	{
 		return false;
 	}
 
-	return SaveMesh(m_dataFile.c_str());
+	return SaveMesh(m_dataFilePath.c_str());
 }
 
 bool NavMesh::SaveNavMeshFile(const std::string& filename, NavMeshHeaderVersion version)

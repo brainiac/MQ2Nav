@@ -5,7 +5,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>WIN32;GLM_FORCE_SWIZZLE;GLM_FORCE_RADIANS;GLM_FORCE_CTOR_INIT;_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;GLM_FORCE_SWIZZLE;GLM_FORCE_RADIANS;GLM_FORCE_CTOR_INIT;GLM_ENABLE_EXPERIMENTAL;_USE_MATH_DEFINES;_CRT_SECURE_NO_WARNINGS;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>

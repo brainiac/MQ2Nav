@@ -7,20 +7,73 @@
 
 #include "plugin/MQ2Navigation.h"
 #include "plugin/Utilities.h"
+#include "mq/base/WString.h"
 
 #include <DetourNavMesh.h>
 #include <DetourCommon.h>
 #include <spdlog/spdlog.h>
+#include <wil/filesystem.h>
 #include <ctime>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 //============================================================================
+
+struct NavMeshLoader::FileWatcher
+{
+	FileWatcher(const std::string& navMeshDir, std::function<void(const std::string&)>&& callback)
+		: m_callback(std::move(callback))
+	{
+		m_watcher = wil::make_folder_change_reader_nothrow(
+			utf8_to_wstring(navMeshDir).c_str(), false, wil::FolderChangeEvents::All,
+			[this](wil::FolderChangeEvent event, PCWSTR fileName)
+			{
+				if (ci_ends_with(fileName, L".navmesh"))
+				{
+					if (event == wil::FolderChangeEvent::Modified || event == wil::FolderChangeEvent::Added)
+						m_callback(wstring_to_utf8(fileName));
+				}
+			});
+	}
+
+	std::function<void(const std::string&)> m_callback;
+	wil::unique_folder_change_reader_nothrow m_watcher;
+};
+
+//============================================================================
+
 
 NavMeshLoader::NavMeshLoader(NavMesh* mesh)
 	: m_navMesh(mesh)
 {
+	UpdateAutoReload();
 }
 
 //----------------------------------------------------------------------------
+
+void NavMeshLoader::UpdateAutoReload()
+{
+	if (m_autoReload)
+	{
+		if (!m_fileWatcher)
+		{
+			m_fileWatcher = std::make_unique<FileWatcher>(m_navMesh->GetNavMeshDirectory(),
+				[this](const std::string& fileName)
+				{
+					if (ci_equals(fileName, m_navMesh->GetFileName()))
+					{
+						m_changed = true;
+						m_lastUpdate = clock::now();
+					}
+				});
+		}
+	}
+	else
+	{
+		m_fileWatcher.reset();
+	}
+}
 
 void NavMeshLoader::SetZoneId(int zoneId)
 {
@@ -66,7 +119,7 @@ void NavMeshLoader::SetAutoLoad(bool autoLoad)
 bool NavMeshLoader::LoadNavMesh()
 {
 	NavMesh::LoadResult result = m_navMesh->LoadNavMeshFile();
-	std::string meshFile = m_navMesh->GetDataFileName();
+	std::string meshFile = m_navMesh->GetFullFilePath();
 	bool success = false;
 
 	switch (result)
@@ -78,17 +131,6 @@ bool NavMeshLoader::LoadNavMesh()
 
 	case NavMesh::LoadResult::Success:
 		SPDLOG_INFO("\agSuccessfully loaded mesh for \am{}\ax", m_zoneShortName);
-		{
-			// Get filetime
-			HANDLE hFile = CreateFile(meshFile.c_str(), GENERIC_READ, FILE_SHARE_READ,
-				NULL, OPEN_EXISTING, 0, NULL);
-			if (hFile != INVALID_HANDLE_VALUE)
-			{
-				GetFileTime(hFile, NULL, NULL, &m_fileTime);
-			}
-			CloseHandle(hFile);
-		}
-
 		success = true;
 		break;
 
@@ -121,32 +163,14 @@ void NavMeshLoader::OnPulse()
 	if (m_autoReload)
 	{
 		clock::time_point now = clock::now();
-		if (now - m_lastUpdate > std::chrono::seconds(1))
+		if (m_changed && now - m_lastUpdate > std::chrono::seconds(1))
 		{
-			m_lastUpdate = now;
+			m_changed = false;
 
 			if (m_navMesh->IsNavMeshLoadedFromDisk())
 			{
-				std::string filename = m_navMesh->GetDataFileName();
-
-				// Get the current filetime
-				FILETIME currentFileTime;
-
-				HANDLE hFile = CreateFile(filename.c_str(), GENERIC_READ, FILE_SHARE_READ,
-					NULL, OPEN_EXISTING, 0, NULL);
-				if (hFile != INVALID_HANDLE_VALUE)
-				{
-					GetFileTime(hFile, NULL, NULL, &currentFileTime);
-
-					// Reload file *if* it is 5 seconds old AND newer than existing
-					if (CompareFileTime(&currentFileTime, &m_fileTime))
-					{
-						SPDLOG_DEBUG("Current file time is newer than old file time, refreshing");
-						LoadNavMesh();
-					}
-				}
-
-				CloseHandle(hFile);
+				SPDLOG_DEBUG("Change detected on navmesh, reloading");
+				LoadNavMesh();
 			}
 		}
 	}
@@ -171,5 +195,6 @@ void NavMeshLoader::SetAutoReload(bool autoReload)
 	if (m_autoReload != autoReload)
 	{
 		m_autoReload = autoReload;
+		UpdateAutoReload();
 	}
 }

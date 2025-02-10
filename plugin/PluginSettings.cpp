@@ -119,6 +119,7 @@ void SaveSettings(bool showMessage/* = true*/)
 	SaveBoolSetting("AutoReload", g_settings.autoreload);
 	SaveBoolSetting("ShowUI", g_settings.show_ui);
 	SaveBoolSetting("ShowNavPath", g_settings.show_nav_path);
+	SaveBoolSetting("AttemptUnstuck", g_settings.attempt_unstuck);
 	SaveBoolSetting("UseSpawnFloorHeight", g_settings.use_spawn_floor_height);
 
 	SaveBoolSetting("UseFindPolygonExtents", g_settings.use_find_polygon_extents);
