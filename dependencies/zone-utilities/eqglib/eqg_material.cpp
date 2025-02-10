@@ -6,7 +6,7 @@
 #include "eqg_resource_manager.h"
 #include "eqg_structs.h"
 #include "log_internal.h"
-#include "wld_fragment.h"
+#include "wld_types.h"
 
 namespace eqg {
 

@@ -2,8 +2,7 @@
 #pragma once
 
 #include "archive.h"
-#include "wld_fragment.h"
-#include "wld_structs.h"
+#include "wld_types.h"
 
 #include <vector>
 #include <stdint.h>
@@ -19,6 +18,7 @@ std::string_view decode_s3d_string(char* str, size_t len);
 
 class ActorInstance;
 class HierarchicalModelDefinition;
+class PointLight;
 class ResourceManager;
 class SimpleModelDefinition;
 class Terrain;

@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "eqglib/wld_loader.h"
-#include "eqglib/eqg_loader.h"
+#include "eqglib/eqglib.h"
 
 #include <cstdint>
 #include <mutex>

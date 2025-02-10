@@ -168,10 +168,11 @@ public:
 
 	virtual bool Load() override
 	{
+		bool loadedSomething = false;
+#if 0
 		std::vector<eqg::WLDFragment> zone_object_frags;
 
 		std::string base_filename = fmt::format("{}\\{}", m_zd->GetEQPath(), m_zd->GetZoneName());
-		bool loadedSomething = false;
 
 		eqg::Archive archive;
 
@@ -253,6 +254,7 @@ public:
 				}
 			}
 		}
+#endif
 
 		return loadedSomething;
 	}
@@ -320,7 +322,6 @@ public:
 		//	modelInfo->newModel = model;
 		//	return modelInfo;
 		//}
-
 		return nullptr;
 	}
 

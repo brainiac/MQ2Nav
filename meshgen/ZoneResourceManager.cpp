@@ -789,30 +789,30 @@ eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::s
 	auto& objectList = loader->GetObjectList();
 	for (auto& obj : objectList)
 	{
-		if (obj.type == eqg::WLD_OBJ_ZONE_TYPE)
-		{
-			eqg::WLDFragment29* frag = static_cast<eqg::WLDFragment29*>(obj.parsed_data);
-			auto region = frag->region;
+		//if (obj.type == eqg::WLD_OBJ_ZONE_TYPE)
+		//{
+		//	eqg::WLDFragment29* frag = static_cast<eqg::WLDFragment29*>(obj.parsed_data);
+		//	auto region = frag->region;
 
-			SPDLOG_TRACE("Processing zone region '{}' '{}' for s3d.", region->tag, region->old_style_tag);
-		}
-		else if (obj.type == eqg::WLD_OBJ_REGION_TYPE)
-		{
-			// Regions with DMSPRITEDEF2 make up the geometry of the zone
-			eqg::WLDFragment22* region_frag = static_cast<eqg::WLDFragment22*>(obj.parsed_data);
+		//	SPDLOG_TRACE("Processing zone region '{}' '{}' for s3d.", region->tag, region->old_style_tag);
+		//}
+		//else if (obj.type == eqg::WLD_OBJ_REGION_TYPE)
+		//{
+		//	// Regions with DMSPRITEDEF2 make up the geometry of the zone
+		//	eqg::WLDFragment22* region_frag = static_cast<eqg::WLDFragment22*>(obj.parsed_data);
 
-			if (region_frag->region_sprite_index != -1 && region_frag->region_sprite_is_def)
-			{
-				// Get the geometry from this sprite index
-				auto& sprite_obj = loader->GetObject(region_frag->region_sprite_index);
-				if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
-				{
-					//auto model = static_cast<eqg::WLDFragment36*>(sprite_obj.parsed_data)->geometry;
+		//	if (region_frag->region_sprite_index != -1 && region_frag->region_sprite_is_def)
+		//	{
+		//		// Get the geometry from this sprite index
+		//		auto& sprite_obj = loader->GetObject(region_frag->region_sprite_index);
+		//		if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
+		//		{
+		//			//auto model = static_cast<eqg::WLDFragment36*>(sprite_obj.parsed_data)->geometry;
 
-					//map_s3d_geometry.push_back(model);
-				}
-			}
-		}
+		//			//map_s3d_geometry.push_back(model);
+		//		}
+		//	}
+		//}
 		//else if (obj.type == eqg::WLD_OBJ_ACTORINSTANCE_TYPE)
 		//{
 		//	eqg::WLDFragment15* frag = static_cast<eqg::WLDFragment15*>(obj.parsed_data);

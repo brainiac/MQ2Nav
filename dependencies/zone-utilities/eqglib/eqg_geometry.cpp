@@ -3,7 +3,7 @@
 
 #include "eqg_material.h"
 #include "str_util.h"
-#include "wld_structs.h"
+#include "wld_types.h"
 
 namespace eqg {
 

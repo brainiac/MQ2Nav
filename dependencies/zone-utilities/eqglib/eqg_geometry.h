@@ -4,7 +4,7 @@
 #include "eqg_animation.h"
 #include "eqg_resource.h"
 #include "eqg_structs.h"
-#include "wld_structs.h"
+#include "wld_types.h"
 
 #include <glm/glm.hpp>
 #include <chrono>
@@ -173,7 +173,7 @@ public:
 	ECollisionVolumeType          m_defaultCollisionType = eCollisionVolumeNone;
 
 	steady_clock::time_point      m_lastUpdate = steady_clock::now();
-	uint32_t                      m_updateInterval;
+	uint32_t                      m_updateInterval = 0;
 	MaterialPalettePtr            m_materialPalette;
 	std::vector<SMaterialGroup>   m_materialGroups;
 };

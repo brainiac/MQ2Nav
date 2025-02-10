@@ -1,6 +1,7 @@
 #pragma once
 
 #include "eqg_loader.h"
+#include "eqg_resource_manager.h"
 #include "wld_loader.h"
 
 namespace spdlog

@@ -41,8 +41,7 @@
     <ClInclude Include="eqglib\eqg_resource.h" />
     <ClInclude Include="eqglib\str_util.h" />
     <ClInclude Include="eqglib\wld_loader.h" />
-    <ClInclude Include="eqglib\wld_fragment.h" />
-    <ClInclude Include="eqglib\wld_structs.h" />
+    <ClInclude Include="eqglib\wld_types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqglib\eqglib.cpp" />
@@ -63,7 +62,6 @@
     <ClCompile Include="eqglib\archive.cpp" />
     <ClCompile Include="eqglib\pfs_crc.cpp" />
     <ClCompile Include="eqglib\wld_loader.cpp" />
-    <ClCompile Include="eqglib\wld_fragment.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{200FB60C-6C01-48A7-886A-8E3683EB21BC}</ProjectGuid>

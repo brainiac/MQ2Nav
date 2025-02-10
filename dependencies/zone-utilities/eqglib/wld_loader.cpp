@@ -13,7 +13,7 @@
 #include "eqg_resource_manager.h"
 #include "eqg_terrain.h"
 #include "log_internal.h"
-#include "wld_structs.h"
+#include "wld_types.h"
 
 #include <ranges>
 
@@ -508,58 +508,6 @@ bool WLDLoader::ParseAll()
 				EQG_LOG_WARN("Failed to parse light: {} ({})", m_objects[i].tag, i);
 				return false;
 			}
-		}
-	}
-
-	for (uint32_t i = 0; i <= m_numObjects; ++i)
-	{
-		WLDFileObject& obj = m_objects[i];
-
-		switch (obj.type)
-		{
-		case WLD_OBJ_LIGHTDEFINITION_TYPE: {
-			obj.parsed_data = new WLDFragment1B(this, &obj);
-			break;
-		}
-		case WLD_OBJ_LIGHTINSTANCE_TYPE: {
-			obj.parsed_data = new WLDFragment1C(this, &obj);
-			break;
-		}
-		case WLD_OBJ_WORLDTREE_TYPE: {
-			obj.parsed_data = new WLDFragment21(this, &obj);
-			break;
-		}
-		case WLD_OBJ_REGION_TYPE: {
-			obj.parsed_data = new WLDFragment22(this, &obj);
-			break;
-		}
-		case WLD_OBJ_POINTLIGHT_TYPE: {
-			obj.parsed_data = new WLDFragment28(this, &obj);
-			break;
-		}
-		case WLD_OBJ_ZONE_TYPE: {
-			obj.parsed_data = new WLDFragment29(this, &obj);
-			break;
-		}
-
-		case WLD_OBJ_BMINFO_TYPE:
-		case WLD_OBJ_HIERARCHICALSPRITEDEFINITION_TYPE:
-		case WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE:
-		case WLD_OBJ_ACTORDEFINITION_TYPE:
-		case WLD_OBJ_ACTORINSTANCE_TYPE:
-		case WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE:
-		case WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE:
-		case WLD_OBJ_TRACKDEFINITION_TYPE:
-		case WLD_OBJ_TRACKINSTANCE_TYPE:
-		case WLD_OBJ_MATERIALDEFINITION_TYPE:
-		case WLD_OBJ_MATERIALPALETTE_TYPE:
-		case WLD_OBJ_DMSPRITEDEFINITION2_TYPE:
-		case WLD_OBJ_DMSPRITEINSTANCE_TYPE:
-			break;
-
-		default:
-			obj.parsed_data = new WLDFragment(&obj);
-			break;
 		}
 	}
 
