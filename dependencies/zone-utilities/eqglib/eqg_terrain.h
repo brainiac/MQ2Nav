@@ -373,7 +373,7 @@ private:
 	glm::vec3              m_bbMin;
 	glm::vec3              m_bbMax;
 	std::shared_ptr<MaterialPalette> m_materialPalette;
-	uint32_t               m_constantAmbient = 0;
+	uint32_t               m_constantAmbientColor = 0;
 
 	// WLD/S3D data
 	uint32_t               m_numWLDRegions = 0;

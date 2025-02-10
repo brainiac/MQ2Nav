@@ -12,6 +12,7 @@ enum class ResourceType
 
 	BlitSpriteDefinition,
 	Animation,
+	LightDefinition,
 
 	SimpleModelDefinition,
 	HierarchicalModelDefinition,

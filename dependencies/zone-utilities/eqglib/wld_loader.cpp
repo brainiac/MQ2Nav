@@ -8,6 +8,7 @@
 #include "buffer_reader.h"
 #include "eqg_animation.h"
 #include "eqg_geometry.h"
+#include "eqg_light.h"
 #include "eqg_material.h"
 #include "eqg_resource_manager.h"
 #include "eqg_terrain.h"
@@ -494,6 +495,19 @@ bool WLDLoader::ParseAll()
 		{
 			EQG_LOG_WARN("Failed to parse terrain");
 			return false;
+		}
+	}
+
+	auto lightRange = objectCounts.range(WLD_OBJ_POINTLIGHT_TYPE);
+	for (uint32_t i = lightRange.first; i < lightRange.second; ++i)
+	{
+		if (m_objects[i].type == WLD_OBJ_POINTLIGHT_TYPE)
+		{
+			if (!ParseLight(i))
+			{
+				EQG_LOG_WARN("Failed to parse light: {} ({})", m_objects[i].tag, i);
+				return false;
+			}
 		}
 	}
 
@@ -2821,6 +2835,91 @@ bool WLDLoader::ParseConstantAmbient(uint32_t objectIndex, STerrainWLDData& terr
 		if (!reader.read(terrain.constantAmbientColor))
 			return false;
 	}
+
+	return true;
+}
+
+bool WLDLoader::ParseLight(uint32_t objectIndex)
+{
+	WLDFileObject& wldObj = m_objects[objectIndex];
+
+	if (wldObj.type != WLD_OBJ_POINTLIGHT_TYPE)
+	{
+		return false;
+	}
+
+	// Check if light definition already exists
+	if (m_resourceMgr->Contains(wldObj.tag, ResourceType::LightDefinition))
+	{
+		return true;
+	}
+
+	WLD_OBJ_POINTLIGHT* pHeader = (WLD_OBJ_POINTLIGHT*)wldObj.data;
+
+	uint32_t lightInstanceIdx = GetObjectIndexFromID(pHeader->light_id);
+	if (lightInstanceIdx == 0)
+	{
+		EQG_LOG_ERROR("Light {} ({}) has invalid light id", wldObj.tag, objectIndex);
+		return false;
+	}
+
+	WLD_OBJ_LIGHTINSTANCE* pLightInst = (WLD_OBJ_LIGHTINSTANCE*)m_objects[lightInstanceIdx].data;
+	uint32_t lightDefinitionIdx = GetObjectIndexFromID(pLightInst->definition_id);
+	if (lightDefinitionIdx == 0)
+	{
+		EQG_LOG_ERROR("Light {} ({}) has invalid light definition id", wldObj.tag, objectIndex);
+		return false;
+	}
+
+	BufferReader reader(m_objects[lightDefinitionIdx].data, m_objects[lightDefinitionIdx].size);
+	WLD_OBJ_LIGHTDEFINITION* pLightDef = reader.read_ptr<WLD_OBJ_LIGHTDEFINITION>();
+
+	std::string_view tag = m_objects[lightDefinitionIdx].tag;
+
+	bool skipFrames = false;
+	if (pLightDef->flags & WLD_OBJ_LIGHTOPT_SKIPFRAMES)
+	{
+		skipFrames = true;
+	}
+
+	int currentFrame = 0;
+	if (pLightDef->flags & WLD_OBJ_LIGHTOPT_HAVECURRENTFRAME)
+	{
+		currentFrame = reader.read<int>();
+	}
+
+	int updateInterval;
+	if (pLightDef->flags & WLD_OBJ_LIGHTOPT_HAVESLEEP)
+	{
+		updateInterval = reader.read<int>();
+	}
+	else
+	{
+		updateInterval = 1;
+	}
+
+	float* intensityFrames = reader.read_array<float>(pLightDef->num_frames);
+
+	glm::vec3* colorFrames = nullptr;
+
+	if (pLightDef->flags & WLD_OBJ_LIGHTOPT_HAVECOLORS)
+	{
+		colorFrames = reader.read_array<glm::vec3>(pLightDef->num_frames);
+	}
+
+	std::shared_ptr<LightDefinition> lightDef = m_resourceMgr->CreateLightDefinition();
+
+	if (!lightDef->InitFromWLDData(tag, pLightDef->num_frames, intensityFrames, colorFrames, currentFrame,
+		updateInterval, skipFrames))
+	{
+		EQG_LOG_ERROR("Failed to create LightDefinition {} from LightDef {} ({})", wldObj.tag, tag, lightDefinitionIdx);
+		return false;
+	}
+
+	m_resourceMgr->Add(wldObj.tag, lightDef);
+
+	std::shared_ptr<PointLight> pointLight = std::make_shared<PointLight>(lightDef, pHeader->pos, pHeader->radius);
+	m_pointLights.push_back(pointLight);
 
 	return true;
 }

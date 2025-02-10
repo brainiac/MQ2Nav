@@ -345,7 +345,7 @@ struct WLD_OBJ_POINTLIGHT
 	int tag;
 	int light_id;
 	uint32_t flags;
-	WLD_OBJ_XYZ pos;
+	glm::vec3 pos;
 	float radius;
 };
 

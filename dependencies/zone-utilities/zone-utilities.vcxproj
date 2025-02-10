@@ -23,6 +23,7 @@
     <ClInclude Include="eqglib\eqglib.h" />
     <ClInclude Include="eqglib\eqg_animation.h" />
     <ClInclude Include="eqglib\eqg_geometry.h" />
+    <ClInclude Include="eqglib\eqg_light.h" />
     <ClInclude Include="eqglib\eqg_loader.h" />
     <ClInclude Include="eqglib\eqg_material.h" />
     <ClInclude Include="eqglib\eqg_resource_manager.h" />
@@ -47,6 +48,7 @@
     <ClCompile Include="eqglib\eqglib.cpp" />
     <ClCompile Include="eqglib\eqg_animation.cpp" />
     <ClCompile Include="eqglib\eqg_geometry.cpp" />
+    <ClCompile Include="eqglib\eqg_light.cpp" />
     <ClCompile Include="eqglib\eqg_loader.cpp" />
     <ClCompile Include="eqglib\eqg_material.cpp" />
     <ClCompile Include="eqglib\eqg_resource_manager.cpp" />

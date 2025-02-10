@@ -68,6 +68,7 @@ public:
 	uint32_t GetConstantAmbient() const { return m_constantAmbient; }
 
 	std::vector<std::shared_ptr<ActorInstance>> m_actors;
+	std::vector<std::shared_ptr<PointLight>> m_pointLights;
 
 private:
 	bool ParseBitmapsAndMaterials(
@@ -100,6 +101,7 @@ private:
 	bool ParseArea(uint32_t objectIndex, uint32_t areaNum, STerrainWLDData& terrain);
 	bool ParseWorldTree(uint32_t objectIndex, STerrainWLDData& terrain);
 	bool ParseConstantAmbient(uint32_t objectIndex, STerrainWLDData& terrain);
+	bool ParseLight(uint32_t objectIndex);
 
 	Archive*                   m_archive = nullptr;
 	ResourceManager*           m_resourceMgr = nullptr;

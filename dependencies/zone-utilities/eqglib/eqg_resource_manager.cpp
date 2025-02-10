@@ -97,6 +97,11 @@ std::shared_ptr<Animation> ResourceManager::CreateAnimation() const
 	return std::make_shared<Animation>();
 }
 
+std::shared_ptr<LightDefinition> ResourceManager::CreateLightDefinition() const
+{
+	return std::make_shared<LightDefinition>();
+}
+
 std::shared_ptr<Terrain> ResourceManager::InitTerrain()
 {
 	// Reset the terrain object

@@ -8,6 +8,8 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "eqg_light.h"
+
 namespace eqg {
 
 class Animation;
@@ -16,6 +18,7 @@ class Bitmap;
 class BlitSpriteDefinition;
 class HierarchicalModelDefinition;
 class HierarchicalModel;
+class LightDefinition;
 class SimpleModelDefinition;
 class SimpleModel;
 class Terrain;
@@ -156,6 +159,7 @@ public:
 	virtual std::shared_ptr<HierarchicalModel> CreateHierarchicalModel() const;
 	virtual std::shared_ptr<BlitSpriteDefinition> CreateBlitSpriteDefinition() const;
 	virtual std::shared_ptr<Animation> CreateAnimation() const;
+	virtual std::shared_ptr<LightDefinition> CreateLightDefinition() const;
 
 	virtual bool LoadTexture(Bitmap* bitmap, Archive* archive);
 	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);
