@@ -43,23 +43,25 @@ enum EBitmapType
 // Render Method data
 
 // Render Method flags - Fill type
-constexpr uint32_t RM_FILL_MASK          = 0x00000003;
-constexpr uint32_t RM_FILL_TRANSPARENT   = 0;
-constexpr uint32_t RM_FILL_POINT         = 1;
-constexpr uint32_t RM_FILL_WIREFRAME     = 2;
-constexpr uint32_t RM_FILL_SOLID         = 3;
+constexpr uint32_t RM_FILL_MASK           = 0x00000003;
+constexpr uint32_t RM_FILL_TRANSPARENT    = 0;
+constexpr uint32_t RM_FILL_POINT          = 1;
+constexpr uint32_t RM_FILL_WIREFRAME      = 2;
+constexpr uint32_t RM_FILL_SOLID          = 3;
 
 // Render Method flags - Transparency type
-constexpr uint32_t RM_TRANSPARENCY_MASK  = 0x00000080;
+constexpr uint32_t RM_TRANSPARENCY_MASK   = 0x00000080;
 
 // Render Method flags - Texture type
-constexpr uint32_t RM_TEXTURE_MASK       = 0x0000ff00;
+constexpr uint32_t RM_TEXTURE_MASK        = 0x0000ff00;
+
+constexpr uint32_t RM_ADDITIVE_LIGHT_MASK = 0x00100000;
 
 // Render Method flags - Translucency type
-constexpr uint32_t RM_TRANSLUCENCY_MASK  = 0x01000000;
+constexpr uint32_t RM_TRANSLUCENCY_MASK   = 0x01000000;
 
 // Render Method - custom type
-constexpr uint32_t RM_CUSTOM_MASK        = 0x80000000;
+constexpr uint32_t RM_CUSTOM_MASK         = 0x80000000;
 
 struct SBitmapWLDData
 {
@@ -252,35 +254,6 @@ private:
 	steady_clock::time_point m_lastUpdate = steady_clock::now();
 	bool                     m_requiresUpdate = false;
 	std::vector<PaletteData> m_materials;
-};
-
-class BlitSpriteDefinition : public Resource
-{
-public:
-	BlitSpriteDefinition();
-	~BlitSpriteDefinition() override;
-
-	static ResourceType GetStaticResourceType() { return ResourceType::BlitSpriteDefinition; }
-
-	std::string_view GetTag() const override { return m_tag; }
-
-	virtual bool Init(std::string_view tag, const STextureDataDefinition& definition);
-
-	void CopyDefinition(STextureDataDefinition& outDefinition);
-
-	std::string m_tag;
-
-	uint32_t m_columns = 0;
-	uint32_t m_rows = 0;
-	uint32_t m_width = 0;
-	uint32_t m_height = 0;
-	uint32_t m_numFrames = 0;
-	uint32_t m_currentFrame = 0;
-	uint32_t m_updateInterval = 1;
-	uint32_t m_renderMethod = 0;
-	bool m_valid = false;
-	bool m_skipFrames = false;
-	std::vector<BitmapPtr> m_sourceTextures;
 };
 
 

@@ -84,6 +84,9 @@
     <ClInclude Include="eqglib\eqg_light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="eqglib\eqg_particles.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqglib\eqg_loader.cpp">
@@ -123,6 +126,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="eqglib\eqg_light.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="eqglib\eqg_particles.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

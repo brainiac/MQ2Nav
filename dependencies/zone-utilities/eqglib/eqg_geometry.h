@@ -58,6 +58,9 @@ using ActorDefinitionPtr = std::shared_ptr<ActorDefinition>;
 class ActorInstance;
 using ActorInstancePtr = std::shared_ptr<ActorInstance>;
 
+class ParticleCloudDefinition;
+using ParticleCloudDefinitionPtr = std::shared_ptr<ParticleCloudDefinition>;
+
 class ResourceManager;
 
 enum ECollisionVolumeType
@@ -227,26 +230,13 @@ protected:
 };
 using HierarchicalModelDefinitionPtr = std::shared_ptr<HierarchicalModelDefinition>;
 
-class ParticleCloudDefinition : public Resource
-{
-public:
-	ParticleCloudDefinition();
-	~ParticleCloudDefinition() override;
-
-	static ResourceType GetStaticResourceType() { return ResourceType::ParticleCloudDefinition; }
-
-	std::string_view GetTag() const override { return m_tag; }
-
-protected:
-	std::string                   m_tag;
-};
-
 // An actor definition is either a SimpleModelDefinition or a HierarchicalModelDefinition.
 class ActorDefinition : public Resource
 {
 public:
 	ActorDefinition(std::string_view tag, const SimpleModelDefinitionPtr& simpleModel);
 	ActorDefinition(std::string_view tag, const HierarchicalModelDefinitionPtr& hierchicalModel);
+	ActorDefinition(std::string_view tag, const ParticleCloudDefinitionPtr& particleCloudDef);
 
 	~ActorDefinition() override;
 
@@ -256,6 +246,7 @@ public:
 
 	SimpleModelDefinition* GetSimpleModelDefinition() const { return m_simpleModelDefinition.get(); }
 	HierarchicalModelDefinition* GetHierarchicalModelDefinition() const { return m_hierarchicalModelDefinition.get(); }
+	ParticleCloudDefinition* GetParticleCloudDefinition() const { return m_particleCloudDefinition.get(); }
 
 	void SetCallbackTag(std::string_view tag) { m_callbackTag = std::string(tag); }
 	const std::string& GetCallbackTag() const { return m_callbackTag; }
@@ -271,7 +262,7 @@ protected:
 
 	SimpleModelDefinitionPtr       m_simpleModelDefinition;
 	HierarchicalModelDefinitionPtr m_hierarchicalModelDefinition;
-	// This also supports particle clouds, but I haven't implemented them yet.
+	ParticleCloudDefinitionPtr     m_particleCloudDefinition;
 };
 
 //=================================================================================================

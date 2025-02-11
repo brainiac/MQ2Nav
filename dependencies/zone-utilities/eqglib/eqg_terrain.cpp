@@ -1415,7 +1415,7 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 		}
 		else
 		{
-			EQG_LOG_WARN("Found region '{}' with no sprite instance!", region.tag);
+			//EQG_LOG_WARN("Found region '{}' with no sprite instance!", region.tag);
 		}
 	}
 

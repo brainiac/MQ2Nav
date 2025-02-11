@@ -10,6 +10,7 @@
 #include "eqg_geometry.h"
 #include "eqg_light.h"
 #include "eqg_material.h"
+#include "eqg_particles.h"
 #include "eqg_resource_manager.h"
 #include "eqg_terrain.h"
 #include "log_internal.h"
@@ -138,7 +139,7 @@ bool WLDLoader::Init(Archive* archive, const std::string& wld_name, int loadFlag
 
 	BufferReader reader(m_wldFileContents, m_wldFileSize);
 
-	wld_header header;
+	SWLDHeader header;
 	if (!reader.read(header))
 	{
 		EQG_LOG_WARN("Unable to read wld header.");
@@ -325,7 +326,7 @@ public:
 				continue;
 
 			std::string_view typeName = ObjectTypeToString(static_cast<WLDObjectType>(type));
-			EQG_LOG_DEBUG("- {} ({}) = {}", typeName, type, count);
+			EQG_LOG_TRACE("- {} ({}) = {}", typeName, type, count);
 		}
 	}
 
@@ -378,7 +379,7 @@ bool WLDLoader::ParseAll()
 	///             read tracks
 	///             recurse (its hierarchical, duh)
 	///                 ParseSimpleModel                   WLD_OBJ_DMSPRITEINSTANCE_TYPE
-	///                 ParseHierarchicalModelv            WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE
+	///                 ParseHierarchicalModel             WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE
 	///                 ParsePCloudDef                     WLD_OBJ_PCLOUDDEFINITION_TYPE
 	///             parse skins
 	///                 ParseDMSpriteDef2
@@ -418,7 +419,7 @@ bool WLDLoader::ParseAll()
 	
 	ObjectCountHelper objectCounts(m_objects, m_numObjects);
 
-	EQG_LOG_INFO("Reading {}:", m_fileName);
+	EQG_LOG_DEBUG("Loading {}", m_fileName);
 	objectCounts.LogObjectCounts();
 
 	if (!ParseBitmapsAndMaterials(
@@ -1206,7 +1207,58 @@ bool WLDLoader::ParseParticleCloud(uint32_t objectIndex, float scale)
 		}
 	}
 
-	// TODO: Convert to EQG format and assemble a particle cloud definition...
+	SParticleCloudDefData pcloudDef;
+	pcloudDef.type = pWLDCloudDef->particle_type;
+	pcloudDef.flags = pWLDCloudDef->flags;
+	pcloudDef.size = pWLDCloudDef->size;
+	pcloudDef.scalarGravity = pWLDCloudDef->gravity_multiplier;
+	pcloudDef.gravity = pWLDCloudDef->gravity;
+	if (pSpawnBoundingBox)
+	{
+		pcloudDef.bbMin = pSpawnBoundingBox->min;
+		pcloudDef.bbMax = pSpawnBoundingBox->max;
+	}
+	else
+	{
+		pcloudDef.bbMin = glm::vec3(0.0f);
+		pcloudDef.bbMax = glm::vec3(0.0f);
+	}
+	pcloudDef.spawnType = pWLDCloudDef->spawn_type;
+	pcloudDef.spawnTime = pWLDCloudDef->duration;
+	pcloudDef.spawnMin = pcloudDef.bbMin;
+	pcloudDef.spawnMax = pcloudDef.bbMax;
+	pcloudDef.spawnNormal = pWLDCloudDef->spawn_velocity;
+	pcloudDef.spawnRadius = pWLDCloudDef->spawn_radius;
+	pcloudDef.spawnAngle = pWLDCloudDef->spawn_angle;
+	pcloudDef.spawnLifespan = pWLDCloudDef->lifespan;
+	pcloudDef.spawnVelocity = pWLDCloudDef->spawn_velocity_multiplier;
+	pcloudDef.spawnRate = pWLDCloudDef->spawn_rate;
+	pcloudDef.spawnScale = pWLDCloudDef->spawn_scale;
+	pcloudDef.color = pWLDCloudDef->tint;
+	pcloudDef.dagScale = scale;
+
+	SEmitterDefData emitterDef;
+	emitterDef.UpdateFromPCloudDef(wldObj.tag, pcloudDef, spriteTextureDef);
+
+	auto pBlitSprite = m_resourceMgr->CreateBlitSpriteDefinition();
+	if (!pBlitSprite->Init(wldObj.tag, spriteTextureDef))
+	{
+		EQG_LOG_ERROR("Failed to create blitsprite: {}", wldObj.tag);
+		return false;
+	}
+
+	auto pPCloudDef = std::make_shared<ParticleCloudDefinition>();
+	if (!pPCloudDef->Init(emitterDef, pBlitSprite))
+	{
+		EQG_LOG_ERROR("Failed to create particle cloud definition: {}", wldObj.tag);
+		return false;
+	}
+
+	m_resourceMgr->Add(pPCloudDef);
+
+	ParsedPCloudDefinition* parsedData = new ParsedPCloudDefinition();
+	parsedData->particleCloudDef = pPCloudDef;
+	wldObj.parsed_data = parsedData;
 
 	return true;
 }
@@ -2204,11 +2256,8 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 
 	std::unique_ptr<SHSpriteDefWLDData> hSpriteWLDData = std::make_unique<SHSpriteDefWLDData>();
 
-	ECollisionVolumeType collisionVolumeType = eCollisionVolumeNone;
-
 	if (pHierSpriteDef->flags & WLD_OBJ_SPROPT_DAGCOLLISIONS)
 	{
-		collisionVolumeType = eCollisionVolumeDag;
 	}
 	else if (pHierSpriteDef->collision_volume_id != 0)
 	{
@@ -2309,8 +2358,6 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 			}
 			else if (m_objects[spriteIndex].type == WLD_OBJ_PCLOUDDEFINITION_TYPE)
 			{
-				std::shared_ptr<ParticleCloudDefinition> pCloudDef;
-
 				float scale = dagData.track ? dagData.track->frameTransforms[0].scale : 1.0f;
 
 				if (!ParseParticleCloud(spriteIndex, scale))
@@ -2320,8 +2367,12 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 					return false;
 				}
 
-				// TODO: Create actor definition from particle cloud, and then add the actor definition as
-				// an attachment on the dag.
+				if (ParsedPCloudDefinition* parsedData = (ParsedPCloudDefinition*)m_objects[spriteIndex].parsed_data)
+				{
+					std::shared_ptr<ParticleCloudDefinition> pCloudDef = parsedData->particleCloudDef;
+
+					dagData.attachedActor = std::make_shared<ActorDefinition>("", pCloudDef);
+				}
 			}
 			else
 			{
@@ -2592,7 +2643,7 @@ bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSprit
 
 	if (pWLDObj->flags & WLD_OBJ_SPROPT_HAVECENTEROFFSET)
 	{
-		pSpriteDef->centerOffset = *(glm::vec3*)&pWLDObj->center_offset;
+		pSpriteDef->centerOffset = pWLDObj->center_offset;
 	}
 
 	if (pWLDObj->flags & WLD_OBJ_SPROPT_HAVEBOUNDINGRADIUS)
@@ -2676,7 +2727,7 @@ bool WLDLoader::ParseRegion(uint32_t objectIndex, STerrainWLDData& terrainData)
 
 	if (header->num_vis_nodes)
 	{
-		reader.skip<WLD_OBJ_XYZ>(header->num_vis_nodes);
+		reader.skip<glm::vec3>(header->num_vis_nodes);
 		reader.skip<uint32_t>(header->num_vis_nodes * 4);
 	}
 

@@ -536,13 +536,13 @@ eqg::Archive* ZoneResourceManager::LoadArchive(const std::string& path)
 			return archive.get();
 	}
 
+	std::string filename = fs::path(path).filename().string();
+	SPDLOG_INFO("Loading archive: {}", filename);
+
 	auto archive = std::make_unique<eqg::Archive>();
 	if (archive->Open(path))
 	{
 		m_archives.push_back(std::move(archive));
-
-		std::string filename = fs::path(path).filename().string();
-		SPDLOG_INFO("Loaded archive: {}", filename.c_str());
 
 		return m_archives.back().get();
 	}
@@ -765,7 +765,7 @@ eqg::WLDLoader* ZoneResourceManager::LoadS3D(std::string_view fileName, int load
 		return nullptr;
 	}
 
-	return LoadWLD(archive, wldFileName, loadFlags);
+	return LoadWLD(archive, wldFileName, m_defaultLoadFlags | loadFlags);
 }
 
 eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::string& fileName, int loadFlags)
@@ -857,8 +857,7 @@ eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::s
 	}
 	
 	m_wldLoaders.push_back(std::move(loader));
-
-	SPDLOG_INFO("Loaded {} from {}", fileName, archive->GetFileName());
+	SPDLOG_TRACE("Loaded {} from {}", fileName, archive->GetFileName());
 
 	return m_wldLoaders.back().get();
 }

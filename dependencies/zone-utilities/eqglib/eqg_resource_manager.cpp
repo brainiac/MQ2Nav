@@ -6,6 +6,7 @@
 #include "eqg_animation.h"
 #include "eqg_geometry.h"
 #include "eqg_material.h"
+#include "eqg_particles.h"
 #include "eqg_terrain.h"
 #include "log_internal.h"
 

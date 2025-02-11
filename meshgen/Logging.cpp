@@ -31,17 +31,18 @@ void Logging::Initialize()
 	g_logger->set_level(spdlog::level::trace);
 	g_logger->sinks().push_back(g_consoleSink);
 
+	spdlog::set_default_logger(g_logger);
+	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v");
+	spdlog::flush_every(std::chrono::seconds{ 5 });
+
 #if defined(_DEBUG)
 	{
 		auto sink = std::make_shared<spdlog::sinks::msvc_sink_mt>();
 		sink->set_level(spdlog::level::debug);
+		sink->set_pattern("%L %Y-%m-%d %T.%f [%n] %v (%s%#)");
 		g_logger->sinks().push_back(sink);
 	}
 #endif
-
-	spdlog::set_default_logger(g_logger);
-	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v");
-	spdlog::flush_every(std::chrono::seconds{ 5 });
 
 	auto recastLogger = g_logger->clone("Recast");
 	recastLogger->set_level(spdlog::level::trace);

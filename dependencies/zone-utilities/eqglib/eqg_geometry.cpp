@@ -411,6 +411,13 @@ ActorDefinition::ActorDefinition(std::string_view tag, const HierarchicalModelDe
 {
 }
 
+ActorDefinition::ActorDefinition(std::string_view tag, const ParticleCloudDefinitionPtr& particleCloudDef)
+	: Resource(GetStaticResourceType())
+	, m_tag(tag)
+	, m_particleCloudDefinition(particleCloudDef)
+{
+}
+
 ActorDefinition::~ActorDefinition()
 {
 }

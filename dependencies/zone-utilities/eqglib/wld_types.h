@@ -20,8 +20,6 @@ struct STrack;
 
 using ActorDefinitionPtr = std::shared_ptr<ActorDefinition>;
 
-struct STrack;
-
 enum WLDObjectType : uint32_t
 {
 	WLD_NONE                                  = 0,
@@ -41,7 +39,7 @@ enum WLDObjectType : uint32_t
 	WLD_OBJ_LIGHTDEFINITION_TYPE              = 27, // (0x1B)
 	WLD_OBJ_LIGHTINSTANCE_TYPE                = 28, // (0x1C)
 
-	WLD_OBJ_WORLDTREE_TYPE                    = 33, // (0x21) BSPTree
+	WLD_OBJ_WORLDTREE_TYPE                    = 33, // (0x21)
 	WLD_OBJ_REGION_TYPE                       = 34, // (0x22)
 
 	WLD_OBJ_BLITSPRITEDEFINITION_TYPE         = 38, // (0x26)
@@ -132,7 +130,7 @@ enum WLDOBJ_SPROPT
 	WLD_OBJ_SPROPT_HAVEATTACHEDSKINS                 = 0x0200,
 
 	WLD_OBJ_SPROPT_SPRITEDEFPOLYHEDRON               = 0x10000,
-	WLD_OBJ_SPROPT_DAGCOLLISIONS                     = 0x20000, // ???
+	WLD_OBJ_SPROPT_DAGCOLLISIONS                     = 0x20000,
 };
 
 // flags for track instances
@@ -157,14 +155,7 @@ struct SLocation
 	uint32_t region;
 };
 
-struct COLOR
-{
-	float red;
-	float green;
-	float blue;
-};
-
-struct wld_header
+struct SWLDHeader
 {
 	uint32_t magic;
 	uint32_t version;
@@ -197,40 +188,8 @@ struct STextureDataDefinition
 	std::vector<std::shared_ptr<Bitmap>> sourceTextures;
 };
 
-class BSPRegion
-{
-public:
-	uint32_t flags;
-	std::vector<uint32_t> regions;
-	std::string tag;
-	std::string old_style_tag;
-};
-
-class BSPTree // SWorldTreeWLDData
-{
-public:
-	struct BSPNode // SAreaBSPTree
-	{
-		SPlanarEquation plane;
-		uint32_t region;
-		uint32_t front;
-		uint32_t back;
-	};
-
-	std::vector<BSPNode>& GetNodes() { return nodes; }
-
-	std::vector<BSPNode> nodes;
-};
-
-
-struct WLD_OBJ_XYZ
-{
-	float x;
-	float y;
-	float z;
-};
-
-struct WLD_OBJ_BMINFO // WLD_OBJ_BMINFO_TYPE (0x3)
+// WLD_OBJ_BMINFO_TYPE (0x3)
+struct WLD_OBJ_BMINFO 
 {
 	int tag;
 	uint32_t num_mip_levels;
@@ -252,17 +211,19 @@ struct WLD_OBJ_BLITSPRITEINSTANCE
 	uint32_t flags;
 };
 
-struct WLD_OBJ_SIMPLESPRITEDEFINITION // WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE (0x4)
+// WLD_OBJ_SIMPLESPRITEDEFINITION_TYPE (0x4)
+struct WLD_OBJ_SIMPLESPRITEDEFINITION 
 {
 	int tag;
 	uint32_t flags;
 	uint32_t num_frames;
 };
 
-struct WLD_OBJ_SIMPLESPRITEINSTANCE // WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE (0x5)
+// WLD_OBJ_SIMPLESPRITEINSTANCE_TYPE (0x5)
+struct WLD_OBJ_SIMPLESPRITEINSTANCE
 {
 	int tag;
-	int definition_id; // ID of SIMPLESPRITEDEFINITION
+	int definition_id;
 	uint32_t flags;
 };
 
@@ -270,8 +231,8 @@ struct WLD_OBJ_HIERARCHICALSPRITEDEFINITION
 {
 	int tag;
 	uint32_t flags;
-	uint32_t num_dags; // track_ref_count
-	uint32_t collision_volume_id; // polygon_anim_frag
+	uint32_t num_dags;
+	uint32_t collision_volume_id;
 };
 
 struct WLD_OBJ_HIERARCHICALSPRITEINSTANCE
@@ -283,11 +244,11 @@ struct WLD_OBJ_HIERARCHICALSPRITEINSTANCE
 
 struct WLDDATA_DAG
 {
-	int tag; // name_ref;
+	int tag;
 	uint32_t flags;
-	int track_id; // id of track //frag_ref;
-	int sprite_id; // id of sprite instance //frag_ref2;
-	uint32_t num_sub_dags; //tree_piece_count;
+	int track_id; // id of track
+	int sprite_id; // id of sprite instance
+	uint32_t num_sub_dags;
 };
 
 struct WLD_OBJ_TRACKDEFINITION
@@ -478,23 +439,23 @@ struct WLD_OBJ_DMSPRITEDEFINITION2
 {
 	int tag;
 	uint32_t flags;
-	uint32_t material_palette_id; // frag1;
-	uint32_t dm_track_id; // frag2;
-	uint32_t dmrgb_track_id; // frag3;
-	uint32_t collision_volume_id; // frag4;
-	WLD_OBJ_XYZ center_offset; // center_x, center_y, center_z;
-	WLD_OBJ_XYZ hotspot; // uint32_t params2[3];
-	float bounding_radius; // max_dist;
-	BOUNDINGBOX bounding_box; // min_x -> max_z
-	uint16_t num_vertices; // vertex_count;
-	uint16_t num_uvs; // tex_coord_count;
-	uint16_t num_vertex_normals; // normal_count;
-	uint16_t num_rgb_colors; // color_count;
-	uint16_t num_faces; // polygon_count;
-	uint16_t num_skin_groups; // size6;
-	uint16_t num_fmaterial_groups; // polygon_tex_count;
-	uint16_t num_vmaterial_groups; // vertex_tex_count;
-	uint16_t num_mesh_ops; // size9;
+	uint32_t material_palette_id;
+	uint32_t dm_track_id;
+	uint32_t dmrgb_track_id;
+	uint32_t collision_volume_id;
+	glm::vec3 center_offset;
+	glm::vec3 hotspot;
+	float bounding_radius;
+	BOUNDINGBOX bounding_box;
+	uint16_t num_vertices;
+	uint16_t num_uvs;
+	uint16_t num_vertex_normals;
+	uint16_t num_rgb_colors;
+	uint16_t num_faces;
+	uint16_t num_skin_groups;
+	uint16_t num_fmaterial_groups;
+	uint16_t num_vmaterial_groups;
+	uint16_t num_mesh_ops;
 	int16_t scale;
 };
 
@@ -661,6 +622,63 @@ struct STerrainWLDData
 	uint32_t constantAmbientColor;
 };
 
+enum EPCloudFlags
+{
+	PCLOUD_FLAG_FREE                  = 0x00000001,
+	PCLOUD_FLAG_COLLISION             = 0x00000002,
+	PCLOUD_FLAG_RESPAWN               = 0x00000004,
+	PCLOUD_FLAG_VIEWRELX              = 0x00000008,
+	PCLOUD_FLAG_VIEWRELY              = 0x00000010,
+	PCLOUD_FLAG_VIEWRELZ              = 0x00000020,
+	PCLOUD_FLAG_VIEWWARP              = 0x00000040,
+	PCLOUD_FLAG_BROWNIAN              = 0x00000080,
+	PCLOUD_FLAG_FADE                  = 0x00000100,
+	PCLOUD_FLAG_BOUNDINGBOX           = 0x00000200,
+	PCLOUD_FLAG_UPDATE_BBOX           = 0x00000400,
+	PCLOUD_FLAG_POINTGRAVITY          = 0x00000800,
+	PCLOUD_FLAG_GRAVITY               = 0x00001000,
+	PCLOUD_FLAG_FREEDEF               = 0x00002000,
+	PCLOUD_FLAG_OBJECTRELATIVE        = 0x00004000,
+	PCLOUD_FLAG_PARENTOBJRELATIVE     = 0x00008000,
+	PCLOUD_FLAG_SPAWNSCALERELATIVE    = 0x00010000,
+	PCLOUD_FLAG_HIDEWITHSPAWNOBJECT   = 0x00020000,
+};
+
+enum EPCloudSpawnShape
+{
+	PCLOUD_SPAWN_SHAPE_BOX = 0,
+	PCLOUD_SPAWN_SHAPE_SPHERE,
+	PCLOUD_SPAWN_SHAPE_RING,
+	PCLOUD_SPAWN_SHAPE_SPRAY,
+	PCLOUD_SPAWN_SHAPE_DISK,
+	PCLOUD_SPAWN_SHAPE_RING2,
+};
+
+struct SParticleCloudDefData
+{
+	uint32_t type;
+	uint32_t flags; // EPCloudFlags
+	uint32_t size;
+	float scalarGravity;
+	glm::vec3 gravity;
+	glm::vec3 bbMin;
+	glm::vec3 bbMax;
+	uint32_t spawnType; // EPCloudSpawnShape
+	uint32_t spawnTime;
+	glm::vec3 spawnMin;
+	glm::vec3 spawnMax;
+	glm::vec3 spawnNormal;
+	float spawnRadius;
+	float spawnAngle;
+	uint32_t spawnLifespan;
+	float spawnVelocity;
+	uint32_t spawnRate;
+	float spawnScale;
+	float dagScale;
+	uint32_t color;
+
+	std::shared_ptr<STextureDataDefinition> spriteDef;
+};
 
 class ParsedObject
 {
