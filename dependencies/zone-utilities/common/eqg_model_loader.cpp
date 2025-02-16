@@ -2,6 +2,9 @@
 #include "eqg_structs.h"
 #include "safe_alloc.h"
 #include "log_macros.h"
+#include <vector>
+#include <sstream>
+#include <string>
 #include <algorithm>
 #include <cctype> 
 
@@ -13,6 +16,42 @@ EQEmu::EQGModelLoader::~EQGModelLoader() {
 
 bool EQEmu::EQGModelLoader::Load(EQEmu::PFS::Archive &archive, std::string model, std::shared_ptr<EQG::Geometry>& model_out) {
 	eqLogMessage(LogTrace, "Loading model %s.", model.c_str());
+
+	// Check for LOD file with matching name to model.
+	std::string lodFileName = model.substr(0, model.size() - 4) + ".lod";
+	if (archive.Exists(lodFileName)) {
+
+		// Get the LOD file and store as a vector<char>
+		std::vector<char> lodFile;
+		if (archive.Get(lodFileName, lodFile)) {
+			// Double check we have an eqlod file
+			if (lodFile[0] == 'E' && lodFile[1] == 'Q' && lodFile[2] == 'L' && lodFile[3] == 'O' && lodFile[4] == 'D') {
+
+				//Store lod file  as a string, convert o stream and parse.
+				std::string lodFileString(lodFile.begin(), lodFile.end());
+				std::stringstream ss(lodFileString);
+				std::string line;
+
+				while (std::getline(ss, line)) {
+
+					// For each line, check if it starts with COL
+					if (line[0] == 'C' && line[1] == 'O' && line[2] == 'L')
+					{
+						// COL lines denote collision models.  Replace model name with COL model supplied on line.  
+						// starts at +4 for COL, and ends at -5 for +4 start and extra /r on end of file
+						std::string collisionModel = line.substr(4, line.size() - 5) + ".mod";
+						// Only replace if the collision model exists in the zone archive.	
+						if (archive.Exists(collisionModel)) {
+							eqLogMessage(LogTrace, "Replacing model %s with %s.", model.c_str(), collisionModel.c_str());
+							model = collisionModel;
+						}
+					}
+				}
+			}
+		}
+	}
+
+
 	std::vector<char> buffer;
 	if(!archive.Get(model, buffer)) {
 		eqLogMessage(LogError, "Unable to load %s, file was not found.", model.c_str());
