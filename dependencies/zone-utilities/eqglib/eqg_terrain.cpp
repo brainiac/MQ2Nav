@@ -4,8 +4,9 @@
 
 #include "archive.h"
 #include "buffer_reader.h"
-#include "eqg_structs.h"
 #include "eqg_material.h"
+#include "eqg_resource_manager.h"
+#include "eqg_structs.h"
 #include "light.h"
 #include "log_internal.h"
 
@@ -18,8 +19,9 @@ constexpr float S3D_NORM_TO_FLOAT = 1.0f / 127.0f;
 
 constexpr float EQ_TO_RAD = glm::pi<float>() / 256.0f;
 
-TerrainSystem::TerrainSystem(Archive* archive_)
-	: m_archive(archive_)
+TerrainSystem::TerrainSystem(Archive* archive, ResourceManager* resourceMgr)
+	: m_archive(archive)
+	, m_resourceMgr(resourceMgr)
 {
 }
 
@@ -434,7 +436,6 @@ bool TerrainSystem::LoadWaterSheets()
 		return true;
 	}
 
-	std::shared_ptr<WaterSheet> ws;
 	size_t k = 0;
 
 	std::string_view token = tokens[k++];
@@ -451,9 +452,9 @@ bool TerrainSystem::LoadWaterSheets()
 			if (token == "*WATERSHEET")
 			{
 				auto ws = std::make_shared<WaterSheet>(this, tokens[k++]);
-				ws->Load(tokens, k);
+				ws->Init(tokens, k);
 
-				water_sheets.push_back(ws);
+				m_waterSheets.push_back(ws);
 			}
 		}
 	}
@@ -468,9 +469,9 @@ bool TerrainSystem::LoadWaterSheets()
 		if (token == "*WATERSHEETDATA")
 		{
 			auto ws = std::make_shared<WaterSheetData>();
-			ws->Load(tokens, k);
+			ws->Init(tokens, k);
 
-			water_sheet_data.push_back(ws);
+			m_waterSheetData.push_back(ws);
 		}
 	}
 
@@ -494,9 +495,9 @@ TerrainObjectGroupDefinition* TerrainSystem::GetObjectGroupDefinition(const std:
 
 std::shared_ptr<WaterSheetData> TerrainSystem::GetWaterSheetData(uint32_t index) const
 {
-	for (const auto& pData : water_sheet_data)
+	for (const auto& pData : m_waterSheetData)
 	{
-		if (pData->index == index)
+		if (pData->GetIndex() == index)
 			return pData;
 	}
 
@@ -606,13 +607,13 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 			std::string name = fmt::format("WS_{}_{}", tile_loc.x + 100000, tile_loc.y + 100000);
 
 			auto p_water_sheet = std::make_shared<WaterSheet>(terrain, name, terrain->GetWaterSheetData(water_data_index));
-			p_water_sheet->min_x = tile_start_x + water_sheet_min_x;
-			p_water_sheet->max_x = tile_start_x + water_sheet_max_x;
-			p_water_sheet->min_y = tile_start_y + water_sheet_min_y;
-			p_water_sheet->max_y = tile_start_y + water_sheet_max_y;
-			p_water_sheet->z_height = base_water_level;
+			p_water_sheet->m_minX = tile_start_x + water_sheet_min_x;
+			p_water_sheet->m_maxX = tile_start_x + water_sheet_max_x;
+			p_water_sheet->m_minY = tile_start_y + water_sheet_min_y;
+			p_water_sheet->m_maxY = tile_start_y + water_sheet_max_y;
+			p_water_sheet->m_zHeight = base_water_level;
 
-			terrain->water_sheets.push_back(p_water_sheet);
+			terrain->m_waterSheets.push_back(p_water_sheet);
 
 			water_sheet = p_water_sheet.get();
 		}
@@ -996,18 +997,18 @@ bool TerrainObjectGroupDefinition::Load(Archive* archive, const std::string& gro
 static uint32_t s_waterSheetDataIndex = 10000;
 
 WaterSheet::WaterSheet(TerrainSystem* terrain, const std::string& name, const std::shared_ptr<WaterSheetData>& data)
-	: m_terrain(terrain)
-	, m_name(name)
+	: m_name(name)
 	, m_data(data)
+	, m_terrain(terrain)
+	, m_resourceMgr(terrain->GetResourceManager())
 {
 	if (m_data == nullptr)
 	{
-		m_data = std::make_shared<WaterSheetData>();
-		m_data->index = s_waterSheetDataIndex++;
+		m_data = std::make_shared<WaterSheetData>(s_waterSheetDataIndex++);
 	}
 }
 
-bool WaterSheet::Load(const std::vector<std::string>& tokens, size_t& k)
+bool WaterSheet::Init(const std::vector<std::string>& tokens, size_t& k)
 {
 	while (k < tokens.size())
 	{
@@ -1025,18 +1026,30 @@ bool WaterSheet::Load(const std::vector<std::string>& tokens, size_t& k)
 	}
 
 	int units_per_tile = static_cast<int>(m_terrain->GetParams().units_per_tile + 0.5f);
-	int sheet_start_x = static_cast<int>(min_x + 0.5f) % units_per_tile;
-	int sheet_start_y = static_cast<int>(min_y + 0.5f) % units_per_tile;
+	int sheet_start_x = static_cast<int>(m_minX + 0.5f) % units_per_tile;
+	int sheet_start_y = static_cast<int>(m_minY + 0.5f) % units_per_tile;
 
 	if (sheet_start_x < 0)
 		sheet_start_x += units_per_tile;
 	if (sheet_start_y < 0)
 		sheet_start_y += units_per_tile;
 
-	m_definitionName = fmt::format("WS_{}_{}_{}_{}_{}_ACTORDEF", m_data->index, sheet_start_x, sheet_start_y,
-		static_cast<int>(sheet_start_x + max_x - min_x), static_cast<int>(sheet_start_y + max_y - min_y));
+	m_definitionName = fmt::format("WS_{}_{}_{}_{}_{}_ACTORDEF", m_data->GetIndex(), sheet_start_x, sheet_start_y,
+		static_cast<int>(sheet_start_x + m_maxX - m_minX), static_cast<int>(sheet_start_y + m_maxY - m_minY));
 
-	// TODO: Generate ActorDef for water sheet
+	ActorDefinitionPtr pActorDef = m_resourceMgr->Get<ActorDefinition>(m_definitionName);
+	if (!pActorDef)
+	{
+		pActorDef = CreateActorDefinition();
+	}
+
+	// Create a simple actor to represent the placement of the model. Place its center in the center of the tile.
+	glm::vec2 center = (glm::vec2(m_maxX, m_maxY) - glm::vec2(m_minX, m_minY)) / 2.0f;
+	glm::vec3 orientation(0.0f);
+	glm::vec3 position = glm::vec3(glm::vec2(m_minX, m_minY) + center, m_zHeight);
+
+	m_actor = m_resourceMgr->CreateSimpleActor("", pActorDef, position, orientation, 1.0f, eCollisionVolumeNone);
+	m_actor->GetSimpleModel()->InitBatchInstances();
 
 	return true;
 }
@@ -1047,7 +1060,7 @@ bool WaterSheet::ParseToken(const std::string& token, const std::vector<std::str
 	{
 		if (k < tokens.size())
 		{
-			min_x = std::stof(tokens[k++]);
+			m_minX = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1057,7 +1070,7 @@ bool WaterSheet::ParseToken(const std::string& token, const std::vector<std::str
 	{
 		if (k < tokens.size())
 		{
-			min_y = std::stof(tokens[k++]);
+			m_minY = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1067,7 +1080,7 @@ bool WaterSheet::ParseToken(const std::string& token, const std::vector<std::str
 	{
 		if (k < tokens.size())
 		{
-			max_x = std::stof(tokens[k++]);
+			m_maxX = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1077,7 +1090,7 @@ bool WaterSheet::ParseToken(const std::string& token, const std::vector<std::str
 	{
 		if (k < tokens.size())
 		{
-			max_y = std::stof(tokens[k++]);
+			m_maxY = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1087,7 +1100,7 @@ bool WaterSheet::ParseToken(const std::string& token, const std::vector<std::str
 	{
 		if (k < tokens.size())
 		{
-			z_height = std::stof(tokens[k++]);
+			m_zHeight = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1096,7 +1109,185 @@ bool WaterSheet::ParseToken(const std::string& token, const std::vector<std::str
 	return false;
 }
 
-bool WaterSheetData::Load(const std::vector<std::string>& tokens, size_t& k)
+ActorDefinitionPtr WaterSheet::CreateActorDefinition()
+{
+	glm::vec2 span = glm::vec2(m_maxX - m_minX, m_maxY - m_minY);
+	glm::vec2 half = span * 0.5f;
+	glm::ivec2 numQuads;
+	int numVertsPerPlane;
+	std::vector<SEQMVertex> vertices;
+
+	// Generate geometry for the water sheet
+	if (m_data->GetIndex() > 0 && m_data->GetIndex() < 10000)
+	{
+		numQuads = {
+			std::max(static_cast<uint32_t>(span.x / m_terrain->GetParams().units_per_vert), 1u),
+			std::max(static_cast<uint32_t>(span.y / m_terrain->GetParams().units_per_vert), 1u)
+		};
+		numVertsPerPlane = (numQuads.x + 1) * (numQuads.y + 1);
+
+		// Vertices are doubled because we create double-sided water quads.
+		vertices.resize(numVertsPerPlane * 2);
+
+		glm::vec2 start = {
+			fmodf(m_minX, m_terrain->GetParams().units_per_tile),
+			fmodf(m_minY, m_terrain->GetParams().units_per_tile)
+		};
+		if (start.x < 0) start.x += m_terrain->GetParams().units_per_tile;
+		if (start.y < 0) start.y += m_terrain->GetParams().units_per_tile;
+
+		float verts_per_tile_divisor = static_cast<float>(m_terrain->GetParams().verts_per_tile - 1);
+
+		for (int indexX = 0; indexX <= numQuads.x; ++indexX)
+		{
+			for (int indexY = 0; indexY <= numQuads.y; ++indexY)
+			{
+				glm::vec2 pos = -half + span * (glm::vec2(indexX, indexY) / glm::vec2(numQuads));
+
+				// Upward facing quad
+				uint32_t vertexIndex = indexY * (numQuads.x + 1) + indexX;
+				SEQMVertex& vertex = vertices[vertexIndex];
+				vertex.pos = glm::vec3(pos, 0.0f);
+				vertex.uv = glm::round((pos + half + start) / m_terrain->GetParams().units_per_vert) / verts_per_tile_divisor;
+				vertex.uv2 = vertex.uv;
+				vertex.normal = glm::vec3(0.0f, 0.0f, 1.0f);
+				vertex.color = 0xffffffff;
+
+				// Downward facing quad
+				SEQMVertex& vertex2 = vertices[numVertsPerPlane + vertexIndex];
+				vertex2 = vertex;
+				vertex2.normal.z = -1.0f;
+			}
+		}
+	}
+	else
+	{
+		int numQuads_ = std::min<int>(34, static_cast<int>(std::max<float>(half.x, half.y) * 2.0f) / 20) + 1;
+		numQuads = glm::vec2(numQuads_, numQuads_);
+		numVertsPerPlane = (numQuads.x + 1) * (numQuads.y + 1);
+
+		// Vertices are doubled because we create double-sided water quads.
+		vertices.resize(numVertsPerPlane * 2);
+
+		glm::vec2 maxUV = glm::vec2(1.0f);
+
+		if (half.x > half.y)
+			maxUV.x = half.y / half.x;
+		if (half.y > half.x)
+			maxUV.y = half.x / half.y;
+
+		for (int indexX = 0; indexX <= numQuads.x; ++indexX)
+		{
+			for (int indexY = 0; indexY <= numQuads.y; ++indexY)
+			{
+				uint32_t vertexIndex = indexY * (numQuads.x + 1) + indexX;
+				glm::vec2 ratio = glm::vec2(indexX, indexY) / glm::vec2(numQuads);
+
+				// Upward facing quad
+				SEQMVertex& vertex = vertices[vertexIndex];
+				vertex.pos = glm::vec3(-half + span * ratio, 0.0f);
+				vertex.uv = maxUV * ratio;
+				vertex.uv2 = vertex.uv;
+				vertex.normal = glm::vec3(0.0f, 0.0f, 1.0f);
+				vertex.color = 0xffffffff;
+
+				// Downward facing quad
+				SEQMVertex& vertex2 = vertices[numVertsPerPlane + vertexIndex];
+				vertex2 = vertex;
+				vertex2.normal.z = -1.0f;
+			}
+		}
+	}
+
+	// double the vertices for double-sided quads
+	uint32_t numFacesPerPlane = numQuads.x * numQuads.y * 2;
+	std::vector<SEQMFace> faces(numFacesPerPlane * 2);
+
+	for (int indexX = 0; indexX < numQuads.x; ++indexX)
+	{
+		for (int indexY = 0; indexY < numQuads.y; ++indexY)
+		{
+			uint32_t indices[4];
+			indices[0] = indexX + indexY * (numQuads.x + 1);
+			indices[1] = indices[0] + 1;
+			indices[2] = indices[0] + numQuads.x + 2;
+			indices[3] = indices[0] + numQuads.x + 1;
+
+			// Quad 1, Triangle 1: indices 0, 1, 2
+			uint32_t faceIndex = 2 * (indexX + indexY * numQuads.x);
+			SEQMFace& face = faces[faceIndex];
+			face.vertices[0] = indices[0];
+			face.vertices[1] = indices[1];
+			face.vertices[2] = indices[2];
+			face.material = 0;
+			face.flags = EQG_FACEFLAG_PASSABLE;
+
+			// Quad 1, Triangle 2: indices 0, 2, 3
+			SEQMFace& face2 = faces[faceIndex + 1];
+			face2.vertices[0] = indices[0];
+			face2.vertices[1] = indices[2];
+			face2.vertices[2] = indices[3];
+			face2.material = 0;
+			face2.flags = EQG_FACEFLAG_PASSABLE;
+
+			// Quad 2, Triangle 1: indices 0, 2, 1
+			SEQMFace& face3 = faces[faceIndex + numFacesPerPlane];
+			face3.vertices[0] = numVertsPerPlane + indices[0];
+			face3.vertices[1] = numVertsPerPlane + indices[2];
+			face3.vertices[2] = numVertsPerPlane + indices[1];
+			face3.material = 0;
+			face3.flags = EQG_FACEFLAG_PASSABLE;
+
+			// Quad 2, Triangle 2: indices 0, 3, 2
+			SEQMFace& face4 = faces[faceIndex + numFacesPerPlane + 1];
+			face4.vertices[0] = numVertsPerPlane + indices[0];
+			face4.vertices[1] = numVertsPerPlane + indices[3];
+			face4.vertices[2] = numVertsPerPlane + indices[2];
+			face4.material = 0;
+			face4.flags = EQG_FACEFLAG_PASSABLE;
+		}
+	}
+
+	m_vertices = std::move(vertices);
+	m_faces = std::move(faces);
+
+	// Generate a simple model definition.
+	MaterialPalettePtr palette = std::make_shared<MaterialPalette>("", 1);
+	palette->SetMaterial(0, m_data->CreateMaterial(m_resourceMgr));
+	std::string tag = fmt::format("{}_SMD", m_name);
+
+	// Create a SimpleModelDefinition from the liquid data
+	SimpleModelDefinitionPtr pModelDef = m_resourceMgr->CreateSimpleModelDefinition();
+	if (!pModelDef->InitFromEQMData(
+		tag,
+		(uint32_t)m_vertices.size(),
+		m_vertices.data(),
+		(uint32_t)m_faces.size(),
+		m_faces.data(),
+		0, nullptr,
+		0, nullptr,
+		palette))
+	{
+		EQG_LOG_ERROR("Failed to create Simple Model Definition from water sheet. tag={}", tag);
+		return nullptr;
+	}
+
+	pModelDef->InitStaticData();
+	m_resourceMgr->Add(pModelDef);
+
+	// Create an ActorDefinition to represent the model.
+	ActorDefinitionPtr pActorDef = std::make_shared<ActorDefinition>(m_definitionName, pModelDef);
+	m_resourceMgr->Add(pActorDef);
+
+	return pActorDef;
+}
+
+WaterSheetData::WaterSheetData(uint32_t index)
+	: m_index(index)
+{
+}
+
+bool WaterSheetData::Init(const std::vector<std::string>& tokens, size_t& k)
 {
 	while (k < tokens.size())
 	{
@@ -1119,7 +1310,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k < tokens.size())
 		{
-			index = (uint32_t)std::stoul(tokens[k++]);
+			m_index = (uint32_t)std::stoul(tokens[k++]);
 		}
 
 		return true;
@@ -1129,7 +1320,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k < tokens.size())
 		{
-			fresnel_bias = std::stof(tokens[k++]);
+			m_fresnelBias = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1139,7 +1330,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k < tokens.size())
 		{
-			fresnel_power = std::stof(tokens[k++]);
+			m_fresnelPower = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1149,7 +1340,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k < tokens.size())
 		{
-			reflection_amount = std::stof(tokens[k++]);
+			m_reflectionAmount = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1159,7 +1350,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k < tokens.size())
 		{
-			uv_scale = std::stof(tokens[k++]);
+			m_uvScale = std::stof(tokens[k++]);
 		}
 
 		return true;
@@ -1169,7 +1360,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k + 3 < tokens.size())
 		{
-			reflection_color = glm::vec4(
+			m_reflectionColor = glm::vec4(
 				std::stof(tokens[k]),
 				std::stof(tokens[k+1]),
 				std::stof(tokens[k+2]),
@@ -1185,7 +1376,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k + 3 < tokens.size())
 		{
-			water_color1 = glm::vec4(
+			m_waterColor1 = glm::vec4(
 				std::stof(tokens[k]),
 				std::stof(tokens[k + 1]),
 				std::stof(tokens[k + 2]),
@@ -1201,7 +1392,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k + 3 < tokens.size())
 		{
-			water_color2 = glm::vec4(
+			m_waterColor2 = glm::vec4(
 				std::stof(tokens[k]),
 				std::stof(tokens[k + 1]),
 				std::stof(tokens[k + 2]),
@@ -1217,7 +1408,7 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k < tokens.size())
 		{
-			normal_map = tokens[k++];
+			m_normalMap = tokens[k++];
 		}
 		
 		return true;
@@ -1227,13 +1418,43 @@ bool WaterSheetData::ParseToken(const std::string& token, const std::vector<std:
 	{
 		if (k < tokens.size())
 		{
-			environment_map = tokens[k++];
+			m_environmentMap = tokens[k++];
 		}
 
 		return true;
 	}
 
 	return false;
+}
+
+MaterialPtr WaterSheetData::CreateMaterial(ResourceManager* resourceMgr)
+{
+	if (m_material)
+	{
+		return m_material;
+	}
+
+	m_material = std::make_shared<Material>();
+
+	SMaterialInfo info;
+	info.tag = fmt::format("WS{}_MAT", m_index);
+	info.type = MaterialType_AlphaWater;
+
+	info.params.emplace_back("e_TextureDiffuse0", "Resources\\WaterSwap\\water_c.bmp");
+	info.params.emplace_back("e_TextureNormal0", m_normalMap);
+	info.params.emplace_back("e_TextureEnvironment0", m_environmentMap);
+	info.params.emplace_back("e_fFresnelBias", m_fresnelBias);
+	info.params.emplace_back("e_fFresnelPower", m_fresnelPower);
+	info.params.emplace_back("e_fReflectionAmount", m_reflectionAmount);
+	info.params.emplace_back("e_fReflectionColor", m_reflectionColor);
+	info.params.emplace_back("e_fWaterColor1", m_waterColor1);
+	info.params.emplace_back("e_fWaterColor2", m_waterColor2);
+	info.params.emplace_back("e_fUVScale", m_uvScale);
+
+	m_material->InitFromMaterialInfo(resourceMgr, info);
+	resourceMgr->Add(info.tag, m_material);
+
+	return m_material;
 }
 
 //=================================================================================================

@@ -19,6 +19,8 @@ enum class ResourceType
 	ParticleCloudDefinition,
 	ActorDefinition,
 
+	LODList,
+
 	Max,
 };
 

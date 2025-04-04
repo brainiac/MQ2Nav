@@ -3,7 +3,9 @@
 
 #include "eqg_animation.h"
 #include "eqg_resource.h"
+#include "eqg_particles.h"
 #include "eqg_structs.h"
+#include "eqg_types_fwd.h"
 #include "wld_types.h"
 
 #include <glm/glm.hpp>
@@ -55,13 +57,18 @@ using MaterialPalettePtr = std::shared_ptr<MaterialPalette>;
 class ActorDefinition;
 using ActorDefinitionPtr = std::shared_ptr<ActorDefinition>;
 
-class ActorInstance;
-using ActorInstancePtr = std::shared_ptr<ActorInstance>;
+class Actor;
+using ActorPtr = std::shared_ptr<Actor>;
 
 class ParticleCloudDefinition;
 using ParticleCloudDefinitionPtr = std::shared_ptr<ParticleCloudDefinition>;
 
+class ParticlePointDefinitionManager;
+
 class ResourceManager;
+
+struct SActorParticle;
+struct SParticlePoint;
 
 enum ECollisionVolumeType
 {
@@ -72,23 +79,6 @@ enum ECollisionVolumeType
 	eCollisionVolumeBox,
 };
 
-enum EItemTextureSlot
-{
-	eItemTextureSlotNone = -1,
-	eItemTextureSlotHead = 0,
-	eItemTextureSlotChest,
-	eItemTextureSlotArms,
-	eItemTextureSlotWrists,
-	eItemTextureSlotHands,
-	eItemTextureSlotLegs,
-	eItemTextureSlotFeet,
-	eItemTextureSlotPrimary,
-	eItemTextureSlotSecondary,
-	eItemTextureSlotFace,
-	eItemTextureSlotNeck,
-
-	eItemTextureSlotLastBody = eItemTextureSlotFeet,
-};
 
 struct SFace
 {
@@ -147,9 +137,23 @@ public:
 
 	MaterialPalettePtr GetMaterialPalette() const { return m_materialPalette; }
 
+	float GetDefaultBoundingRadius() const { return m_boundingRadius; }
+
 	bool InitFromWLDData(std::string_view tag, SDMSpriteDef2WLDData* pWldData);
+	bool InitFromEQMData(std::string_view tag,
+		uint32_t numVertices, SEQMVertex* vertices,
+		uint32_t numFaces, SEQMFace* faces,
+		uint32_t numPoints, SParticlePoint* points,
+		uint32_t numParticles, SActorParticle* particles,
+		const MaterialPalettePtr& materialPalette);
+	virtual bool InitStaticData(); // Initializes materials, batches, etc
+
+	ParticlePointDefinitionManager* GetPointManager() const { return m_pointManager.get(); }
+	ActorParticleDefinitionManager* GetParticleManager() const { return m_particleManager.get(); }
 
 protected:
+	void InitVerticesFromEQMData(uint32_t numVertices, SEQMVertex* vertices);
+	void InitFacesFromEQMData(uint32_t numFaces, SEQMFace* faces);
 	void InitCollisionData(bool forceModel);
 
 public:
@@ -166,13 +170,19 @@ public:
 	std::vector<uint32_t>         m_colorTint;
 	std::vector<SFace>            m_faces;
 	std::vector<glm::vec3>        m_faceNormals;
+	std::vector<uint32_t>         m_tangents;
+	std::vector<uint32_t>         m_binormals;
 
 	glm::vec3                     m_aabbMin = glm::vec3(0.0f);
 	glm::vec3                     m_aabbMax = glm::vec3(0.0f);
 	glm::vec3                     m_centerOffset = glm::vec3(0.0f);
 	float                         m_boundingRadius = 0.0f;
 
+	std::unique_ptr<ParticlePointDefinitionManager> m_pointManager;
+	std::unique_ptr<ActorParticleDefinitionManager> m_particleManager;
+
 	bool                          m_hasCollision = false;
+	bool                          m_useLitBatches = false;
 	ECollisionVolumeType          m_defaultCollisionType = eCollisionVolumeNone;
 
 	steady_clock::time_point      m_lastUpdate = steady_clock::now();
@@ -209,7 +219,14 @@ public:
 
 	std::string_view GetTag() const override { return m_tag; }
 
+	uint32_t GetNumBones() const { return m_numBones; }
+	const BoneDefinition* GetBoneDefinition(uint32_t boneIndex) const;
+
+	float GetDefaultBoundingRadius() const { return m_boundingRadius; }
+
 	bool InitFromWLDData(std::string_view tag, SHSpriteDefWLDData* pWldData);
+
+	ParticlePointDefinitionManager* GetPointManager() const { return nullptr; }
 
 protected:
 	std::string                   m_tag;
@@ -230,6 +247,15 @@ protected:
 };
 using HierarchicalModelDefinitionPtr = std::shared_ptr<HierarchicalModelDefinition>;
 
+enum CallbackTagType
+{
+	UnusedCallback,
+	SpriteCallback,
+	SpriteCallback2,
+	LadderCallback,
+	TreeCallback,
+};
+
 // An actor definition is either a SimpleModelDefinition or a HierarchicalModelDefinition.
 class ActorDefinition : public Resource
 {
@@ -244,21 +270,27 @@ public:
 
 	std::string_view GetTag() const override { return m_tag; }
 
-	SimpleModelDefinition* GetSimpleModelDefinition() const { return m_simpleModelDefinition.get(); }
-	HierarchicalModelDefinition* GetHierarchicalModelDefinition() const { return m_hierarchicalModelDefinition.get(); }
-	ParticleCloudDefinition* GetParticleCloudDefinition() const { return m_particleCloudDefinition.get(); }
+	const SimpleModelDefinitionPtr& GetSimpleModelDefinition() const { return m_simpleModelDefinition; }
+	const HierarchicalModelDefinitionPtr& GetHierarchicalModelDefinition() const { return m_hierarchicalModelDefinition; }
+	const ParticleCloudDefinitionPtr& GetParticleCloudDefinition() const { return m_particleCloudDefinition; }
 
-	void SetCallbackTag(std::string_view tag) { m_callbackTag = std::string(tag); }
+	void SetCallbackTag(std::string_view tag); // S3D uses this
+	void SetCallbackType(CallbackTagType type); // EQG uses this
 	const std::string& GetCallbackTag() const { return m_callbackTag; }
+	CallbackTagType GetCallbackType() const { return m_callbackType; }
 
 	void SetCollisionVolumeType(ECollisionVolumeType type) { m_collisionVolumeType = type; }
 	ECollisionVolumeType GetCollisionVolumeType() const { return m_collisionVolumeType; }
+
+	float CalculateBoundingRadius();
 
 protected:
 	std::string                    m_tag;
 
 	std::string                    m_callbackTag;
+	CallbackTagType                m_callbackType = UnusedCallback;
 	ECollisionVolumeType           m_collisionVolumeType = eCollisionVolumeNone;
+	float                          m_boundingRadius = 0.0f;
 
 	SimpleModelDefinitionPtr       m_simpleModelDefinition;
 	HierarchicalModelDefinitionPtr m_hierarchicalModelDefinition;
@@ -275,12 +307,19 @@ public:
 	SimpleModel();
 	virtual ~SimpleModel();
 
-	virtual void Init(const SimpleModelDefinitionPtr& definition);
+	virtual bool Init(const SimpleModelDefinitionPtr& definition);
+	virtual bool InitBatchInstances() { return true; } // TODO: Implement me
+
+	virtual void SetActor(Actor* actor) { m_actor = actor; }
+	virtual Actor* GetActor() const { return m_actor; }
 
 	SimpleModelDefinitionPtr GetDefinition() const { return m_definition; }
 
+	bool SetRGBs(SDMRGBTrackWLDData* pDMRGBTrackWLDData);
+	bool SetRGBs(uint32_t* pRGBs, uint32_t numRGBs);
+
 	SimpleModelDefinitionPtr      m_definition;
-	ActorInstance*                m_actor; // owning actor
+	Actor*                        m_actor = nullptr; // owning actor
 	glm::mat4x4                   m_worldTransform;  // object to world transform matrix
 
 	uint32_t                      m_currentFrame;
@@ -290,8 +329,8 @@ public:
 	std::vector<uint32_t>         m_bakedDiffuseLighting;  // used for diffuse lighting colors per polygon
 
 	MaterialPalettePtr            m_materialPalette; // copy of the material palette from the definition
+	
 	// generated batches also go here
-
 };
 using SimpleModelPtr = std::shared_ptr<SimpleModel>;
 
@@ -303,31 +342,70 @@ public:
 	virtual ~HierarchicalModel();
 
 	virtual void Init(const HierarchicalModelDefinitionPtr& definition);
+	virtual bool InitBatchInstances() { return true; }
 
 	HierarchicalModelDefinitionPtr GetDefinition() const { return m_definition; }
 
 	HierarchicalModelDefinitionPtr m_definition;
-	ActorInstance*                m_actor; // owning actor
+	Actor*                m_actor; // owning actor
 	glm::mat4x4                   m_worldTransform;  // object to world transform matrix
 
 	MaterialPalettePtr            m_materialPalette; // copy of the material palette from the definition
 };
 using HierarchicalModelPtr = std::shared_ptr<HierarchicalModel>;
 
-class ActorInstance
+enum EActorType
+{
+	eActorTypeUndefined      = 0,
+	eActorTypePlayer         = 1,
+	eActorTypeCorpse         = 2,
+	eActorTypeSwitch         = 3,
+	eActorTypeMissile        = 4,
+	eActorTypeObject         = 5,
+	eActorTypeLadder         = 6,
+	eActorTypeTree           = 7,
+	eActorTypeLargeObject    = 8,
+	eActorTypePlacedItem     = 9,
+};
+
+class Actor
 {
 public:
-	ActorInstance();
-	virtual ~ActorInstance();
+	Actor(ResourceManager* resourceMgr);
+	virtual ~Actor();
 
 	const std::string& GetTag() const { return m_tag; }
 	const std::string& GetActorName() const { return m_actorName; }
+
+	ActorDefinitionPtr GetDefinition() const { return m_definition; }
 
 	virtual SimpleModelPtr GetSimpleModel() const { return nullptr; }
 	virtual SimpleModelDefinitionPtr GetSimpleModelDefinition() const { return nullptr; }
 
 	virtual HierarchicalModelPtr GetHierarchicalModel() const { return nullptr; }
 	virtual HierarchicalModelDefinitionPtr GetHierarchicalModelDefinition() const { return nullptr; }
+
+	void SetPosition(const glm::vec3& pos) { m_position = pos; }
+	const glm::vec3& GetPosition() const { return m_position; }
+
+	void SetOrientation(const glm::vec3& orientation) { m_orientation = orientation; }
+	const glm::vec3& GetOrientation() const { return m_orientation; }
+
+	void SetScale(float scale) { m_scale = scale; }
+	float GetScale() const { return m_scale; }
+
+	void SetBoundingRadius(float radius, bool adjustScale = false);
+	float GetBoundingRadius() const { return m_boundingRadius * m_scale; }
+
+	void SetCollisionVolumeType(ECollisionVolumeType collisionVolume) { m_collisionVolumeType = collisionVolume; }
+	ECollisionVolumeType GetCollisionVolumeType() const { return m_collisionVolumeType; }
+
+	void SetActorType(EActorType type) { m_actorType = type; }
+	EActorType GetActorType() const { return m_actorType; }
+
+	// TODO: Disabled flag
+
+	ResourceManager*               m_resourceMgr;
 
 	std::string                    m_tag;
 	std::string                    m_actorName;
@@ -342,9 +420,13 @@ public:
 	int                            m_actorIndex = 0;
 	ECollisionVolumeType           m_collisionVolumeType = eCollisionVolumeNone;
 	float                          m_boundingRadius = 0.0f;
+	EActorType                     m_actorType = eActorTypeUndefined;
+
+protected:
+	void DoInitCallback();
 };
 
-class SimpleActor : public ActorInstance
+class SimpleActor : public Actor
 {
 public:
 	SimpleActor(
@@ -362,14 +444,23 @@ public:
 		uint32_t numRGBs = 0,
 		std::string_view actorName = ""
 	);
+	~SimpleActor() override;
 
 	SimpleModelPtr GetSimpleModel() const override { return m_model; }
 	SimpleModelDefinitionPtr GetSimpleModelDefinition() const override { return m_model->GetDefinition(); }
 
 	SimpleModelPtr m_model;
+	SimpleModelPtr m_collisionModel;
+
+	struct LODModel
+	{
+		SimpleModelPtr model;
+		float distance;
+	};
+	std::vector<LODModel> m_lodModels;
 };
 
-class HierarchicalActor : public ActorInstance
+class HierarchicalActor : public Actor
 {
 public:
 	HierarchicalActor(
@@ -387,6 +478,7 @@ public:
 		uint32_t numRGBs = 0,
 		std::string_view actorName = ""
 	);
+	~HierarchicalActor() override;
 
 	HierarchicalModelPtr GetHierarchicalModel() const override { return m_model; }
 	HierarchicalModelDefinitionPtr GetHierarchicalModelDefinition() const override { return m_model->GetDefinition(); }

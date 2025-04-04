@@ -1,11 +1,15 @@
 #pragma once
 
 #include "eqg_resource.h"
+#include "eqg_types_fwd.h"
 
 namespace eqg {
 
 struct SParticleCloudDefData;
 struct STextureDataDefinition;
+
+class SimpleModelDefinition;
+class HierarchicalModelDefinition;
 
 // Emitter Shape
 enum EEmitterShape
@@ -164,6 +168,120 @@ protected:
 
 	SEmitterDefData               m_emitterDef;
 	std::shared_ptr<BlitSpriteDefinition> m_spriteDefinition;
+};
+
+//-------------------------------------------------------------------------------------------------
+
+struct SParticlePoint
+{
+	std::string name;
+	std::string attachment;
+	glm::vec3   position;
+	glm::vec3   orientation;
+	glm::vec3   scale;
+};
+
+struct ParticlePointDefinition
+{
+	ParticlePointDefinition(SParticlePoint* point, SimpleModelDefinition* model);
+	ParticlePointDefinition(SParticlePoint* point, HierarchicalModelDefinition* model);
+	ParticlePointDefinition(const std::string& name, int boneIndex, const glm::vec3& position,
+		const glm::vec3& orientation, const glm::vec3& scale);
+	ParticlePointDefinition(const ParticlePointDefinition&);
+
+	std::string name;
+	int         boneIndex = - 1;
+	glm::vec3   position;
+	glm::vec3   orientation;
+	glm::vec3   scale;
+	glm::mat4x4 transform;
+
+	void UpdateMatrix();
+};
+
+// Manages attachment points for particle emitters on a model
+class ParticlePointDefinitionManager
+{
+public:
+	ParticlePointDefinitionManager();
+	~ParticlePointDefinitionManager();
+	ParticlePointDefinitionManager(uint32_t numPoints, SParticlePoint* points, SimpleModelDefinition* model);
+	ParticlePointDefinitionManager(uint32_t numPoints, SParticlePoint* points, HierarchicalModelDefinition* model);
+
+	uint32_t GetNumPoints() const { return (uint32_t)m_points.size(); }
+	ParticlePointDefinition* GetPointDefinition(uint32_t index) const;
+
+	void AddPoint(SParticlePoint* point, SimpleModelDefinition* model);
+	void AddPoint(SParticlePoint* point, HierarchicalModelDefinition* model);
+
+	void AddPointDefinition(const std::string& name, int boneIndex, const glm::vec3& position,
+		const glm::vec3& orientation, const glm::vec3& scale);
+	void DeletePointDefinition(const std::string& name);
+
+private:
+	std::vector<std::unique_ptr<ParticlePointDefinition>> m_points;
+};
+
+//-------------------------------------------------------------------------------------------------
+
+struct SActorParticle
+{
+	int  emitterDefinitionID;
+	char particlePointName[64];
+	int  particleType;
+	int  animationNumber;
+	int  animationVariation;
+	int  animationRandomVariation;
+	int  startTime;
+	int  lifeSpan;
+	int  groundBased;
+	int  playWithMat;
+	int  sporadic;
+	int  coldEmitterDefinitionID;
+
+};
+
+class ActorParticleDefinition
+{
+public:
+	ActorParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition);
+	ActorParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition);
+	ActorParticleDefinition(const ActorParticleDefinition& other);
+
+	int         m_emitterDefinitionID;
+	int         m_coldEmitterDefinitionID;
+	std::string m_pointName;
+	int         m_particleType;
+	int         m_animationNumber;
+	int         m_animationVariation;
+	int         m_animationRandomVariation;
+	int         m_startTime;
+	int         m_pointIndex;
+	int         m_lifeSpan;
+	int         m_groundBased;
+	int         m_playWithMat;
+	int         m_sporadic;
+
+private:
+	void InitIndex(ParticlePointDefinitionManager* pPtMgr);
+};
+
+// Manages definitions of a particle emitter on a model
+class ActorParticleDefinitionManager
+{
+public:
+	ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles, SimpleModelDefinition* definition);
+	ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles, HierarchicalModelDefinition* definition);
+	~ActorParticleDefinitionManager();
+
+	uint32_t GetNumParticleDefinitions() const { return (uint32_t)m_particleDefinitions.size(); }
+	ActorParticleDefinition* GetParticleDefinition(uint32_t index) const;
+
+	void AddParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition);
+	void AddParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition);
+	void DeleteParticleDefinition(uint32_t index);
+
+	std::vector<std::unique_ptr<ActorParticleDefinition>> m_particleDefinitions;
 };
 
 } // namespace eqg

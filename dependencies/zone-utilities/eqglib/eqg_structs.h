@@ -23,33 +23,33 @@ enum EQG_FACEFLAGS : uint16_t
 struct SEQZoneParameters
 {
 	std::string name;
-	int32_t min_lng;
-	int32_t max_lng;
-	int32_t min_lat;
-	int32_t max_lat;
-	float units_per_vert;
-	int verts_per_tile;
-	int quads_per_tile;
-	float units_per_tile;
-	int tiles_per_chunk;
-	float units_per_chunk;
-	int cover_map_input_size;
-	int layer_map_input_size;
-	glm::vec3 min_extents;
-	glm::vec3 max_extents;
+	int32_t     min_lng = 0;
+	int32_t     max_lng = 0;
+	int32_t     min_lat = 0;
+	int32_t     max_lat = 0;
+	float       units_per_vert = 0;
+	int         verts_per_tile = 0;
+	int         quads_per_tile = 0;
+	float       units_per_tile = 0;
+	int         tiles_per_chunk = 0;
+	float       units_per_chunk = 0;
+	int         cover_map_input_size = 0;
+	int         layer_map_input_size = 0;
+	glm::vec3   min_extents = glm::vec3(0);
+	glm::vec3   max_extents = glm::vec3(0);
 
 	int version = 1;
 };
 
 struct SZONHeader
 {
-	char magic[4];
+	char     magic[4];
 	uint32_t version;
-	uint32_t string_pool_size; // list_length;
-	uint32_t num_meshes; // model_count;
-	uint32_t num_instances;// object_count;
-	uint32_t num_areas;// region_count;
-	uint32_t num_lights;// light_count;
+	uint32_t string_pool_size;
+	uint32_t num_meshes;
+	uint32_t num_instances;
+	uint32_t num_areas;
+	uint32_t num_lights;
 };
 
 struct SZONInstance

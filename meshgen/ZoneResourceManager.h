@@ -59,8 +59,8 @@ private:
 	bool LoadGlobalData();
 
 	eqg::Archive* LoadArchive(const std::string& path);
-	eqg::EQGLoader* LoadEQG(std::string_view fileName);
-	eqg::EQGLoader* LoadEQG(eqg::Archive* archive);
+	eqg::EQGLoader* LoadEQG(std::string_view fileName, int loadFlags = 0);
+	eqg::EQGLoader* LoadEQG(eqg::Archive* archive, int loadFlags = 0);
 	eqg::WLDLoader* LoadS3D(std::string_view fileName, int loadFlags = 0, std::string_view wldFile = "");
 	eqg::WLDLoader* LoadWLD(eqg::Archive* archive, const std::string& fileName, int loadFlags = 0);
 
@@ -118,7 +118,6 @@ private:
 	//std::map<std::string_view, SkeletonTrackPtr> map_anim_models;
 	std::map<std::string, EQGGeometryPtr> map_eqg_models;
 	EQGGeometryPtr terrain_model;
-	std::vector<std::shared_ptr<eqg::LODList>> lod_lists;
 
 	std::vector<PlaceablePtr> map_placeables;
 	//std::vector<S3DGeometryPtr> map_s3d_geometry;

@@ -19,6 +19,7 @@ class Light;
 class LODList;
 class Material;
 class Placeable;
+class ResourceManager;
 class TerrainSystem;
 class TerrainArea;
 struct SEQZoneParameters;
@@ -28,10 +29,10 @@ struct SMaterialFaceVertexData;
 class EQGLoader
 {
 public:
-	EQGLoader();
+	EQGLoader(ResourceManager* resourceMgr);
 	~EQGLoader();
 
-	bool Load(Archive* archive);
+	bool Load(Archive* archive, int loadFlags = 0);
 
 	std::vector<std::shared_ptr<Geometry>> models;
 	std::vector<std::shared_ptr<Placeable>> placeables;
@@ -39,8 +40,6 @@ public:
 	std::vector<std::shared_ptr<Light>> lights;
 	std::shared_ptr<TerrainSystem> terrain;
 	std::shared_ptr<Geometry> terrain_model;
-
-	std::vector<std::shared_ptr<LODList>> lod_lists;
 
 	std::vector<std::string> mesh_names;
 	std::vector<std::string> actor_tags;
@@ -59,15 +58,13 @@ private:
 	bool ParseTerrain(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag);
 	bool ParseLOD(const std::vector<char>& buffer, const std::string& tag);
 	bool ParseTerrainProject(const std::vector<char>& buffer);
-
-
-
 	bool ParseMaterialsFacesAndVertices(BufferReader& reader, const char* stringPool, const std::string& tag,
 		uint32_t num_faces, uint32_t num_vertices, uint32_t num_materials, bool new_format, SMaterialFaceVertexData* out_data);
 
-
-	Archive* m_archive = nullptr;
-	std::string m_fileName;
+	Archive*                 m_archive = nullptr;
+	ResourceManager*         m_resourceMgr = nullptr;
+	std::string              m_fileName;
+	int                      m_loadFlags = 0;
 };
 
 struct LODListElement
@@ -85,20 +82,28 @@ struct LODListElement
 	LODElementType type = Unknown;
 	float max_distance = 10000.0f;
 };
+using LODListElementPtr = std::shared_ptr<LODListElement>;
 
-class LODList
+class LODList : public eqg::Resource
 {
 public:
-	LODList(const std::string& name);
+	LODList(std::string_view tag);
 	bool Init(const std::vector<char>& buffer);
 
-	std::string tag;
-	std::vector<std::shared_ptr<LODListElement>> elements;
-	std::shared_ptr<LODListElement> collision;
+	static ResourceType GetStaticResourceType() { return ResourceType::LODList; }
+
+	std::string_view GetTag() const override { return m_tag; }
+	const std::vector<LODListElementPtr>& GetElements() const { return m_elements; }
+	const LODListElementPtr& GetCollision() const { return m_collision; }
+
+private:
+	std::string m_tag;
+	std::vector<LODListElementPtr> m_elements;
+	LODListElementPtr m_collision;
 };
+using LODListPtr = std::shared_ptr<LODList>;
 
 } // namespace eqg
-
 
 using PlaceablePtr = std::shared_ptr<eqg::Placeable>;
 using EQGGeometryPtr = std::shared_ptr<eqg::Geometry>;

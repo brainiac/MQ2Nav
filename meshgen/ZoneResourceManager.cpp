@@ -47,8 +47,8 @@ ZoneResourceManager::ZoneResourceManager(const std::string& zoneShortName,
 	, m_eqPath(everquest_path)
 	, m_meshPath(mesh_path)
 {
-	m_globalResourceMgr = std::make_unique<eqg::ResourceManager>();
-	m_resourceMgr = std::make_unique<eqg::ResourceManager>(m_globalResourceMgr.get());
+	m_globalResourceMgr = std::make_unique<eqg::ResourceManager>(m_eqPath);
+	m_resourceMgr = std::make_unique<eqg::ResourceManager>(m_eqPath, m_globalResourceMgr.get());
 }
 
 ZoneResourceManager::~ZoneResourceManager()
@@ -381,7 +381,7 @@ bool ZoneResourceManager::LoadGlobalData()
 #endif
 	m_defaultLoadFlags &= ~eqg::LoadFlag_SkipOldAnims;
 #if 0
-	// TOOD: Load Luclin Elementals
+	// TODO: Load Luclin Elementals
 	if (m_loadLuclinElementals)
 	{
 		// Luclin elementals and horses
@@ -550,7 +550,7 @@ eqg::Archive* ZoneResourceManager::LoadArchive(const std::string& path)
 	return nullptr;
 }
 
-eqg::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName)
+eqg::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName, int loadFlags)
 {
 	// Load EQG archive and then load all the data within it.
 	fs::path archivePath = (fs::path(m_eqPath) / fileName).replace_extension(".eqg");
@@ -562,7 +562,7 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName)
 		return nullptr;
 	}
 
-	eqg::EQGLoader* loader = LoadEQG(archive);
+	eqg::EQGLoader* loader = LoadEQG(archive, loadFlags);
 
 	if (loader)
 	{
@@ -576,7 +576,7 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(std::string_view fileName)
 	return loader;
 }
 
-eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
+eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive, int loadFlags)
 {
 	for (const auto& loader : m_eqgLoaders)
 	{
@@ -584,8 +584,10 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 			return loader.get();
 	}
 
-	auto loader = std::make_unique<eqg::EQGLoader>();
-	if (!loader->Load(archive))
+	bool globalLoad = (loadFlags & eqg::LoadFlag_GlobalLoad) != 0;
+
+	auto loader = std::make_unique<eqg::EQGLoader>(globalLoad ? m_globalResourceMgr.get() : m_resourceMgr.get());
+	if (!loader->Load(archive, loadFlags))
 		return nullptr;
 
 	//============================================================================================================
@@ -742,11 +744,6 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive)
 	for (const auto& lights : loader->lights)
 	{
 		map_lights.push_back(lights);
-	}
-
-	for (const auto& lod_list : loader->lod_lists)
-	{
-		lod_lists.push_back(lod_list);
 	}
 
 	m_eqgLoaders.push_back(std::move(loader));

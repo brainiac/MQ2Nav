@@ -12,6 +12,60 @@ namespace eqg {
 
 //-------------------------------------------------------------------------------------------------
 
+static std::array<uint32_t, 42> s_customRenderMethods =
+{
+	/* 00 */ 0x00000000,
+	/* 01 */ 0x00200557,
+	/* 02 */ 0x0020054B,
+	/* 03 */ 0x00000057,
+	/* 04 */ 0x0000004B,
+	/* 05 */ 0x01280557,
+	/* 06 */ 0x0124054B,
+	/* 07 */ 0x002005D7,
+	/* 08 */ 0x000005CB,
+	/* 09 */ 0x01240557,
+	/* 10 */ 0x012C0557,
+	/* 11 */ 0x013B0557,
+	/* 12 */ 0x00000507,
+	/* 13 */ 0x40000407,
+	/* 14 */ 0x40000473,
+	/* 15 */ 0x41080407,
+	/* 16 */ 0x411B0407,
+	/* 17 */ 0x00000507,
+	/* 18 */ 0x00000507,
+	/* 19 */ 0x000005D7,
+	/* 20 */ 0x00200473,
+	/* 21 */ 0x00200473,
+	/* 22 */ 0x002004F3,
+	/* 23 */ 0x011B0507,
+	/* 24 */ 0x01080507,
+	/* 25 */ 0x00000587,
+	/* 26 */ 0x00000000,
+	/* 27 */ 0x00000000,
+	/* 28 */ 0x00000000,
+	/* 29 */ 0x00000000,
+	/* 30 */ 0x00000000,
+	/* 31 */ 0x40000557,
+	/* 32 */ 0x4000054B,
+	/* 33 */ 0x40000057,
+	/* 34 */ 0x4000004B,
+	/* 35 */ 0x41080557,
+	/* 36 */ 0x4104054B,
+	/* 37 */ 0x400005D7,
+	/* 38 */ 0x400005CB,
+	/* 39 */ 0x41040557,
+	/* 40 */ 0x410C0557,
+	/* 41 */ 0x411B0557,
+};
+
+uint32_t GetCustomRenderMethod(uint32_t customIndex)
+{
+	return 0; // return s_customRenderMethods[customIndex];
+}
+
+
+//-------------------------------------------------------------------------------------------------
+
 Bitmap::Bitmap()
 	: Resource(ResourceType::Bitmap)
 {
@@ -49,6 +103,28 @@ bool Bitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, Resource
 	return true;
 }
 
+bool Bitmap::Init(std::string_view fileName, Archive* archive, bool cubeMap, ResourceManager* resourceMgr)
+{
+	m_fileName = fileName;
+	m_detailScale = 1.0f;
+	m_grassDensity = 0;
+
+	if (cubeMap)
+	{
+		// TODO: cube map
+	}
+	else
+	{
+		if (!resourceMgr->LoadTexture(this, archive))
+		{
+			EQG_LOG_ERROR("Failed to create texture for {}", m_fileName);
+			return false;
+		}
+	}
+
+	m_hasTexture = true;
+	return true;
+}
 
 //-------------------------------------------------------------------------------------------------
 
@@ -157,11 +233,11 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 			case eEQMFXParameterUnused:
 				if (param.name == "e_fRenderType")
 				{
-					param.type = eFXParameterUnused;
+					param.type = FXParameterType_Unused;
 				}
 				else
 				{
-					param.type = eFXParameterFloat;
+					param.type = FXParameterType_Float;
 
 					if (param.name == "e_fEnvMapStrength0")
 					{
@@ -175,17 +251,17 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 				break;
 
 			case eEQMFXParameterInt:
-				param.type = eFXParameterInt;
+				param.type = FXParameterType_Int;
 				param.n_value = in_param->n_value;
 				break;
 
 			case eEQMFXParameterColor:
-				param.type = eFXParameterColor;
+				param.type = FXParameterType_Color;
 				param.n_value = in_param->n_value;
 				break;
 
 			case eEQMFXParameterTexture:
-				param.type = eFXParameterTexture;
+				param.type = FXParameterType_Texture;
 				
 				// this is where we load the textures for the material
 				const char* filename = string_pool + in_param->n_value;
@@ -339,7 +415,7 @@ bool Material::InitFromWLDData(
 
 		if (renderMethod & RM_CUSTOM_MASK)
 		{
-			// TODO: Figure out how to get custom render method
+			renderMethod = GetCustomRenderMethod(renderMethod & ~RM_CUSTOM_MASK);
 		}
 		else if ((renderMethod & RM_TEXTURE_MASK) == 0 && (renderMethod & RM_TRANSLUCENCY_MASK) == 0)
 		{
@@ -373,19 +449,468 @@ bool Material::InitFromBitmap(const std::shared_ptr<Bitmap>& bitmap)
 	return true;
 }
 
+bool Material::InitFromMaterialInfo(ResourceManager* resourceMgr, const SMaterialInfo& info)
+{
+	m_renderMethod = 0x80000002;
+	m_type = info.type;
+	m_tag = info.tag;
+
+	SetTextureSlot();
+
+	m_textureSet = std::make_unique<STextureSet>();
+	m_textureSet->textures.resize(1);
+
+	uint32_t currentBitmap = 0;
+
+	for (auto& textureParam : info.params)
+	{
+		auto& newParam = m_effectParams.emplace_back();
+		newParam.name = textureParam.name;
+		newParam.type = textureParam.type;
+
+		switch (newParam.type)
+		{
+		case FXParameterType_Int:
+			newParam.n_value = textureParam.intValue;
+			break;
+		case FXParameterType_Float:
+			newParam.f_value = textureParam.floatValue;
+			break;
+		case FXParameterType_Color:
+			newParam.n_value = textureParam.intValue;
+			break;
+		case FXParameterType_Texture:
+		{
+			std::string_view filename = textureParam.fileName;
+			BitmapPtr pBitmap = nullptr;
+
+			if (filename != "None")
+			{
+				if (m_type == MaterialType_AlphaWater && find_substr(filename, "Environment") != -1)
+				{
+					// TODO: Something related to sky/cubemap
+				}
+				else if (m_type == MaterialType_AlphaLavaH && find_substr(filename, "Environment") != -1)
+				{
+					pBitmap = resourceMgr->CreateBitmap(filename, nullptr, true);
+				}
+				else
+				{
+					pBitmap = resourceMgr->CreateBitmap(filename, nullptr, false);
+				}
+			}
+
+			if (currentBitmap == 0)
+			{
+				m_textureSet->textures[0].flags = 0;
+				m_textureSet->textures[0].filename = filename;
+				m_textureSet->textures[0].textures[0] = pBitmap;
+			}
+			else
+			{
+				m_textureSet->textures[0].textures[currentBitmap] = pBitmap;
+			}
+			newParam.index = currentBitmap++;
+			break;
+		}
+		default: break;
+		}
+	}
+
+	return UpdateMaterialFlags(false);
+}
+
+bool Material::UpdateMaterialFlags(bool eqmData)
+{
+	m_alpha = 255;
+
+	switch (static_cast<EMaterialType>(m_type))
+	{
+	case MaterialType_Normal:
+	{
+		uint32_t renderMethod = m_renderMethod;
+
+		if (renderMethod & RM_CUSTOM_MASK)
+		{
+			renderMethod = GetCustomRenderMethod(renderMethod & ~RM_CUSTOM_MASK);
+		}
+
+		if (renderMethod == RM_FILL_TRANSPARENT)
+		{
+			m_transparent = true;
+			return true;
+		}
+
+		bool additive = renderMethod & RM_ADDITIVE_LIGHT_MASK;
+		bool transparent = renderMethod & RM_TRANSPARENCY_MASK;
+		bool translucent = renderMethod & RM_TRANSLUCENCY_MASK;
+
+		if (transparent)
+		{
+			m_renderMaterial = RenderMaterial_Chroma;
+		}
+		else if (translucent)
+		{
+			m_alpha = ((renderMethod & RM_TRANSLUCENCY_LEVEL_MASK) >> 16) * 16;
+			m_renderMaterial = additive ? RenderMaterial_AlphaBatchAdditive : RenderMaterial_AlphaBatch;
+		}
+		else
+		{
+			m_renderMaterial = RenderMaterial_Opaque;
+		}
+		break;
+	}
+	case MaterialType_PaletteDetail:
+	case MaterialType_SingleDetail:
+		m_renderMaterial = RenderMaterial_Opaque;
+		break;
+
+	case MaterialType_OpaqueC1:
+		m_renderMaterial = RenderMaterial_OpaqueC1;
+		break;
+	case MaterialType_OpaqueCG1:
+		m_renderMaterial = RenderMaterial_OpaqueCG1;
+		break;
+	case MaterialType_OpaqueCE1:
+		m_renderMaterial = RenderMaterial_OpaqueCE1;
+		break;
+	case MaterialType_OpaqueCB1:
+		m_renderMaterial = RenderMaterial_OpaqueCB1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_OpaqueCBS1:
+		m_renderMaterial = RenderMaterial_OpaqueCBS1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_OpaqueCBSG1:
+		m_renderMaterial = RenderMaterial_OpaqueCBSG1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_OpaqueCBSGE1:
+		m_renderMaterial = RenderMaterial_OpaqueCBSGE1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_OpaqueC1_2UV:
+		m_renderMaterial = RenderMaterial_OpaqueC1_2UV;
+		break;
+	case MaterialType_OpaqueCB1_2UV:
+		m_renderMaterial = RenderMaterial_OpaqueCB1_2UV;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_OpaqueCBSG1_2UV:
+		m_renderMaterial = RenderMaterial_OpaqueCBSG1_2UV;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_OpaqueTerrain:
+		m_renderMaterial = RenderMaterial_OpaqueTerrain;
+		break;
+	case MaterialType_OpaqueLava:
+		m_renderMaterial = RenderMaterial_OpaqueLava;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_OpaqueLava2:
+		m_renderMaterial = RenderMaterial_OpaqueLava2;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_ChromaC1:
+		m_renderMaterial = RenderMaterial_ChromaC1;
+		break;
+	case MaterialType_ChromaCG1:
+		m_renderMaterial = RenderMaterial_ChromaCG1;
+		break;
+	case MaterialType_ChromaCE1:
+		m_renderMaterial = RenderMaterial_ChromaCE1;
+		break;
+	case MaterialType_ChromaCB1:
+		m_renderMaterial = RenderMaterial_ChromaCB1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_ChromaCBS1:
+		m_renderMaterial = RenderMaterial_ChromaCBS1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_ChromaCBSG1:
+		m_renderMaterial = RenderMaterial_ChromaCBSG1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_ChromaCBSGE1:
+		m_renderMaterial = RenderMaterial_ChromaCBSGE1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AlphaC1:
+		m_renderMaterial = RenderMaterial_AlphaC1;
+		break;
+	case MaterialType_AlphaCG1:
+		m_renderMaterial = RenderMaterial_AlphaCG1;
+		break;
+	case MaterialType_AlphaCE1:
+		m_renderMaterial = RenderMaterial_AlphaCE1;
+		break;
+	case MaterialType_AlphaCB1:
+		m_renderMaterial = RenderMaterial_AlphaCB1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AlphaCBS1:
+		m_renderMaterial = RenderMaterial_AlphaCBS1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AlphaCBSG1:
+		m_renderMaterial = RenderMaterial_AlphaCBSG1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AlphaCBSGE1:
+		m_renderMaterial = RenderMaterial_AlphaCBSGE1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AlphaWater:
+		m_renderMaterial = RenderMaterial_AlphaWater;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AlphaWaterFall:
+		m_renderMaterial = RenderMaterial_AlphaWaterFall;
+		break;
+	case MaterialType_AlphaLavaH:
+		m_renderMaterial = RenderMaterial_AlphaLavaH;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AddAlphaC1:
+		m_renderMaterial = RenderMaterial_AddAlphaC1;
+		break;
+	case MaterialType_AddAlphaCG1:
+		m_renderMaterial = RenderMaterial_AddAlphaCG1;
+		break;
+	case MaterialType_AddAlphaCE1:
+		m_renderMaterial = RenderMaterial_AddAlphaCE1;
+		break;
+	case MaterialType_AddAlphaCB1:
+		m_renderMaterial = RenderMaterial_AddAlphaCB1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AddAlphaCBS1:
+		m_renderMaterial = RenderMaterial_AddAlphaCBS1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AddAlphaCBSG1:
+		m_renderMaterial = RenderMaterial_AddAlphaCBSG1;
+		m_hasBumpMap = true;
+		break;
+	case MaterialType_AddAlphaCBSGE1:
+		m_renderMaterial = RenderMaterial_AddAlphaCBSGE1;
+		m_hasBumpMap = true;
+		break;
+
+	case MaterialType_OpaqueCBS1_VSB:
+	case MaterialType_OpaqueCBS_2UV:
+	case MaterialType_OpaqueCBST2_2UV:
+	case MaterialType_OpaqueBasic:
+	case MaterialType_OpaqueBlend:
+	case MaterialType_OpaqueBlendNoBump:
+	case MaterialType_OpaqueFull:
+	case MaterialType_OpaqueFull_2UV:
+	case MaterialType_OpaqueBump:
+	case MaterialType_OpaqueBump_2UV:
+	case MaterialType_OpaqueSB:
+	case MaterialType_OpaqueSB_2UV:
+	case MaterialType_OpaqueGB:
+	case MaterialType_OpaqueGB_2UV:
+	case MaterialType_OpaqueRB:
+	case MaterialType_OpaqueRB_2UV:
+	case MaterialType_ChromaBasic:
+	case MaterialType_ChromaBump:
+	case MaterialType_AlphaBasic:
+	case MaterialType_AlphaBump:
+		if (eqmData)
+		{
+			// These types are only being handled by the EQM data
+			switch (m_type)
+			{
+			case MaterialType_OpaqueCBS1_VSB:
+				m_renderMaterial = RenderMaterial_OpaqueCBS1_VSB;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueCBS_2UV:
+				m_renderMaterial = RenderMaterial_OpaqueCBS_2UV;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueCBST2_2UV:
+				m_renderMaterial = RenderMaterial_OpaqueCBST2_2UV;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				m_hasVertexTint2 = true;
+				break;
+			case MaterialType_OpaqueBasic:
+				m_renderMaterial = RenderMaterial_OpaqueBasic;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueBlend:
+				m_renderMaterial = RenderMaterial_OpaqueBlend;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueBlendNoBump:
+				m_renderMaterial = RenderMaterial_OpaqueBlendNoBump;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueFull:
+				m_renderMaterial = RenderMaterial_OpaqueFull;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueFull_2UV:
+				m_renderMaterial = RenderMaterial_OpaqueFull_2UV;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueBump:
+				m_renderMaterial = RenderMaterial_OpaqueBump;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueBump_2UV:
+				m_renderMaterial = RenderMaterial_OpaqueBump_2UV;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueSB:
+				m_renderMaterial = RenderMaterial_OpaqueSB;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueSB_2UV:
+				m_renderMaterial = RenderMaterial_OpaqueSB_2UV;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueGB:
+				m_renderMaterial = RenderMaterial_OpaqueGB;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueGB_2UV:
+				m_renderMaterial = RenderMaterial_OpaqueGB_2UV;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueRB:
+				m_renderMaterial = RenderMaterial_OpaqueRB;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_OpaqueRB_2UV:
+				m_renderMaterial = RenderMaterial_OpaqueRB_2UV;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_ChromaBasic:
+				m_renderMaterial = RenderMaterial_ChromaBasic;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_ChromaBump:
+				m_renderMaterial = RenderMaterial_ChromaBump;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_AlphaBasic:
+				m_renderMaterial = RenderMaterial_AlphaBasic;
+				m_hasVertexTint = true;
+				break;
+			case MaterialType_AlphaBump:
+				m_renderMaterial = RenderMaterial_AlphaBump;
+				m_hasBumpMap = true;
+				m_hasVertexTint = true;
+				break;
+			}
+			break;
+		}
+		[[fallthrough]];
+	default:
+		EQG_LOG_INFO("Unknown material type: {}", m_type);
+		break;
+	}
+
+	return true;
+}
+
+void Material::SetTextureSlot()
+{
+	m_itemSlot = ItemTextureSlot_None;
+
+	if (m_tag.length() > 5)
+	{
+		std::string_view piece = std::string_view(m_tag).substr(3, 2);
+
+		switch (piece[0])
+		{
+		case 'c':
+		case 'C':
+			if (piece[1] == 'h' || piece[1] == 'H')
+			{
+				if (std::string_view(m_tag).substr(8, 1) == "1")
+					m_itemSlot = ItemTextureSlot_Neck;
+				else
+					m_itemSlot = ItemTextureSlot_Chest;
+			}
+			break;
+		case 'u':
+		case 'U':
+			if (piece[1] == 'a' || piece[1] == 'A')
+				m_itemSlot = ItemTextureSlot_Arms;
+			break;
+		case 'f':
+		case 'F':
+			switch (piece[1])
+			{
+			case 'a':
+			case 'A':
+				m_itemSlot = ItemTextureSlot_Wrists;
+				break;
+			case 'r':
+			case 'R':
+				m_itemSlot = ItemTextureSlot_Legs;
+				break;
+			case 't':
+			case 'T':
+				m_itemSlot = ItemTextureSlot_Feet;
+				break;
+			}
+			break;
+		case 'h':
+		case 'H':
+			if (piece[1] == 'n' || piece[1] == 'N')
+				m_itemSlot = ItemTextureSlot_Head;
+			break;
+		case 'l':
+		case 'L':
+			if (piece[1] == 'g' || piece[1] == 'G')
+				m_itemSlot = ItemTextureSlot_Legs;
+			break;
+		default:
+			if (ci_equals(m_tag, "a_dkm"))
+			{
+				m_itemSlot = ItemTextureSlot_Legs;
+			}
+			break;
+		}
+	}
+}
+
 std::shared_ptr<Material> Material::Clone() const
 {
 	auto copy = std::make_shared<Material>();
 
 	copy->m_tag = m_tag;
 	copy->m_effectName = m_effectName;
-	copy->m_twoSided = m_twoSided;
 	copy->m_uvShift = m_uvShift;
 	copy->m_renderMethod = m_renderMethod;
 	copy->m_scaledAmbient = m_scaledAmbient;
 	copy->m_constantAmbient = m_constantAmbient;
 	copy->m_type = m_type;
 	copy->m_detailScale = m_detailScale;
+	copy->m_twoSided = m_twoSided;
+	copy->m_transparent = m_transparent;
+	copy->m_hasBumpMap = m_hasBumpMap;
 
 	if (m_textureSet)
 	{

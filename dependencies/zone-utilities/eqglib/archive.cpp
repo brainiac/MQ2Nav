@@ -76,7 +76,7 @@ bool Archive::Open(const std::string& filename)
 	{
 		fseek(f, 0, SEEK_END);
 		size_t sz = ftell(f);
-		rewind(f);
+		fseek(f, 0, SEEK_SET);
 
 		buffer.resize(sz);
 		size_t res = fread(&buffer[0], 1, sz, f);

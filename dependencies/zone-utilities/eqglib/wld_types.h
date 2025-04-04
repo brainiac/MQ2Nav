@@ -1,13 +1,15 @@
 
 #pragma once
 
+#include "eqg_types_fwd.h"
+
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 namespace eqg {
 
-class ActorInstance;
+class Actor;
 class ActorDefinition;
 class Bitmap;
 class HierarchicalModelDefinition;
@@ -17,8 +19,6 @@ class ParticleCloudDefinition;
 class SimpleModelDefinition;
 class WLDLoader;
 struct STrack;
-
-using ActorDefinitionPtr = std::shared_ptr<ActorDefinition>;
 
 enum WLDObjectType : uint32_t
 {
@@ -736,7 +736,7 @@ struct ParsedActorDefinition : ParsedObject
 // WLD_OBJ_ACTORINSTANCE_TYPE (21)
 struct ParsedActorInstance : ParsedObject
 {
-	std::shared_ptr<ActorInstance> actorInstance;
+	std::shared_ptr<Actor> actorInstance;
 };
 
 

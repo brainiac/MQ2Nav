@@ -2,6 +2,7 @@
 
 #include "eqg_structs.h"
 #include "eqg_loader.h"
+#include "eqg_types_fwd.h"
 #include "placeable.h"
 
 #include <memory>
@@ -9,11 +10,9 @@
 
 namespace eqg {
 
-class Archive;
 class BufferReader;
 class Light;
 class TerrainSystem;
-class WaterSheet;
 
 class InvisibleWall
 {
@@ -33,47 +32,64 @@ private:
 	std::vector<glm::vec3> m_vertices;
 };
 
-class WaterSheetData;
+//------------------------------------------------------------------------------
+// WaterSheet
+
+class WaterSheetData
+{
+public:
+	WaterSheetData(uint32_t index = 0);
+
+	bool Init(const std::vector<std::string>& tokens, size_t& k);
+	bool ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k);
+
+	MaterialPtr CreateMaterial(ResourceManager* resourceMgr);
+
+	uint32_t GetIndex() const { return m_index; }
+
+private:
+	uint32_t                 m_index = 0;
+	float                    m_fresnelBias = 0.25f;
+	float                    m_fresnelPower = 8.0f;
+	float                    m_reflectionAmount = 0.7f;
+	float                    m_uvScale = 1.0f;
+	glm::vec4                m_reflectionColor = { 0.7f, 1.0f, 1.0f, 1.0f };
+	glm::vec4                m_waterColor1 = { 0.0f, 0.04f, 0.11f, 1.0f };
+	glm::vec4                m_waterColor2 = { 0.0f, 0.23f, 0.17f, 1.0f };
+	std::string              m_normalMap = "Resources\\WaterSwap\\water_n.dds";
+	std::string              m_environmentMap = "Resources\\WaterSwap\\water_e.dds";
+
+	MaterialPtr              m_material;
+	static inline uint32_t   s_oldWaterDataIndex = 10000;
+};
 
 class WaterSheet
 {
 public:
 	WaterSheet(TerrainSystem* terrain, const std::string& name, const std::shared_ptr<WaterSheetData>& data = nullptr);
 
-	bool Load(const std::vector<std::string>& tokens, size_t& k);
+	bool Init(const std::vector<std::string>& tokens, size_t& k);
 	bool ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k);
 
-	std::string m_name;
-	std::shared_ptr<WaterSheetData> m_data;
-	std::string m_definitionName;
+	ActorDefinitionPtr CreateActorDefinition();
 
-	float min_x = 0.0f;
-	float min_y = 0.0f;
-	float max_x = 0.0f;
-	float max_y = 0.0f;
-	float z_height = 0.0f;
+	std::string              m_name;
+	WaterSheetDataPtr        m_data;
+	std::string              m_definitionName;
+	float                    m_minX = 0.0f;
+	float                    m_minY = 0.0f;
+	float                    m_maxX = 0.0f;
+	float                    m_maxY = 0.0f;
+	float                    m_zHeight = 0.0f;
+	std::vector<SEQMVertex>  m_vertices;
+	std::vector<SEQMFace>    m_faces;
 
-	TerrainSystem* m_terrain = nullptr;
+	TerrainSystem*           m_terrain = nullptr;
+	ResourceManager*         m_resourceMgr = nullptr;
+	SimpleActorPtr           m_actor;
 };
 
-class WaterSheetData
-{
-public:
-	uint32_t index = 0;
-
-	float fresnel_bias = 0.25f;
-	float fresnel_power = 8.0f;
-	float reflection_amount = 0.7f;
-	float uv_scale = 1.0f;
-	glm::vec4 reflection_color = { 0.7f, 1.0f, 1.0f, 1.0f };
-	glm::vec4 water_color1 = { 0.0f, 0.04f, 0.11f, 1.0f };
-	glm::vec4 water_color2 = { 0.0f, 0.23f, 0.17f, 1.0f };
-	std::string normal_map = "Resources\\WaterSwap\\water_n.dds";
-	std::string environment_map = "Resources\\WaterSwap\\water_e.dds";
-
-	bool Load(const std::vector<std::string>& tokens, size_t& k);
-	bool ParseToken(const std::string& token, const std::vector<std::string>& tokens, size_t& k);
-};
+//------------------------------------------------------------------------------
 
 struct TerrainObjectGroupDefinitionObjectElement
 {
@@ -223,7 +239,7 @@ class TerrainSystem
 	friend class TerrainTile;
 
 public:
-	TerrainSystem(Archive* archive);
+	TerrainSystem(Archive* archive, ResourceManager* resourceMgr);
 	~TerrainSystem();
 
 	bool Load(const char* zonBuffer, size_t size);
@@ -232,7 +248,7 @@ public:
 	std::vector<std::shared_ptr<TerrainTile>>& GetTiles() { return tiles; }
 	uint32_t GetQuadsPerTile() { return m_params.quads_per_tile; }
 	float GetUnitsPerVertex() { return m_params.units_per_vert; }
-	std::vector<std::shared_ptr<WaterSheet>>& GetWaterSheets() { return water_sheets; }
+	std::vector<std::shared_ptr<WaterSheet>>& GetWaterSheets() { return m_waterSheets; }
 	std::vector<std::shared_ptr<InvisibleWall>>& GetInvisWalls() { return invis_walls; }
 
 	const SEQZoneParameters& GetParams() const { return m_params; }
@@ -243,13 +259,16 @@ public:
 
 	static void LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params);
 
+	ResourceManager* GetResourceManager() const { return m_resourceMgr; }
+
 private:
 	bool LoadTiles();
 	bool LoadWaterSheets();
 	bool LoadInvisibleWalls();
 
-	SEQZoneParameters m_params;
-	Archive* m_archive = nullptr;
+	SEQZoneParameters     m_params;
+	Archive*              m_archive = nullptr;
+	ResourceManager*      m_resourceMgr = nullptr;
 
 public:
 	uint32_t version = 0;
@@ -260,8 +279,9 @@ public:
 
 	std::vector<std::shared_ptr<TerrainTile>> tiles;
 
-	std::vector<std::shared_ptr<WaterSheet>> water_sheets;
-	std::vector<std::shared_ptr<WaterSheetData>> water_sheet_data;
+	std::vector<WaterSheetPtr>     m_waterSheets;
+	std::vector<WaterSheetDataPtr> m_waterSheetData;
+
 	std::vector<std::shared_ptr<InvisibleWall>> invis_walls;
 
 	std::vector<std::shared_ptr<TerrainArea>> areas;

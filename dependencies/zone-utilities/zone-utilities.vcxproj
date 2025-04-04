@@ -30,6 +30,7 @@
     <ClInclude Include="eqglib\eqg_resource_manager.h" />
     <ClInclude Include="eqglib\eqg_structs.h" />
     <ClInclude Include="eqglib\eqg_terrain.h" />
+    <ClInclude Include="eqglib\eqg_types_fwd.h" />
     <ClInclude Include="eqglib\light.h" />
     <ClInclude Include="eqglib\buffer_reader.h" />
     <ClInclude Include="eqglib\log_internal.h" />

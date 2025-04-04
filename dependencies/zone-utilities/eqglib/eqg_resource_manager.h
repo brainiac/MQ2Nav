@@ -1,5 +1,7 @@
 #pragma once
 
+#include "eqg_geometry.h"
+#include "eqg_light.h"
 #include "eqg_resource.h"
 
 #include <map>
@@ -7,8 +9,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
-
-#include "eqg_light.h"
+#include <unordered_set>
 
 namespace eqg {
 
@@ -121,7 +122,7 @@ enum LoadFlags
 class ResourceManager
 {
 public:
-	ResourceManager(ResourceManager* parent = nullptr);
+	ResourceManager(const std::string& data_path, ResourceManager* parent = nullptr);
 	virtual ~ResourceManager();
 
 	// Retrieve resources from the manager
@@ -153,6 +154,7 @@ public:
 
 	// Factory creation of resource objects
 	virtual std::shared_ptr<Bitmap> CreateBitmap() const;
+	virtual std::shared_ptr<Bitmap> CreateBitmap(std::string_view fileName, Archive* archive, bool cubeMap);
 	virtual std::shared_ptr<SimpleModelDefinition> CreateSimpleModelDefinition() const;
 	virtual std::shared_ptr<SimpleModel> CreateSimpleModel() const;
 	virtual std::shared_ptr<HierarchicalModelDefinition> CreateHierarchicalModelDefinition() const;
@@ -161,19 +163,43 @@ public:
 	virtual std::shared_ptr<Animation> CreateAnimation() const;
 	virtual std::shared_ptr<LightDefinition> CreateLightDefinition() const;
 
+	// Creating actor instances might be better off in a scene manager?
+	virtual std::shared_ptr<SimpleActor> CreateSimpleActor(
+		std::string_view actorTag,
+		const std::shared_ptr<ActorDefinition>& simpleActorDef,
+		const glm::vec3& position,
+		const glm::vec3& orientation,
+		float scale,
+		ECollisionVolumeType collisionVolumeType,
+		float boundingRadius = 1.0f,
+		int actorIndex = -1,
+		SDMRGBTrackWLDData* DMRGBTrackWLDData = nullptr,
+		uint32_t* rgbData = nullptr,
+		uint32_t numRGBs = 0,
+		std::string_view actorName = "");
+
+	virtual void AddActor(Actor* actor);
+	virtual void RemoveActor(Actor* actor);
+
 	virtual bool LoadTexture(Bitmap* bitmap, Archive* archive);
 	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);
 
 	virtual std::shared_ptr<Terrain> InitTerrain();
 	std::shared_ptr<Terrain> GetTerrain();
 
+	bool ReadFile(std::string_view filePath, std::vector<char>& data);
+
 private:
+	std::string m_dataPath;
 	ResourceManager* m_parent;
 	ResourceContainer m_resources;
 
 	// Track resources by type and by tag (sorted). This is useful for debugging and
 	// inspecting, but we'll use the ResourceContainer for actual lookups.
 	std::map<ResourceType, std::map<std::string_view, std::shared_ptr<Resource>>> m_sortedResources;
+
+	// List of all currently constructed actors (instances)
+	std::unordered_set<Actor*> m_actors;
 
 	// There is only one terrain per zone.
 	std::shared_ptr<Terrain> m_terrain;

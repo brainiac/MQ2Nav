@@ -11,11 +11,13 @@
 #include "log_internal.h"
 
 #include <ddraw.h> // for DDSURFACEDESC2
+#include <filesystem>
 
 namespace eqg {
 
-ResourceManager::ResourceManager(ResourceManager* parent)
-	: m_parent(parent)
+ResourceManager::ResourceManager(const std::string& data_path, ResourceManager* parent)
+	: m_dataPath(data_path)
+	, m_parent(parent)
 {
 	// Prepopulate the sorted resource mapping
 	for (int i = 0; i < (int)ResourceType::Max; ++i)
@@ -68,6 +70,31 @@ std::shared_ptr<Bitmap> ResourceManager::CreateBitmap() const
 	return std::make_shared<Bitmap>();
 }
 
+std::shared_ptr<Bitmap> ResourceManager::CreateBitmap(std::string_view fileName, Archive* archive, bool cubeMap)
+{
+	if (auto pBitmap = Get<eqg::Bitmap>(fileName))
+	{
+		return pBitmap;
+	}
+
+	auto pBitmap = CreateBitmap();
+
+	if (archive == nullptr)
+	{
+		pBitmap->SetForceMipMap(true);
+	}
+
+	if (!pBitmap->Init(fileName, archive, cubeMap, this))
+	{
+		EQG_LOG_ERROR("Failed to create bitmap from file {} cubeMap={}", fileName, cubeMap);
+		return nullptr;
+	}
+
+	Add(pBitmap);
+
+	return pBitmap;
+}
+
 std::shared_ptr<SimpleModelDefinition> ResourceManager::CreateSimpleModelDefinition() const
 {
 	return std::make_shared<SimpleModelDefinition>();
@@ -103,12 +130,23 @@ std::shared_ptr<LightDefinition> ResourceManager::CreateLightDefinition() const
 	return std::make_shared<LightDefinition>();
 }
 
-std::shared_ptr<Terrain> ResourceManager::InitTerrain()
+std::shared_ptr<SimpleActor> ResourceManager::CreateSimpleActor(std::string_view actorTag,
+	const std::shared_ptr<ActorDefinition>& simpleActorDef, const glm::vec3& position, const glm::vec3& orientation,
+	float scale, ECollisionVolumeType collisionVolumeType, float boundingRadius, int actorIndex,
+	SDMRGBTrackWLDData* DMRGBTrackWLDData, uint32_t* rgbData, uint32_t numRGBs, std::string_view actorName)
 {
-	// Reset the terrain object
-	m_terrain = std::make_shared<Terrain>();
+	return std::make_shared<SimpleActor>(this, actorTag, simpleActorDef, position, orientation,
+		scale, boundingRadius, collisionVolumeType, actorIndex, DMRGBTrackWLDData, rgbData, numRGBs, actorName);
+}
 
-	return m_terrain;
+void ResourceManager::AddActor(Actor* actor)
+{
+	m_actors.insert(actor);
+}
+
+void ResourceManager::RemoveActor(Actor* actor)
+{
+	m_actors.erase(actor);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -123,10 +161,22 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 	// Loads the raw bitmap data from the given archive for the provided bitmap.
 
 	std::vector<char> buffer;
-	if (!archive->Get(bitmap->GetFileName(), buffer))
+	if (archive != nullptr)
 	{
-		EQG_LOG_ERROR("Failed to load {} from {}", bitmap->GetFileName(), archive->GetFileName());
-		return false;
+		if (!archive->Get(bitmap->GetFileName(), buffer))
+		{
+			EQG_LOG_ERROR("Failed to load {} from {}", bitmap->GetFileName(), archive->GetFileName());
+			return false;
+		}
+	}
+	else
+	{
+		// Read the path from disk
+		if (!ReadFile(bitmap->GetFileName(), buffer))
+		{
+			EQG_LOG_ERROR("Failed to load {} from disk", bitmap->GetFileName());
+			return false;
+		}
 	}
 
 	BufferReader reader(buffer);
@@ -181,6 +231,46 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 
 	return true;
 }
+
+bool ResourceManager::ReadFile(std::string_view filePath, std::vector<char>& buffer)
+{
+	std::filesystem::path p = std::filesystem::path(m_dataPath) / filePath;
+	std::error_code ec;
+
+	if (!std::filesystem::exists(p, ec))
+	{
+		return false;
+	}
+
+	FILE* f = _fsopen(p.string().c_str(), "rb", _SH_DENYNO);
+	if (f)
+	{
+		fseek(f, 0, SEEK_END);
+		size_t sz = ftell(f);
+		fseek(f, 0, SEEK_SET);
+
+		buffer.resize(sz);
+		size_t res = fread(&buffer[0], 1, sz, f);
+		if (res != sz)
+		{
+			return false;
+		}
+
+		fclose(f);
+		return true;
+	}
+
+	return false;
+}
+
+std::shared_ptr<Terrain> ResourceManager::InitTerrain()
+{
+	// Reset the terrain object
+	m_terrain = std::make_shared<Terrain>();
+
+	return m_terrain;
+}
+
 
 std::shared_ptr<Terrain> ResourceManager::GetTerrain()
 {

@@ -2,7 +2,10 @@
 
 #include "eqg_material.h"
 #include "eqg_particles.h"
+
+#include "eqg_geometry.h"
 #include "log_internal.h"
+#include "str_util.h"
 #include "wld_types.h"
 
 namespace eqg {
@@ -216,6 +219,259 @@ void BlitSpriteDefinition::CopyDefinition(STextureDataDefinition& outDefinition)
 	outDefinition.valid = m_valid;
 	outDefinition.skipFrames = m_skipFrames;
 	outDefinition.sourceTextures = m_sourceTextures;
+}
+
+//-------------------------------------------------------------------------------------------------
+
+ParticlePointDefinition::ParticlePointDefinition(SParticlePoint* point, SimpleModelDefinition* model)
+	: name(point->name)
+	, position(point->position)
+	, orientation(point->orientation)
+	, scale(point->scale)
+{
+	UpdateMatrix();
+}
+
+ParticlePointDefinition::ParticlePointDefinition(SParticlePoint* point, HierarchicalModelDefinition* model)
+	: name(point->name)
+	, position(point->position)
+	, orientation(point->orientation)
+	, scale(point->scale)
+{
+	for (uint32_t i = 0; i < model->GetNumBones(); ++i)
+	{
+		if (const BoneDefinition* pBone = model->GetBoneDefinition(i))
+		{
+			if (pBone->GetTag() == point->attachment)
+			{
+				boneIndex = i;
+				break;
+			}
+		}
+	}
+
+	UpdateMatrix();
+}
+
+ParticlePointDefinition::ParticlePointDefinition(const std::string& name, int boneIndex,
+	const glm::vec3& position, const glm::vec3& orientation, const glm::vec3& scale)
+	: name(name)
+	, boneIndex(boneIndex)
+	, position(position)
+	, orientation(orientation)
+	, scale(scale)
+{
+	UpdateMatrix();
+}
+
+ParticlePointDefinition::ParticlePointDefinition(const ParticlePointDefinition& other)
+	: name(other.name)
+	, boneIndex(other.boneIndex)
+	, position(other.position)
+	, orientation(other.orientation)
+	, scale(other.scale)
+	, transform(other.transform)
+{
+}
+
+void ParticlePointDefinition::UpdateMatrix()
+{
+	transform = glm::translate(glm::identity<glm::mat4x4>(), position);
+	transform *= glm::mat4_cast(glm::quat(orientation));
+	transform = glm::scale(transform, scale);
+}
+
+//-------------------------------------------------------------------------------------------------
+
+ParticlePointDefinitionManager::ParticlePointDefinitionManager()
+{
+}
+
+ParticlePointDefinitionManager::ParticlePointDefinitionManager(uint32_t numPoints, SParticlePoint* points, SimpleModelDefinition* model)
+{
+	m_points.reserve(numPoints);
+
+	for (uint32_t i = 0; i < numPoints; ++i)
+	{
+		AddPoint(points + i, model);
+	}
+}
+
+ParticlePointDefinitionManager::ParticlePointDefinitionManager(uint32_t numPoints, SParticlePoint* points, HierarchicalModelDefinition* model)
+{
+	m_points.reserve(numPoints);
+
+	for (uint32_t i = 0; i < numPoints; ++i)
+	{
+		AddPoint(points + i, model);
+	}
+}
+
+ParticlePointDefinitionManager::~ParticlePointDefinitionManager()
+{
+}
+
+ParticlePointDefinition* ParticlePointDefinitionManager::GetPointDefinition(uint32_t index) const
+{
+	if (index < m_points.size())
+		return m_points[index].get();
+
+	return nullptr;
+}
+
+void ParticlePointDefinitionManager::AddPoint(SParticlePoint* point, SimpleModelDefinition* model)
+{
+	m_points.push_back(std::make_unique<ParticlePointDefinition>(point, model));
+}
+
+void ParticlePointDefinitionManager::AddPoint(SParticlePoint* point, HierarchicalModelDefinition* model)
+{
+	m_points.push_back(std::make_unique<ParticlePointDefinition>(point, model));
+}
+
+void ParticlePointDefinitionManager::AddPointDefinition(const std::string& name, int boneIndex,
+	const glm::vec3& position, const glm::vec3& orientation, const glm::vec3& scale)
+{
+	m_points.push_back(std::make_unique<ParticlePointDefinition>(name, boneIndex, position, orientation, scale));
+}
+
+void ParticlePointDefinitionManager::DeletePointDefinition(const std::string& name)
+{
+	for (auto it = m_points.begin(); it != m_points.end(); ++it)
+	{
+		if ((*it)->name == name)
+		{
+			m_points.erase(it);
+			break;
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+
+ActorParticleDefinition::ActorParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition)
+	: m_emitterDefinitionID(particle->emitterDefinitionID)
+	, m_coldEmitterDefinitionID(particle->coldEmitterDefinitionID)
+	, m_pointName(particle->particlePointName)
+	, m_particleType(particle->particleType)
+	, m_animationNumber(particle->animationNumber)
+	, m_animationVariation(particle->animationVariation)
+	, m_animationRandomVariation(particle->animationRandomVariation)
+	, m_startTime(particle->startTime)
+	, m_pointIndex(-1)
+	, m_lifeSpan(particle->lifeSpan)
+	, m_groundBased(particle->groundBased)
+	, m_playWithMat(particle->playWithMat)
+	, m_sporadic(particle->sporadic)
+{
+	InitIndex(definition->GetPointManager());
+}
+
+ActorParticleDefinition::ActorParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition)
+	: m_emitterDefinitionID(particle->emitterDefinitionID)
+	, m_coldEmitterDefinitionID(particle->coldEmitterDefinitionID)
+	, m_pointName(particle->particlePointName)
+	, m_particleType(particle->particleType)
+	, m_animationNumber(particle->animationNumber)
+	, m_animationVariation(particle->animationVariation)
+	, m_animationRandomVariation(particle->animationRandomVariation)
+	, m_startTime(particle->startTime)
+	, m_pointIndex(-1)
+	, m_lifeSpan(particle->lifeSpan)
+	, m_groundBased(particle->groundBased)
+	, m_playWithMat(particle->playWithMat)
+	, m_sporadic(particle->sporadic)
+{
+	InitIndex(definition->GetPointManager());
+}
+
+ActorParticleDefinition::ActorParticleDefinition(const ActorParticleDefinition& other)
+	: m_emitterDefinitionID(other.m_emitterDefinitionID)
+	, m_coldEmitterDefinitionID(other.m_coldEmitterDefinitionID)
+	, m_pointName(other.m_pointName)
+	, m_particleType(other.m_particleType)
+	, m_animationNumber(other.m_animationNumber)
+	, m_animationVariation(other.m_animationVariation)
+	, m_animationRandomVariation(other.m_animationRandomVariation)
+	, m_startTime(other.m_startTime)
+	, m_pointIndex(other.m_pointIndex)
+	, m_lifeSpan(other.m_lifeSpan)
+	, m_groundBased(other.m_groundBased)
+	, m_playWithMat(other.m_playWithMat)
+	, m_sporadic(other.m_sporadic)
+{
+}
+
+void ActorParticleDefinition::InitIndex(ParticlePointDefinitionManager* pPtMgr)
+{
+	if (pPtMgr)
+	{
+		for (uint32_t index = 0; index < pPtMgr->GetNumPoints(); ++index)
+		{
+			if (ParticlePointDefinition* pDef = pPtMgr->GetPointDefinition(index))
+			{
+				if (pDef->name == m_pointName)
+				{
+					m_pointIndex = static_cast<int>(index);
+					break;
+				}
+			}
+		}
+	}
+}
+
+
+//-------------------------------------------------------------------------------------------------
+
+ActorParticleDefinitionManager::ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles,
+	SimpleModelDefinition* definition)
+{
+	if (numParticles > 0)
+	{
+		for (uint32_t particle = 0; particle < numParticles; ++particle)
+		{
+			m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particles + particle, definition));
+		}
+	}
+}
+
+ActorParticleDefinitionManager::ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles,
+	HierarchicalModelDefinition* definition)
+{
+	if (numParticles > 0)
+	{
+		for (uint32_t particle = 0; particle < numParticles; ++particle)
+		{
+			m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particles + particle, definition));
+		}
+	}
+}
+
+ActorParticleDefinitionManager::~ActorParticleDefinitionManager()
+{
+}
+
+ActorParticleDefinition* ActorParticleDefinitionManager::GetParticleDefinition(uint32_t index) const
+{
+	if (index < m_particleDefinitions.size())
+		return m_particleDefinitions[index].get();
+
+	return nullptr;
+}
+
+void ActorParticleDefinitionManager::AddParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition)
+{
+	m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particle, definition));
+}
+
+void ActorParticleDefinitionManager::AddParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition)
+{
+	m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particle, definition));
+}
+
+void ActorParticleDefinitionManager::DeleteParticleDefinition(uint32_t index)
+{
+	m_particleDefinitions.erase(m_particleDefinitions.begin() + index);
 }
 
 } // namespace eqg

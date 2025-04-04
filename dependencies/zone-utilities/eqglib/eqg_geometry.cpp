@@ -1,7 +1,9 @@
 #include "pch.h"
 #include "eqg_geometry.h"
 
+#include "eqg_loader.h"
 #include "eqg_material.h"
+#include "log_internal.h"
 #include "str_util.h"
 #include "wld_types.h"
 
@@ -223,6 +225,113 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 	return true;
 }
 
+bool SimpleModelDefinition::InitFromEQMData(std::string_view tag,
+	uint32_t numVertices, SEQMVertex* vertices,
+	uint32_t numFaces, SEQMFace* faces,
+	uint32_t numPoints, SParticlePoint* points,
+	uint32_t numParticles, SActorParticle* particles,
+	const MaterialPalettePtr& materialPalette)
+{
+	m_tag = std::string(tag);
+	m_materialPalette = materialPalette;
+	m_useLitBatches = false;
+	m_numFrames = 1;
+
+	for (uint32_t materialNum = 0; materialNum < m_materialPalette->GetNumMaterials(); ++materialNum)
+	{
+		Material* material = m_materialPalette->GetMaterial(materialNum);
+		if (material && material->HasBumpMap())
+		{
+			m_tangents.resize(numVertices);
+			m_binormals.resize(numVertices);
+			break;
+		}
+	}
+
+	InitVerticesFromEQMData(numVertices, vertices);
+	InitFacesFromEQMData(numFaces, faces);
+
+	InitCollisionData(false);
+
+	if (numPoints > 0)
+	{
+		m_pointManager = std::make_unique<ParticlePointDefinitionManager>(numPoints, points, this);
+
+		if (numParticles > 0)
+		{
+			m_particleManager = std::make_unique<ActorParticleDefinitionManager>(numParticles, particles, this);
+		}
+	}
+
+	return true;
+}
+
+bool SimpleModelDefinition::InitStaticData()
+{
+	// TODO
+	return true;
+}
+
+void SimpleModelDefinition::InitVerticesFromEQMData(uint32_t numVertices, SEQMVertex* vertices)
+{
+	m_numVertices = numVertices;
+	m_vertices.resize(numVertices);
+	m_uvs.resize(numVertices);
+	m_uv2s.resize(numVertices);
+	m_colors.resize(numVertices);
+	m_colorTint.resize(numVertices);
+	m_normals.resize(numVertices);
+
+	if (m_numVertices > 0)
+	{
+		glm::vec3 maxPos = glm::vec3(std::numeric_limits<float>::min());
+		glm::vec3 minPos = glm::vec3(std::numeric_limits<float>::max());
+		for (uint32_t i = 0; i < m_numVertices; ++i)
+		{
+			m_vertices[i] = vertices[i].pos;
+			m_uvs[i] = vertices[i].uv;
+			m_uv2s[i] = vertices[i].uv2;
+			m_colors[i] = 0xffffffff;
+			m_colorTint[i] = vertices[i].color;
+			m_normals[i] = vertices[i].normal;
+
+			maxPos = glm::max(m_vertices[i], maxPos);
+			minPos = glm::min(m_vertices[i], minPos);
+		}
+
+		m_aabbMin = minPos;
+		m_aabbMax = maxPos;
+
+		glm::vec3 extent = (maxPos - minPos) / 2.0f;
+		m_centerOffset = minPos + extent;
+		m_boundingRadius = glm::length(extent);
+	}
+}
+
+void SimpleModelDefinition::InitFacesFromEQMData(uint32_t numFaces, SEQMFace* faces)
+{
+	m_numFaces = numFaces;
+	m_faces.resize(numFaces);
+	m_faceNormals.resize(numFaces);
+
+	for (uint32_t i = 0; i < m_numFaces; ++i)
+	{
+		m_faces[i].indices = { faces[i].vertices[0], faces[i].vertices[1], faces[i].vertices[2] };
+		m_faces[i].materialIndex = (int16_t)static_cast<int>(faces[i].material);
+		m_faces[i].flags = faces[i].flags & 0xffff;
+
+		glm::vec3 e1 = m_vertices[m_faces[i].indices[1]] - m_vertices[m_faces[i].indices[2]];
+		glm::vec3 e2 = m_vertices[m_faces[i].indices[0]] - m_vertices[m_faces[i].indices[1]];
+		m_faceNormals[i] = glm::normalize(glm::cross(e1, e2));
+	}
+
+	if (!m_tangents.empty())
+	{
+		// TODO: Build tangents/binormals
+	}
+}
+
+
 void SimpleModelDefinition::InitCollisionData(bool forceModel)
 {
 	bool forceCollision;
@@ -292,7 +401,7 @@ SimpleModel::~SimpleModel()
 {
 }
 
-void SimpleModel::Init(const SimpleModelDefinitionPtr& definition)
+bool SimpleModel::Init(const SimpleModelDefinitionPtr& definition)
 {
 	m_definition = definition;
 
@@ -300,6 +409,34 @@ void SimpleModel::Init(const SimpleModelDefinitionPtr& definition)
 	{
 		m_materialPalette = definition->GetMaterialPalette()->Clone();
 	}
+
+	// TODO: Init point manager
+
+	// TODO: Init particle manager
+
+	return true;
+}
+
+bool SimpleModel::SetRGBs(SDMRGBTrackWLDData* pDMRGBTrackWLDData)
+{
+	m_bakedDiffuseLighting.resize(pDMRGBTrackWLDData->numRGBs);
+	memcpy(m_bakedDiffuseLighting.data(), pDMRGBTrackWLDData->RGBs, pDMRGBTrackWLDData->numRGBs * sizeof(uint32_t));
+
+	return true;
+}
+
+bool SimpleModel::SetRGBs(uint32_t* pRGBs, uint32_t numRGBs)
+{
+	if (numRGBs != m_definition->m_numVertices)
+	{
+		EQG_LOG_WARN("Invalid number of RGB vertices. Has {}, expected {}. tag={}", numRGBs, m_definition->m_numVertices,
+			m_definition->GetTag());
+		return false;
+	}
+
+	m_bakedDiffuseLighting.resize(numRGBs);
+	memcpy(m_bakedDiffuseLighting.data(), pRGBs, numRGBs * sizeof(uint32_t));
+	return true;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -395,6 +532,13 @@ bool HierarchicalModelDefinition::InitFromWLDData(std::string_view tag, SHSprite
 	return true;
 }
 
+const BoneDefinition* HierarchicalModelDefinition::GetBoneDefinition(uint32_t boneIndex) const
+{
+	if (boneIndex < m_numBones)
+		return &m_bones[boneIndex];
+	return nullptr;
+}
+
 //-------------------------------------------------------------------------------------------------
 
 ActorDefinition::ActorDefinition(std::string_view tag, const SimpleModelDefinitionPtr& simpleModel)
@@ -422,6 +566,66 @@ ActorDefinition::~ActorDefinition()
 {
 }
 
+void ActorDefinition::SetCallbackTag(std::string_view tag)
+{
+	m_callbackTag = tag;
+
+	if (tag.empty())
+	{
+		m_callbackType = UnusedCallback;
+	}
+	else
+	{
+		switch (tag[0])
+		{
+		case 'S':
+			if (tag.size() == 15 && tag[14] == '2')
+			{
+				m_callbackType = SpriteCallback2;
+			}
+			else
+			{
+				m_callbackType = SpriteCallback;
+			}
+			break;
+		case 'L':
+			m_callbackType = LadderCallback;
+			break;
+		case 'T':
+			m_callbackType = TreeCallback;
+			break;
+
+		default:
+			m_callbackType = UnusedCallback;
+			break;
+		}
+	}
+}
+
+void ActorDefinition::SetCallbackType(CallbackTagType type)
+{
+	m_callbackType = type;
+}
+
+float ActorDefinition::CalculateBoundingRadius()
+{
+	if (m_simpleModelDefinition)
+	{
+		m_boundingRadius = m_simpleModelDefinition->GetDefaultBoundingRadius();
+	}
+	else if (m_hierarchicalModelDefinition)
+	{
+		m_boundingRadius = m_hierarchicalModelDefinition->GetDefaultBoundingRadius();
+	}
+	else
+	{
+		m_boundingRadius = 1.0f;
+	}
+
+	return m_boundingRadius;
+}
+
+
 //-------------------------------------------------------------------------------------------------
 
 HierarchicalModel::HierarchicalModel()
@@ -439,12 +643,97 @@ void HierarchicalModel::Init(const HierarchicalModelDefinitionPtr& definition)
 
 //-------------------------------------------------------------------------------------------------
 
-ActorInstance::ActorInstance()
+Actor::Actor(ResourceManager* resourceMgr)
+	: m_resourceMgr(resourceMgr)
 {
 }
 
-ActorInstance::~ActorInstance()
+Actor::~Actor()
 {
+}
+
+static float SetActorBoundingRadius(Actor* actor, float multiplier, float radius)
+{
+	float boundingRadius = actor->GetDefinition()->CalculateBoundingRadius();
+
+	boundingRadius = std::max(radius, boundingRadius);
+
+	if (multiplier > 1.0f)
+	{
+		boundingRadius *= multiplier;
+	}
+
+	actor->SetBoundingRadius(boundingRadius, false);
+
+	return boundingRadius;
+}
+
+
+void Actor::DoInitCallback()
+{
+	switch (m_definition->GetCallbackType())
+	{
+	case SpriteCallback:
+		{
+			float boundingRadius = SetActorBoundingRadius(this, 1.0f, 1.0f);
+
+			if (starts_with(m_definition->GetTag(), "LADDER")
+				|| starts_with(m_definition->GetTag(), "OBJ_LADDER"))
+			{
+				SetActorType(eActorTypeLadder);
+			}
+			else if (starts_with(m_definition->GetTag(), "ISLANDPALM"))
+			{
+				SetActorType(eActorTypeTree);
+			}
+			else if (boundingRadius > 80.0f)
+			{
+				SetActorType(eActorTypeLargeObject);
+			}
+			else
+			{
+				SetActorType(eActorTypeObject);
+			}
+		}
+		break;
+
+	case SpriteCallback2:
+		{
+			float boundingRadius = SetActorBoundingRadius(this, 1.0f, 1.0f);
+
+			if (boundingRadius > 80.0f)
+			{
+				SetActorType(eActorTypeLargeObject);
+			}
+			else
+			{
+				SetActorType(eActorTypeObject);
+			}
+		}
+		break;
+
+	case LadderCallback:
+		SetActorBoundingRadius(this, 1.0f, 1.0f);
+		SetActorType(eActorTypeLadder);
+		break;
+
+	case TreeCallback:
+		SetActorBoundingRadius(this, 1.0f, 1.0f);
+		SetActorType(eActorTypeTree);
+		break;
+
+	default: break;
+	}
+}
+
+void Actor::SetBoundingRadius(float radius, bool adjustScale)
+{
+	if (adjustScale)
+	{
+		m_scale = m_boundingRadius == 0 ? radius : m_scale * (radius / m_boundingRadius);
+	}
+
+	m_boundingRadius = radius;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -455,7 +744,7 @@ SimpleActor::SimpleActor(
 	const ActorDefinitionPtr& actorDef,
 	const glm::vec3& position,
 	const glm::vec3& orientation,
-	float scalFactor,
+	float scaleFactor,
 	float boundingRadius,
 	ECollisionVolumeType collisionVolumeType,
 	int actorIndex,
@@ -463,15 +752,100 @@ SimpleActor::SimpleActor(
 	uint32_t* RGBs,
 	uint32_t numRGBs,
 	std::string_view actorName)
+	: Actor(resourceMgr)
 {
 	m_tag = std::string(actorTag);
 	m_actorName = std::string(actorName);
 	m_actorIndex = actorIndex;
 	m_definition = actorDef;
 
-	// TODO: Get LOD data
+	std::string_view defTag = m_definition->GetTag();
+	if (defTag.ends_with("_ACTORDEF"))
+	{
+		defTag = defTag.substr(0, defTag.size() - 9);
+	}
 
-	m_model = std::make_shared<SimpleModel>();
+	// Load LOD Data
+	if (LODListPtr pLODList = m_resourceMgr->Get<LODList>(fmt::format("{}_LODLIST", defTag));
+		pLODList && !pLODList->GetElements().empty())
+	{
+		// Note: LOD Min distance for model comes from Resources/moddat.ini, using `defTag`
+
+		m_lodModels.reserve(pLODList->GetElements().size());
+		for (const LODListElementPtr& element : pLODList->GetElements())
+		{
+			std::string definitionTag = fmt::format("{}_SMD", element->definition);
+
+			if (SimpleModelDefinitionPtr pModelDef = m_resourceMgr->Get<SimpleModelDefinition>(definitionTag))
+			{
+				SimpleModelPtr pModel = m_resourceMgr->CreateSimpleModel();
+				pModel->Init(pModelDef);
+				pModel->SetActor(this);
+
+				m_lodModels.emplace_back(pModel, element->max_distance);
+			}
+			else
+			{
+				EQG_LOG_ERROR("Failed to load LOD'ed model {} from LOD List for {}", definitionTag, defTag);
+			}
+		}
+
+		if (const LODListElementPtr& element = pLODList->GetCollision())
+		{
+			std::string definitionTag = fmt::format("{}_SMD", element->definition);
+
+			if (SimpleModelDefinitionPtr pModelDef = m_resourceMgr->Get<SimpleModelDefinition>(definitionTag))
+			{
+				SimpleModelPtr pModel = m_resourceMgr->CreateSimpleModel();
+				pModel->Init(pModelDef);
+				pModel->SetActor(this);
+
+				m_collisionModel = pModel;
+			}
+			else
+			{
+				EQG_LOG_ERROR("Failed to load collision model {} from LOD List for {}", definitionTag, defTag);
+			}
+		}
+
+		if (!m_collisionModel)
+		{
+			m_collisionModel = m_lodModels[0].model;
+		}
+	}
+	else
+	{
+		m_model = std::make_shared<SimpleModel>();
+
+		m_model->Init(m_definition->GetSimpleModelDefinition());
+		m_model->SetActor(this);
+		m_collisionModel = m_model;
+	}
+
+	SetPosition(position);
+	SetOrientation(orientation);
+	SetScale(scaleFactor);
+	SetBoundingRadius(boundingRadius);
+	SetCollisionVolumeType(collisionVolumeType);
+	
+	if (DMRGBTrackWLDData != nullptr)
+	{
+		m_model->SetRGBs(DMRGBTrackWLDData);
+	}
+
+	if (RGBs != nullptr)
+	{
+		m_model->SetRGBs(RGBs, numRGBs);
+	}
+
+	DoInitCallback();
+
+	m_resourceMgr->AddActor(this);
+}
+
+SimpleActor::~SimpleActor()
+{
+	m_resourceMgr->RemoveActor(this);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -490,6 +864,7 @@ HierarchicalActor::HierarchicalActor(
 	uint32_t* RGBs,
 	uint32_t numRGBs,
 	std::string_view actorName)
+	: Actor(resourceMgr)
 {
 	m_tag = std::string(actorTag);
 	m_actorName = std::string(actorName);
@@ -497,6 +872,16 @@ HierarchicalActor::HierarchicalActor(
 	m_definition = actorDef;
 
 	m_model = std::make_shared<HierarchicalModel>();
+
+	// TODO: Init the actor
+
+
+	m_resourceMgr->AddActor(this);
+}
+
+HierarchicalActor::~HierarchicalActor()
+{
+	m_resourceMgr->RemoveActor(this);
 }
 
 //-------------------------------------------------------------------------------------------------

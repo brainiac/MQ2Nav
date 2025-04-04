@@ -691,7 +691,7 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 			continue;
 		}
 
-		std::shared_ptr<Bitmap> newBitmap = std::make_shared<Bitmap>();
+		std::shared_ptr<Bitmap> newBitmap = m_resourceMgr->CreateBitmap();
 		if (!newBitmap->InitFromWLDData(&wldData, m_archive, m_resourceMgr))
 		{
 			EQG_LOG_ERROR("Failed to create bitmap {}!", wldData.fileName);
@@ -2064,19 +2064,18 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 		location->heading * EQ_TO_RAD
 	);
 
-	std::shared_ptr<ActorInstance> actor;
+	std::shared_ptr<Actor> actor;
 
 	if (actorDef->GetSimpleModelDefinition())
 	{
-		actor = std::make_shared<SimpleActor>(
-			m_resourceMgr,
+		actor = m_resourceMgr->CreateSimpleActor(
 			actorTag,
 			actorDef,
 			position,
 			orientation,
 			scaleFactor,
-			boundingRadius,
 			collisionVolumeType,
+			boundingRadius,
 			objectIndex,
 			pDMRGBTrackData.get());
 	}

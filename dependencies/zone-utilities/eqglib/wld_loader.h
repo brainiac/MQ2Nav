@@ -14,9 +14,7 @@
 
 namespace eqg {
 
-std::string_view decode_s3d_string(char* str, size_t len);
-
-class ActorInstance;
+class Actor;
 class HierarchicalModelDefinition;
 class PointLight;
 class ResourceManager;
@@ -26,9 +24,6 @@ class Terrain;
 class WLDLoader
 {
 public:
-	// TODO: loading flags:
-	// - luclin animations
-
 	WLDLoader(ResourceManager* resourceMgr);
 	~WLDLoader();
 
@@ -67,7 +62,7 @@ public:
 
 	uint32_t GetConstantAmbient() const { return m_constantAmbient; }
 
-	std::vector<std::shared_ptr<ActorInstance>> m_actors;
+	std::vector<std::shared_ptr<Actor>> m_actors;
 	std::vector<std::shared_ptr<PointLight>> m_pointLights;
 
 private:

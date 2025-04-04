@@ -5,6 +5,7 @@
 #include "archive.h"
 #include "buffer_reader.h"
 #include "eqg_material.h"
+#include "eqg_resource_manager.h"
 #include "eqg_structs.h"
 #include "log_internal.h"
 
@@ -14,20 +15,22 @@ namespace fs = std::filesystem;
 
 namespace eqg {
 
-EQGLoader::EQGLoader()
+EQGLoader::EQGLoader(ResourceManager* resourceMgr)
+	: m_resourceMgr(resourceMgr)
 {
 }
 
 EQGLoader::~EQGLoader()
 {
 }
-	
-bool EQGLoader::Load(Archive* archive)
+
+bool EQGLoader::Load(Archive* archive, int loadFlags)
 {
 	if (archive == nullptr)
 		return false;
 
 	m_archive = archive;
+	m_loadFlags = loadFlags;
 
 	fs::path zonFilePath = fs::path(archive->GetFilePath()).replace_extension(".zon");
 	bool loaded_anything = false;
@@ -40,7 +43,7 @@ bool EQGLoader::Load(Archive* archive)
 		fseek(pZonFile, 0, SEEK_END);
 		size_t sz = ftell(pZonFile);
 
-		rewind(pZonFile);
+		fseek(pZonFile, 0, SEEK_SET);
 
 		zonBuffer.resize(sz);
 		fread(&zonBuffer[0], sz, 1, pZonFile);
@@ -559,7 +562,7 @@ bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string&
 bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
 {
 	// Load terrain data
-	auto loading_terrain = std::make_shared<TerrainSystem>(m_archive);
+	auto loading_terrain = std::make_shared<TerrainSystem>(m_archive, m_resourceMgr);
 
 	if (!loading_terrain->Load(buffer.data(), buffer.size()))
 	{
@@ -573,12 +576,24 @@ bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
 
 bool EQGLoader::ParseLOD(const std::vector<char>& buffer, const std::string& tag)
 {
-	std::shared_ptr<LODList> lodList = std::make_shared<LODList>(tag);
+	LODListPtr lodList = std::make_shared<LODList>(tag);
 
 	if (!lodList->Init(buffer))
+	{
+		EQG_LOG_ERROR("Failed to parse LOD list for \"{}\"", tag);
 		return false;
+	}
 
-	lod_lists.push_back(lodList);
+	// Check if we already have this LOD list
+	if (m_resourceMgr->Contains(lodList->GetTag(), ResourceType::LODList))
+		return true;
+
+	if (!m_resourceMgr->Add(lodList))
+	{
+		EQG_LOG_ERROR("Failed to add LOD list to resource manager: {}", lodList->GetTag());
+		return false;
+	}
+
 	return true;
 }
 
@@ -708,8 +723,9 @@ bool EQGLoader::ParseZoneV2(const std::vector<char>& buffer, const std::string& 
 
 //============================================================================
 
-LODList::LODList(const std::string& name)
-	: tag(fmt::format("{}_LODLIST", name))
+LODList::LODList(std::string_view name)
+	: Resource(ResourceType::LODList)
+	, m_tag(fmt::format("{}_LODLIST", name))
 {
 }
 
@@ -727,11 +743,11 @@ bool LODList::Init(const std::vector<char>& buffer)
 		auto element = std::make_shared<LODListElement>(line);
 		if (element->type == LODListElement::LOD)
 		{
-			elements.push_back(element);
+			m_elements.push_back(element);
 		}
 		else if (element->type == LODListElement::Collision)
 		{
-			collision = element;
+			m_collision = element;
 		}
 	}
 
