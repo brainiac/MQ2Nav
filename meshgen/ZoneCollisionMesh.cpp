@@ -88,14 +88,14 @@ void ZoneCollisionMesh::addTerrain(const TerrainPtr& terrain)
 	for (uint32_t i = 0; i < tiles.size(); ++i)
 	{
 		auto& tile = tiles[i];
-		bool flat = tile->flat;
+		bool flat = tile->m_flat;
 
-		float y = tile->tile_pos.x;
-		float x = tile->tile_pos.y;
+		float y = tile->m_tilePos.x;
+		float x = tile->m_tilePos.y;
 
 		if (flat)
 		{
-			float z = tile->height_field[0];
+			float z = tile->m_heightField[0];
 
 			// get x,y of corner point for this quad
 			float dt = quads_per_tile * units_per_vertex;
@@ -115,7 +115,7 @@ void ZoneCollisionMesh::addTerrain(const TerrainPtr& terrain)
 		}
 		else
 		{
-			auto& floats = tile->height_field;
+			auto& floats = tile->m_heightField;
 			int row_number = -1;
 
 			for (uint32_t quad = 0; quad < terrain->quad_count; ++quad)
@@ -123,7 +123,7 @@ void ZoneCollisionMesh::addTerrain(const TerrainPtr& terrain)
 				if (quad % quads_per_tile == 0)
 					++row_number;
 
-				if (tile->quad_flags[quad] & 0x01)
+				if (tile->m_quadFlags[quad] & 0x01)
 					continue;
 
 				// get x,y of corner point for this quad

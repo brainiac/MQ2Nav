@@ -4,6 +4,8 @@
 
 namespace eqg {
 
+class ResourceManager;
+
 enum class ResourceType
 {
 	Bitmap,

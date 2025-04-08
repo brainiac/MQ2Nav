@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "eqg_light.h"
 
+#include "eqg_resource_manager.h"
+
 namespace eqg {
 
 LightDefinition::LightDefinition()
@@ -12,7 +14,7 @@ LightDefinition::~LightDefinition()
 {
 }
 
-bool LightDefinition::InitFromWLDData(
+bool LightDefinition::Init(
 	std::string_view tag,
 	uint32_t frameCount,
 	float* framesIntensity,
@@ -37,5 +39,26 @@ bool LightDefinition::InitFromWLDData(
 
 	return true;
 }
+
+//-------------------------------------------------------------------------------------------------
+
+
+PointLight::PointLight(ResourceManager* resourceMgr,
+	const std::shared_ptr<LightDefinition>& lightDef,
+	const glm::vec3& pos,
+	float radius)
+	: m_resourceMgr(resourceMgr)
+	, m_definition(lightDef)
+	, m_position(pos)
+	, m_radius(radius)
+{
+	m_resourceMgr->AddLight(this);
+}
+
+PointLight::~PointLight()
+{
+	m_resourceMgr->RemoveLight(this);
+}
+
 
 } // namespace eqg

@@ -23,6 +23,8 @@ TerrainSystem::TerrainSystem(Archive* archive, ResourceManager* resourceMgr)
 	: m_archive(archive)
 	, m_resourceMgr(resourceMgr)
 {
+	// Init the default light.
+	m_defaultLightDefinition = GetLightDefinition("defaultLight");
 }
 
 TerrainSystem::~TerrainSystem()
@@ -328,19 +330,19 @@ bool TerrainSystem::LoadTiles()
 
 		if (!tile->Load(reader, version))
 		{
-			EQG_LOG_ERROR("Failed to parse zone terrain tile {}: {}, {}", i, tile->tile_loc.x, tile->tile_loc.y);
+			EQG_LOG_ERROR("Failed to parse zone terrain tile {}: {}, {}", i, tile->GetTileLocX(), tile->GetTileLocY());
 			return false;
 		}
 
 		// Add areas and objects from the tile to our collection.
 		for (const auto& area : tile->m_areas)
 		{
-			areas.push_back(area);
+			m_areas.push_back(area);
 		}
 
 		for (const auto& light : tile->m_lights)
 		{
-			lights.push_back(light);
+			m_lights.push_back(light);
 		}
 
 		for (const auto& object : tile->m_objects)
@@ -359,7 +361,7 @@ bool TerrainSystem::LoadTiles()
 		{
 			for (const auto& area : object_group->areas)
 			{
-				areas.push_back(area);
+				m_areas.push_back(area);
 			}
 
 			for (const auto& object : object_group->objects)
@@ -375,7 +377,7 @@ bool TerrainSystem::LoadTiles()
 			}
 		}
 
-		tiles.push_back(tile);
+		m_tiles.push_back(tile);
 	}
 
 	return true;
@@ -416,7 +418,7 @@ bool TerrainSystem::LoadInvisibleWalls()
 		if (!invisWall->Load(reader))
 			return false;
 
-		invis_walls.push_back(invisWall);
+		m_invisWalls.push_back(invisWall);
 	}
 
 	return true;
@@ -480,17 +482,17 @@ bool TerrainSystem::LoadWaterSheets()
 
 TerrainObjectGroupDefinition* TerrainSystem::GetObjectGroupDefinition(const std::string& name)
 {
-	for (auto& group : group_definitions)
+	for (auto& group : m_groupDefinitions)
 	{
 		if (group->name == name)
 			return group.get();
 	}
 
-	auto group_definition = std::make_shared<TerrainObjectGroupDefinition>();
-	group_definition->Load(m_archive, name);
+	auto groupDefinition = std::make_shared<TerrainObjectGroupDefinition>();
+	groupDefinition->Load(m_archive, name);
 
-	group_definitions.push_back(group_definition);
-	return group_definition.get();
+	m_groupDefinitions.push_back(groupDefinition);
+	return groupDefinition.get();
 }
 
 std::shared_ptr<WaterSheetData> TerrainSystem::GetWaterSheetData(uint32_t index) const
@@ -508,7 +510,7 @@ glm::vec3 TerrainTile::GetPosInTile(const glm::vec3& pos) const
 {
 	float adjusted_x = pos.x;
 	float adjusted_y = pos.y;
-	auto& params = terrain->GetParams();
+	auto& params = m_terrain->GetParams();
 
 	if (adjusted_x < 0)
 		adjusted_x = adjusted_x + (-(int)(adjusted_x / (params.units_per_vert * params.quads_per_tile)) + 1) * (params.units_per_vert * params.quads_per_tile);
@@ -524,10 +526,10 @@ glm::vec3 TerrainTile::GetPosInTile(const glm::vec3& pos) const
 	int column = (int)(adjusted_x / params.units_per_vert);
 	int quad = row_number * params.quads_per_tile + column;
 
-	float quad_vertex1Z = height_field[quad + row_number];
-	float quad_vertex2Z = height_field[quad + row_number + params.quads_per_tile + 1];
-	float quad_vertex3Z = height_field[quad + row_number + params.quads_per_tile + 2];
-	float quad_vertex4Z = height_field[quad + row_number + 1];
+	float quad_vertex1Z = m_heightField[quad + row_number];
+	float quad_vertex2Z = m_heightField[quad + row_number + params.quads_per_tile + 1];
+	float quad_vertex3Z = m_heightField[quad + row_number + params.quads_per_tile + 2];
+	float quad_vertex4Z = m_heightField[quad + row_number + 1];
 
 	glm::vec3 p1(row_number * params.units_per_vert, (quad % params.quads_per_tile) * params.units_per_vert, quad_vertex1Z);
 	glm::vec3 p2(p1.x + params.units_per_vert, p1.y, quad_vertex2Z);
@@ -536,42 +538,63 @@ glm::vec3 TerrainTile::GetPosInTile(const glm::vec3& pos) const
 
 	float terrain_height = HeightWithinQuad(p1, p2, p3, p4, adjusted_y, adjusted_x);
 
-	return glm::vec3{ pos.x + tile_pos.x, pos.y + tile_pos.y, pos.z + terrain_height };
+	return glm::vec3{ pos.x + m_tilePos.x, pos.y + m_tilePos.y, pos.z + terrain_height };
+}
+
+TerrainLightDefinitionPtr TerrainSystem::GetLightDefinition(std::string_view tag)
+{
+	for (const auto& lightDef : m_lightDefinitions)
+	{
+		if (lightDef->GetTag() == tag)
+		{
+			return lightDef;
+		}
+	}
+
+	auto lightDef = std::make_shared<TerrainLightDefinition>(tag);
+	if (!lightDef->Load(m_archive, m_resourceMgr))
+	{
+		lightDef->AddFrame(1.0f, 0xffffffff);
+		lightDef->Init(m_resourceMgr);
+	}
+
+	m_lightDefinitions.push_back(lightDef);
+	return lightDef;
 }
 
 bool TerrainTile::Load(BufferReader& reader, int version)
 {
-	if (!reader.read(tile_loc))
+	if (!reader.read(m_tileLoc))
 		return false;
-	tile_loc -= glm::ivec2{ 100000, 100000 };
-	if (!reader.read(flora_seed))
+	m_tileLoc -= glm::ivec2{ 100000, 100000 };
+	if (!reader.read(m_floraSeed))
 		return false;
 
-	const auto& params = terrain->GetParams();
+	const auto& params = m_terrain->GetParams();
 
-	float tile_start_x = terrain->zone_min_x + (tile_loc.x - params.min_lng) * params.units_per_vert * params.quads_per_tile;
-	float tile_start_y = terrain->zone_min_y + (tile_loc.y - params.min_lat) * params.units_per_vert * params.quads_per_tile;
-	tile_pos = { tile_start_x, tile_start_y, 0 };
-	tile_transform = glm::translate(glm::identity<glm::mat4x4>(), tile_pos);
+	float tile_start_x = m_terrain->zone_min_x + (m_tileLoc.x - params.min_lng) * params.units_per_vert * params.quads_per_tile;
+	float tile_start_y = m_terrain->zone_min_y + (m_tileLoc.y - params.min_lat) * params.units_per_vert * params.quads_per_tile;
+	m_tilePos = { tile_start_x, tile_start_y, 0 };
+	m_tileTransform = glm::translate(glm::identity<glm::mat4x4>(), m_tilePos);
 
-	height_field.resize(terrain->vert_count);
-	vertex_color.resize(terrain->vert_count);
-	baked_lighting.resize(terrain->vert_count);
-	quad_flags.resize(terrain->quad_count);
+	m_heightField.resize(m_terrain->vert_count);
+	m_vertexColor.resize(m_terrain->vert_count);
+	m_bakedLighting.resize(m_terrain->vert_count);
+	m_quadFlags.resize(m_terrain->quad_count);
 
-	if (!reader.read(height_field.data(), terrain->vert_count))
+	if (!reader.read(m_heightField.data(), m_terrain->vert_count))
 		return false;
-	if (!reader.read(vertex_color.data(), terrain->vert_count))
+	if (!reader.read(m_vertexColor.data(), m_terrain->vert_count))
 		return false;
-	if (!reader.read(baked_lighting.data(), terrain->vert_count))
+	if (!reader.read(m_bakedLighting.data(), m_terrain->vert_count))
 		return false;
-	if (!reader.read(quad_flags.data(), terrain->quad_count))
+	if (!reader.read(m_quadFlags.data(), m_terrain->quad_count))
 		return false;
 
 	bool tile_is_flat = true;
-	for (size_t idx = 1; idx < height_field.size(); ++idx)
+	for (size_t idx = 1; idx < m_heightField.size(); ++idx)
 	{
-		if (height_field[idx] != height_field[0])
+		if (m_heightField[idx] != m_heightField[0])
 		{
 			tile_is_flat = false;
 			break;
@@ -579,47 +602,47 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 	}
 	if (tile_is_flat)
 	{
-		for (size_t idx = 0; idx < quad_flags.size(); ++idx)
+		for (size_t idx = 0; idx < m_quadFlags.size(); ++idx)
 		{
-			if (quad_flags[idx] & 0x01) // bmQuadExcluded
+			if (m_quadFlags[idx] & 0x01) // bmQuadExcluded
 				tile_is_flat = false;
 		}
 	}
 
-	this->flat = tile_is_flat;
+	this->m_flat = tile_is_flat;
 
-	if (!reader.read(base_water_level))
+	if (!reader.read(m_baseWaterLevel))
 		return false;
 
 	if (version >= 21)
 	{
-		if (!reader.read(water_data_index))
+		if (!reader.read(m_waterDataIndex))
 			return false;
 
-		if (!reader.read(has_water_sheet))
+		if (!reader.read(m_hasWaterSheet))
 			return false;
 
-		if (has_water_sheet)
+		if (m_hasWaterSheet)
 		{
-			if (!reader.read_multiple(water_sheet_min_x, water_sheet_max_x, water_sheet_min_y, water_sheet_max_y))
+			if (!reader.read_multiple(m_waterSheetMinX, m_waterSheetMaxX, m_waterSheetMinY, m_waterSheetMaxY))
 				return false;
 
-			std::string name = fmt::format("WS_{}_{}", tile_loc.x + 100000, tile_loc.y + 100000);
+			std::string name = fmt::format("WS_{}_{}", m_tileLoc.x + 100000, m_tileLoc.y + 100000);
 
-			auto p_water_sheet = std::make_shared<WaterSheet>(terrain, name, terrain->GetWaterSheetData(water_data_index));
-			p_water_sheet->m_minX = tile_start_x + water_sheet_min_x;
-			p_water_sheet->m_maxX = tile_start_x + water_sheet_max_x;
-			p_water_sheet->m_minY = tile_start_y + water_sheet_min_y;
-			p_water_sheet->m_maxY = tile_start_y + water_sheet_max_y;
-			p_water_sheet->m_zHeight = base_water_level;
+			auto p_water_sheet = std::make_shared<WaterSheet>(m_terrain, name, m_terrain->GetWaterSheetData(m_waterDataIndex));
+			p_water_sheet->m_minX = tile_start_x + m_waterSheetMinX;
+			p_water_sheet->m_maxX = tile_start_x + m_waterSheetMaxX;
+			p_water_sheet->m_minY = tile_start_y + m_waterSheetMinY;
+			p_water_sheet->m_maxY = tile_start_y + m_waterSheetMaxY;
+			p_water_sheet->m_zHeight = m_baseWaterLevel;
 
-			terrain->m_waterSheets.push_back(p_water_sheet);
+			m_terrain->m_waterSheets.push_back(p_water_sheet);
 
-			water_sheet = p_water_sheet.get();
+			m_waterSheet = p_water_sheet.get();
 		}
 	}
 
-	if (!reader.read(lava_level))
+	if (!reader.read(m_lavaLevel))
 		return false;
 
 	// TODO: Handle flora layers
@@ -669,10 +692,10 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 		}
 
 		std::shared_ptr<TerrainObject> obj = std::make_shared<TerrainObject>();
-		obj->object_id = object_id;
+		obj->objectId = object_id;
 		obj->name = to_upper_copy(model_name) + "_ACTORDEF";
 		obj->ecosystem = eco_name;
-		obj->shade_factor = shade_factor;
+		obj->shadeFactor = shade_factor;
 		obj->position = GetPosInTile(pos);
 		obj->orientation = glm::radians(rot);
 		obj->scale = scale;
@@ -722,32 +745,35 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 		m_areas.push_back(area);
 	}
 
-	// TODO: Load lights
-	uint32_t num_lights;
-	if (!reader.read(num_lights))
-		return false;
-
-	for (uint32_t j = 0; j < num_lights; ++j)
+	if (version >= 7)
 	{
-		std::string name, definition;
-		bool static_light;
-		glm::ivec2 loc;
-		glm::vec3 pos, rot, scale;
-		float radius;
-
-		if (!reader.read_multiple(name, definition, static_light, loc, pos, rot, scale, radius))
+		uint32_t numLights;
+		if (!reader.read(numLights))
 			return false;
-		loc -= glm::ivec2{ 100000, 100000 };
 
-		auto newLight = std::make_shared<Light>();
-		newLight->name = name;
-		newLight->tag = definition;
-		newLight->static_light = static_light;
-		newLight->pos = GetPosInTile(pos);
-		newLight->radius = radius;
-		newLight->transform = glm::translate(glm::identity<glm::mat4x4>(), newLight->pos);
+		for (uint32_t j = 0; j < numLights; ++j)
+		{
+			std::string name, definitionName;
+			bool isStatic;
+			glm::ivec2 loc;
+			glm::vec3 pos, rot, scale;
+			float radius;
 
-		m_lights.push_back(newLight);
+			if (!reader.read_multiple(name, definitionName, isStatic, loc, pos, rot, scale, radius))
+				return false;
+			loc -= glm::ivec2{ 100000, 100000 };
+
+			TerrainLightDefinitionPtr pLightDef = m_terrain->GetLightDefinition(definitionName);
+
+			TerrainLightPtr newLight = std::make_shared<TerrainLight>(m_terrain->GetResourceManager(), name, pLightDef);
+			newLight->SetRadius(radius);
+			newLight->SetStatic(isStatic);
+			newLight->SetPosition(GetPosInTile(pos));
+			newLight->SetOrientation(glm::radians(rot));
+			newLight->SetScale(scale);
+
+			m_lights.push_back(newLight);
+		}
 	}
 
 	uint32_t num_groups;
@@ -767,14 +793,14 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 
 		std::shared_ptr<TerrainObjectGroup> group = std::make_shared<TerrainObjectGroup>();
 		group->name = group_name;
-		group->position = tile_pos + glm::vec3(pos.x, pos.y, pos.z + (scale.z * z_offset));
+		group->position = m_tilePos + glm::vec3(pos.x, pos.y, pos.z + (scale.z * z_offset));
 		group->orientation = glm::radians(rot);
 		group->scale = scale;
 
 		group->transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), group->position), group->scale);
 		group->transform *= glm::mat4_cast(glm::quat{ group->orientation });
 
-		TerrainObjectGroupDefinition* group_definition = terrain->GetObjectGroupDefinition(group_name);
+		TerrainObjectGroupDefinition* group_definition = m_terrain->GetObjectGroupDefinition(group_name);
 		if (group_definition != nullptr)
 		{
 			group->Initialize(group_definition);
@@ -787,7 +813,6 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 	return true;
 }
 
-
 //============================================================================
 
 void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
@@ -799,7 +824,7 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 	{
 		auto newObject = std::make_shared<TerrainObject>();
 		newObject->name = to_upper_copy(object->name) + "_ACTORDEF";
-		newObject->object_id = object->object_id;
+		newObject->objectId = object->object_id;
 		newObject->group = this;
 
 		// Set positions to be in world space
@@ -838,7 +863,7 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 }
 
 TerrainTile::TerrainTile(TerrainSystem* terrain_)
-	: terrain(terrain_)
+	: m_terrain(terrain_)
 {
 }
 
@@ -992,7 +1017,131 @@ bool TerrainObjectGroupDefinition::Load(Archive* archive, const std::string& gro
 	}
 
 	return true;
+
 }
+
+//============================================================================
+
+TerrainLightDefinition::TerrainLightDefinition(std::string_view tag)
+	: m_tag(tag)
+{
+}
+
+bool TerrainLightDefinition::Init(ResourceManager* resourceMgr)
+{
+	m_definition = resourceMgr->CreateLightDefinition();
+
+	UpdateLightDefinition();
+
+	return true;
+}
+
+bool TerrainLightDefinition::Load(Archive* archive, ResourceManager* resourceMgr)
+{
+	std::string fileName = m_tag + ".def";
+
+	std::vector<char> dat_buffer;
+	if (!archive->Get(fileName, dat_buffer))
+	{
+		return false;
+	}
+
+	std::vector<std::string> tokens = ParseConfigFile(dat_buffer.data(), dat_buffer.size());
+	size_t k = 0;
+
+	while (k < tokens.size())
+	{
+		const auto* token = &tokens[k++];
+
+		if (*token == "*SKIPFRAMES")
+		{
+			if (k < tokens.size())
+			{
+				m_skipFrames = std::stoul(tokens[k++]) != 0;
+			}
+		}
+		else if (*token == "*UPDATEINTERVAL")
+		{
+			if (k < tokens.size())
+			{
+				m_updateInterval = std::stoul(tokens[k++]);
+			}
+		}
+		else if (*token == "*FRAME" && k < tokens.size())
+		{
+			uint32_t color = 0;
+			float intensity = 0.0f;
+
+			do
+			{
+				token = &tokens[k++];
+
+				if (*token == "*COLOR")
+				{
+					if (k < tokens.size())
+					{
+						color = (uint32_t)std::stol(tokens[k++]);
+					}
+				}
+				else if (*token == "*INTENSITY")
+				{
+					if (k < tokens.size())
+					{
+						intensity = std::stof(tokens[k++]);
+					}
+				}
+			} while (*token != "*END_FRAME" && k < tokens.size());
+
+			if (*token == "*END_FRAME")
+			{
+				AddFrame(intensity, color);
+			}
+		}
+	}
+
+	m_definition = resourceMgr->CreateLightDefinition();
+	UpdateLightDefinition();
+
+	return true;
+}
+
+void TerrainLightDefinition::AddFrame(float intensity, uint32_t color)
+{
+	m_frames.emplace_back(color, intensity);
+}
+
+void TerrainLightDefinition::UpdateLightDefinition()
+{
+	std::vector<glm::vec3> colors;
+	std::vector<float> intensities;
+
+	if (m_frames.empty())
+	{
+		colors.emplace_back(1.0f, 1.0f, 1.0f);
+		intensities.emplace_back(1.0f);
+	}
+	else
+	{
+		colors.resize(m_frames.size());
+		intensities.resize(m_frames.size());
+
+		for (const TerrainLightFrame& frame : m_frames)
+		{
+			colors.push_back(glm::vec3{ (frame.color >> 16) & 0xFF, (frame.color >> 8) & 0xFF, frame.color & 0xFF });
+			intensities.push_back(frame.intensity);
+		}
+	}
+
+	m_definition->Init(m_tag, (uint32_t)m_frames.size(), intensities.data(), colors.data(),
+		m_currentFrame, m_updateInterval, m_skipFrames);
+}
+
+void TerrainLight::UpdateLightInstance(ResourceManager* resourceMgr)
+{
+	m_light = resourceMgr->CreatePointLight(m_definition->GetDefinition(), m_position, m_radius);
+}
+
+//============================================================================
 
 static uint32_t s_waterSheetDataIndex = 10000;
 

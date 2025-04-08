@@ -2907,7 +2907,7 @@ bool WLDLoader::ParseLight(uint32_t objectIndex)
 
 	std::shared_ptr<LightDefinition> lightDef = m_resourceMgr->CreateLightDefinition();
 
-	if (!lightDef->InitFromWLDData(tag, pLightDef->num_frames, intensityFrames, colorFrames, currentFrame,
+	if (!lightDef->Init(tag, pLightDef->num_frames, intensityFrames, colorFrames, currentFrame,
 		updateInterval, skipFrames))
 	{
 		EQG_LOG_ERROR("Failed to create LightDefinition {} from LightDef {} ({})", wldObj.tag, tag, lightDefinitionIdx);
@@ -2916,7 +2916,7 @@ bool WLDLoader::ParseLight(uint32_t objectIndex)
 
 	m_resourceMgr->Add(wldObj.tag, lightDef);
 
-	std::shared_ptr<PointLight> pointLight = std::make_shared<PointLight>(lightDef, pHeader->pos, pHeader->radius);
+	std::shared_ptr<PointLight> pointLight = m_resourceMgr->CreatePointLight(lightDef, pHeader->pos, pHeader->radius);
 	m_pointLights.push_back(pointLight);
 
 	return true;

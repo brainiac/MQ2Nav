@@ -149,6 +149,22 @@ void ResourceManager::RemoveActor(Actor* actor)
 	m_actors.erase(actor);
 }
 
+std::shared_ptr<PointLight> ResourceManager::CreatePointLight(const std::shared_ptr<LightDefinition>& lightDefinition,
+	const glm::vec3& position, float radius)
+{
+	return std::make_shared<PointLight>(this, lightDefinition, position, radius);
+}
+
+void ResourceManager::AddLight(PointLight* light)
+{
+	m_lights.insert(light);
+}
+
+void ResourceManager::RemoveLight(PointLight* light)
+{
+	m_lights.erase(light);
+}
+
 //-------------------------------------------------------------------------------------------------
 
 bool ResourceManager::LoadTexture(Bitmap* bitmap, Archive* archive)

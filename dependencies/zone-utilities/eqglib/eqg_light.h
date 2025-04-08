@@ -30,7 +30,7 @@ public:
 	int GetCurrentFrame() const { return m_currentFrame; }
 	int GetUpdateInterval() const { return m_updateInterval; }
 
-	bool InitFromWLDData(
+	bool Init(
 		std::string_view tag,
 		uint32_t frameCount,
 		float* framesIntensity,
@@ -49,21 +49,29 @@ private:
 	int m_updateInterval = 0;
 	bool m_skipFrames = false;
 };
+using LightDefinitionPtr = std::shared_ptr<LightDefinition>;
 
 // Instance of a point light
 class PointLight
 {
 public:
-	PointLight(const std::shared_ptr<LightDefinition>& lightDef, const glm::vec3& pos, float radius)
-		: m_lightDefinition(lightDef)
-		, m_position(pos)
-		, m_radius(radius)
-	{
-	}
+	PointLight(ResourceManager* resourceMgr,
+		const LightDefinitionPtr& lightDef, const glm::vec3& pos, float radius);
+	virtual ~PointLight();
 
-	std::shared_ptr<LightDefinition> m_lightDefinition;
-	glm::vec3 m_position;
-	float m_radius;
+	float GetRadius() const { return m_radius; }
+	const glm::vec3& GetPosition() const { return m_position; }
+	const LightDefinitionPtr& GetDefinition() const { return m_definition; }
+
+	void SetDynamic(bool dynamic) { m_dynamic = dynamic; }
+	bool IsDynamic() const { return m_dynamic; }
+
+private:
+	ResourceManager*         m_resourceMgr;
+	LightDefinitionPtr       m_definition;
+	glm::vec3                m_position;
+	float                    m_radius;
+	bool                     m_dynamic = false;
 };
 
 } // namespace eqg

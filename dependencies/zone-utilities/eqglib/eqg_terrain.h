@@ -13,6 +13,11 @@ namespace eqg {
 class BufferReader;
 class Light;
 class TerrainSystem;
+class TerrainTile;
+struct TerrainObjectGroup;
+
+//------------------------------------------------------------------------------
+// Invisible Walls
 
 class InvisibleWall
 {
@@ -27,10 +32,11 @@ public:
 	bool Load(BufferReader& reader);
 
 private:
-	std::string m_name;
-	float m_wallTopHeight = 100.0f;
-	std::vector<glm::vec3> m_vertices;
+	std::string              m_name;
+	float                    m_wallTopHeight = 100.0f;
+	std::vector<glm::vec3>   m_vertices;
 };
+using InvisibleWallPtr = std::shared_ptr<InvisibleWall>;
 
 //------------------------------------------------------------------------------
 // WaterSheet
@@ -62,6 +68,7 @@ private:
 	MaterialPtr              m_material;
 	static inline uint32_t   s_oldWaterDataIndex = 10000;
 };
+using WaterSheetDataPtr = std::shared_ptr<WaterSheetData>;
 
 class WaterSheet
 {
@@ -90,6 +97,7 @@ public:
 };
 
 //------------------------------------------------------------------------------
+// Terrain Object Group Definitions
 
 struct TerrainObjectGroupDefinitionObjectElement
 {
@@ -111,6 +119,7 @@ struct TerrainObjectGroupDefinitionObjectElement
 
 	bool Load(const std::vector<std::string>& tokens, size_t& k);
 };
+using TerrainObjectGroupDefinitionObjectElementPtr = std::shared_ptr<TerrainObjectGroupDefinitionObjectElement>;
 
 struct TerrainObjectGroupDefinitionAreaElement
 {
@@ -123,72 +132,159 @@ struct TerrainObjectGroupDefinitionAreaElement
 
 	bool Load(const std::vector<std::string>& tokens, size_t& k);
 };
+using TerrainObjectGroupDefinitionAreaElementPtr = std::shared_ptr<TerrainObjectGroupDefinitionAreaElement>;
 
 struct TerrainObjectGroupDefinition
 {
 	std::string name;
-	std::vector<std::shared_ptr<TerrainObjectGroupDefinitionObjectElement>> objects;
-	std::vector<std::shared_ptr<TerrainObjectGroupDefinitionAreaElement>> areas;
+	std::vector<TerrainObjectGroupDefinitionObjectElementPtr> objects;
+	std::vector<TerrainObjectGroupDefinitionAreaElementPtr> areas;
 
 	bool Load(Archive* archive, const std::string& group_name);
 };
+using TerrainObjectGroupDefinitionPtr = std::shared_ptr<TerrainObjectGroupDefinition>;
 
-struct TerrainObjectGroup;
+//------------------------------------------------------------------------------
+// Terrain Areas
 
 class TerrainArea
 {
 public:
-	std::string name;
-	std::string shape;
-	uint32_t type = 0;
+	std::string    name;
+	std::string    shape;
+	uint32_t       type = 0;
 
-	glm::vec3 position;
-	glm::vec3 orientation;
-	glm::vec3 extents;
+	glm::vec3      position;
+	glm::vec3      orientation;
+	glm::vec3      extents;
 
-	glm::mat4x4 transform;
-
-	glm::vec3 scale; // should probably just remove
+	glm::mat4x4    transform;
+	glm::vec3      scale; // should probably just remove
 
 	TerrainObjectGroup* group = nullptr;
 };
+using TerrainAreaPtr = std::shared_ptr<TerrainArea>;
+
+//-------------------------------------------------------------------------------
+// Terrain Objects
 
 struct TerrainObject
 {
-	int object_id = -1;
-	std::string name;
-	std::string ecosystem;
-	uint8_t shade_factor = 255;
+	int            objectId = -1;
+	std::string    name;
+	std::string    ecosystem;
+	uint8_t        shadeFactor = 255;
 
-	glm::vec3 position;
-	glm::vec3 orientation;
-	glm::vec3 scale;
+	glm::vec3      position;
+	glm::vec3      orientation;
+	glm::vec3      scale;
 
-	glm::mat4x4 transform;
+	glm::mat4x4    transform;
 
-	uint32_t* rgbLitData = nullptr;
+	uint32_t*      rgbLitData = nullptr;
+
 	TerrainObjectGroup* group = nullptr;
 };
-
-class TerrainTile;
+using TerrainObjectPtr = std::shared_ptr<TerrainObject>;
 
 struct TerrainObjectGroup
 {
-	std::string name;
+	std::string    name;
 
-	glm::vec3 position;
-	glm::vec3 orientation;
-	glm::vec3 scale;
+	glm::vec3      position;
+	glm::vec3      orientation;
+	glm::vec3      scale;
 
-	glm::mat4x4 transform;
+	glm::mat4x4    transform;
 
-	std::vector<std::shared_ptr<TerrainObject>> objects;
-	std::vector<std::shared_ptr<TerrainArea>> areas;
+	std::vector<TerrainObjectPtr> objects;
+	std::vector<TerrainAreaPtr> areas;
 
 	void Initialize(TerrainObjectGroupDefinition* definition);
 
 	TerrainObjectGroupDefinition* m_definition = nullptr;
 };
+using TerrainObjectGroupPtr = std::shared_ptr<TerrainObjectGroup>;
+
+//-------------------------------------------------------------------------------
+// Terrain Lights
+
+struct TerrainLightFrame
+{
+	uint32_t color;
+	float intensity;
+};
+
+class TerrainLightDefinition
+{
+public:
+	TerrainLightDefinition(std::string_view tag);
+
+	bool Init(ResourceManager* resourceMgr);
+	bool Load(Archive* archive, ResourceManager* resourceMgr);
+
+	const std::string& GetTag() const { return m_tag; }
+
+	void AddFrame(float intensity, uint32_t color);
+
+	const LightDefinitionPtr& GetDefinition() { return m_definition; }
+
+private:
+	void UpdateLightDefinition();
+
+	std::string        m_tag;
+	std::vector<TerrainLightFrame> m_frames;
+	int                m_currentFrame = 0;
+	int                m_updateInterval = 100;
+	bool               m_skipFrames = false;
+
+	LightDefinitionPtr m_definition;
+};
+using TerrainLightDefinitionPtr = std::shared_ptr<TerrainLightDefinition>;
+
+class TerrainLight
+{
+public:
+	TerrainLight(ResourceManager* resourceMgr, const std::string& name,
+		const TerrainLightDefinitionPtr& definition)
+		: m_name(name), m_definition(definition)
+	{
+		UpdateLightInstance(resourceMgr);
+	}
+
+	const std::string& GetName() const { return m_name; }
+
+	void SetRadius(float radius) { m_radius = radius; }
+	float GetRadius() const { return m_radius; }
+
+	void SetPosition(const glm::vec3& position) { m_position = position; }
+	const glm::vec3& GetPosition() const { return m_position; }
+
+	void SetOrientation(const glm::vec3& orientation) { m_orientation = orientation; }
+	const glm::vec3& GetOrientation() const { return m_orientation; }
+
+	void SetScale(const glm::vec3& scale) { m_scale = scale; }
+	const glm::vec3& GetScale() const { return m_scale; }
+
+	void SetStatic(bool isStatic) { m_static = isStatic; }
+	bool IsStatic() const { return m_static; }
+
+	void UpdateLightInstance(ResourceManager* resourceMgr);
+
+	std::string        m_name;
+	float              m_radius = 100.0f;
+	glm::vec3          m_position{ 0.0f };
+	glm::vec3          m_orientation{ 0.0f };
+	glm::vec3          m_scale{ 0.0f };
+	bool               m_static = false;
+	
+	TerrainLightDefinitionPtr m_definition;
+	PointLightPtr      m_light;
+};
+using TerrainLightPtr = std::shared_ptr<TerrainLight>;
+
+//-------------------------------------------------------------------------------
+// Terrain Tile
 
 class TerrainTile
 {
@@ -201,38 +297,42 @@ public:
 	bool Load(BufferReader& reader, int version);
 
 	glm::vec3 GetPosInTile(const glm::vec3& pos) const;
+	int GetTileLocX() const { return m_tileLoc.x; }
+	int GetTileLocY() const { return m_tileLoc.y; }
+	
+	glm::ivec2               m_tileLoc; // Tile coordinates in tile grid
+	glm::vec3                m_tilePos; // Actual world coordinates of tile.
+	uint32_t                 m_floraSeed = 0;
+	bool                     m_flat = false;
+	glm::mat4x4              m_tileTransform;
 
-	// Tile coordinates in tile grid
-	glm::ivec2 tile_loc;
+	std::vector<float>       m_heightField;
+	std::vector<uint32_t>    m_vertexColor;
+	std::vector<uint32_t>    m_bakedLighting;
+	std::vector<uint8_t>     m_quadFlags;
 
-	// Actual world coordinates of tile.
-	glm::vec3 tile_pos;
-	uint32_t flora_seed = 0;
-	bool flat = false;
-	glm::mat4x4 tile_transform;
+	// WaterSheet parameters
+	float                    m_baseWaterLevel = -1000.0f;
+	int                      m_waterDataIndex = 1;
+	bool                     m_hasWaterSheet = false;
+	float                    m_waterSheetMinX = 0.0f;
+	float                    m_waterSheetMaxX = 0.0f;
+	float                    m_waterSheetMinY = 0.0f;
+	float                    m_waterSheetMaxY = 0.0f;
+	float                    m_lavaLevel = -1000.0f;
+	WaterSheet*              m_waterSheet = nullptr;
 
-	std::vector<float> height_field;
-	std::vector<uint32_t> vertex_color;
-	std::vector<uint32_t> baked_lighting;
-	std::vector<uint8_t> quad_flags;
+	std::vector<TerrainAreaPtr> m_areas;
+	std::vector<TerrainObjectPtr> m_objects;
+	std::vector<TerrainObjectGroupPtr> m_groups;
+	std::vector<TerrainLightPtr> m_lights;
 
-	float base_water_level = -1000.0f;
-	int water_data_index = 1;
-	bool has_water_sheet = false;
-	float water_sheet_min_x = 0.0f;
-	float water_sheet_max_x = 0.0f;
-	float water_sheet_min_y = 0.0f;
-	float water_sheet_max_y = 0.0f;
-	float lava_level = -1000.0f;
-	WaterSheet* water_sheet = nullptr;
-
-	std::vector<std::shared_ptr<TerrainArea>> m_areas;
-	std::vector<std::shared_ptr<TerrainObject>> m_objects;
-	std::vector<std::shared_ptr<TerrainObjectGroup>> m_groups;
-	std::vector<std::shared_ptr<Light>> m_lights;
-
-	TerrainSystem* terrain = nullptr;
+	TerrainSystem*           m_terrain = nullptr;
 };
+using TerrainTilePtr = std::shared_ptr<TerrainTile>;
+
+//-------------------------------------------------------------------------------
+// Terrain System
 
 class TerrainSystem
 {
@@ -245,19 +345,22 @@ public:
 	bool Load(const char* zonBuffer, size_t size);
 	bool Load(const SEQZoneParameters& params);
 
-	std::vector<std::shared_ptr<TerrainTile>>& GetTiles() { return tiles; }
+	std::vector<TerrainTilePtr>& GetTiles() { return m_tiles; }
 	uint32_t GetQuadsPerTile() { return m_params.quads_per_tile; }
 	float GetUnitsPerVertex() { return m_params.units_per_vert; }
-	std::vector<std::shared_ptr<WaterSheet>>& GetWaterSheets() { return m_waterSheets; }
-	std::vector<std::shared_ptr<InvisibleWall>>& GetInvisWalls() { return invis_walls; }
 
+	std::vector<WaterSheetPtr>& GetWaterSheets() { return m_waterSheets; }
+	std::vector<InvisibleWallPtr>& GetInvisWalls() { return m_invisWalls; }
+
+	static void LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params);
 	const SEQZoneParameters& GetParams() const { return m_params; }
 
 	TerrainObjectGroupDefinition* GetObjectGroupDefinition(const std::string& name);
 
-	std::shared_ptr<WaterSheetData> GetWaterSheetData(uint32_t index) const;
+	WaterSheetDataPtr GetWaterSheetData(uint32_t index) const;
 
-	static void LoadZoneParameters(const char* buffer, size_t size, SEQZoneParameters& params);
+	TerrainLightDefinitionPtr GetLightDefinition(std::string_view tag);
+
 
 	ResourceManager* GetResourceManager() const { return m_resourceMgr; }
 
@@ -277,19 +380,20 @@ public:
 	uint32_t quad_count = 0;
 	uint32_t vert_count = 0;
 
-	std::vector<std::shared_ptr<TerrainTile>> tiles;
+	std::vector<TerrainTilePtr>    m_tiles;
 
 	std::vector<WaterSheetPtr>     m_waterSheets;
 	std::vector<WaterSheetDataPtr> m_waterSheetData;
+	std::vector<InvisibleWallPtr>  m_invisWalls;
+	std::vector<TerrainObjectGroupDefinitionPtr> m_groupDefinitions;
+	std::vector<TerrainLightDefinitionPtr> m_lightDefinitions;
+	TerrainLightDefinitionPtr      m_defaultLightDefinition;
 
-	std::vector<std::shared_ptr<InvisibleWall>> invis_walls;
+	std::vector<TerrainLightPtr>   m_lights;
+	std::vector<TerrainAreaPtr>    m_areas;
 
-	std::vector<std::shared_ptr<TerrainArea>> areas;
-	std::vector<std::shared_ptr<Light>> lights;
 
 	std::vector<std::shared_ptr<Placeable>> objects;
-
-	std::vector<std::shared_ptr<TerrainObjectGroupDefinition>> group_definitions;
 };
 
 //=================================================================================================

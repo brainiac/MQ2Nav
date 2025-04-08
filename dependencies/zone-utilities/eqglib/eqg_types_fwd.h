@@ -13,6 +13,9 @@ using ArchivePtr = std::shared_ptr<Archive>;
 class Bitmap;
 using BitmapPtr = std::shared_ptr<Bitmap>;
 
+class LightDefinition;
+using LightDefinitionPtr = std::shared_ptr<LightDefinition>;
+
 class LODList;
 using LODListPtr = std::shared_ptr<LODList>;
 struct LODListElement;
@@ -23,6 +26,9 @@ using MaterialPtr = std::shared_ptr<Material>;
 
 class MaterialPalette;
 using MaterialPalettePtr = std::shared_ptr<MaterialPalette>;
+
+class PointLight;
+using PointLightPtr = std::shared_ptr<PointLight>;
 
 class ResourceManager;
 

@@ -181,6 +181,14 @@ public:
 	virtual void AddActor(Actor* actor);
 	virtual void RemoveActor(Actor* actor);
 
+	virtual std::shared_ptr<PointLight> CreatePointLight(
+		const std::shared_ptr<LightDefinition>& lightDefinition,
+		const glm::vec3& position,
+		float radius);
+
+	virtual void AddLight(PointLight* light);
+	virtual void RemoveLight(PointLight* light);
+
 	virtual bool LoadTexture(Bitmap* bitmap, Archive* archive);
 	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);
 
@@ -200,6 +208,9 @@ private:
 
 	// List of all currently constructed actors (instances)
 	std::unordered_set<Actor*> m_actors;
+
+	// List of all currently constructed point light instances
+	std::unordered_set<PointLight*> m_lights;
 
 	// There is only one terrain per zone.
 	std::shared_ptr<Terrain> m_terrain;
