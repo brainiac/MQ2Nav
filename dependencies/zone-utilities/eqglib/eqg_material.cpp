@@ -75,12 +75,14 @@ Bitmap::~Bitmap()
 {
 }
 
-bool Bitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, ResourceManager* resourceMgr)
+bool Bitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive)
 {
 	m_fileName = wldData->fileName;
 	m_detailScale = wldData->detailScale;
 	m_grassDensity = wldData->grassDensity;
 	m_objectIndex = wldData->objectIndex;
+
+	ResourceManager* resourceMgr = ResourceManager::Get();
 
 	if (wldData->createTexture)
 	{
@@ -103,11 +105,13 @@ bool Bitmap::InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, Resource
 	return true;
 }
 
-bool Bitmap::Init(std::string_view fileName, Archive* archive, bool cubeMap, ResourceManager* resourceMgr)
+bool Bitmap::Init(std::string_view fileName, Archive* archive, bool cubeMap)
 {
 	m_fileName = fileName;
 	m_detailScale = 1.0f;
 	m_grassDensity = 0;
+
+	ResourceManager* resourceMgr = ResourceManager::Get();
 
 	if (cubeMap)
 	{
@@ -449,7 +453,7 @@ bool Material::InitFromBitmap(const std::shared_ptr<Bitmap>& bitmap)
 	return true;
 }
 
-bool Material::InitFromMaterialInfo(ResourceManager* resourceMgr, const SMaterialInfo& info)
+bool Material::InitFromMaterialInfo(const SMaterialInfo& info)
 {
 	m_renderMethod = 0x80000002;
 	m_type = info.type;
@@ -461,6 +465,7 @@ bool Material::InitFromMaterialInfo(ResourceManager* resourceMgr, const SMateria
 	m_textureSet->textures.resize(1);
 
 	uint32_t currentBitmap = 0;
+	ResourceManager* resourceMgr = ResourceManager::Get();
 
 	for (auto& textureParam : info.params)
 	{

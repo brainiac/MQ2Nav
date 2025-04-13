@@ -10,6 +10,9 @@
 
 namespace eqg {
 
+constexpr float S3D_UV_TO_FLOAT = 1.0f / 256.0f;
+constexpr float S3D_NORM_TO_FLOAT = 1.0f / 127.0f;
+
 enum EQG_FACEFLAGS : uint16_t
 {
 	EQG_FACEFLAG_NONE                = 0,
@@ -144,9 +147,20 @@ struct SEQMUVSet
 	glm::vec2 uv;
 };
 
-struct SEQMBone
+struct SEQMBoneData
 {
 	int name_index;
+	int next_index;
+	uint32_t num_children;
+	int first_child_index;
+	glm::vec3 pivot;
+	glm::quat quat;
+	glm::vec3 scale;
+};
+
+struct SEQMBone
+{
+	std::string_view name;
 	int next_index;
 	uint32_t num_children;
 	int first_child_index;

@@ -20,6 +20,7 @@ class BlitSpriteDefinition;
 class HierarchicalModelDefinition;
 class HierarchicalModel;
 class LightDefinition;
+class ParticleActor;
 class SimpleModelDefinition;
 class SimpleModel;
 class Terrain;
@@ -125,6 +126,11 @@ public:
 	ResourceManager(const std::string& data_path, ResourceManager* parent = nullptr);
 	virtual ~ResourceManager();
 
+	// Enable global access to resource manager
+	static void PushActive(ResourceManager* resourceMgr);
+	static void PopActive();
+	static ResourceManager* Get();
+
 	// Retrieve resources from the manager
 	std::shared_ptr<Resource> Get(std::string_view tag, ResourceType type) const;
 
@@ -178,6 +184,44 @@ public:
 		uint32_t numRGBs = 0,
 		std::string_view actorName = "");
 
+	virtual std::shared_ptr<SimpleActor> CreateSimpleActor(
+		std::string_view actorTag,
+		const std::shared_ptr<ActorDefinition>& simpleActorDef,
+		int actorIndex = -1,
+		bool useDefaultBoundingRadius = false,
+		std::string_view actorName = "");
+
+	virtual std::shared_ptr<HierarchicalActor> CreateHierarchicalActor(
+		std::string_view actorTag,
+		const ActorDefinitionPtr& actorDef,
+		const glm::vec3& position,
+		const glm::vec3& orientation,
+		float scale,
+		ECollisionVolumeType collisionVolumeType,
+		float boundingRadius = 1.0f,
+		int actorIndex = -1,
+		SDMRGBTrackWLDData* DMRGBTrackWLDData = nullptr,
+		uint32_t* RGBs = nullptr,
+		uint32_t numRGBs = 0,
+		std::string_view actorName = "");
+
+	virtual std::shared_ptr<HierarchicalActor> CreateHierarchicalActor(
+		std::string_view actorTag,
+		const ActorDefinitionPtr& actorDef,
+		int actorIndex = -1,
+		bool allSkinsActive = false,
+		bool useDefaultBoundingRadius = false,
+		bool sharedBoneGroups = true,
+		Bone* pBone = nullptr,
+		std::string_view actorName = "");
+
+	virtual std::shared_ptr<ParticleActor> CreateParticleActor(
+		std::string_view actorTag,
+		const ActorDefinitionPtr& actorDef,
+		int actorIndex = -1,
+		bool allSkinsActive = false,
+		Bone* pBone = nullptr);
+
 	virtual void AddActor(Actor* actor);
 	virtual void RemoveActor(Actor* actor);
 
@@ -216,5 +260,17 @@ private:
 	std::shared_ptr<Terrain> m_terrain;
 };
 
-} // namespace eqg
+struct ScopedUseResourceManager
+{
+	ScopedUseResourceManager(ResourceManager* resourceMgr)
+	{
+		ResourceManager::PushActive(resourceMgr);
+	}
 
+	~ScopedUseResourceManager()
+	{
+		ResourceManager::PopActive();
+	}
+};
+
+} // namespace eqg

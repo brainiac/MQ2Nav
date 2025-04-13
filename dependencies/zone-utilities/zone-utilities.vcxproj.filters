@@ -27,7 +27,7 @@
     <ClInclude Include="eqglib\eqg_structs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="eqglib\eqg_terrain.h">
+    <ClInclude Include="eqglib\eqg_terrain_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="eqglib\light.h">
@@ -90,6 +90,12 @@
     <ClInclude Include="eqglib\eqg_types_fwd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="eqglib\eqg_terrain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="eqglib\eqg_global_data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqglib\eqg_loader.cpp">
@@ -107,7 +113,7 @@
     <ClCompile Include="eqglib\wld_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="eqglib\eqg_terrain.cpp">
+    <ClCompile Include="eqglib\eqg_terrain_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="eqglib\eqglib.cpp">
@@ -132,6 +138,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="eqglib\eqg_particles.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="eqglib\eqg_terrain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="eqglib\eqg_global_data.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

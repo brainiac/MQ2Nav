@@ -692,7 +692,7 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 		}
 
 		std::shared_ptr<Bitmap> newBitmap = m_resourceMgr->CreateBitmap();
-		if (!newBitmap->InitFromWLDData(&wldData, m_archive, m_resourceMgr))
+		if (!newBitmap->InitFromWLDData(&wldData, m_archive))
 		{
 			EQG_LOG_ERROR("Failed to create bitmap {}!", wldData.fileName);
 			return false;

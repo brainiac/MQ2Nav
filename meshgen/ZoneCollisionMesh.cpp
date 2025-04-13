@@ -118,7 +118,7 @@ void ZoneCollisionMesh::addTerrain(const TerrainPtr& terrain)
 			auto& floats = tile->m_heightField;
 			int row_number = -1;
 
-			for (uint32_t quad = 0; quad < terrain->quad_count; ++quad)
+			for (uint32_t quad = 0; quad < terrain->m_quadCount; ++quad)
 			{
 				if (quad % quads_per_tile == 0)
 					++row_number;

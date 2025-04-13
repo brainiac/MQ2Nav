@@ -1,14 +1,15 @@
 #include "pch.h"
 #include "eqg_geometry.h"
 
+#include "eqg_global_data.h"
 #include "eqg_loader.h"
 #include "eqg_material.h"
 #include "log_internal.h"
 #include "str_util.h"
 #include "wld_types.h"
 
-namespace eqg {
-
+namespace eqg
+{
 SimpleModelDefinition::SimpleModelDefinition()
 	: Resource(GetStaticResourceType())
 {
@@ -316,7 +317,7 @@ void SimpleModelDefinition::InitFacesFromEQMData(uint32_t numFaces, SEQMFace* fa
 
 	for (uint32_t i = 0; i < m_numFaces; ++i)
 	{
-		m_faces[i].indices = { faces[i].vertices[0], faces[i].vertices[1], faces[i].vertices[2] };
+		m_faces[i].indices = {faces[i].vertices[0], faces[i].vertices[1], faces[i].vertices[2]};
 		m_faces[i].materialIndex = (int16_t)static_cast<int>(faces[i].material);
 		m_faces[i].flags = faces[i].flags & 0xffff;
 
@@ -405,16 +406,41 @@ bool SimpleModel::Init(const SimpleModelDefinitionPtr& definition)
 {
 	m_definition = definition;
 
-	if (definition->GetMaterialPalette())
+	if (m_definition->GetMaterialPalette())
 	{
-		m_materialPalette = definition->GetMaterialPalette()->Clone();
+		m_materialPalette = m_definition->GetMaterialPalette()->Clone();
 	}
 
-	// TODO: Init point manager
+	if (auto pointMgr = m_definition->GetPointManager())
+	{
+		m_pointManager = std::make_unique<ParticlePointManager>(pointMgr, this);
+	}
 
-	// TODO: Init particle manager
+	if (auto particleMgr = m_definition->GetParticleManager())
+	{
+		m_particleManager = std::make_unique<ActorParticleManager>(particleMgr, this);
+	}
 
 	return true;
+}
+
+ParticlePoint* SimpleModel::GetParticlePoint(int index) const
+{
+	if (m_pointManager)
+	{
+		return m_pointManager->GetPoint(index);
+	}
+
+	return nullptr;
+}
+
+int SimpleModel::GetNumParticlePoints() const
+{
+	if (m_pointManager)
+	{
+		return m_pointManager->GetNumPoints();
+	}
+	return 0;
 }
 
 bool SimpleModel::SetRGBs(SDMRGBTrackWLDData* pDMRGBTrackWLDData)
@@ -429,7 +455,8 @@ bool SimpleModel::SetRGBs(uint32_t* pRGBs, uint32_t numRGBs)
 {
 	if (numRGBs != m_definition->m_numVertices)
 	{
-		EQG_LOG_WARN("Invalid number of RGB vertices. Has {}, expected {}. tag={}", numRGBs, m_definition->m_numVertices,
+		EQG_LOG_WARN("Invalid number of RGB vertices. Has {}, expected {}. tag={}", numRGBs,
+			m_definition->m_numVertices,
 			m_definition->GetTag());
 		return false;
 	}
@@ -442,18 +469,25 @@ bool SimpleModel::SetRGBs(uint32_t* pRGBs, uint32_t numRGBs)
 //-------------------------------------------------------------------------------------------------
 
 BoneDefinition::BoneDefinition(const SDagWLDData& wldData)
+	: m_tag(wldData.tag)
 {
-	m_tag = wldData.tag;
-
-	// TODO: Some sort of exclusion for particle clouds
-	m_attachedActor = wldData.attachedActor;
-
-	m_subBones.reserve(wldData.subDags.size());
-
-	// Combose a matrix from the parameters of the transform.
 	SFrameTransform* pTransform = &wldData.track->frameTransforms[0];
 
-	if (m_tag.empty() || m_tag != "IT36_TRACK")
+	if (wldData.attachedActor && wldData.attachedActor->GetParticleCloudDefinition()
+		&& pTransform->scale < 0.05f && pTransform->pivot.x == 1.0f && pTransform->pivot.y == 1.0f)
+	{
+		// don't assign the attached actor def
+	}
+	else
+	{
+		m_attachedActorDef = wldData.attachedActor;
+	}
+
+	m_subBones.resize(wldData.subDags.size());
+
+	// Combose a matrix from the parameters of the transform.
+
+	if (m_tag != "IT36_TRACK")
 	{
 		m_mtx = glm::toMat4(pTransform->rotation);
 		m_mtx[3] = glm::vec4(pTransform->pivot, 1.0f);
@@ -467,9 +501,154 @@ BoneDefinition::BoneDefinition(const SDagWLDData& wldData)
 	m_defaultPoseMtx = glm::identity<glm::mat4x4>();
 }
 
+BoneDefinition::BoneDefinition(SEQMBone* boneData)
+	: m_tag(boneData->name)
+{
+	if (boneData->num_children > 0)
+	{
+		m_subBones.resize(boneData->num_children);
+	}
+
+	// TODO: Double check matrix math
+	m_mtx = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), boneData->pivot), boneData->scale) *
+		glm::mat4_cast(boneData->quat);
+	m_defaultPoseMtx = glm::inverse(m_mtx);
+
+	if (m_tag == "ROOT_BONE")
+	{
+		m_mtx = glm::rotate(glm::mat4(1.0f), glm::radians(-90.f), glm::vec3(0, 0, 1.0f)) * m_mtx;
+	}
+}
+
 void BoneDefinition::AddSubBone(BoneDefinition* subBone)
 {
 	m_subBones.push_back(subBone);
+}
+
+//-------------------------------------------------------------------------------------------------
+
+Bone::Bone(const BoneDefinition* boneDef)
+{
+	m_definition = boneDef;
+	m_currentMtx = &m_positionMtx;
+	ResourceManager* resourceMgr = ResourceManager::Get();
+
+	if (m_definition->GetNumSubBones())
+	{
+		m_subBones.resize(m_definition->GetNumSubBones());
+	}
+
+	if (auto pAttachedActorDef = m_definition->GetAttachedActorDef())
+	{
+		if (auto pSimpleDef = pAttachedActorDef->GetSimpleModelDefinition())
+		{
+			m_simpleAttachment = resourceMgr->CreateSimpleModel();
+			m_simpleAttachment->Init(pSimpleDef);
+		}
+		else if (auto pHierarchicalDef = pAttachedActorDef->GetHierarchicalModelDefinition())
+		{
+			m_attachedActor = resourceMgr->CreateHierarchicalActor("", pAttachedActorDef, -1, false, false, true, this);
+		}
+		else
+		{
+			m_attachedActor = resourceMgr->CreateParticleActor("", pAttachedActorDef, -1, false, this);
+		}
+	}
+
+	m_positionMtx = boneDef->GetMatrix();
+	m_boneToWorldMtx = m_positionMtx;
+	m_attachmentMtx = m_positionMtx;
+}
+
+Bone::~Bone()
+{
+}
+
+Actor* Actor::GetTopLevelActor()
+{
+	Actor* topActor = nullptr;
+	Actor* actor = this;
+
+	while (actor)
+	{
+		topActor = actor;
+		actor = actor->GetParentActor();
+	}
+
+	return topActor;
+}
+
+void Bone::SetAttachedActor(const ActorPtr& actor)
+{
+	if (m_attachedActor)
+	{
+		m_attachedActor->SetParentActor(nullptr);
+	}
+
+	m_attachedActor = actor;
+
+	if (m_attachedActor)
+	{
+		m_attachedActor->SetParentActor(m_parentActor);
+	}
+}
+
+void Bone::SetParentActor(Actor* actor)
+{
+	m_parentActor = actor;
+
+	if (m_attachedActor)
+	{
+		m_attachedActor->SetParentActor(m_parentActor);
+	}
+}
+
+void Bone::AttachToBone(Bone* otherBone)
+{
+	m_currentMtx = &otherBone->GetMatrix();
+	m_boneAttachedTo = otherBone;
+}
+
+void Bone::DetachBone()
+{
+	m_currentMtx = &m_positionMtx;
+	m_boneAttachedTo = nullptr;
+}
+
+void Bone::UpdateActorToBoneWorldMatrices(bool updateParticleTime)
+{
+	if (m_parentActor)
+	{
+		Actor* topActor = m_parentActor->GetTopLevelActor();
+
+		if (auto pModel = topActor->GetHierarchicalModel())
+		{
+			if (updateParticleTime)
+			{
+				// TODO: Update particle update time
+			}
+
+			pModel->UpdateBoneToWorldMatrices();
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+
+BoneGroup::BoneGroup(int maxBones, int maxAnimations)
+	: m_maxBones(maxBones)
+	, m_maxAnimations(maxAnimations)
+{
+}
+
+BoneGroup::~BoneGroup()
+{
+}
+
+void BoneGroup::AddBone(Bone* bone, bool newBoneNames)
+{
+	m_bones.push_back(bone);
+	// TODO: Implementt me
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -490,8 +669,62 @@ bool HierarchicalModelDefinition::InitFromWLDData(std::string_view tag, SHSprite
 	m_boundingRadius = pWldData->boundingRadius;
 	m_centerOffset = pWldData->centerOffset;
 
+	if (!InitBonesFromWLDData(pWldData))
+	{
+		EQG_LOG_WARN("Failed to initialize bones from WLD data for model: {}", m_tag);
+	}
+
+	if (!InitSkinsFromWLDData(pWldData))
+	{
+		EQG_LOG_WARN("Failed to initialize skins from WLD data for model: {}", m_tag);
+	}
+
+	// TODO: InitCollisionData() ?
+
+	if (tag.size() >= 4 && tag[3] == '_')
+	{
+		std::string_view prefix = tag.substr(0, 3);
+
+		m_disableAttachments = g_dataManager.GetDisableAttachments(prefix);
+		m_disableShieldAttachments = g_dataManager.GetDisableShieldAttachments(prefix);
+		m_disablePrimaryAttachments = g_dataManager.GetDisablePrimaryAttachments(prefix);
+		m_disableSecondaryAttachments = g_dataManager.GetDisableSecondaryAttachments(prefix);
+	}
+
+	return true;
+}
+
+const BoneDefinition* HierarchicalModelDefinition::GetBoneDefinition(uint32_t boneIndex) const
+{
+	if (boneIndex < m_numBones)
+		return &m_bones[boneIndex];
+
+	return nullptr;
+}
+
+bool HierarchicalModelDefinition::HasBoneNamed(std::string_view boneName) const
+{
+	for (const auto& bone : m_bones)
+	{
+		if (std::string_view(bone.GetTag()).substr(3) == boneName)
+			return true;
+	}
+
+	return false;
+}
+
+SSkinMesh* HierarchicalModelDefinition::GetAttachedSkin(uint32_t skinIndex) const
+{
+	if (skinIndex < m_numAttachedSkins)
+		return const_cast<SSkinMesh*>(&m_attachedSkins[skinIndex]);
+
+	return nullptr;
+}
+
+bool HierarchicalModelDefinition::InitBonesFromWLDData(SHSpriteDefWLDData* pWldData)
+{
 	// Load bones
-	m_numBones = (uint32_t)pWldData->dags.size();
+	m_numBones = static_cast<uint32_t>(pWldData->dags.size());
 	m_numSubBones = 0;
 
 	if (m_numBones != 0)
@@ -503,41 +736,270 @@ bool HierarchicalModelDefinition::InitFromWLDData(std::string_view tag, SHSprite
 			m_bones.emplace_back(pWldData->dags[i]);
 		}
 
+		// Link up bones
 		for (uint32_t i = 0; i < m_numBones; ++i)
 		{
-			for (uint32_t j = 0; j < (uint32_t)pWldData->dags[i].subDags.size(); ++j)
+			for (uint32_t j = 0; j < pWldData->dags[i].subDags.size(); ++j)
 			{
 				m_bones[i].AddSubBone(&m_bones[pWldData->dags[i].subDags[j] - &pWldData->dags[0]]);
 				++m_numSubBones;
 			}
 		}
 
+		// Create the default animation.
 		for (uint32_t i = 0; i < m_numBones; ++i)
 		{
 			if (pWldData->dags[i].track && pWldData->dags[i].track->numFrames > 1)
 			{
-				// TODO: Create animation
+				auto defaultAnim = std::make_shared<Animation>();
+				if (!defaultAnim->InitFromBoneData(m_tag, pWldData->dags))
+				{
+					EQG_LOG_WARN("Failed to initialize default animation for hierachical model: {}", m_tag);
+				}
+				else
+				{
+					m_defaultAnim = defaultAnim;
+				}
+
 				break;
 			}
 		}
 
-		// TODO: Attachment points
-		// TODO: SPOffsets.ini
+		// find attachment points
+		std::string_view prefix = m_bones[0].GetTag().substr(0, 3);
+		std::array<SParticlePoint, 15> points;
+
+		// Initialize to defaults
+		for (SParticlePoint& point : points)
+		{
+			point.scale = glm::vec3(1.0f);
+			point.position = glm::vec3(0.0f);
+			point.orientation = glm::vec3(0.0f);
+		}
+
+		uint32_t numPoints = 0;
+		points[numPoints].attachment = m_bones[0].GetTag();
+		points[numPoints].name = "SPELLPOINT_DEFAULT";
+		++numPoints;
+
+		if (HasBoneNamed("CHEST_POINT_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "CHEST_POINT_TRACK");
+			points[numPoints].name = "SPELLPOINT_CHEST";
+			++numPoints;
+		}
+
+		if (HasBoneNamed("CH_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "CH_TRACK");
+			points[numPoints].name = "SPELLPOINT_CHEST";
+			++numPoints;
+		}
+
+		if (HasBoneNamed("HEHEAD_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "HEHEAD_TRACK");
+			points[numPoints].name = "SPELLPOINT_HEAD";
+			++numPoints;
+
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "HEHEAD_TRACK");
+			points[numPoints].name = "SPELLPOINT_MOUTH";
+			points[numPoints].position = glm::vec3(0.08f, 0.6f, 0.0f);
+			points[numPoints].orientation = glm::vec3(glm::radians(90.f), 0, glm::radians(90.f));
+			++numPoints;
+		}
+
+		if (HasBoneNamed("HEAD_POINT_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "HEAD_POINT_TRACK");
+			points[numPoints].name = "SPELLPOINT_HEAD";
+			++numPoints;
+
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "HEAD_POINT_TRACK");
+			points[numPoints].name = "SPELLPOINT_MOUTH";
+			SpellPointMods mods = g_dataManager.GetSpellPointMods(prefix);
+			points[numPoints].position = mods.pos;
+			points[numPoints].orientation = mods.rot;
+			points[numPoints].scale = mods.scale;
+
+			++numPoints;
+		}
+
+		if (HasBoneNamed("L_POINT_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "L_POINT_TRACK");
+			points[numPoints].name = "SPELLPOINT_LHAND";
+			++numPoints;
+		}
+		else if (HasBoneNamed("SPELL_POINT_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "SPELL_POINT_TRACK");
+			points[numPoints].name = "SPELLPOINT_LHAND";
+			++numPoints;
+		}
+
+		if (HasBoneNamed("R_POINT_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "R_POINT_TRACK");
+			points[numPoints].name = "SPELLPOINT_RHAND";
+			++numPoints;
+		}
+		else if (HasBoneNamed("SPELL_POINT_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "SPELL_POINT_TRACK");
+			points[numPoints].name = "SPELLPOINT_RHAND";
+			++numPoints;
+		}
+
+		if (HasBoneNamed("BOFOOTL_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "BOFOOTL_TRACK");
+			points[numPoints].name = "SPELLPOINT_LFOOT";
+			++numPoints;
+		}
+		else if (HasBoneNamed("BO_L_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "BO_L_TRACK");
+			points[numPoints].name = "SPELLPOINT_LFOOT";
+			++numPoints;
+		}
+
+		if (HasBoneNamed("BOFOOTR_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "BOFOOTR_TRACK");
+			points[numPoints].name = "SPELLPOINT_RFOOT";
+			++numPoints;
+		}
+		else if (HasBoneNamed("BO_R_TRACK"))
+		{
+			points[numPoints].attachment = fmt::format("{}{}", prefix, "BO_R_TRACK");
+			points[numPoints].name = "SPELLPOINT_RFOOT";
+			++numPoints;
+		}
+
+		if (numPoints > 0)
+		{
+			m_pointManager = std::make_unique<ParticlePointDefinitionManager>(numPoints, points.data(), this);
+		}
 	}
-
-	// TODO: Load Skins
-
-	// TODO: Read additional properties from Resources\\moddat.ini
 
 	return true;
 }
 
-const BoneDefinition* HierarchicalModelDefinition::GetBoneDefinition(uint32_t boneIndex) const
+bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldData)
 {
-	if (boneIndex < m_numBones)
-		return &m_bones[boneIndex];
-	return nullptr;
+	m_numAttachedSkins = pWldData->numAttachedSkins;
+
+	m_firstDefaultActiveSkin = pWldData->activeSkin;
+	m_numDefaultActiveSkins = (uint32_t)pWldData->attachedSkins.size();
+
+	if (m_numAttachedSkins)
+	{
+		// This is where we generate the skin meshes for the model.
+		m_attachedSkins.resize(m_numAttachedSkins);
+
+		for (uint32_t skin = 0; skin < m_numAttachedSkins; ++skin)
+		{
+			SDMSpriteDef2WLDData* pDMSpriteDef2 = pWldData->attachedSkins[skin].get();
+			if (!pDMSpriteDef2)
+				continue;
+
+			auto& mesh = m_attachedSkins[skin];
+			mesh.tag = pDMSpriteDef2->tag;
+			mesh.oldModel = true;
+			mesh.vertices.resize(pDMSpriteDef2->numVertices);
+
+			// Fill vertices
+			auto vertexData = mesh.vertices.data();
+			const glm::vec3 centerOffset = pDMSpriteDef2->centerOffset;
+			const float scaleFactor = pDMSpriteDef2->vertexScaleFactor;
+
+			for (uint32_t vert = 0; vert < pDMSpriteDef2->numVertices; ++vert)
+			{
+				vertexData[vert].vertex = centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor;
+
+				if (pDMSpriteDef2->numUVs > 0)
+				{
+					if (pDMSpriteDef2->uvsUsingOldForm)
+						vertexData[vert].uv = glm::vec2(pDMSpriteDef2->uvsOldForm[vert]) * S3D_UV_TO_FLOAT;
+					else
+						vertexData[vert].uv = pDMSpriteDef2->uvs[vert];
+				}
+				else
+				{
+					vertexData[vert].uv = glm::vec2(0.0f, 0.0f);
+				}
+
+				if (pDMSpriteDef2->numVertexNormals > 0)
+				{
+					vertexData[vert].normal = glm::vec3(pDMSpriteDef2->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
+				}
+				else
+				{
+					vertexData[vert].normal = glm::vec3(0.0f, 0.0f, 0.0f);
+				}
+			}
+
+			// Fill indices
+			mesh.indices.resize(pDMSpriteDef2->numFaces * 3);
+			auto indices = mesh.indices.data();
+
+			uint32_t index = 0;
+			for (uint32_t face = 0; face < pDMSpriteDef2->numFaces; ++face)
+			{
+				indices[index++] = pDMSpriteDef2->faces[face].indices[0];
+				indices[index++] = pDMSpriteDef2->faces[face].indices[1];
+				indices[index++] = pDMSpriteDef2->faces[face].indices[2];
+			}
+
+			// fill material index table for faces
+			mesh.materialIndexTable.resize(pDMSpriteDef2->numFaceMaterialGroups);
+			auto materialIndices = mesh.materialIndexTable.data();
+			mesh.attributes.resize(pDMSpriteDef2->numFaces);
+			uint32_t groupStart = 0;
+
+			for (uint32_t groupNum = 0; groupNum < pDMSpriteDef2->numFaceMaterialGroups; ++groupNum)
+			{
+				auto& pFaceGroup = pDMSpriteDef2->faceMaterialGroups[groupNum];
+				uint32_t materialIndex = pFaceGroup.material_index;
+				uint32_t groupSize = pFaceGroup.group_size;
+				if (materialIndex == 0xffff)
+					materialIndex = 0x7fffffff;
+				if (materialIndex > pDMSpriteDef2->materialPalette->GetNumMaterials())
+					materialIndex = 0x7fffffff;
+
+				materialIndices[groupNum] = materialIndex;
+
+				for (uint32_t i = 0; i < groupSize; ++i)
+				{
+					mesh.attributes[groupStart + i] = groupNum;
+				}
+
+				groupStart += groupSize;
+			}
+
+			if (pDMSpriteDef2->numSkinGroups > 0)
+			{
+				// TODO: Generate mesh from SSkinMesh data
+			}
+			else
+			{
+				mesh.hasBlendIndices = false;
+				mesh.hasBlendWeights = false;
+			}
+
+			mesh.attachPointBoneIndex = pWldData->skeletonDagIndices[skin];
+
+			if (pDMSpriteDef2->numSkinGroups > 0)
+			{
+				// D3DXBONECOMBINATION stuff...
+			}
+		}
+	}
+
+	return true;
 }
+
 
 //-------------------------------------------------------------------------------------------------
 
@@ -634,11 +1096,146 @@ HierarchicalModel::HierarchicalModel()
 
 HierarchicalModel::~HierarchicalModel()
 {
+	m_bones.clear();
+	m_materialPalette.reset();
 }
 
 void HierarchicalModel::Init(const HierarchicalModelDefinitionPtr& definition)
 {
 	m_definition = definition;
+
+	if (auto pMaterial = m_definition->GetMaterialPalette())
+	{
+		m_materialPalette = pMaterial->Clone(m_definition->IsNewStyleModel());
+	}
+
+	// Create our set of bones from the list of bone definitions
+	if (m_definition->GetNumBones() > 0)
+	{
+		m_bones.resize(m_definition->GetNumBones());
+		const auto& definitionBones = m_definition->GetBones();
+
+		// Create bones
+		for (uint32_t i = 0; i < m_definition->GetNumBones(); ++i)
+		{
+			m_bones.push_back(std::make_shared<Bone>(&definitionBones[i]));
+		}
+
+		// Link up the bones
+		for (uint32_t boneIndex = 0; boneIndex < m_bones.size(); ++boneIndex)
+		{
+			for (uint32_t subBoneIndex = 0; subBoneIndex < definitionBones[boneIndex].GetNumSubBones(); ++subBoneIndex)
+			{
+				const BoneDefinition* subBoneDef = definitionBones[boneIndex].GetSubBone(subBoneIndex);
+
+				for (int parentBoneIndex = 0; parentBoneIndex < m_bones.size(); ++parentBoneIndex)
+				{
+					if (&definitionBones[parentBoneIndex] == subBoneDef)
+					{
+						m_bones[boneIndex]->AddSubBone(m_bones[parentBoneIndex].get(), subBoneIndex);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	// TODO: InitMeshSubSets - creates rendering data for mesh skins
+
+	if (auto pointMgr = m_definition->GetPointManager())
+	{
+		m_pointManager = std::make_unique<ParticlePointManager>(pointMgr, this);
+	}
+
+	if (auto particleMgr = m_definition->GetParticleManager())
+	{
+		m_particleManager = std::make_unique<ActorParticleManager>(particleMgr, this);
+	}
+}
+
+ParticlePoint* HierarchicalModel::GetParticlePoint(int index) const
+{
+	if (m_pointManager)
+	{
+		return m_pointManager->GetPoint(index);
+	}
+
+	return nullptr;
+}
+
+int HierarchicalModel::GetNumParticlePoints() const
+{
+	if (m_pointManager)
+	{
+		return m_pointManager->GetNumPoints();
+	}
+
+	return 0;
+}
+
+bool HierarchicalModel::SetSkinMeshActiveState(uint32_t index, bool active)
+{
+	if (index < m_definition->GetNumAttachedSkins())
+	{
+		if (active)
+		{
+			m_activeMeshes |= (1 << index);
+		}
+		else
+		{
+			m_activeMeshes &= ~(1 << index);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+Bone* HierarchicalModel::GetBone(std::string_view tag) const
+{
+	if (tag.ends_with("DAG"))
+	{
+		tag = tag.substr(0, tag.size() - 4); // TODO: Check me
+	}
+
+	for (uint32_t i = 0; i < m_bones.size(); ++i)
+	{
+		if (m_bones[i]->GetTag() == tag)
+		{
+			return m_bones[i].get();
+		}
+	}
+
+	return nullptr;
+}
+
+Bone* HierarchicalModel::GetBone(uint32_t index) const
+{
+	if (index < m_bones.size())
+	{
+		return m_bones[index].get();
+	}
+
+	return nullptr;
+}
+
+void HierarchicalModel::SetBoneParent(Actor* actor)
+{
+	for (const auto& bone : m_bones)
+	{
+		bone->SetParentActor(actor);
+	}
+}
+
+void HierarchicalModel::UpdateBoneToWorldMatrices(glm::mat4x4* parentMatrix)
+{
+	// TODO
+}
+
+void HierarchicalModel::UpdateBoneToWorldMatrices(Bone* bone, glm::mat4x4* parentMatrix)
+{
+	// TODO
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -759,6 +1356,62 @@ SimpleActor::SimpleActor(
 	m_actorIndex = actorIndex;
 	m_definition = actorDef;
 
+	InitLOD();
+
+	SetPosition(position);
+	SetOrientation(orientation);
+	SetScale(scaleFactor);
+	SetBoundingRadius(boundingRadius);
+	SetCollisionVolumeType(collisionVolumeType);
+
+	if (DMRGBTrackWLDData != nullptr)
+	{
+		m_model->SetRGBs(DMRGBTrackWLDData);
+	}
+
+	if (RGBs != nullptr)
+	{
+		m_model->SetRGBs(RGBs, numRGBs);
+	}
+
+	DoInitCallback();
+
+	m_resourceMgr->AddActor(this);
+}
+
+SimpleActor::SimpleActor(ResourceManager* resourceMgr,
+	std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef,
+	int actorIndex,
+	bool useDefaultBoundingRadius,
+	std::string_view actorName)
+	: Actor(resourceMgr)
+{
+	m_tag = actorTag;
+	m_actorName = std::string(actorName);
+	m_actorIndex = actorIndex;
+	m_definition = actorDef;
+
+	InitLOD();
+
+	if (useDefaultBoundingRadius)
+	{
+		SetBoundingRadius(m_model->GetDefinition()->GetDefaultBoundingRadius());
+	}
+
+	SetCollisionVolumeType(m_definition->GetCollisionVolumeType());
+
+	m_resourceMgr->AddActor(this);
+}
+
+
+SimpleActor::~SimpleActor()
+{
+	m_resourceMgr->RemoveActor(this);
+}
+
+void SimpleActor::InitLOD()
+{
 	std::string_view defTag = m_definition->GetTag();
 	if (defTag.ends_with("_ACTORDEF"))
 	{
@@ -821,31 +1474,6 @@ SimpleActor::SimpleActor(
 		m_model->SetActor(this);
 		m_collisionModel = m_model;
 	}
-
-	SetPosition(position);
-	SetOrientation(orientation);
-	SetScale(scaleFactor);
-	SetBoundingRadius(boundingRadius);
-	SetCollisionVolumeType(collisionVolumeType);
-	
-	if (DMRGBTrackWLDData != nullptr)
-	{
-		m_model->SetRGBs(DMRGBTrackWLDData);
-	}
-
-	if (RGBs != nullptr)
-	{
-		m_model->SetRGBs(RGBs, numRGBs);
-	}
-
-	DoInitCallback();
-
-	m_resourceMgr->AddActor(this);
-}
-
-SimpleActor::~SimpleActor()
-{
-	m_resourceMgr->RemoveActor(this);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -853,7 +1481,7 @@ SimpleActor::~SimpleActor()
 HierarchicalActor::HierarchicalActor(
 	ResourceManager* resourceMgr,
 	std::string_view actorTag,
-	ActorDefinitionPtr actorDef,
+	const ActorDefinitionPtr& actorDef,
 	const glm::vec3& position,
 	const glm::vec3& orientation,
 	float boundingRadius,
@@ -871,10 +1499,48 @@ HierarchicalActor::HierarchicalActor(
 	m_actorIndex = actorIndex;
 	m_definition = actorDef;
 
+	InitLOD();
+
 	m_model = std::make_shared<HierarchicalModel>();
 
-	// TODO: Init the actor
 
+	m_resourceMgr->AddActor(this);
+}
+
+HierarchicalActor::HierarchicalActor(ResourceManager* resourceMgr,
+	std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef,
+	int actorIndex,
+	bool allSkinsActive,
+	bool useDefaultBoundingRadius,
+	bool sharedBoneGroups,
+	Bone* pBone,
+	std::string_view actorName)
+	: Actor(resourceMgr)
+{
+	m_tag = std::string(actorTag);
+	m_actorName = std::string(actorName);
+	m_actorIndex = actorIndex;
+	m_definition = actorDef;
+
+	m_bones.resize(eNumBones, nullptr);
+	m_boneGroups.resize(eNumBoneGroups);
+
+	InitLOD();
+	SetAllSkinsActive();
+	m_model->SetBoneParent(this);
+
+	if (m_model->GetDefinition()->GetDefaultAnimation())
+	{
+		if (m_model->GetDefinition()->IsNewStyleModel())
+		{
+			PutAllBonesInBoneGroup(eBoneGroupUpperBody, 1, true);
+		}
+		else
+		{
+			// TODO
+		}
+	}
 
 	m_resourceMgr->AddActor(this);
 }
@@ -884,6 +1550,161 @@ HierarchicalActor::~HierarchicalActor()
 	m_resourceMgr->RemoveActor(this);
 }
 
+void HierarchicalActor::InitLOD()
+{
+	std::string_view defTag = m_definition->GetTag();
+	if (defTag.ends_with("_ACTORDEF"))
+	{
+		defTag = defTag.substr(0, defTag.size() - 9);
+	}
+
+	// Load LOD Data
+	if (LODListPtr pLODList = m_resourceMgr->Get<LODList>(fmt::format("{}_LODLIST", defTag));
+		pLODList && !pLODList->GetElements().empty())
+	{
+		// Note: LOD Min distance for model comes from Resources/moddat.ini, using `defTag`
+		// Hierarchical models also have a LCOffset
+
+		m_lodModels.reserve(pLODList->GetElements().size());
+		for (const LODListElementPtr& element : pLODList->GetElements())
+		{
+			std::string definitionTag = fmt::format("{}_HMD", element->definition);
+
+			if (HierarchicalModelDefinitionPtr pModelDef = m_resourceMgr->Get<HierarchicalModelDefinition>(
+				definitionTag))
+			{
+				HierarchicalModelPtr pModel = m_resourceMgr->CreateHierarchicalModel();
+				pModel->Init(pModelDef);
+				pModel->SetActor(this);
+
+				m_lodModels.emplace_back(pModel, element->max_distance);
+			}
+			else
+			{
+				EQG_LOG_ERROR("Failed to load LOD'ed model {} from LOD List for {}", definitionTag, defTag);
+			}
+		}
+
+		for (uint32_t i = 1; i < m_lodModels.size(); ++i)
+		{
+			AttachLODModels(m_lodModels[0].model.get(), m_lodModels[i].model.get());
+		}
+
+		if (const LODListElementPtr& element = pLODList->GetCollision())
+		{
+			std::string definitionTag = fmt::format("{}_SMD", element->definition);
+
+			if (SimpleModelDefinitionPtr pModelDef = m_resourceMgr->Get<SimpleModelDefinition>(definitionTag))
+			{
+				SimpleModelPtr pModel = m_resourceMgr->CreateSimpleModel();
+				pModel->Init(pModelDef);
+				pModel->SetActor(this);
+
+				m_collisionModel = pModel;
+			}
+			else
+			{
+				EQG_LOG_ERROR("Failed to load collision model {} from LOD List for {}", definitionTag, defTag);
+			}
+		}
+	}
+	else
+	{
+		m_model = std::make_shared<HierarchicalModel>();
+
+		m_model->Init(m_definition->GetHierarchicalModelDefinition());
+		m_model->SetActor(this);
+	}
+}
+
+void HierarchicalActor::AttachLODModels(HierarchicalModel* parent, HierarchicalModel* child)
+{
+	if (!parent || !child)
+		return;
+
+	for (uint32_t i = 0; i < child->GetDefinition()->GetNumBones(); ++i)
+	{
+		Bone* bone = child->GetBone(i);
+
+		for (uint32_t parentIndex = 0; parentIndex < parent->GetDefinition()->GetNumBones(); ++parentIndex)
+		{
+			Bone* parentBone = parent->GetBone(parentIndex);
+
+			if (bone->GetTag() == parentBone->GetTag())
+			{
+				bone->AttachToBone(parentBone);
+			}
+		}
+	}
+}
+
+void HierarchicalActor::SetAllSkinsActive()
+{
+	HierarchicalModelDefinitionPtr pDefinition = m_model->GetDefinition();
+	uint32_t numSkins = pDefinition->GetNumAttachedSkins();
+
+	if (numSkins > 0)
+	{
+		uint32_t firstActive = pDefinition->GetFirstDefaultActiveSkin();
+		for (uint32_t index = 0; index < pDefinition->GetNumDefaultActiveSkins(); ++index)
+		{
+			m_model->SetSkinMeshActiveState(firstActive + index, true);
+		}
+
+		bool newStyle = pDefinition->IsNewStyleModel();
+
+		for (uint32_t index = 0; index < numSkins; ++index)
+		{
+			std::string_view skinTag = pDefinition->GetAttachedSkin(index)->tag;
+
+			if (skinTag.starts_with("COK") || skinTag.starts_with("TRI"))
+				break;
+			if (skinTag.size() < 5)
+				continue;
+
+			if (skinTag[3] == 'H' && skinTag[4] == 'E')
+				m_headSkins |= (1 << index);
+			if (newStyle && (skinTag[3] == '_' || (isdigit(skinTag[3]) && isdigit(skinTag[4]))))
+				m_bodySkins |= (1 << index);
+		}
+	}
+}
+
+void HierarchicalActor::PutAllBonesInBoneGroup(int groupIndex, int maxNumAnims, bool newBoneNames)
+{
+	if (m_boneGroups[groupIndex] == nullptr)
+	{
+		uint32_t numBones = m_model->GetDefinition()->GetNumBones();
+		BoneGroupPtr boneGroup = std::make_shared<BoneGroup>(numBones, maxNumAnims);
+
+		for (uint32_t i = 0; i < numBones; ++i)
+		{
+			boneGroup->AddBone(m_model->GetBone(i), newBoneNames);
+		}
+
+		m_boneGroups[groupIndex] = boneGroup;
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 
+ParticleActor::ParticleActor(ResourceManager* resourceMgr, std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef, int actorIndex, bool allSkinsActive, Bone* bone)
+	: Actor(resourceMgr)
+{
+	m_tag = std::string(actorTag);
+	m_actorIndex = actorIndex;
+	m_definition = actorDef;
+
+	// TODO: Create Emitter
+
+	SetHasParentBone(bone != nullptr);
+
+	resourceMgr->AddActor(this);
+}
+
+ParticleActor::~ParticleActor()
+{
+	m_resourceMgr->RemoveActor(this);
+}
 } // namespace eqg

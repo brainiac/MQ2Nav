@@ -349,6 +349,213 @@ void ParticlePointDefinitionManager::DeletePointDefinition(const std::string& na
 
 //-------------------------------------------------------------------------------------------------
 
+ParticlePoint::ParticlePoint(ParticlePointDefinition* definition, HierarchicalModel* model)
+	: m_definition(definition)
+	, m_hierarchicalModel(model)
+{
+	m_bone = model->GetBone(definition->boneIndex);
+}
+
+ParticlePoint::ParticlePoint(ParticlePointDefinition* definition, SimpleModel* model)
+	: m_definition(definition)
+	, m_simpleModel(model)
+{
+}
+
+ParticlePoint::~ParticlePoint()
+{
+	// TODO: Destroy emitters
+}
+
+static void CheckShouldUpdateAttachedModelWorldSpaceMatrix(Actor* actor)
+{
+	if (actor)
+	{
+		Actor* topActor = actor->GetTopLevelActor();
+
+		if (topActor && topActor->GetHierarchicalModel())
+		{
+			auto model = topActor->GetHierarchicalModel();
+			// TODO: Check if we already updated this frame
+			model->UpdateBoneToWorldMatrices();
+		}
+	}
+}
+
+const glm::mat4x4& ParticlePoint::GetWorldSpaceMatrix()
+{
+	if (m_bone)
+	{
+		if (ShouldUpdateAttachedModelWorldSpaceMatrix())
+		{
+			m_bone->UpdateActorToBoneWorldMatrices(true);
+		}
+
+		m_worldMtx = m_bone->GetAttachmentMatrix();
+	}
+	else if (m_hierarchicalModel)
+	{
+		if (m_hierarchicalModel->GetActor() && ShouldUpdateAttachedModelWorldSpaceMatrix())
+		{
+			CheckShouldUpdateAttachedModelWorldSpaceMatrix(m_hierarchicalModel->GetActor());
+		}
+
+		m_worldMtx = m_hierarchicalModel->GetObjectToWorldMatrix();
+	}
+	else if (m_simpleModel)
+	{
+		if (m_hierarchicalModel->GetActor() && ShouldUpdateAttachedModelWorldSpaceMatrix())
+		{
+			CheckShouldUpdateAttachedModelWorldSpaceMatrix(m_hierarchicalModel->GetActor());
+		}
+
+		m_worldMtx = m_simpleModel->GetObjectToWorldMatrix();
+	}
+
+	m_worldMtx = m_worldMtx * m_definition->transform;
+
+	return m_worldMtx;
+}
+
+Actor* ParticlePoint::GetActor() const
+{
+	if (m_simpleModel)
+		return m_simpleModel->GetActor();
+
+	if (m_hierarchicalModel)
+		return m_hierarchicalModel->GetActor();
+
+	return nullptr;
+}
+
+Actor* ParticlePoint::GetTopParent() const
+{
+	if (m_hierarchicalModel)
+	{
+		if (Bone* pBone = m_bone != nullptr ? m_bone : m_hierarchicalModel->GetBone(0))
+		{
+			return pBone->GetParentActor()->GetTopLevelActor();
+		}
+	}
+	else if (m_simpleModel)
+	{
+		return m_simpleModel->GetActor()->GetTopLevelActor();
+	}
+
+	return nullptr;
+}
+
+bool ParticlePoint::IsInvisible() const
+{
+	if (Actor* parent = GetTopParent())
+	{
+		return parent->IsInvisible();
+	}
+
+	return false;
+}
+
+bool ParticlePoint::IsDisabled() const
+{
+	if (Actor* parent = GetTopParent())
+	{
+		return parent->IsDisabled();
+	}
+
+	return false;
+}
+
+bool ParticlePoint::ShouldShowParticlesWhenInvisibile() const
+{
+	if (Actor* parent = GetTopParent())
+	{
+		return parent->ShouldShowParticlesWhenInvisible();
+	}
+
+	return false;
+}
+
+bool ParticlePoint::ShouldUpdateAttachedModelWorldSpaceMatrix() const
+{
+	if (IsInvisible() && !ShouldShowParticlesWhenInvisibile())
+		return false;
+
+	if (IsDisabled())
+		return false;
+
+	Actor* topLevelActor = nullptr;
+	if (m_bone)
+		topLevelActor = m_bone->GetParentActor()->GetTopLevelActor();
+	else if (m_hierarchicalModel)
+		topLevelActor = m_hierarchicalModel->GetActor()->GetTopLevelActor();
+	else if (m_simpleModel)
+		topLevelActor = m_simpleModel->GetActor()->GetTopLevelActor();
+
+	if (topLevelActor && topLevelActor->GetHierarchicalModel())
+	{
+		// TODO: Check if we already updated this frame
+	}
+
+	return false;
+}
+
+ParticlePointManager::ParticlePointManager(ParticlePointDefinitionManager* definitionMgr, HierarchicalModel* model)
+{
+	if (definitionMgr)
+	{
+		m_points.reserve(definitionMgr->GetNumPoints());
+
+		for (uint32_t i = 0; i < definitionMgr->GetNumPoints(); ++i)
+		{
+			m_points.emplace_back(std::make_unique<ParticlePoint>(definitionMgr->GetPointDefinition(i), model));
+		}
+	}
+}
+
+ParticlePointManager::ParticlePointManager(ParticlePointDefinitionManager* definitionMgr, SimpleModel* model)
+{
+	if (definitionMgr)
+	{
+		m_points.reserve(definitionMgr->GetNumPoints());
+
+		for (uint32_t i = 0; i < definitionMgr->GetNumPoints(); ++i)
+		{
+			m_points.emplace_back(std::make_unique<ParticlePoint>(definitionMgr->GetPointDefinition(i), model));
+		}
+	}
+}
+
+ParticlePointManager::~ParticlePointManager()
+{
+	m_points.clear();
+}
+
+uint32_t ParticlePointManager::GetNumPoints() const
+{
+	return static_cast<uint32_t>(m_points.size());
+}
+
+ParticlePoint* ParticlePointManager::GetPoint(uint32_t index) const
+{
+	if (index < m_points.size())
+		return m_points[index].get();
+
+	return nullptr;
+}
+
+int ParticlePointManager::GetPointIndex(std::string_view tag) const
+{
+	for (uint32_t i = 0; i < m_points.size(); ++i)
+	{
+		if (m_points[i]->GetName() == tag)
+			return static_cast<int>(i);
+	}
+	return -1;
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+
 ActorParticleDefinition::ActorParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition)
 	: m_emitterDefinitionID(particle->emitterDefinitionID)
 	, m_coldEmitterDefinitionID(particle->coldEmitterDefinitionID)
@@ -472,6 +679,117 @@ void ActorParticleDefinitionManager::AddParticleDefinition(SActorParticle* parti
 void ActorParticleDefinitionManager::DeleteParticleDefinition(uint32_t index)
 {
 	m_particleDefinitions.erase(m_particleDefinitions.begin() + index);
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+
+ActorParticle::ActorParticle(ActorParticleDefinition* definition, HierarchicalModel* model)
+	: m_definition(definition)
+{
+	m_particlePoint = definition->GetPointIndex() >= 0 ? model->GetParticlePoint(definition->GetPointIndex()) : nullptr;
+
+	if (m_definition->GetParticleType() == ParticleType_Persistent
+		&& m_particlePoint != nullptr
+		&& m_definition->GetPlayWithMat() <= 0)
+	{
+		// TODO: Create emitters
+	}
+}
+
+ActorParticle::ActorParticle(ActorParticleDefinition* definition, SimpleModel* model)
+	: m_definition(definition)
+{
+	m_particlePoint = definition->GetPointIndex() >= 0 ? model->GetParticlePoint(definition->GetPointIndex()) : nullptr;
+
+	if (m_definition->GetParticleType() == ParticleType_Persistent
+		&& m_particlePoint != nullptr
+		&& m_definition->GetPlayWithMat() <= 0)
+	{
+		// TODO: Create emitters
+	}
+}
+
+ActorParticle::~ActorParticle()
+{
+}
+
+void ActorParticle::StartParticle(Actor* actor)
+{
+	// TODO: Create particle emitter
+}
+
+void ActorParticle::StopParticle()
+{
+	// TODO: Destroy particle emitter
+}
+
+//-------------------------------------------------------------------------------------------------
+
+ActorParticleManager::ActorParticleManager(ActorParticleDefinitionManager* definitionMgr, HierarchicalModel* model)
+{
+	if (definitionMgr)
+	{
+		for (uint32_t index = 0; index < definitionMgr->GetNumParticles(); ++index)
+		{
+			m_particles.emplace_back(std::make_unique<ActorParticle>(definitionMgr->GetParticleDefinition(index), model));
+		}
+	}
+}
+
+ActorParticleManager::ActorParticleManager(ActorParticleDefinitionManager* definitionMgr, SimpleModel* model)
+{
+	if (definitionMgr)
+	{
+		for (uint32_t index = 0; index < definitionMgr->GetNumParticles(); ++index)
+		{
+			m_particles.emplace_back(std::make_unique<ActorParticle>(definitionMgr->GetParticleDefinition(index), model));
+		}
+	}
+}
+
+ActorParticleManager::~ActorParticleManager()
+{
+}
+
+uint32_t ActorParticleManager::GetNumParticles() const
+{
+	return static_cast<uint32_t>(m_particles.size());
+}
+
+ActorParticle* ActorParticleManager::GetParticle(uint32_t index) const
+{
+	if (index < m_particles.size())
+		return m_particles[index].get();
+
+	return nullptr;
+}
+
+void ActorParticleManager::InitParticles(int mat)
+{
+	m_currentMat = mat;
+
+	for (const auto& particle : m_particles)
+	{
+		if (particle->GetParticleType() == ParticleType_Persistent
+			&& particle->GetParticlePoint()
+			&& (particle->GetPlayWithMat() == -1 || particle->GetPlayWithMat() == m_currentMat))
+		{
+			// TODO: Create particle emitter
+		}
+	}
+}
+
+void ActorParticleManager::CreateParticle(SActorParticle* particle, HierarchicalModel* model)
+{
+	m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particle, model->GetDefinition().get()));
+	m_particles.emplace_back(std::make_unique<ActorParticle>(m_particleDefinitions.back().get(), model));
+}
+
+void ActorParticleManager::CreateParticle(SActorParticle* particle, SimpleModel* model)
+{
+	m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particle, model->GetDefinition().get()));
+	m_particles.emplace_back(std::make_unique<ActorParticle>(m_particleDefinitions.back().get(), model));
 }
 
 } // namespace eqg

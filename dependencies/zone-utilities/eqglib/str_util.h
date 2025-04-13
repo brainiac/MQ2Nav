@@ -325,4 +325,68 @@ inline int str_to_int(const std::string_view svString, int iReturnOnFail)
 	return iReturnOnFail;
 }
 
+inline bool str_to_bool(const std::string_view svString, const bool defaultValue)
+{
+	const auto trimmed = trim(svString);
+
+	if (trimmed.empty())
+		return false;
+
+	switch (trimmed[0])
+	{
+	case 'T':
+	case 't': // true
+		if (trimmed.length() == 4 && ci_equals(trimmed, "true"))
+			return true;
+		return defaultValue;
+
+	case 'F':
+	case 'f': // false
+		if (trimmed.length() == 5 && ci_equals(trimmed, "false"))
+			return false;
+		return defaultValue;
+
+	case 'O':
+	case 'o': // on
+		if (trimmed.length() == 2 && (trimmed[1] == 'n' || trimmed[1] == 'N'))
+			return true;
+		return defaultValue;
+
+	case 'Y':
+	case 'y': // yes
+		if (trimmed.length() == 3 && (trimmed[1] == 'e' || trimmed[1] == 'E')
+			&& (trimmed[2] == 's' || trimmed[2] == 'S'))
+			return true;
+		return defaultValue;
+
+	case 'N':
+	case 'n': // no
+		if (trimmed.length() == 2 && (trimmed[1] == 'o' || trimmed[1] == 'O'))
+			return false;
+		return defaultValue;
+
+	case '0':
+		if (trimmed.length() == 1)
+			return false;
+
+		[[fallthrough]];
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+		if (trimmed.length() == 1)
+			return trimmed[0] != '0';
+
+		return static_cast<bool>(str_to_int(trimmed, static_cast<int>(defaultValue)));
+
+	default:
+		return defaultValue;
+	}
+}
+
 } // namespace eqg

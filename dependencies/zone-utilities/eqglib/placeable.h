@@ -11,7 +11,7 @@
 
 namespace eqg {
 
-struct TerrainObject;
+class TerrainObject;
 
 class Placeable
 {

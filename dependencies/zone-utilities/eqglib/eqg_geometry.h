@@ -48,6 +48,12 @@ namespace eqg {
 
 using std::chrono::steady_clock;
 
+class Bone;
+using BonePtr = std::shared_ptr<Bone>;
+
+class BoneDefinition;
+using BoneDefinitionPtr = std::shared_ptr<BoneDefinition>;
+
 struct SDMSpriteDef2WLDData;
 struct SHSpriteDefWLDData;
 
@@ -65,10 +71,55 @@ using ParticleCloudDefinitionPtr = std::shared_ptr<ParticleCloudDefinition>;
 
 class ParticlePointDefinitionManager;
 
+class SimpleModel;
+using SimpleModelPtr = std::shared_ptr<SimpleModel>;
+
 class ResourceManager;
 
 struct SActorParticle;
 struct SParticlePoint;
+
+enum EBones
+{
+	eBoneNone = -1,
+	eBoneHead = 0,
+	eBoneHelm,
+	eBoneGuild,
+	eBonePrimary,
+	eBoneSecondary,
+	eBoneShield,
+	eBoneBloodSpurt,
+	eBoneTunic,
+	eBoneHair,
+	eBoneBeard,
+	eBoneEyebrows,
+	eBoneChest,
+	eBoneLeftBracer,
+	eBoneRightBracer,
+	eBonePelvis,
+	eBoneSpell,
+	eBoneCamera,
+	eBoneArms,
+	eBoneLeftGlove,
+	eBoneRightGlove,
+	eBoneLegs,
+	eBoneLeftBoot,
+	eBoneRightBoot,
+	eBoneTorch,
+	eBoneFacialAttachment,
+	eBoneTattoo,
+	eBoneLeftShoulder,
+	eBoneRightShoulder,
+	eNumBones,
+};
+
+enum EBoneGroups
+{
+	eBoneGroupUpperBody = 0,
+	eBoneGroupLowerBody,
+	eBoneGroupHead,
+	eNumBoneGroups,
+};
 
 enum ECollisionVolumeType
 {
@@ -78,7 +129,6 @@ enum ECollisionVolumeType
 	eCollisionVolumeDag,
 	eCollisionVolumeBox,
 };
-
 
 struct SFace
 {
@@ -124,6 +174,121 @@ public:
 	MaterialPalettePtr material_palette;
 };
 
+//-------------------------------------------------------------------------------------------------
+
+class BoneDefinition
+{
+public:
+	explicit BoneDefinition(const SDagWLDData& wldData);
+	explicit BoneDefinition(SEQMBone* boneData);
+
+	const std::string& GetTag() const { return m_tag; }
+
+	ActorDefinitionPtr GetAttachedActorDef() const { return m_attachedActorDef; }
+
+	void AddSubBone(BoneDefinition* subBone);
+
+	BoneDefinition* GetSubBone(uint32_t index) const
+	{
+		return m_subBones[index];
+	}
+
+	uint32_t GetNumSubBones() const
+	{
+		return static_cast<uint32_t>(m_subBones.size());
+	}
+
+	float GetBoneScale() const
+	{
+		return glm::length(glm::vec3(m_mtx[0]));
+	}
+
+	glm::mat4x4& GetMatrix() { return m_mtx; }
+	const glm::mat4x4& GetMatrix() const { return m_mtx; }
+
+	glm::mat4x4& GetDefaultPosMatrix() { return m_defaultPoseMtx; }
+	const glm::mat4x4& GetDefaultPosMatrix() const { return m_defaultPoseMtx; }
+
+private:
+	std::string                   m_tag;
+
+	glm::mat4x4                   m_mtx;
+	glm::mat4x4                   m_defaultPoseMtx;
+	std::vector<BoneDefinition*>  m_subBones;          // pointer into container owned by the hierarchical model def.
+
+	ActorDefinitionPtr            m_attachedActorDef;
+};
+using BoneDefinitionPtr = std::shared_ptr<BoneDefinition>;
+
+//-------------------------------------------------------------------------------------------------
+
+class Bone
+{
+public:
+	Bone(const BoneDefinition* boneDef);
+	~Bone();
+
+	const std::string& GetTag() const { return m_definition->GetTag(); }
+
+	const glm::mat4x4& GetMatrix() const { return *m_currentMtx; }
+	glm::mat4x4& GetMatrix() { return *m_currentMtx; }
+
+	const glm::mat4x4& GetAttachmentMatrix() const { return m_attachmentMtx; }
+
+	void SetAttachedActor(const ActorPtr& actor);
+	Actor* GetAttachedActor() const { return m_attachedActor.get(); }
+	void SetParentActor(Actor* actor);
+	Actor* GetParentActor() const { return m_parentActor; }
+
+	void AddSubBone(Bone* subBone, uint32_t index)
+	{
+		m_subBones[index] = subBone;
+	}
+
+	void AttachToBone(Bone* otherBone);
+	void DetachBone();
+
+	void UpdateActorToBoneWorldMatrices(bool updateParticleTtime);
+
+	ActorPtr                      m_attachedActor;
+	Actor*                        m_parentActor = nullptr;
+	SimpleModelPtr                m_simpleAttachment;
+
+	glm::mat4x4*                  m_currentMtx = nullptr;
+	std::vector<Bone*>            m_subBones;
+	Bone*                         m_boneAttachedTo = nullptr;
+	const BoneDefinition*         m_definition = nullptr;
+
+	glm::mat4x4                   m_positionMtx;
+	glm::mat4x4                   m_boneToWorldMtx;
+	glm::mat4x4                   m_attachmentMtx;
+
+	enum
+	{
+		BoneFlag_RootBone                   = 0x01,
+		BoneFlag_FirstSkinnedAttachmentBone = 0x02,
+		BoneFlag_ApplySRT                   = 0x04
+	};
+	uint32_t                      m_boneFlags = 0;
+};
+using BonePtr = std::shared_ptr<Bone>;
+
+class BoneGroup
+{
+public:
+	BoneGroup(int maxBones, int maxAnimations);
+	~BoneGroup();
+
+	void AddBone(Bone* bone, bool newBoneNames);
+
+private:
+	int m_maxBones;
+	int m_maxAnimations;
+	std::vector<Bone*> m_bones;
+};
+using BoneGroupPtr = std::shared_ptr<BoneGroup>;
+
+//-------------------------------------------------------------------------------------------------
 
 class SimpleModelDefinition : public Resource
 {
@@ -138,6 +303,7 @@ public:
 	MaterialPalettePtr GetMaterialPalette() const { return m_materialPalette; }
 
 	float GetDefaultBoundingRadius() const { return m_boundingRadius; }
+	ECollisionVolumeType GetDefaultCollisionType() const { return m_defaultCollisionType; }
 
 	bool InitFromWLDData(std::string_view tag, SDMSpriteDef2WLDData* pWldData);
 	bool InitFromEQMData(std::string_view tag,
@@ -192,21 +358,25 @@ public:
 };
 using SimpleModelDefinitionPtr = std::shared_ptr<SimpleModelDefinition>;
 
-struct BoneDefinition
+// TODO: Create an abstract mesh object
+struct SSkinMesh
 {
-	explicit BoneDefinition(const SDagWLDData& wldData);
+	std::string tag;
+	uint32_t attachPointBoneIndex;
+	bool hasBlendWeights;
+	bool hasBlendIndices;
+	bool oldModel;
 
-	void AddSubBone(BoneDefinition* subBone);
-
-	std::string_view GetTag() const { return m_tag; }
-
-	std::string                   m_tag;
-
-	glm::mat4x4                   m_mtx;
-	glm::mat4x4                   m_defaultPoseMtx;
-	std::vector<BoneDefinition*>  m_subBones;          // pointer into container owned by the hierarchical model def.
-
-	ActorDefinitionPtr            m_attachedActor;
+	struct VertexData
+	{
+		glm::vec3 vertex;
+		glm::vec3 normal;
+		glm::vec2 uv;
+	};
+	std::vector<VertexData> vertices;
+	std::vector<uint16_t> indices;
+	std::vector<uint32_t> materialIndexTable;
+	std::vector<uint32_t> attributes;
 };
 
 class HierarchicalModelDefinition : public Resource
@@ -220,13 +390,28 @@ public:
 	std::string_view GetTag() const override { return m_tag; }
 
 	uint32_t GetNumBones() const { return m_numBones; }
+	uint32_t GetNumSubBones() const { return m_numSubBones; }
 	const BoneDefinition* GetBoneDefinition(uint32_t boneIndex) const;
+	std::vector<BoneDefinition>& GetBones() { return m_bones; }
+	bool HasBoneNamed(std::string_view boneName) const;
+
+	uint32_t GetNumAttachedSkins() const { return m_numAttachedSkins; }
+	uint32_t GetFirstDefaultActiveSkin() const { return m_firstDefaultActiveSkin; }
+	uint32_t GetNumDefaultActiveSkins() const { return m_numDefaultActiveSkins; }
+	SSkinMesh* GetAttachedSkin(uint32_t skinIndex) const;
+	AnimationPtr GetDefaultAnimation() const { return m_defaultAnim; }
 
 	float GetDefaultBoundingRadius() const { return m_boundingRadius; }
+	bool IsNewStyleModel() const { return m_isNewStyleModel; }
 
 	bool InitFromWLDData(std::string_view tag, SHSpriteDefWLDData* pWldData);
+	bool InitBonesFromWLDData(SHSpriteDefWLDData* pWldData);
+	bool InitSkinsFromWLDData(SHSpriteDefWLDData* pWldData);
 
-	ParticlePointDefinitionManager* GetPointManager() const { return nullptr; }
+	MaterialPalettePtr GetMaterialPalette() const { return m_materialPalette; }
+
+	ParticlePointDefinitionManager* GetPointManager() const { return m_pointManager.get(); }
+	ActorParticleDefinitionManager* GetParticleManager() const { return m_particleManager.get(); }
 
 protected:
 	std::string                   m_tag;
@@ -239,11 +424,24 @@ protected:
 	uint32_t                      m_numBones = 0;
 	uint32_t                      m_numSubBones = 0;
 	std::vector<BoneDefinition>   m_bones;
+	uint32_t                      m_numAttachedSkins = 0;
+	uint32_t                      m_firstDefaultActiveSkin = 0;
+	uint32_t                      m_numDefaultActiveSkins = 0;
+	std::vector<SSkinMesh>        m_attachedSkins;
+	AnimationPtr                  m_defaultAnim;
+	MaterialPalettePtr            m_materialPalette;
 
+	bool                          m_isNewStyleModel = false;
 	bool                          m_hasCollision = false;
 	ECollisionVolumeType          m_defaultCollisionType = eCollisionVolumeNone;
 
-	MaterialPalettePtr            m_materialPalette;
+	std::unique_ptr<ParticlePointDefinitionManager> m_pointManager;
+	std::unique_ptr<ActorParticleDefinitionManager> m_particleManager;
+
+	bool                          m_disableAttachments = false;
+	bool                          m_disableShieldAttachments = false;
+	bool                          m_disablePrimaryAttachments = false;
+	bool                          m_disableSecondaryAttachments = false;
 };
 using HierarchicalModelDefinitionPtr = std::shared_ptr<HierarchicalModelDefinition>;
 
@@ -315,6 +513,13 @@ public:
 
 	SimpleModelDefinitionPtr GetDefinition() const { return m_definition; }
 
+	const glm::mat4x4& GetObjectToWorldMatrix() const { return m_worldTransform; }
+
+	ParticlePointManager* GetPointManager() const { return m_pointManager.get(); }
+	ParticlePoint* GetParticlePoint(int index) const;
+	int GetNumParticlePoints() const;
+	ActorParticleManager* GetParticleManager() const { return m_particleManager.get(); }
+
 	bool SetRGBs(SDMRGBTrackWLDData* pDMRGBTrackWLDData);
 	bool SetRGBs(uint32_t* pRGBs, uint32_t numRGBs);
 
@@ -329,30 +534,65 @@ public:
 	std::vector<uint32_t>         m_bakedDiffuseLighting;  // used for diffuse lighting colors per polygon
 
 	MaterialPalettePtr            m_materialPalette; // copy of the material palette from the definition
-	
+
+	std::unique_ptr<ParticlePointManager> m_pointManager;
+	std::unique_ptr<ActorParticleManager> m_particleManager;
+
 	// generated batches also go here
 };
 using SimpleModelPtr = std::shared_ptr<SimpleModel>;
+
+//-------------------------------------------------------------------------------------------------
 
 // Per-instance model data for hierarchical models
 class HierarchicalModel
 {
 public:
+	using DefinitionType = HierarchicalModelDefinition;
+	using DefinitionPtrType = HierarchicalModelDefinitionPtr;
+
 	HierarchicalModel();
 	virtual ~HierarchicalModel();
 
-	virtual void Init(const HierarchicalModelDefinitionPtr& definition);
+	virtual void Init(const DefinitionPtrType& definition);
 	virtual bool InitBatchInstances() { return true; }
 
-	HierarchicalModelDefinitionPtr GetDefinition() const { return m_definition; }
+	virtual void SetActor(Actor* actor) { m_actor = actor; }
+	virtual Actor* GetActor() const { return m_actor; }
 
-	HierarchicalModelDefinitionPtr m_definition;
-	Actor*                m_actor; // owning actor
+	DefinitionPtrType GetDefinition() const { return m_definition; }
+
+	const glm::mat4x4& GetObjectToWorldMatrix() const { return m_worldTransform; }
+
+	ParticlePointManager* GetPointManager() const { return m_pointManager.get(); }
+	ParticlePoint* GetParticlePoint(int index) const;
+	int GetNumParticlePoints() const;
+	ActorParticleManager* GetParticleManager() const { return m_particleManager.get(); }
+
+	bool SetSkinMeshActiveState(uint32_t index, bool active);
+
+	Bone* GetBone(std::string_view tag) const;
+	Bone* GetBone(uint32_t index) const;
+	void SetBoneParent(Actor* actor);
+
+	void UpdateBoneToWorldMatrices(glm::mat4x4* parentMatrix = nullptr);
+	void UpdateBoneToWorldMatrices(Bone* bone, glm::mat4x4* parentMatrix);
+
+private:
+	DefinitionPtrType             m_definition;
+	Actor*                        m_actor = nullptr; // owning actor
 	glm::mat4x4                   m_worldTransform;  // object to world transform matrix
+	std::vector<BonePtr>          m_bones;
+	uint32_t                      m_activeMeshes = 0;
 
 	MaterialPalettePtr            m_materialPalette; // copy of the material palette from the definition
+
+	std::unique_ptr<ParticlePointManager> m_pointManager;
+	std::unique_ptr<ActorParticleManager> m_particleManager;
 };
 using HierarchicalModelPtr = std::shared_ptr<HierarchicalModel>;
+
+//-------------------------------------------------------------------------------------------------
 
 enum EActorType
 {
@@ -385,6 +625,11 @@ public:
 	virtual HierarchicalModelPtr GetHierarchicalModel() const { return nullptr; }
 	virtual HierarchicalModelDefinitionPtr GetHierarchicalModelDefinition() const { return nullptr; }
 
+	Actor* GetTopLevelActor();
+
+	void SetParentActor(Actor* actor) { m_parentActor = actor; }
+	Actor* GetParentActor() const { return m_parentActor; }
+
 	void SetPosition(const glm::vec3& pos) { m_position = pos; }
 	const glm::vec3& GetPosition() const { return m_position; }
 
@@ -403,14 +648,30 @@ public:
 	void SetActorType(EActorType type) { m_actorType = type; }
 	EActorType GetActorType() const { return m_actorType; }
 
-	// TODO: Disabled flag
+	void SetTerrainObject(TerrainObject* terrainObject) { m_terrainObject = terrainObject; }
+	TerrainObject* GetTerrainObject() const { return m_terrainObject; }
 
+	void SetHasParentBone(bool hasParentBone) { m_hasParentBone = hasParentBone; }
+	bool HasParentBone() const { return m_hasParentBone; }
+
+	bool IsDisabled() const { return m_disabled; }
+	void SetDisabled(bool disabled) { m_disabled = disabled; }
+
+	bool IsInvisible() const { return m_invisible; }
+	void SetInvisible(bool invisible) { m_invisible = invisible; }
+
+	// Used when in first person camera mode to see your own particles
+	bool ShouldShowParticlesWhenInvisible() const { return m_showParticlesWhenInvisible; }
+	void SetShowParticlesWhenInvisible(bool show) { m_showParticlesWhenInvisible = show; }
+
+protected:
 	ResourceManager*               m_resourceMgr;
 
 	std::string                    m_tag;
 	std::string                    m_actorName;
 
 	ActorDefinitionPtr             m_definition;
+	Actor*                         m_parentActor = nullptr;
 	glm::mat4x4                    m_transform = glm::mat4x4(1.0f);
 
 	glm::vec3                      m_position = glm::vec3(0.0f);
@@ -421,10 +682,18 @@ public:
 	ECollisionVolumeType           m_collisionVolumeType = eCollisionVolumeNone;
 	float                          m_boundingRadius = 0.0f;
 	EActorType                     m_actorType = eActorTypeUndefined;
+	TerrainObject*                 m_terrainObject = nullptr;
+	bool                           m_hasParentBone = false;
+
+	bool                           m_disabled = false;
+	bool                           m_invisible = false;
+	bool                           m_showParticlesWhenInvisible = false;
 
 protected:
 	void DoInitCallback();
 };
+
+//-------------------------------------------------------------------------------------------------
 
 class SimpleActor : public Actor
 {
@@ -444,10 +713,22 @@ public:
 		uint32_t numRGBs = 0,
 		std::string_view actorName = ""
 	);
+	SimpleActor(
+		ResourceManager* resourceMgr,
+		std::string_view actorTag,
+		const ActorDefinitionPtr& actorDef,
+		int actorIndex,
+		bool useDefaultBoundingRadius = false,
+		std::string_view actorName = "");
 	~SimpleActor() override;
 
 	SimpleModelPtr GetSimpleModel() const override { return m_model; }
 	SimpleModelDefinitionPtr GetSimpleModelDefinition() const override { return m_model->GetDefinition(); }
+
+	SimpleModelPtr GetCollisionModel() const { return m_collisionModel; }
+
+private:
+	void InitLOD();
 
 	SimpleModelPtr m_model;
 	SimpleModelPtr m_collisionModel;
@@ -460,13 +741,15 @@ public:
 	std::vector<LODModel> m_lodModels;
 };
 
+//-------------------------------------------------------------------------------------------------
+
 class HierarchicalActor : public Actor
 {
 public:
 	HierarchicalActor(
 		ResourceManager* resourceMgr,
 		std::string_view actorTag,
-		ActorDefinitionPtr actorDef,
+		const ActorDefinitionPtr& actorDef,
 		const glm::vec3& position,
 		const glm::vec3& orientation,
 		float scaleFactor,
@@ -478,13 +761,66 @@ public:
 		uint32_t numRGBs = 0,
 		std::string_view actorName = ""
 	);
+
+	HierarchicalActor(
+		ResourceManager* resourceMgr,
+		std::string_view actorTag,
+		const ActorDefinitionPtr& actorDef,
+		int actorIndex,
+		bool allSkinsActive = false,
+		bool useDefaultBoundingRadius = false,
+		bool sharedBoneGroups = true,
+		Bone* pBone = nullptr,
+		std::string_view actorName = "");
+
 	~HierarchicalActor() override;
 
 	HierarchicalModelPtr GetHierarchicalModel() const override { return m_model; }
 	HierarchicalModelDefinitionPtr GetHierarchicalModelDefinition() const override { return m_model->GetDefinition(); }
 
-	HierarchicalModelPtr m_model;
+	SimpleModelPtr GetCollisionModel() const { return m_collisionModel; }
+
+private:
+	void InitLOD();
+	void SetAllSkinsActive();
+	void PutAllBonesInBoneGroup(int groupIndex, int maxNumAnims, bool newBoneNames);
+	void AttachLODModels(HierarchicalModel* parent, HierarchicalModel* child);
+
+	HierarchicalModelPtr     m_model;
+	SimpleModelPtr           m_collisionModel;
+
+	struct LODModel
+	{
+		HierarchicalModelPtr model;
+		float distance;
+	};
+	std::vector<LODModel>    m_lodModels;
+
+	std::vector<Bone*>       m_bones;
+	std::vector<BoneGroupPtr> m_boneGroups;
+
+	uint32_t                 m_headSkins = 0;
+	uint32_t                 m_bodySkins = 0;
 };
 
+//-------------------------------------------------------------------------------------------------
+
+class EmitterInterface;
+
+class ParticleActor : public Actor
+{
+public:
+	ParticleActor(
+		ResourceManager* resourceMgr,
+		std::string_view actorTag,
+		const ActorDefinitionPtr& actorDef,
+		int actorIndex,
+		bool allSkinsActive = false,
+		Bone* bone = nullptr);
+
+	virtual ~ParticleActor() override;
+
+	EmitterInterface* m_emitter = nullptr;
+};
 
 } // namespace eqg

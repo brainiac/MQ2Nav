@@ -1,7 +1,10 @@
 #include "pch.h"
 #include "eqg_animation.h"
 
+#include <algorithm>
+
 #include "log_internal.h"
+#include "wld_types.h"
 
 namespace eqg {
 
@@ -53,6 +56,7 @@ bool Animation::InitFromWLDData(std::string_view animTag, const std::vector<std:
 {
 	m_tag = animTag;
 	m_looping = IsLoopingAnimation(animTag);
+	m_numTracks = tracks.size();
 
 	uint32_t maxFrames = 1;
 	for (const auto& track : tracks)
@@ -64,8 +68,6 @@ bool Animation::InitFromWLDData(std::string_view animTag, const std::vector<std:
 	{
 		++maxFrames;
 	}
-
-	float maxTime = 0.0f;
 
 	for (const auto& track : tracks)
 	{
@@ -95,7 +97,6 @@ bool Animation::InitFromWLDData(std::string_view animTag, const std::vector<std:
 			}
 
 			float time = oldFrameIndex * (track->sleepTime * track->speed);
-			maxTime = std::max(maxTime, time);
 
 			scaleKeys[frameIndex].time = time;
 			scaleKeys[frameIndex].value = glm::vec3(track->frameTransforms[oldFrameIndex].scale);
@@ -123,7 +124,6 @@ bool Animation::InitFromWLDData(std::string_view animTag, const std::vector<std:
 		if (m_looping)
 		{
 			float time = scaleKeys[numFrames - 1].time + track->sleepTime * track->speed;
-			maxTime = std::max(maxTime, time);
 
 			scaleKeys[numFrames].time = time;
 			scaleKeys[numFrames].value = scaleKeys[0].value;
@@ -148,7 +148,83 @@ bool Animation::InitFromWLDData(std::string_view animTag, const std::vector<std:
 		RegisterAnimationSRTKeys(track->tag.substr(m_tag.length()), numFrames, std::move(scaleKeys), std::move(rotateKeys), std::move(translateKeys));
 	}
 
-	m_animLength = maxTime;
+	return true;
+}
+
+bool Animation::InitFromBoneData(std::string_view animTag, const std::vector<SDagWLDData>& dags)
+{
+	m_tag = animTag;
+	m_numTracks = static_cast<uint32_t>(dags.size());
+
+	uint32_t maxFrames = 1;
+	for (uint32_t index = 0; index < m_numTracks; ++index)
+	{
+		maxFrames = std::max(dags[index].track->numFrames, maxFrames);
+	}
+
+	++maxFrames;
+
+	for (uint32_t index = 0; index < m_numTracks; ++index)
+	{
+		auto pTrack = dags[index].track;
+		uint32_t numFrames = pTrack->numFrames;
+
+		std::vector<AnimKey<glm::vec3>> scaleKeys(maxFrames);
+		std::vector<AnimKey<glm::vec3>> translateKeys(maxFrames);
+		std::vector<AnimKey<glm::quat>> rotateKeys(maxFrames);
+		glm::quat previousRotation = glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
+
+		for (uint32_t frameIndex = 0; frameIndex < numFrames; ++frameIndex)
+		{
+			float time = frameIndex * pTrack->sleepTime * pTrack->speed;
+
+			scaleKeys[frameIndex].time = time;
+			scaleKeys[frameIndex].value = glm::vec3(pTrack->frameTransforms[frameIndex].scale);
+			translateKeys[frameIndex].time = time;
+			translateKeys[frameIndex].value = pTrack->frameTransforms[frameIndex].pivot;
+			rotateKeys[frameIndex].time = time;
+			rotateKeys[frameIndex].value = pTrack->frameTransforms[frameIndex].rotation;
+			glm::quat& rotation = pTrack->frameTransforms[frameIndex].rotation;
+
+			float sign = 1.0f;
+			if (frameIndex != 0)
+			{
+				// Check to see if we need to flip the rotation around for the shortest path.
+				if (glm::length2((rotation * -1.0f) - previousRotation) < glm::length2(rotation - previousRotation))
+				{
+					sign = -1.0f;
+				}
+			}
+
+			rotateKeys[frameIndex].value = rotation * sign;
+			previousRotation = rotateKeys[frameIndex].value;
+		}
+
+		if (numFrames != 1)
+		{
+			float time = numFrames * pTrack->sleepTime * pTrack->speed;
+
+			scaleKeys[numFrames].time = time;
+			scaleKeys[numFrames].value = scaleKeys[0].value;
+			translateKeys[numFrames].time = time;
+			translateKeys[numFrames].value = translateKeys[0].value;
+			rotateKeys[numFrames].time = time;
+			glm::quat& rotation = rotateKeys[0].value;
+
+			float sign = 1.0f;
+			// Check to see if we need to flip the rotation around for the shortest path.
+			if (glm::length2((rotation * -1.0f) - previousRotation) < glm::length2(rotation - previousRotation))
+			{
+				sign = -1.0f;
+			}
+
+			rotateKeys[numFrames].value = rotation * sign;
+
+			++numFrames;
+		}
+
+		RegisterAnimationSRTKeys(pTrack->tag, numFrames, std::move(scaleKeys), std::move(rotateKeys), std::move(translateKeys));
+	}
 
 	return true;
 }

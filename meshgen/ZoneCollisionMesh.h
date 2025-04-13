@@ -3,6 +3,7 @@
 #include "meshgen/ChunkyTriMesh.h"
 #include "eqglib/wld_loader.h"
 #include "eqglib/eqg_loader.h"
+#include "eqglib/eqg_terrain_loader.h" // FIXME: Remove
 
 #include <glm/glm.hpp>
 #include <memory>

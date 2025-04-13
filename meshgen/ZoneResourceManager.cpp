@@ -17,6 +17,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
 
+#include "eqglib/eqg_global_data.h"
+
 namespace fs = std::filesystem;
 
 static void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
@@ -49,6 +51,8 @@ ZoneResourceManager::ZoneResourceManager(const std::string& zoneShortName,
 {
 	m_globalResourceMgr = std::make_unique<eqg::ResourceManager>(m_eqPath);
 	m_resourceMgr = std::make_unique<eqg::ResourceManager>(m_eqPath, m_globalResourceMgr.get());
+
+	eqg::g_dataManager.Init(m_eqPath);
 }
 
 ZoneResourceManager::~ZoneResourceManager()
@@ -585,7 +589,6 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive, int loadFlag
 	}
 
 	bool globalLoad = (loadFlags & eqg::LoadFlag_GlobalLoad) != 0;
-
 	auto loader = std::make_unique<eqg::EQGLoader>(globalLoad ? m_globalResourceMgr.get() : m_resourceMgr.get());
 	if (!loader->Load(archive, loadFlags))
 		return nullptr;
@@ -703,11 +706,11 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive, int loadFlag
 				}
 			}
 
-			for (const auto& object : terrain->objects)
-			{
-				//map_placeables.push_back(object);
-				LoadModelInst(object);
-			}
+			//for (const auto& object : terrain->objects)
+			//{
+			//	//map_placeables.push_back(object);
+			//	LoadModelInst(object);
+			//}
 		}
 	}
 

@@ -150,8 +150,8 @@ public:
 	void SetSourceSize(uint32_t width, uint32_t height) { m_sourceWidth = width; m_sourceHeight = height; }
 	void SetForceMipMap(bool force) { m_forceMipMap = force; }
 
-	bool InitFromWLDData(SBitmapWLDData* wldData, Archive* archive, ResourceManager* resourceMgr);
-	bool Init(std::string_view fileName, Archive* archive, bool cubeMap, ResourceManager* resourceMgr);
+	bool InitFromWLDData(SBitmapWLDData* wldData, Archive* archive);
+	bool Init(std::string_view fileName, Archive* archive, bool cubeMap);
 
 	virtual char* GetRawData() const { return nullptr; }
 	virtual void SetRawData(std::unique_ptr<char[]> rawData, size_t rawDatasize) { /*m_rawData = rawData; m_byteSize = (uint32_t)rawDatasize;*/ }
@@ -446,7 +446,7 @@ public:
 	bool InitFromWLDData(std::string_view tag, WLD_OBJ_MATERIALDEFINITION* pWLDMaterialDef, WLD_OBJ_SIMPLESPRITEINSTANCE* pSimpleSpriteInst,
 		ParsedSimpleSpriteDef* pParsedSimpleSpriteDef, ParsedBMInfo* pParsedBMPalette);
 	bool InitFromBitmap(const std::shared_ptr<Bitmap>& bitmap);
-	bool InitFromMaterialInfo(ResourceManager* resourceMgr, const SMaterialInfo& info);
+	bool InitFromMaterialInfo(const SMaterialInfo& info);
 
 	bool IsTransparent() const { return m_transparent; }
 	bool HasBumpMap() const { return m_hasBumpMap; }

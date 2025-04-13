@@ -15,19 +15,39 @@
 
 namespace eqg {
 
+std::vector<ResourceManager*> s_resourceMgrStack;
+
 ResourceManager::ResourceManager(const std::string& data_path, ResourceManager* parent)
 	: m_dataPath(data_path)
 	, m_parent(parent)
 {
 	// Prepopulate the sorted resource mapping
-	for (int i = 0; i < (int)ResourceType::Max; ++i)
+	for (int i = 0; i < static_cast<int>(ResourceType::Max); ++i)
 	{
-		m_sortedResources[(ResourceType)i] = std::map<std::string_view, std::shared_ptr<Resource>>();
+		m_sortedResources[static_cast<ResourceType>(i)] = std::map<std::string_view, std::shared_ptr<Resource>>();
 	}
 }
 
 ResourceManager::~ResourceManager()
 {
+}
+
+ResourceManager* ResourceManager::Get()
+{
+	if (s_resourceMgrStack.empty())
+		return nullptr;
+
+	return s_resourceMgrStack[s_resourceMgrStack.size() - 1];
+}
+
+void ResourceManager::PushActive(ResourceManager* resourceMgr)
+{
+	s_resourceMgrStack.push_back(resourceMgr);
+}
+
+void ResourceManager::PopActive()
+{
+	s_resourceMgrStack.pop_back();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -84,7 +104,7 @@ std::shared_ptr<Bitmap> ResourceManager::CreateBitmap(std::string_view fileName,
 		pBitmap->SetForceMipMap(true);
 	}
 
-	if (!pBitmap->Init(fileName, archive, cubeMap, this))
+	if (!pBitmap->Init(fileName, archive, cubeMap))
 	{
 		EQG_LOG_ERROR("Failed to create bitmap from file {} cubeMap={}", fileName, cubeMap);
 		return nullptr;
@@ -137,6 +157,37 @@ std::shared_ptr<SimpleActor> ResourceManager::CreateSimpleActor(std::string_view
 {
 	return std::make_shared<SimpleActor>(this, actorTag, simpleActorDef, position, orientation,
 		scale, boundingRadius, collisionVolumeType, actorIndex, DMRGBTrackWLDData, rgbData, numRGBs, actorName);
+}
+
+std::shared_ptr<SimpleActor> ResourceManager::CreateSimpleActor(std::string_view actorTag,
+	const std::shared_ptr<ActorDefinition>& simpleActorDef, int actorIndex, bool useDefaultBoundingRadius,
+	std::string_view actorName)
+{
+	return std::make_shared<SimpleActor>(this, actorTag, simpleActorDef, actorIndex, useDefaultBoundingRadius,
+		actorName);
+}
+
+std::shared_ptr<HierarchicalActor> ResourceManager::CreateHierarchicalActor(std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef, const glm::vec3& position, const glm::vec3& orientation, float scale,
+	ECollisionVolumeType collisionVolumeType, float boundingRadius, int actorIndex, SDMRGBTrackWLDData* DMRGBTrackWLDData,
+	uint32_t* RGBs, uint32_t numRGBs, std::string_view actorName)
+{
+	return std::make_shared<HierarchicalActor>(this, actorTag, actorDef, position, orientation,
+		boundingRadius, scale, collisionVolumeType, actorIndex, DMRGBTrackWLDData, RGBs, numRGBs, actorName);
+}
+
+std::shared_ptr<HierarchicalActor> ResourceManager::CreateHierarchicalActor(std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef, int actorIndex, bool allSkinsActive, bool useDefaultBoundingRadius, bool sharedBoneGroups,
+	Bone* pBone, std::string_view actorName)
+{
+	return std::make_shared<HierarchicalActor>(this, actorTag, actorDef, actorIndex, allSkinsActive,
+		useDefaultBoundingRadius, sharedBoneGroups, pBone, actorName);
+}
+
+std::shared_ptr<ParticleActor> ResourceManager::CreateParticleActor(std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef, int actorIndex, bool allSkinsActive, Bone* pBone)
+{
+	return std::make_shared<ParticleActor>(this, actorTag, actorDef, actorIndex, allSkinsActive, pBone);
 }
 
 void ResourceManager::AddActor(Actor* actor)

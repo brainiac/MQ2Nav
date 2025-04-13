@@ -8,8 +8,12 @@ namespace eqg {
 struct SParticleCloudDefData;
 struct STextureDataDefinition;
 
+class Bone;
 class SimpleModelDefinition;
+class SimpleModel;
 class HierarchicalModelDefinition;
+class HierarchicalModel;
+class ParticleEmitter;
 
 // Emitter Shape
 enum EEmitterShape
@@ -224,6 +228,53 @@ private:
 
 //-------------------------------------------------------------------------------------------------
 
+class ParticlePoint
+{
+public:
+	ParticlePoint(ParticlePointDefinition* definition, HierarchicalModel* model);
+	ParticlePoint(ParticlePointDefinition* definition, SimpleModel* model);
+	~ParticlePoint();
+
+	ParticlePointDefinition* GetDefinition() const { return m_definition; }
+	const std::string& GetName() const { return m_definition->name; }
+	const glm::mat4x4& GetWorldSpaceMatrix();
+	Actor* GetActor() const;
+
+	bool IsInvisible() const;
+	bool IsDisabled() const;
+
+private:
+	Actor* GetTopParent() const;
+	bool ShouldShowParticlesWhenInvisibile() const;
+	bool ShouldUpdateAttachedModelWorldSpaceMatrix() const;
+
+	ParticlePointDefinition* m_definition;
+	glm::mat4x4              m_worldMtx;
+
+	HierarchicalModel*       m_hierarchicalModel = nullptr;
+	SimpleModel*             m_simpleModel = nullptr;
+	Bone*                    m_bone = nullptr;
+};
+
+class ParticlePointManager
+{
+public:
+	ParticlePointManager(ParticlePointDefinitionManager* definitionMgr, HierarchicalModel* model);
+	ParticlePointManager(ParticlePointDefinitionManager* definitionMgr, SimpleModel* model);
+	~ParticlePointManager();
+
+	uint32_t GetNumPoints() const;
+	ParticlePoint* GetPoint(uint32_t index) const;
+
+	int GetPointIndex(std::string_view tag) const;
+
+private:
+	std::vector<std::unique_ptr<ParticlePoint>> m_points;
+};
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+
 struct SActorParticle
 {
 	int  emitterDefinitionID;
@@ -238,8 +289,10 @@ struct SActorParticle
 	int  playWithMat;
 	int  sporadic;
 	int  coldEmitterDefinitionID;
-
 };
+
+constexpr int ParticleType_Persistent = 0;
+constexpr int ParticleType_AnimationBased = 1;
 
 class ActorParticleDefinition
 {
@@ -247,6 +300,23 @@ public:
 	ActorParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition);
 	ActorParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition);
 	ActorParticleDefinition(const ActorParticleDefinition& other);
+
+	int GetEmitterDefinitionID() const { return m_emitterDefinitionID; }
+	int GetColdEmitterDefinitionID() const { return m_coldEmitterDefinitionID; }
+	const std::string& GetPointName() const { return m_pointName; }
+	int GetParticleType() const { return m_particleType; }
+	int GetAnimationNumber() const { return m_animationNumber; }
+	int GetAnimationVariation() const { return m_animationVariation; }
+	int GetAnimationRandomVariation() const { return m_animationRandomVariation; }
+	int GetStartTime() const { return m_startTime; }
+	int GetPointIndex() const { return m_pointIndex; }
+	int GetLifeSpan() const { return m_lifeSpan; }
+	int GetGroundBased() const { return m_groundBased; }
+	int GetPlayWithMat() const { return m_playWithMat; }
+	int GetSporadic() const { return m_sporadic; }
+
+private:
+	void InitIndex(ParticlePointDefinitionManager* pPtMgr);
 
 	int         m_emitterDefinitionID;
 	int         m_coldEmitterDefinitionID;
@@ -261,9 +331,6 @@ public:
 	int         m_groundBased;
 	int         m_playWithMat;
 	int         m_sporadic;
-
-private:
-	void InitIndex(ParticlePointDefinitionManager* pPtMgr);
 };
 
 // Manages definitions of a particle emitter on a model
@@ -274,7 +341,7 @@ public:
 	ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles, HierarchicalModelDefinition* definition);
 	~ActorParticleDefinitionManager();
 
-	uint32_t GetNumParticleDefinitions() const { return (uint32_t)m_particleDefinitions.size(); }
+	uint32_t GetNumParticles() const { return (uint32_t)m_particleDefinitions.size(); }
 	ActorParticleDefinition* GetParticleDefinition(uint32_t index) const;
 
 	void AddParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition);
@@ -283,5 +350,64 @@ public:
 
 	std::vector<std::unique_ptr<ActorParticleDefinition>> m_particleDefinitions;
 };
+
+//-------------------------------------------------------------------------------------------------
+
+class ActorParticle
+{
+public:
+	ActorParticle(ActorParticleDefinition* definition, HierarchicalModel* model);
+	ActorParticle(ActorParticleDefinition* definition, SimpleModel* model);
+	~ActorParticle();
+
+	ActorParticleDefinition* GetDefinition() const { return m_definition; }
+	ParticlePoint* GetParticlePoint() const { return m_particlePoint; }
+
+	void StartParticle(Actor* actor);
+	void StopParticle();
+
+	int GetEmitterDefID() const { return m_definition->GetEmitterDefinitionID(); }
+	int GetColdEmitterDefID() const { return m_definition->GetColdEmitterDefinitionID(); }
+	const std::string& GetPointName() const { return m_definition->GetPointName(); }
+	int GetParticleType() const { return m_definition->GetParticleType(); }
+	int GetAnimationNumber() const { return m_definition->GetAnimationNumber(); }
+	int GetAnimationVariation() const { return m_definition->GetAnimationVariation(); }
+	int GetAnimationRandomVariation() const { return m_definition->GetAnimationRandomVariation(); }
+	int GetStartTime() const { return m_definition->GetStartTime(); }
+	int GetLifeSpan() const { return m_definition->GetLifeSpan(); }
+	int GetGroundBased() const { return m_definition->GetGroundBased(); }
+	int GetPlayWithMat() const { return m_definition->GetPlayWithMat(); }
+	int GetSporadic() const { return m_definition->GetSporadic(); }
+
+private:
+	ActorParticleDefinition* m_definition;
+	ParticlePoint*           m_particlePoint = nullptr;
+	ParticleEmitter*         m_emitter = nullptr;
+};
+
+class ActorParticleManager
+{
+public:
+	ActorParticleManager(ActorParticleDefinitionManager* definition, HierarchicalModel* model);
+	ActorParticleManager(ActorParticleDefinitionManager* definition, SimpleModel* model);
+	~ActorParticleManager();
+
+	uint32_t GetNumParticles() const;
+	ActorParticle* GetParticle(uint32_t index) const;
+
+	void CreateParticle(SActorParticle* particle, HierarchicalModel* model);
+	void CreateParticle(SActorParticle* particle, SimpleModel* model);
+
+	void InitParticles(int mat);
+	//void SetupAnimationParticles(...)
+	//void ClearAnimationtParticles(...)
+
+private:
+	int m_currentMat = 0;
+	std::vector<std::unique_ptr<ActorParticle>> m_particles;
+	std::vector<std::unique_ptr<ActorParticleDefinition>> m_particleDefinitions;
+};
+
+//-------------------------------------------------------------------------------------------------
 
 } // namespace eqg

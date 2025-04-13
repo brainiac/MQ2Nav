@@ -7,6 +7,7 @@
 #include "eqg_material.h"
 #include "eqg_resource_manager.h"
 #include "eqg_structs.h"
+#include "eqg_terrain_loader.h"
 #include "log_internal.h"
 
 #include <filesystem>
@@ -28,6 +29,8 @@ bool EQGLoader::Load(Archive* archive, int loadFlags)
 {
 	if (archive == nullptr)
 		return false;
+
+	eqg::ScopedUseResourceManager useResourceManager(m_resourceMgr);
 
 	m_archive = archive;
 	m_loadFlags = loadFlags;
@@ -417,13 +420,13 @@ bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& f
 	// TODO: Load .pts / EQPT
 	// TODO: Load .prt / PTCL
 
-	SEQMBone* bones = nullptr;
+	SEQMBoneData* bones = nullptr;
 	SEQMSkinData* skin_data = nullptr;
 
 	if (header->num_bones > 0)
 	{
 		// This is an animated (hierarchical) model
-		bones = reader.read_array<SEQMBone>(header->num_bones);
+		bones = reader.read_array<SEQMBoneData>(header->num_bones);
 		std::vector<std::string_view> bone_names(header->num_bones);
 
 		for (uint32_t i = 0; i < header->num_bones; ++i)
@@ -562,7 +565,7 @@ bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string&
 bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
 {
 	// Load terrain data
-	auto loading_terrain = std::make_shared<TerrainSystem>(m_archive, m_resourceMgr);
+	auto loading_terrain = std::make_shared<TerrainSystem>(m_archive);
 
 	if (!loading_terrain->Load(buffer.data(), buffer.size()))
 	{

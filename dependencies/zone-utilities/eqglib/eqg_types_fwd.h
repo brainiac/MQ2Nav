@@ -7,6 +7,12 @@ namespace eqg {
 class ActorDefinition;
 using ActorDefinitionPtr = std::shared_ptr<ActorDefinition>;
 
+class Actor;
+using ActorPtr = std::shared_ptr<Actor>;
+
+class Animation;
+using AnimationPtr = std::shared_ptr<Animation>;
+
 class Archive;
 using ArchivePtr = std::shared_ptr<Archive>;
 
@@ -34,6 +40,8 @@ class ResourceManager;
 
 class SimpleActor;
 using SimpleActorPtr = std::shared_ptr<SimpleActor>;
+
+class TerrainObject;
 
 class WaterSheet;
 using WaterSheetPtr = std::shared_ptr<WaterSheet>;
