@@ -13,6 +13,7 @@
 #include "meshgen/imgui/imgui_impl_opengl2.h"
 #include "meshgen/imgui/imgui_impl_sdl2.h"
 #include "common/Utilities.h"
+#include "common/proto/NavMeshClient.pb.h"
 
 #include "imgui/ImGuiUtils.h"
 
@@ -40,6 +41,8 @@ namespace fs = std::filesystem;
 //============================================================================
 
 static const int32_t MAX_LOG_MESSAGES = 1000;
+
+static ClientInformation s_clientInformation;
 
 static bool IsKeyboardBlocked() {
 	return ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput;
@@ -296,6 +299,7 @@ int Application::RunMainLoop()
 		m_raye = glm::unProject(glm::vec3{ m_m.x, m_m.y, 1.0f }, m_model, m_proj, m_view);
 
 		DispatchCallbacks();
+		ProcessPipeClient();
 
 		// Handle input events.
 		HandleEvents();
@@ -771,6 +775,20 @@ void Application::RenderInterface()
 			m_cam.x = camPos[1];
 			m_cam.y = camPos[2];
 			m_cam.z = camPos[0];
+		}
+
+		if (!s_clientInformation.m_transforms.empty())
+		{
+			ImGui::Separator();
+			ImGui::Text("Connected Character Information:");
+			for (const auto& [charInfo, xform] : s_clientInformation.m_transforms)
+			{
+				ImGui::Text(
+					"[%s] %s x: %.2f y: %.2f z: %.2f h: %.2f",
+					charInfo.c_str(), xform.shortzone().c_str(),
+					xform.position().x(), xform.position().y(),
+					xform.position().z(), xform.heading());
+			}
 		}
 
 		if (m_geom)
@@ -1426,4 +1444,32 @@ void ImportExportSettingsDialog::Show(bool* open /* = nullptr */)
 	}
 
 	m_firstShow = false;
+}
+
+ClientInformation::ClientInformation()
+{
+	StartPipeClient();
+}
+
+ClientInformation::~ClientInformation()
+{
+	StopPipeClient();
+}
+
+void ClientInformation::UpdateTransform(const nav::client::UpdateTransform& transform)
+{
+	std::string characterInfo = transform.character_info();
+
+	auto it = s_clientInformation.m_transforms.find(transform.character_info());
+	if (it != s_clientInformation.m_transforms.end())
+		it->second = transform;
+	else
+		s_clientInformation.m_transforms.emplace(characterInfo, transform);
+}
+
+void ClientInformation::DropCharacter(const std::string& characterInfo)
+{
+	auto it = s_clientInformation.m_transforms.find(characterInfo);
+	if (it != s_clientInformation.m_transforms.end())
+		s_clientInformation.m_transforms.erase(it);
 }

@@ -32,6 +32,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Actor.cpp" />
     <ClCompile Include="WaypointsTool.cpp" />
     <ClCompile Include="ZonePicker.cpp" />
   </ItemGroup>
@@ -60,6 +61,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\imgui\imgui.vcxproj">
       <Project>{1777e251-0f50-496a-b8c5-ec7f41a0b186}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\src\routing\routing.vcxproj">
+      <Project>{6ce4f8d6-1709-47c5-9297-1619bbc4a71e}</Project>
     </ProjectReference>
     <ProjectReference Include="..\common\MQ2Nav_Common.vcxproj">
       <Project>{45e99b43-f47b-4aad-ac88-f95bf467f463}</Project>

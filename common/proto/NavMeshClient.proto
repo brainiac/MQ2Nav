@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package nav.client;
+
+import "NavMeshFile.proto";
+
+message UpdateTransform
+{
+	string shortzone = 1;
+	nav.vector3 position = 2;
+	float heading = 3;
+
+	string character_info = 10;
+}
+
+message DropClient
+{
+	string character_info = 1;
+}
+
+message ClientMessage
+{
+	oneof message
+	{
+		UpdateTransform transform = 1;
+		DropClient drop = 2;
+	}
+}
