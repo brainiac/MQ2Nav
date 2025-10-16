@@ -403,15 +403,28 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
 
 	std::string logFile = std::string(gPathLogs) + "\\MQ2Nav.log";
 
-	// set up default logger
-	auto logger = spdlog::create<spdlog::sinks::basic_file_sink_mt>("MQ2Nav", logFile, true);
 	m_chatSink = std::make_shared<WriteChatSink>();
 	m_chatSink->set_level(spdlog::level::info);
+
+	// set up default logger
+	auto logger = std::make_shared<spdlog::logger>("MQ2Nav", m_chatSink);
+	spdlog::details::registry::instance().initialize_logger(logger);
 
 	logger->sinks().push_back(m_chatSink);
 #if defined(_DEBUG)
 	logger->sinks().push_back(std::make_shared<spdlog::sinks::msvc_sink_mt>());
 #endif
+
+	try
+	{
+		auto fileSink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile, true);
+		logger->sinks().push_back(fileSink);
+	}
+	catch (const std::exception& e)
+	{
+		// Failed to create log file
+	}
+
 	spdlog::set_default_logger(logger);
 	spdlog::set_pattern("%L %Y-%m-%d %T.%f [%n] %v (%@)");
 	spdlog::flush_on(spdlog::level::debug);
