@@ -6,7 +6,13 @@
 #pragma once
 
 #include "plugin/Renderable.h"
+
+#if __has_include("eqlib/game/EQDX9.h")
+#include "eqlib/game/EQDX9.h"
+#else
 #include "eqlib/EQDX9.h"
+#endif
+
 #include <glm/glm.hpp>
 
 #include <map>
