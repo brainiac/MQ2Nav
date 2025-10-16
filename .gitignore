@@ -27,3 +27,5 @@ Thumbs.db
 *.VC.db
 
 .vscode/
+_ReSharper*/
+.idea/
