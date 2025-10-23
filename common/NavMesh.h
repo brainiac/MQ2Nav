@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "common/Enum.h"
 #include "common/NavMeshData.h"
 #include "common/NavModule.h"
 
-#include <DetourNavMesh.h>
-#include <mq/base/Signal.h>
+#include "mq/base/Enum.h"
+#include "mq/base/Signal.h"
+#include "DetourNavMesh.h"
 
 #include <array>
 #include <map>

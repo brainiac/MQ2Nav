@@ -423,6 +423,7 @@ MQ2NavigationPlugin::MQ2NavigationPlugin()
 	catch (const std::exception& e)
 	{
 		// Failed to create log file
+		UNUSED(e);
 	}
 
 	spdlog::set_default_logger(logger);

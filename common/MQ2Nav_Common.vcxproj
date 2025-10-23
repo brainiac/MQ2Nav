@@ -140,7 +140,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Enum.h" />
     <ClInclude Include="FindPattern.h" />
     <ClInclude Include="JsonProto.h" />
     <ClInclude Include="Logging.h" />

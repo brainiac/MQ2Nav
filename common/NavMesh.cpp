@@ -4,28 +4,29 @@
 
 #include "NavMesh.h"
 
-#include "common/Enum.h"
 #include "common/JsonProto.h"
 #include "common/Utilities.h"
 #include "common/proto/NavMeshFile.pb.h"
+#include "mq/base/Enum.h"
 
-#include <google/protobuf/io/zero_copy_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/util/json_util.h>
-#include <glm/gtc/type_ptr.hpp>
-#include <rapidjson/document.h>
-#include <rapidjson/filereadstream.h>
-#include <spdlog/spdlog.h>
+#include "google/protobuf/io/zero_copy_stream.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "google/protobuf/util/json_util.h"
+#include "glm/gtc/type_ptr.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/filereadstream.h"
+#include "spdlog/spdlog.h"
 
-#include <DebugDraw.h>
-#include <DetourCommon.h>
-#include <DetourNavMesh.h>
-#include <DetourNavMeshQuery.h>
-#include <DetourNavMeshBuilder.h>
-#include <Recast.h>
+#include "DebugDraw.h"
+#include "DetourCommon.h"
+#include "DetourNavMesh.h"
+#include "DetourNavMeshQuery.h"
+#include "DetourNavMeshBuilder.h"
+#include "Recast.h"
 
 #include <fstream>
 #include <filesystem>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
