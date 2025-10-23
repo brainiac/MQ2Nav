@@ -1700,6 +1700,24 @@ void MQ2NavigationPlugin::ParseOptions(std::string_view line, int idx, Navigatio
 			{
 				args->tag = value;
 			}
+			else if (key == "searchradius")
+			{
+				options.searchRadius = GetIntFromString(value, 0);
+			}
+			else if (key == "searchorigin")
+			{
+				std::vector <std::string_view> parts = mq::split_view(value, ' ', false);
+				if (parts.size() == 3)
+				{
+					options.searchOrigin = { GetFloatFromString(parts[0], 0), GetFloatFromString(parts[1], 0), GetFloatFromString(parts[2], 0) };
+				}
+				else if (parts.size() == 2)
+				{
+					options.searchOrigin = { GetFloatFromString(parts[0], 0), pLocalPlayer->FloorHeight, GetFloatFromString(parts[2], 0) };
+				}
+				else
+					SPDLOG_ERROR("Invalid argument for searchorigin: {}", value);
+			}
 		}
 		catch (const std::exception& ex)
 		{
