@@ -36,6 +36,7 @@ public:
 
 		Setting = 8,
 		Velocity = 9,
+		CurrentPathDistance = 10,
 	};
 
 	MQ2NavigationType();
