@@ -10,26 +10,35 @@
 
 // custom format types
 
-namespace fmt {
-	template<>
-	struct formatter<glm::vec3> {
-		template <typename ParseContext>
-		constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
 
-		template <typename FormatContext>
-		auto format(const glm::vec3& p, FormatContext& ctx) {
-			return format_to(ctx.out(), "({:.2f}, {:.2f}, {:.2f})", p.x, p.y, p.z);
-		}
-	};
+template<>
+struct fmt::formatter<glm::vec3>
+{
+	constexpr auto parse(format_parse_context& ctx)
+		-> format_parse_context::iterator
+	{
+		return ctx.begin();
+	}
 
-	template<>
-	struct formatter<glm::vec2> {
-		template <typename ParseContext>
-		constexpr auto parse(ParseContext& ctx) { return ctx.begin(); }
+	auto format(const glm::vec3& p, format_context& ctx) const
+		-> format_context::iterator
+	{
+		return format_to(ctx.out(), "({:.2f}, {:.2f}, {:.2f})", p.x, p.y, p.z);
+	}
+};
 
-		template <typename FormatContext>
-		auto format(const glm::vec2& p, FormatContext& ctx) {
-			return format_to(ctx.out(), "({:.2f}, {:.2f})", p.x, p.y);
-		}
-	};
-}
+template<>
+struct fmt::formatter<glm::vec2>
+{
+	constexpr auto parse(format_parse_context& ctx)
+		-> format_parse_context::iterator
+	{
+		return ctx.begin();
+	}
+
+	auto format(const glm::vec2& p, format_context& ctx) const
+		-> format_context::iterator
+	{
+		return format_to(ctx.out(), "({:.2f}, {:.2f})", p.x, p.y);
+	}
+};

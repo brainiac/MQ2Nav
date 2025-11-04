@@ -179,7 +179,6 @@
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="RenderList.h" />
-    <ClInclude Include="resource.h" />
     <ClInclude Include="SwitchHandler.h" />
     <ClInclude Include="UiController.h" />
     <ClInclude Include="Waypoints.h" />
