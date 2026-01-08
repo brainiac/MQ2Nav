@@ -346,6 +346,9 @@
     <ClInclude Include="ArchiveBrowserPanel.h">
       <Filter>Header Files\panels</Filter>
     </ClInclude>
+    <ClInclude Include="EQComponents.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="meshgen.natvis">
@@ -424,9 +427,6 @@
     </None>
     <None Include="imgui\vs_imgui.sc">
       <Filter>Resource Files\engine\imgui</Filter>
-    </None>
-    <None Include="Entity.inl">
-      <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
 </Project>

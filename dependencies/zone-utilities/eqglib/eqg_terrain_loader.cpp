@@ -707,7 +707,7 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(
 int TerrainSystem::GetNextObjectID()
 {
 	// Search for an empty ID???
-	for (int i = 0; i < m_maxObjectID; ++i)
+	for (int i = 1; i < m_maxObjectID; ++i)
 	{
 		if (!m_objects.contains(i))
 			return i;
@@ -892,6 +892,11 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 				obj->transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), obj->position), obj->scale);
 				obj->transform *= glm::mat4_cast(glm::quat{ obj->orientation });
 
+
+				obj->m_actor->SetPosition(obj->position);
+				obj->m_actor->SetOrientation(obj->orientation);
+				obj->m_actor->SetScale(obj->scale.x);
+
 				m_objects.push_back(obj);
 			}
 		}
@@ -1032,21 +1037,31 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 	m_objects.reserve(definition->objects.size());
 	for (const auto& object : definition->objects)
 	{
-		auto newObject = m_tile->m_terrain->CreateTerrainObject(object.get(), this);
-		newObject->m_name = to_upper_copy(object->name) + "_ACTORDEF";
-		newObject->m_objectID = object->object_id;
-		newObject->group = this;
+		if (auto newObject = m_tile->m_terrain->CreateTerrainObject(object.get(), this))
+		{
+			newObject->m_name = to_upper_copy(object->name) + "_ACTORDEF";
+			newObject->m_objectID = object->object_id;
+			newObject->group = this;
 
-		// Set positions to be in world space
-		newObject->transform = m_transform * object->transform;
+			// Set positions to be in world space
+			newObject->transform = m_transform * object->transform;
 
-		glm::quat orient;
-		glm::vec3 skew;
-		glm::vec4 perspective;
-		glm::decompose(newObject->transform, newObject->scale, orient, newObject->position, skew, perspective);
-		newObject->orientation = glm::eulerAngles(orient);
+			glm::quat orient;
+			glm::vec3 skew;
+			glm::vec4 perspective;
+			glm::decompose(newObject->transform, newObject->scale, orient, newObject->position, skew, perspective);
+			newObject->orientation = glm::eulerAngles(orient);
 
-		m_objects.push_back(newObject);
+			newObject->m_actor->SetPosition(newObject->position);
+			newObject->m_actor->SetOrientation(newObject->orientation);
+			newObject->m_actor->SetScale(newObject->scale.x);
+
+			m_objects.push_back(newObject);
+		}
+		else
+		{
+			EQG_LOG_ERROR("Failed to load terrain object {}", object->name);
+		}
 	}
 
 	m_areas.reserve(definition->areas.size());
@@ -1348,12 +1363,10 @@ void TerrainLightDefinition::UpdateLightDefinition()
 
 void TerrainLight::UpdateLightInstance()
 {
-	m_light = ResourceManager::Get()->CreatePointLight(m_definition->GetDefinition(), m_position, m_radius);
+	m_light = ResourceManager::Get()->CreatePointLight(m_name, m_definition->GetDefinition(), m_position, m_radius);
 }
 
 //============================================================================
-
-static uint32_t s_waterSheetDataIndex = 10000;
 
 WaterSheet::WaterSheet(TerrainSystem* terrain, const std::string& name, const std::shared_ptr<WaterSheetData>& data)
 	: m_name(name)
@@ -1362,7 +1375,7 @@ WaterSheet::WaterSheet(TerrainSystem* terrain, const std::string& name, const st
 {
 	if (m_data == nullptr)
 	{
-		m_data = std::make_shared<WaterSheetData>(s_waterSheetDataIndex++);
+		m_data = std::make_shared<WaterSheetData>();
 	}
 }
 
@@ -1407,7 +1420,7 @@ bool WaterSheet::Init(const std::vector<std::string>& tokens, size_t& k)
 	glm::vec3 orientation(0.0f);
 	glm::vec3 position = glm::vec3(glm::vec2(m_minX, m_minY) + center, m_zHeight);
 
-	m_actor = resourceMgr->CreateSimpleActor("", pActorDef, position, orientation, 1.0f, eCollisionVolumeNone);
+	m_actor = resourceMgr->CreateSimpleActor("", pActorDef, position, orientation, 1.0f, eCollisionVolumeNone, 1.0f, -1, nullptr, nullptr, 0, m_name);
 	m_actor->GetSimpleModel()->InitBatchInstances();
 
 	return true;
@@ -1608,9 +1621,6 @@ ActorDefinitionPtr WaterSheet::CreateActorDefinition()
 		}
 	}
 
-	m_vertices = std::move(vertices);
-	m_faces = std::move(faces);
-
 	// Generate a simple model definition.
 	MaterialPalettePtr palette = std::make_shared<MaterialPalette>("", 1);
 	palette->SetMaterial(0, m_data->CreateMaterial());
@@ -1618,21 +1628,15 @@ ActorDefinitionPtr WaterSheet::CreateActorDefinition()
 
 	// Create a SimpleModelDefinition from the liquid data
 	SimpleModelDefinitionPtr pModelDef = resourceMgr->CreateSimpleModelDefinition();
-	if (!pModelDef->InitFromEQMData(
-		tag,
-		(uint32_t)m_vertices.size(),
-		m_vertices.data(),
-		(uint32_t)m_faces.size(),
-		m_faces.data(),
-		0, nullptr,
-		0, nullptr,
-		palette))
+	if (!pModelDef->InitFromEQMData(tag, std::move(vertices), std::move(faces), {}, {}, palette))
 	{
 		EQG_LOG_ERROR("Failed to create Simple Model Definition from water sheet. tag={}", tag);
 		return nullptr;
 	}
 
+	// TODO: Defer to renderer
 	pModelDef->InitStaticData();
+
 	resourceMgr->Add(pModelDef);
 
 	// Create an ActorDefinition to represent the model.

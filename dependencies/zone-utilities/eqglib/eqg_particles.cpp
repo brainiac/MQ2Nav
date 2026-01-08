@@ -223,7 +223,7 @@ void BlitSpriteDefinition::CopyDefinition(STextureDataDefinition& outDefinition)
 
 //-------------------------------------------------------------------------------------------------
 
-ParticlePointDefinition::ParticlePointDefinition(SParticlePoint* point, SimpleModelDefinition* model)
+ParticlePointDefinition::ParticlePointDefinition(const SParticlePoint* point, SimpleModelDefinition* model)
 	: name(point->name)
 	, position(point->position)
 	, orientation(point->orientation)
@@ -232,7 +232,7 @@ ParticlePointDefinition::ParticlePointDefinition(SParticlePoint* point, SimpleMo
 	UpdateMatrix();
 }
 
-ParticlePointDefinition::ParticlePointDefinition(SParticlePoint* point, HierarchicalModelDefinition* model)
+ParticlePointDefinition::ParticlePointDefinition(const SParticlePoint* point, HierarchicalModelDefinition* model)
 	: name(point->name)
 	, position(point->position)
 	, orientation(point->orientation)
@@ -287,23 +287,23 @@ ParticlePointDefinitionManager::ParticlePointDefinitionManager()
 {
 }
 
-ParticlePointDefinitionManager::ParticlePointDefinitionManager(uint32_t numPoints, SParticlePoint* points, SimpleModelDefinition* model)
+ParticlePointDefinitionManager::ParticlePointDefinitionManager(const std::vector<SParticlePoint>& points, SimpleModelDefinition* model)
 {
-	m_points.reserve(numPoints);
+	m_points.reserve(points.size());
 
-	for (uint32_t i = 0; i < numPoints; ++i)
+	for (const SParticlePoint& point : points)
 	{
-		AddPoint(points + i, model);
+		AddPoint(&point, model);
 	}
 }
 
-ParticlePointDefinitionManager::ParticlePointDefinitionManager(uint32_t numPoints, SParticlePoint* points, HierarchicalModelDefinition* model)
+ParticlePointDefinitionManager::ParticlePointDefinitionManager(const std::vector<SParticlePoint>& points, HierarchicalModelDefinition* model)
 {
-	m_points.reserve(numPoints);
+	m_points.reserve(points.size());
 
-	for (uint32_t i = 0; i < numPoints; ++i)
+	for (const SParticlePoint& point : points)
 	{
-		AddPoint(points + i, model);
+		AddPoint(&point, model);
 	}
 }
 
@@ -319,12 +319,12 @@ ParticlePointDefinition* ParticlePointDefinitionManager::GetPointDefinition(uint
 	return nullptr;
 }
 
-void ParticlePointDefinitionManager::AddPoint(SParticlePoint* point, SimpleModelDefinition* model)
+void ParticlePointDefinitionManager::AddPoint(const SParticlePoint* point, SimpleModelDefinition* model)
 {
 	m_points.push_back(std::make_unique<ParticlePointDefinition>(point, model));
 }
 
-void ParticlePointDefinitionManager::AddPoint(SParticlePoint* point, HierarchicalModelDefinition* model)
+void ParticlePointDefinitionManager::AddPoint(const SParticlePoint* point, HierarchicalModelDefinition* model)
 {
 	m_points.push_back(std::make_unique<ParticlePointDefinition>(point, model));
 }
@@ -556,7 +556,7 @@ int ParticlePointManager::GetPointIndex(std::string_view tag) const
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 
-ActorParticleDefinition::ActorParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition)
+ActorParticleDefinition::ActorParticleDefinition(const SActorParticle* particle, SimpleModelDefinition* definition)
 	: m_emitterDefinitionID(particle->emitterDefinitionID)
 	, m_coldEmitterDefinitionID(particle->coldEmitterDefinitionID)
 	, m_pointName(particle->particlePointName)
@@ -574,7 +574,7 @@ ActorParticleDefinition::ActorParticleDefinition(SActorParticle* particle, Simpl
 	InitIndex(definition->GetPointManager());
 }
 
-ActorParticleDefinition::ActorParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition)
+ActorParticleDefinition::ActorParticleDefinition(const SActorParticle* particle, HierarchicalModelDefinition* definition)
 	: m_emitterDefinitionID(particle->emitterDefinitionID)
 	, m_coldEmitterDefinitionID(particle->coldEmitterDefinitionID)
 	, m_pointName(particle->particlePointName)
@@ -630,27 +630,25 @@ void ActorParticleDefinition::InitIndex(ParticlePointDefinitionManager* pPtMgr)
 
 //-------------------------------------------------------------------------------------------------
 
-ActorParticleDefinitionManager::ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles,
+ActorParticleDefinitionManager::ActorParticleDefinitionManager(const std::vector<SActorParticle>& particles,
 	SimpleModelDefinition* definition)
 {
-	if (numParticles > 0)
+	m_particleDefinitions.reserve(particles.size());
+
+	for (const SActorParticle& particle : particles)
 	{
-		for (uint32_t particle = 0; particle < numParticles; ++particle)
-		{
-			m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particles + particle, definition));
-		}
+		AddParticleDefinition(&particle, definition);
 	}
 }
 
-ActorParticleDefinitionManager::ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles,
+ActorParticleDefinitionManager::ActorParticleDefinitionManager(const std::vector<SActorParticle>& particles,
 	HierarchicalModelDefinition* definition)
 {
-	if (numParticles > 0)
+	m_particleDefinitions.reserve(particles.size());
+
+	for (const SActorParticle& particle : particles)
 	{
-		for (uint32_t particle = 0; particle < numParticles; ++particle)
-		{
-			m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particles + particle, definition));
-		}
+		AddParticleDefinition(&particle, definition);
 	}
 }
 
@@ -666,12 +664,12 @@ ActorParticleDefinition* ActorParticleDefinitionManager::GetParticleDefinition(u
 	return nullptr;
 }
 
-void ActorParticleDefinitionManager::AddParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition)
+void ActorParticleDefinitionManager::AddParticleDefinition(const SActorParticle* particle, SimpleModelDefinition* definition)
 {
 	m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particle, definition));
 }
 
-void ActorParticleDefinitionManager::AddParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition)
+void ActorParticleDefinitionManager::AddParticleDefinition(const SActorParticle* particle, HierarchicalModelDefinition* definition)
 {
 	m_particleDefinitions.emplace_back(std::make_unique<ActorParticleDefinition>(particle, definition));
 }

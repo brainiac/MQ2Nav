@@ -167,6 +167,17 @@ struct SEQMBone
 	glm::vec3 pivot;
 	glm::quat quat;
 	glm::vec3 scale;
+
+	SEQMBone(std::string_view name, const SEQMBoneData& data)
+		: name(name)
+		, next_index(data.next_index)
+		, num_children(data.num_children)
+		, first_child_index(data.first_child_index)
+		, pivot(data.pivot)
+		, quat(data.quat)
+		, scale(data.scale)
+	{
+	}
 };
 
 struct SEQMSkinData

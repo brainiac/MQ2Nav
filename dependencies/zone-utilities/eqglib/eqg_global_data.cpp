@@ -100,4 +100,11 @@ bool DataManager::GetDisableSecondaryAttachments(std::string_view tag) const
 	return GetPrivateProfileBool(sectionName, "DisSecAtt", false, m_modelDataPath);
 }
 
+float DataManager::GetDefaultBoundingRadius(std::string_view tag, float defaultValue) const
+{
+	char sectionName[64];
+	strncpy_s(sectionName, tag.data(), tag.size());
+	return GetPrivateProfileFloat(sectionName, "DefBR", defaultValue, m_modelDataPath);
+}
+
 } // namespace eqg

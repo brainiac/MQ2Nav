@@ -5,9 +5,16 @@
 #include "eqglib/eqg_loader.h"
 #include "eqglib/eqg_terrain_loader.h" // FIXME: Remove
 
-#include <glm/glm.hpp>
+#include "entt/entity/handle.hpp"
+#include "glm/glm.hpp"
+
 #include <memory>
 #include <vector>
+
+inline bool IsPositionOutOfBounds(const glm::vec3& pos)
+{
+	return pos.z < -30000 || pos.x > 15000 || pos.y > 15000 || pos.z > 15000;
+}
 
 class ZoneCollisionMesh
 {
@@ -35,6 +42,8 @@ public:
 	void addModelInstance(const PlaceablePtr& inst);
 	//void addZoneGeometry(const S3DGeometryPtr& model); // For s3d zone geometry
 	void addZoneGeometry(const EQGGeometryPtr& model); // For TER zone geometry
+
+	void addActor(entt::handle handle, const eqg::Actor* actor);
 
 	bool finalize();
 

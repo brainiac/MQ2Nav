@@ -3,77 +3,30 @@
 
 #include "meshgen/Components.h"
 
-#include <entt/entity/fwd.hpp>
+#include "entt/entity/fwd.hpp"
 
 struct TransformComponent;
 class Scene;
 
-class Entity
-{
-public:
-	Entity() = default;
-	Entity(entt::entity handle, Scene* scene)
-		: m_entityHandle(handle), m_scene(scene) {}
+// TransformComponent management
+TransformComponent& GetTransform(const entt::handle& entity);
 
-	~Entity() = default;
+// HierarchicalComponent management
 
-	const entt::entity& GetHandle() const { return m_entityHandle; }
+entt::handle GetParent(const entt::handle& entity);
+std::vector<entt::entity>& GetChildren(const entt::handle& entity);
 
-	entt::registry& GetRegistry() const;
+// Check if `entity` is an ancestor or descendent of this `otherEntity`.
+bool IsAncestorOf(const entt::handle& entity, const entt::handle& otherEntity);
+bool IsDescendentOf(const entt::handle& entity, const entt::handle& otherEntity);
 
-	template <typename T, typename... Args>
-	T& AddComponent(Args&&... args);
+void ParentEntity(const entt::handle& entity, const entt::handle& parent);
+void UnparentEntity(const entt::handle& entity, bool convertToWorldspace = true);
 
-	template <typename T>
-	T& GetComponent();
+void SetParent(const entt::handle& entity, const entt::handle& parent);
+bool RemoveChild(const entt::handle& entity, const entt::handle& child);
 
-	template <typename T>
-	const T& GetComponent() const;
 
-	template <typename... T>
-	bool HasComponent() const;
+// Helpers
 
-	template <typename... T>
-	bool HasAny() const;
-
-	template <typename T>
-	void RemoveComponent();
-
-	template <typename T>
-	bool TryRemoveComponent();
-
-	operator entt::entity() const { return m_entityHandle; }
-	explicit operator bool() const;
-
-	bool operator==(const Entity& other) const
-	{
-		return m_entityHandle == other.m_entityHandle && m_scene == other.m_scene;
-	}
-
-	bool operator!=(const Entity& other) const
-	{
-		return !(*this == other);
-	}
-
-	TransformComponent& GetTransform();
-	const TransformComponent& GetTransform() const;
-
-	Entity GetParent() const;
-	void SetParent(Entity parent);
-
-	entt::entity GetParentHandle() const;
-	void SetParentHandle(entt::entity parent);
-
-	std::vector<entt::entity>& GetChildren();
-	const std::vector<entt::entity>& GetChildren() const;
-
-	void AddChild(Entity child);
-	bool RemoveChild(Entity child);
-
-	bool IsAncestorOf(Entity entity) const;
-	bool IsDescendentOf(Entity entity) const;
-
-private:
-	entt::entity m_entityHandle = entt::null;
-	Scene* m_scene = nullptr;
-};
+glm::mat4 GetWorldSpaceTransformMatrix(const entt::handle& entity);

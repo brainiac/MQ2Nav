@@ -14,6 +14,7 @@
 #include "meshgen/PanelManager.h"
 #include "meshgen/PropertiesPanel.h"
 #include "meshgen/RenderManager.h"
+#include "meshgen/SceneHierarchyPanel.h"
 #include "meshgen/Scene.h"
 #include "meshgen/SelectionManager.h"
 #include "meshgen/SettingsDialog.h"
@@ -53,6 +54,7 @@ void Editor::OnInit()
 	m_panelManager->AddPanel<ViewPanel>(this);
 	m_panelManager->AddPanel<ToolsPanel>(this);
 	m_panelManager->AddPanel<ArchiveBrowserPanel>(this);
+	m_panelManager->AddPanel<SceneHierarchyPanel>(this);
 
 	m_panelManager->AddDockingLayout({
 		.splits = {
@@ -62,9 +64,10 @@ void Editor::OnInit()
 			{.initialDock = "LeftPane", .newDock = "LeftBottomPane", .direction = ImGuiDir_Down, .ratio = .50f },
 		},
 		.assignments = {
-			{.panelName = "Properties", .dockName = "LeftPane", .open = true },
+			{.panelName = "Scene Hierarchy", .dockName = "LeftPane", .open = true },
 			{.panelName = "Archive Browser", .dockName = "LeftPane", .open = false },
 			{.panelName = "Console Log", .dockName = "BottomPane", .open = true },
+			{.panelName = "Properties", .dockName = "RightPane", .open = true },
 			{.panelName = "Tools", .dockName = "RightPane", .open = true },
 			{.panelName = "View", .dockName = "RightPane", .open = true },
 
@@ -300,7 +303,7 @@ void Editor::OnMouseMotion(const SDL_MouseMotionEvent& event)
 	{
 		int dx = m_mousePos.x - m_lastMouseLook.x;
 		int dy = m_mousePos.y - m_lastMouseLook.y;
-		m_lastMouseLook = m_mousePos;
+		m_lastMouseLook.x = m_mousePos.x;
 		m_lastMouseLook.y = m_mousePos.y;
 
 		m_camera.UpdateMouseLook(dx, -dy);
@@ -1073,6 +1076,7 @@ void Editor::ShowImportExportSettingsDialog(bool import)
 void Editor::SetProject(const std::shared_ptr<ZoneProject>& zoneProject)
 {
 	m_project = zoneProject;
+	m_scene = zoneProject->GetScene();
 
 	// Update the window title
 	std::string windowTitle = fmt::format("MacroQuest NavMesh Generator - {}", m_project->GetDisplayName());
@@ -1119,6 +1123,7 @@ void Editor::CloseProject()
 	SetNavMeshProject(nullptr);
 
 	m_selectionMgr->Clear();
+	m_scene = nullptr;
 
 	m_panelManager->OnProjectChanged(nullptr);
 	m_meshTool->OnProjectChanged(nullptr);

@@ -98,7 +98,7 @@ public:
 	template <IsPanel T, typename... Args>
 	std::shared_ptr<T> AddPanel(Args&&... args)
 	{
-		static_assert(std::is_base_of_v<PanelWindow, T>, "AddPanel requries a type that inherits from PanelWindow");
+		static_assert(std::is_base_of_v<PanelWindow, T>, "AddPanel requires a type that inherits from PanelWindow");
 
 		std::shared_ptr<T> panel = std::make_shared<T>(std::forward<Args>(args)...);
 		size_t hash = hash::fnv_1a()(panel->panelName);
@@ -121,7 +121,7 @@ public:
 	template <typename T>
 	std::shared_ptr<T> GetPanel(std::string_view panelName) const
 	{
-		static_assert(std::is_base_of_v<PanelWindow, T>, "AddPanel requries a type that inherits from PanelWindow");
+		static_assert(std::is_base_of_v<PanelWindow, T>, "AddPanel requires a type that inherits from PanelWindow");
 
 		size_t hash = hash::fnv_1a()(panelName);
 

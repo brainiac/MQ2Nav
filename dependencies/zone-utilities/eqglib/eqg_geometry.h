@@ -8,6 +8,8 @@
 #include "eqg_types_fwd.h"
 #include "wld_types.h"
 
+#include "common/math/aabb.h"
+
 #include <glm/glm.hpp>
 #include <chrono>
 #include <vector>
@@ -180,7 +182,7 @@ class BoneDefinition
 {
 public:
 	explicit BoneDefinition(const SDagWLDData& wldData);
-	explicit BoneDefinition(SEQMBone* boneData);
+	explicit BoneDefinition(const SEQMBone* boneData);
 
 	const std::string& GetTag() const { return m_tag; }
 
@@ -206,8 +208,9 @@ public:
 	glm::mat4x4& GetMatrix() { return m_mtx; }
 	const glm::mat4x4& GetMatrix() const { return m_mtx; }
 
-	glm::mat4x4& GetDefaultPosMatrix() { return m_defaultPoseMtx; }
-	const glm::mat4x4& GetDefaultPosMatrix() const { return m_defaultPoseMtx; }
+	glm::mat4x4& GetDefaultPoseMatrix() { return m_defaultPoseMtx; }
+	const glm::mat4x4& GetDefaultPoseMatrix() const { return m_defaultPoseMtx; }
+	void SetDefaultPoseMatrix(const glm::mat4x4& mtx) { m_defaultPoseMtx = mtx; }
 
 private:
 	std::string                   m_tag;
@@ -307,19 +310,21 @@ public:
 
 	bool InitFromWLDData(std::string_view tag, SDMSpriteDef2WLDData* pWldData);
 	bool InitFromEQMData(std::string_view tag,
-		uint32_t numVertices, SEQMVertex* vertices,
-		uint32_t numFaces, SEQMFace* faces,
-		uint32_t numPoints, SParticlePoint* points,
-		uint32_t numParticles, SActorParticle* particles,
+		std::vector<SEQMVertex>&& vertices,
+		std::vector<SEQMFace>&& faces,
+		const std::vector<SParticlePoint>& points,
+		const std::vector<SActorParticle>& particles,
 		const MaterialPalettePtr& materialPalette);
+
 	virtual bool InitStaticData(); // Initializes materials, batches, etc
+	virtual bool ReleaseStaticData();
 
 	ParticlePointDefinitionManager* GetPointManager() const { return m_pointManager.get(); }
 	ActorParticleDefinitionManager* GetParticleManager() const { return m_particleManager.get(); }
 
 protected:
-	void InitVerticesFromEQMData(uint32_t numVertices, SEQMVertex* vertices);
-	void InitFacesFromEQMData(uint32_t numFaces, SEQMFace* faces);
+	void InitVerticesFromEQMData(std::vector<SEQMVertex>&& vertices);
+	void InitFacesFromEQMData(std::vector<SEQMFace>&& faces);
 	void InitCollisionData(bool forceModel);
 
 public:
@@ -338,9 +343,11 @@ public:
 	std::vector<glm::vec3>        m_faceNormals;
 	std::vector<uint32_t>         m_tangents;
 	std::vector<uint32_t>         m_binormals;
+	std::vector<uint32_t>         m_collidableIndices;
+	aabb                          m_collisionBox{ aabb::init_invalid };
 
-	glm::vec3                     m_aabbMin = glm::vec3(0.0f);
-	glm::vec3                     m_aabbMax = glm::vec3(0.0f);
+
+	aabb                          m_aabb{ aabb::init_invalid };
 	glm::vec3                     m_centerOffset = glm::vec3(0.0f);
 	float                         m_boundingRadius = 0.0f;
 
@@ -348,6 +355,7 @@ public:
 	std::unique_ptr<ActorParticleDefinitionManager> m_particleManager;
 
 	bool                          m_hasCollision = false;
+	bool                          m_forcedCollision = false;    // all faces are collidable (and m_collidableFaces is empty)
 	bool                          m_useLitBatches = false;
 	ECollisionVolumeType          m_defaultCollisionType = eCollisionVolumeNone;
 
@@ -362,21 +370,32 @@ using SimpleModelDefinitionPtr = std::shared_ptr<SimpleModelDefinition>;
 struct SSkinMesh
 {
 	std::string tag;
-	uint32_t attachPointBoneIndex;
-	bool hasBlendWeights;
-	bool hasBlendIndices;
-	bool oldModel;
+	uint32_t attachPointBoneIndex = 0;
+	bool oldModel = false;
+	bool hasBakedLighting = false;
 
-	struct VertexData
-	{
-		glm::vec3 vertex;
-		glm::vec3 normal;
-		glm::vec2 uv;
-	};
-	std::vector<VertexData> vertices;
+	std::vector<glm::vec3> vertices;
+	std::vector<glm::vec3> normals;
+	std::vector<glm::vec2> uvs;
+	std::vector<glm::vec2> uvs2;
+	std::vector<uint32_t> colors;
+	std::vector<glm::vec3> tangents;
+	std::vector<glm::vec3> binormals;
+
 	std::vector<uint16_t> indices;
 	std::vector<uint32_t> materialIndexTable;
-	std::vector<uint32_t> attributes;
+	std::vector<uint32_t> attributes;            // material index
+
+	struct SkinInfo   // D3DXCreateSkinInfo
+	{
+		std::vector<uint32_t> verts;    // SetBoneInfluence
+		std::vector<float> weights;     // SetBoneInfluence
+		glm::mat4x4 offsetMatrix;       // SetBoneOffsetMatrix
+		std::string_view boneName;      // SetBoneName
+	};
+	std::vector<SkinInfo> skinInfo;
+
+	SSkinMesh(std::string_view tag) : tag(tag) {}
 };
 
 class HierarchicalModelDefinition : public Resource
@@ -408,16 +427,35 @@ public:
 	bool InitBonesFromWLDData(SHSpriteDefWLDData* pWldData);
 	bool InitSkinsFromWLDData(SHSpriteDefWLDData* pWldData);
 
+	void SetCollisionMesh(std::vector<glm::vec3>&& vertices, std::vector<uint32_t>&& indices);
+
+	bool InitFromEQMData(
+		std::string_view tag,
+		const std::vector<SEQMVertex>& vertices,
+		const std::vector<SEQMFace>& faces,
+		const std::vector<SEQMBone>& bones,
+		const std::vector<SParticlePoint>& points,
+		const std::vector<SActorParticle>& particles,
+		SEQMSkinData* skinData,
+		const MaterialPalettePtr& palette);
+
 	MaterialPalettePtr GetMaterialPalette() const { return m_materialPalette; }
 
 	ParticlePointDefinitionManager* GetPointManager() const { return m_pointManager.get(); }
 	ActorParticleDefinitionManager* GetParticleManager() const { return m_particleManager.get(); }
 
 protected:
+	void InitSkinFromEQMData(const std::vector<SEQMVertex>& vertices, const std::vector<SEQMFace>& faces, SEQMSkinData* skinData);
+	void InitBonesFromEQMData(const std::vector<SEQMBone>& bones);
+	void InitCollisionData();
+
+	void UpdateDefaultPoseBoneMatrices(BoneDefinition* bone, glm::mat4x4* parentMtx);
+
+public:
 	std::string                   m_tag;
 
-	glm::vec3                     m_aabbMin = glm::vec3(0.0f);
-	glm::vec3                     m_aabbMax = glm::vec3(0.0f);
+	//glm::vec3                     m_aabbMin = glm::vec3(0.0f);
+	//glm::vec3                     m_aabbMax = glm::vec3(0.0f);
 	glm::vec3                     m_centerOffset = glm::vec3(0.0f);
 	float                         m_boundingRadius = 0.0f;
 
@@ -432,8 +470,16 @@ protected:
 	MaterialPalettePtr            m_materialPalette;
 
 	bool                          m_isNewStyleModel = false;
+	bool                          m_fromEQM = false;
+
+	// Collision data
 	bool                          m_hasCollision = false;
 	ECollisionVolumeType          m_defaultCollisionType = eCollisionVolumeNone;
+	glm::vec3                     m_colliSpherePos{};
+	aabb                          m_colliBox{ aabb::init_invalid };
+	float                         m_colliSphereRadius = 0.0f;
+	std::vector<glm::vec3>        m_collisionVertices;
+	std::vector<uint32_t>         m_collisionIndices;
 
 	std::unique_ptr<ParticlePointDefinitionManager> m_pointManager;
 	std::unique_ptr<ActorParticleDefinitionManager> m_particleManager;
@@ -442,6 +488,8 @@ protected:
 	bool                          m_disableShieldAttachments = false;
 	bool                          m_disablePrimaryAttachments = false;
 	bool                          m_disableSecondaryAttachments = false;
+
+	std::vector<uint32_t>         m_vertexMappings;
 };
 using HierarchicalModelDefinitionPtr = std::shared_ptr<HierarchicalModelDefinition>;
 
@@ -625,19 +673,12 @@ public:
 	virtual HierarchicalModelPtr GetHierarchicalModel() const { return nullptr; }
 	virtual HierarchicalModelDefinitionPtr GetHierarchicalModelDefinition() const { return nullptr; }
 
+	virtual SimpleModelPtr GetCollisionModel() const { return nullptr; }
+
 	Actor* GetTopLevelActor();
 
 	void SetParentActor(Actor* actor) { m_parentActor = actor; }
 	Actor* GetParentActor() const { return m_parentActor; }
-
-	void SetPosition(const glm::vec3& pos) { m_position = pos; }
-	const glm::vec3& GetPosition() const { return m_position; }
-
-	void SetOrientation(const glm::vec3& orientation) { m_orientation = orientation; }
-	const glm::vec3& GetOrientation() const { return m_orientation; }
-
-	void SetScale(float scale) { m_scale = scale; }
-	float GetScale() const { return m_scale; }
 
 	void SetBoundingRadius(float radius, bool adjustScale = false);
 	float GetBoundingRadius() const { return m_boundingRadius * m_scale; }
@@ -660,9 +701,22 @@ public:
 	bool IsInvisible() const { return m_invisible; }
 	void SetInvisible(bool invisible) { m_invisible = invisible; }
 
+	virtual bool IsCollidable() const { return false; }
+
 	// Used when in first person camera mode to see your own particles
 	bool ShouldShowParticlesWhenInvisible() const { return m_showParticlesWhenInvisible; }
 	void SetShowParticlesWhenInvisible(bool show) { m_showParticlesWhenInvisible = show; }
+
+	//---------------------------------------------------------------------------------------------
+
+	void SetPosition(const glm::vec3& pos);
+	const glm::vec3& GetPosition() const { return m_position; }
+
+	void SetOrientation(const glm::vec3& orientation);
+	const glm::vec3& GetOrientation() const { return m_orientation; }
+
+	void SetScale(float scale);
+	float GetScale() const { return m_scale; }
 
 protected:
 	ResourceManager*               m_resourceMgr;
@@ -672,7 +726,6 @@ protected:
 
 	ActorDefinitionPtr             m_definition;
 	Actor*                         m_parentActor = nullptr;
-	glm::mat4x4                    m_transform = glm::mat4x4(1.0f);
 
 	glm::vec3                      m_position = glm::vec3(0.0f);
 	glm::vec3                      m_orientation = glm::vec3(0.0f);
@@ -720,12 +773,14 @@ public:
 		int actorIndex,
 		bool useDefaultBoundingRadius = false,
 		std::string_view actorName = "");
-	~SimpleActor() override;
+	virtual ~SimpleActor() override;
 
-	SimpleModelPtr GetSimpleModel() const override { return m_model; }
-	SimpleModelDefinitionPtr GetSimpleModelDefinition() const override { return m_model->GetDefinition(); }
+	virtual SimpleModelPtr GetSimpleModel() const override { return m_model; }
+	virtual SimpleModelDefinitionPtr GetSimpleModelDefinition() const override { return m_model->GetDefinition(); }
 
-	SimpleModelPtr GetCollisionModel() const { return m_collisionModel; }
+	virtual SimpleModelPtr GetCollisionModel() const override { return m_collisionModel; }
+
+	virtual bool IsCollidable() const override;
 
 private:
 	void InitLOD();
@@ -773,12 +828,14 @@ public:
 		Bone* pBone = nullptr,
 		std::string_view actorName = "");
 
-	~HierarchicalActor() override;
+	virtual ~HierarchicalActor() override;
 
-	HierarchicalModelPtr GetHierarchicalModel() const override { return m_model; }
-	HierarchicalModelDefinitionPtr GetHierarchicalModelDefinition() const override { return m_model->GetDefinition(); }
+	virtual HierarchicalModelPtr GetHierarchicalModel() const override { return m_model; }
+	virtual HierarchicalModelDefinitionPtr GetHierarchicalModelDefinition() const override { return m_model->GetDefinition(); }
 
-	SimpleModelPtr GetCollisionModel() const { return m_collisionModel; }
+	virtual SimpleModelPtr GetCollisionModel() const override { return m_collisionModel; }
+
+	virtual bool IsCollidable() const override;
 
 private:
 	void InitLOD();

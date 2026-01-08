@@ -55,10 +55,11 @@ using LightDefinitionPtr = std::shared_ptr<LightDefinition>;
 class PointLight
 {
 public:
-	PointLight(ResourceManager* resourceMgr,
+	PointLight(ResourceManager* resourceMgr, std::string_view name,
 		const LightDefinitionPtr& lightDef, const glm::vec3& pos, float radius);
 	virtual ~PointLight();
 
+	const std::string& GetName() const { return m_name; }
 	float GetRadius() const { return m_radius; }
 	const glm::vec3& GetPosition() const { return m_position; }
 	const LightDefinitionPtr& GetDefinition() const { return m_definition; }
@@ -67,6 +68,7 @@ public:
 	bool IsDynamic() const { return m_dynamic; }
 
 private:
+	std::string              m_name;
 	ResourceManager*         m_resourceMgr;
 	LightDefinitionPtr       m_definition;
 	glm::vec3                m_position;

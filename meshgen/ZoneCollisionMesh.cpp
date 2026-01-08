@@ -1,10 +1,11 @@
 #include "pch.h"
 #include "ZoneCollisionMesh.h"
 
+#include "meshgen/Entity.h"
 #include "Recast.h"
 
-#include <spdlog/spdlog.h>
-#include <glm/gtc/type_ptr.hpp>
+#include "glm/gtc/type_ptr.hpp"
+#include "spdlog/spdlog.h"
 
 //============================================================================================================
 
@@ -195,6 +196,7 @@ void ZoneCollisionMesh::addPolys(const std::vector<glm::vec3>& verts, const std:
 //	m_models.emplace(name, std::move(entry));
 //}
 
+
 void ZoneCollisionMesh::addModel(std::string_view name, const EQGGeometryPtr& model)
 {
 	std::shared_ptr<ModelEntry> entry = std::make_shared<ModelEntry>();
@@ -216,7 +218,7 @@ void ZoneCollisionMesh::addModelInstance(const PlaceablePtr& obj)
 	}
 
 	// some objects have a really wild position, just ignore them.
-	if (obj->GetZ() < -30000 || obj->GetX() > 15000 || obj->GetY() > 15000 || obj->GetZ() > 15000)
+	if (IsPositionOutOfBounds(obj->GetPosition()))
 		return;
 
 	// Get model transform
@@ -276,6 +278,53 @@ void ZoneCollisionMesh::addZoneGeometry(const EQGGeometryPtr& model)
 		}
 	}
 }
+
+void ZoneCollisionMesh::addActor(entt::handle handle, const eqg::Actor* actor)
+{
+	TransformComponent& transform = handle.get<TransformComponent>();
+
+	// some objects have a really wild position, just ignore them.
+	if (IsPositionOutOfBounds(transform.position))
+		return;
+
+	// Get model transform
+	glm::mat4 mtx = GetWorldSpaceTransformMatrix(handle);
+
+	if (IsPointOutsideExtents(glm::vec3{ mtx * glm::vec4{ 0., 0., 0., 1. } }))
+	{
+		SPDLOG_WARN("Ignoring placement of actor '{}' at {{ {:.2f} {:.2f} {:.2f} }} due to being outside of max extents",
+			actor->GetActorName(), transform.position.x, transform.position.y, transform.position.z);
+		return;
+	}
+
+	eqg::SimpleModelPtr collisionModel = actor->GetCollisionModel();
+	if (!collisionModel)
+	{
+		SPDLOG_WARN("Ignoring placement of actor '{}': It has no collision model!", actor->GetActorName());
+		return;
+	}
+
+	auto pDefinition = collisionModel->GetDefinition();
+	auto& faces = pDefinition->m_faces;
+	auto& faceIndices = pDefinition->m_collidableIndices;
+	auto& vertices = pDefinition->m_vertices;
+
+	SPDLOG_INFO("adding {} to collision mesh ({} faces) at {:.2f} {:.2f} {:.2f} (collidable={})", actor->GetActorName(), faceIndices.size(),
+		transform.position.x, transform.position.y, transform.position.z, collisionModel->GetDefinition()->m_hasCollision);
+
+
+	for (uint32_t faceIndex : faceIndices)
+	{
+		eqg::SFace& face = faces[faceIndex];
+
+		addTriangle(
+			glm::vec3(mtx * glm::vec4(vertices[face.indices[0]], 1)),
+			glm::vec3(mtx * glm::vec4(vertices[face.indices[1]], 1)),
+			glm::vec3(mtx * glm::vec4(vertices[face.indices[2]], 1))
+		);
+	}
+}
+
 
 bool ZoneCollisionMesh::finalize()
 {

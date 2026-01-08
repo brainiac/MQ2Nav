@@ -5,9 +5,19 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 
-struct IdentComponent
+namespace eqg
+{
+	class Actor;
+}
+
+struct NameComponent
 {
 	std::string name;
+};
+
+struct TagComponent
+{
+	std::string tag;
 };
 
 struct HierarchicalComponent
@@ -22,22 +32,22 @@ struct TransformComponent
 	TransformComponent(const TransformComponent& other) = default;
 
 	explicit TransformComponent(const glm::vec3& pos)
-		: translation(pos)
+		: position(pos)
 	{
 	}
 
-	glm::mat4 GetTransform() const
+	glm::mat4 GetMatrix() const
 	{
-		return glm::translate(glm::mat4(1.0f), translation)
+		return glm::translate(glm::mat4(1.0f), position)
 			* glm::toMat4(rotation_)
 			* glm::scale(glm::mat4(1.0f), scale);
 	}
 
-	void SetTransform(const glm::mat4& transform)
+	void SetMatrix(const glm::mat4& transform)
 	{
 		glm::vec3 skew;
 		glm::vec4 perspective;
-		glm::decompose(transform, scale, rotation_, translation, skew, perspective);
+		glm::decompose(transform, scale, rotation_, position, skew, perspective);
 		rotationEuler_ = glm::eulerAngles(rotation_);
 	}
 
@@ -66,8 +76,8 @@ struct TransformComponent
 		}
 	}
 
-	// translation
-	glm::vec3 translation = { 0.0f, 0.0f, 0.0f };
+	// position
+	glm::vec3 position = { 0.0f, 0.0f, 0.0f };
 
 	// scale
 	glm::vec3 scale = { 1.0f, 1.0f, 1.0f };

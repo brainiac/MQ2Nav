@@ -8,8 +8,8 @@
 #include "str_util.h"
 #include "wld_types.h"
 
-namespace eqg
-{
+namespace eqg {
+
 SimpleModelDefinition::SimpleModelDefinition()
 	: Resource(GetStaticResourceType())
 {
@@ -69,8 +69,6 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 
 	if (m_numVertices > 0)
 	{
-		glm::vec3 maxPos = glm::vec3(std::numeric_limits<float>::min());
-		glm::vec3 minPos = glm::vec3(std::numeric_limits<float>::max());
 
 		m_vertices.resize(m_numVertices * m_numFrames);
 		m_uvs.resize(m_numVertices);
@@ -84,8 +82,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 		{
 			m_vertices[i] = centerOffset + glm::vec3(pWldData->vertices[i]) * scaleFactor;
 
-			maxPos = glm::max(m_vertices[i], maxPos);
-			minPos = glm::min(m_vertices[i], minPos);
+			m_aabb.enclose(m_vertices[i]);
 		}
 
 		if (pWldData->numUVs > 0)
@@ -150,16 +147,13 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 
 					m_vertices[vertex] = centerOffset + glm::vec3(trackVertices[vertex]) * scaleFactor;
 
-					maxPos = glm::max(m_vertices[vertex], maxPos);
-					minPos = glm::min(m_vertices[vertex], minPos);
+					m_aabb.enclose(m_vertices[vertex]);
 				}
 			}
 		}
 
-		m_aabbMin = minPos;
-		m_aabbMax = maxPos;
-		glm::vec3 extent = (maxPos - minPos) / 2.0f;
-		m_centerOffset = minPos + extent;
+		glm::vec3 extent =  m_aabb.diagonal() * 0.5f;
+		m_centerOffset = m_aabb.min + extent;
 		m_boundingRadius = glm::length(extent);
 	}
 
@@ -227,10 +221,10 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 }
 
 bool SimpleModelDefinition::InitFromEQMData(std::string_view tag,
-	uint32_t numVertices, SEQMVertex* vertices,
-	uint32_t numFaces, SEQMFace* faces,
-	uint32_t numPoints, SParticlePoint* points,
-	uint32_t numParticles, SActorParticle* particles,
+	std::vector<SEQMVertex>&& vertices,
+	std::vector<SEQMFace>&& faces,
+	const std::vector<SParticlePoint>& points,
+	const std::vector<SActorParticle>& particles,
 	const MaterialPalettePtr& materialPalette)
 {
 	m_tag = std::string(tag);
@@ -243,24 +237,24 @@ bool SimpleModelDefinition::InitFromEQMData(std::string_view tag,
 		Material* material = m_materialPalette->GetMaterial(materialNum);
 		if (material && material->HasBumpMap())
 		{
-			m_tangents.resize(numVertices);
-			m_binormals.resize(numVertices);
+			m_tangents.resize(vertices.size());
+			m_binormals.resize(vertices.size());
 			break;
 		}
 	}
 
-	InitVerticesFromEQMData(numVertices, vertices);
-	InitFacesFromEQMData(numFaces, faces);
+	InitVerticesFromEQMData(std::move(vertices));
+	InitFacesFromEQMData(std::move(faces));
 
 	InitCollisionData(false);
 
-	if (numPoints > 0)
+	if (!points.empty())
 	{
-		m_pointManager = std::make_unique<ParticlePointDefinitionManager>(numPoints, points, this);
+		m_pointManager = std::make_unique<ParticlePointDefinitionManager>(points, this);
 
-		if (numParticles > 0)
+		if (!particles.empty())
 		{
-			m_particleManager = std::make_unique<ActorParticleDefinitionManager>(numParticles, particles, this);
+			m_particleManager = std::make_unique<ActorParticleDefinitionManager>(particles, this);
 		}
 	}
 
@@ -269,24 +263,30 @@ bool SimpleModelDefinition::InitFromEQMData(std::string_view tag,
 
 bool SimpleModelDefinition::InitStaticData()
 {
-	// TODO
+	// TODO: Should create index/vertex buffers here
 	return true;
 }
 
-void SimpleModelDefinition::InitVerticesFromEQMData(uint32_t numVertices, SEQMVertex* vertices)
+bool SimpleModelDefinition::ReleaseStaticData()
 {
-	m_numVertices = numVertices;
-	m_vertices.resize(numVertices);
-	m_uvs.resize(numVertices);
-	m_uv2s.resize(numVertices);
-	m_colors.resize(numVertices);
-	m_colorTint.resize(numVertices);
-	m_normals.resize(numVertices);
+	// TODO: Should destroy index/vertex buffers here
+	return true;
+}
+
+void SimpleModelDefinition::InitVerticesFromEQMData(std::vector<SEQMVertex>&& vertices)
+{
+	m_numVertices = (uint32_t)vertices.size();
+	m_vertices.resize(m_numVertices);
+	m_uvs.resize(m_numVertices);
+	m_uv2s.resize(m_numVertices);
+	m_colors.resize(m_numVertices);
+	m_colorTint.resize(m_numVertices);
+	m_normals.resize(m_numVertices);
 
 	if (m_numVertices > 0)
 	{
-		glm::vec3 maxPos = glm::vec3(std::numeric_limits<float>::min());
-		glm::vec3 minPos = glm::vec3(std::numeric_limits<float>::max());
+		m_aabb = aabb{ aabb::init_invalid };
+
 		for (uint32_t i = 0; i < m_numVertices; ++i)
 		{
 			m_vertices[i] = vertices[i].pos;
@@ -296,24 +296,20 @@ void SimpleModelDefinition::InitVerticesFromEQMData(uint32_t numVertices, SEQMVe
 			m_colorTint[i] = vertices[i].color;
 			m_normals[i] = vertices[i].normal;
 
-			maxPos = glm::max(m_vertices[i], maxPos);
-			minPos = glm::min(m_vertices[i], minPos);
+			m_aabb.enclose(m_vertices[i]);
 		}
 
-		m_aabbMin = minPos;
-		m_aabbMax = maxPos;
-
-		glm::vec3 extent = (maxPos - minPos) / 2.0f;
-		m_centerOffset = minPos + extent;
+		glm::vec3 extent = m_aabb.diagonal() * 0.5f;
+		m_centerOffset = m_aabb.min + extent;
 		m_boundingRadius = glm::length(extent);
 	}
 }
 
-void SimpleModelDefinition::InitFacesFromEQMData(uint32_t numFaces, SEQMFace* faces)
+void SimpleModelDefinition::InitFacesFromEQMData(std::vector<SEQMFace>&& faces)
 {
-	m_numFaces = numFaces;
-	m_faces.resize(numFaces);
-	m_faceNormals.resize(numFaces);
+	m_numFaces = (uint32_t)faces.size();
+	m_faces.resize(m_numFaces);
+	m_faceNormals.resize(m_numFaces);
 
 	for (uint32_t i = 0; i < m_numFaces; ++i)
 	{
@@ -368,19 +364,48 @@ void SimpleModelDefinition::InitCollisionData(bool forceModel)
 	bool hasCollision = false;
 
 	// eqg will create an octree of collidable facets, to improve collision detection. We don't need
-	// an octree, so we'll skip all of that work. We might have some limited benefit to creating a
-	// index buffer with just the collidable facets but maybe I'll do that later...
+	// an octree, so we'll skip all of that work.
+	m_collisionBox = aabb::init_invalid;
 
 	if (forceCollision)
 	{
+		m_forcedCollision = true;
+		hasCollision = true;
+
 		for (uint32_t i = 0; i < m_numFaces; ++i)
 		{
 			SFace& face = m_faces[i];
 
+			// Clear passable flags so that all faces are collidable
 			if (face.IsPassable())
 				face.flags = static_cast<EQG_FACEFLAGS>(face.flags & ~EQG_FACEFLAG_PASSABLE);
-			else
-				hasCollision = true;
+
+			m_collisionBox.enclose(m_vertices[face.indices[0]]);
+			m_collisionBox.enclose(m_vertices[face.indices[1]]);
+			m_collisionBox.enclose(m_vertices[face.indices[2]]);
+		}
+	}
+	else
+	{
+		m_collidableIndices.reserve(m_numFaces);
+
+		for (uint32_t i = 0; i < m_numFaces; ++i)
+		{
+			SFace& face = m_faces[i];
+
+			if (face.IsCollidable())
+			{
+				m_collidableIndices.push_back(i);
+
+				m_collisionBox.enclose(m_vertices[face.indices[0]]);
+				m_collisionBox.enclose(m_vertices[face.indices[1]]);
+				m_collisionBox.enclose(m_vertices[face.indices[2]]);
+			}
+		}
+
+		if (!m_collidableIndices.empty())
+		{
+			hasCollision = true;
 		}
 	}
 
@@ -501,7 +526,7 @@ BoneDefinition::BoneDefinition(const SDagWLDData& wldData)
 	m_defaultPoseMtx = glm::identity<glm::mat4x4>();
 }
 
-BoneDefinition::BoneDefinition(SEQMBone* boneData)
+BoneDefinition::BoneDefinition(const SEQMBone* boneData)
 	: m_tag(boneData->name)
 {
 	if (boneData->num_children > 0)
@@ -679,7 +704,7 @@ bool HierarchicalModelDefinition::InitFromWLDData(std::string_view tag, SHSprite
 		EQG_LOG_WARN("Failed to initialize skins from WLD data for model: {}", m_tag);
 	}
 
-	// TODO: InitCollisionData() ?
+	InitCollisionData();
 
 	if (tag.size() >= 4 && tag[3] == '_')
 	{
@@ -767,7 +792,8 @@ bool HierarchicalModelDefinition::InitBonesFromWLDData(SHSpriteDefWLDData* pWldD
 
 		// find attachment points
 		std::string_view prefix = m_bones[0].GetTag().substr(0, 3);
-		std::array<SParticlePoint, 15> points;
+		std::vector<SParticlePoint> points;
+		points.resize(15);
 
 		// Initialize to defaults
 		for (SParticlePoint& point : points)
@@ -879,7 +905,7 @@ bool HierarchicalModelDefinition::InitBonesFromWLDData(SHSpriteDefWLDData* pWldD
 
 		if (numPoints > 0)
 		{
-			m_pointManager = std::make_unique<ParticlePointDefinitionManager>(numPoints, points.data(), this);
+			m_pointManager = std::make_unique<ParticlePointDefinitionManager>(points, this);
 		}
 	}
 
@@ -896,7 +922,7 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 	if (m_numAttachedSkins)
 	{
 		// This is where we generate the skin meshes for the model.
-		m_attachedSkins.resize(m_numAttachedSkins);
+		m_attachedSkins.reserve(m_numAttachedSkins);
 
 		for (uint32_t skin = 0; skin < m_numAttachedSkins; ++skin)
 		{
@@ -904,39 +930,40 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 			if (!pDMSpriteDef2)
 				continue;
 
-			auto& mesh = m_attachedSkins[skin];
+			SSkinMesh& mesh = m_attachedSkins.emplace_back(pDMSpriteDef2->tag);
 			mesh.tag = pDMSpriteDef2->tag;
 			mesh.oldModel = true;
 			mesh.vertices.resize(pDMSpriteDef2->numVertices);
+			mesh.uvs.resize(pDMSpriteDef2->numVertices);
+			mesh.normals.resize(pDMSpriteDef2->numVertices);
 
 			// Fill vertices
-			auto vertexData = mesh.vertices.data();
 			const glm::vec3 centerOffset = pDMSpriteDef2->centerOffset;
 			const float scaleFactor = pDMSpriteDef2->vertexScaleFactor;
 
 			for (uint32_t vert = 0; vert < pDMSpriteDef2->numVertices; ++vert)
 			{
-				vertexData[vert].vertex = centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor;
+				mesh.vertices[vert] = centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor;
 
 				if (pDMSpriteDef2->numUVs > 0)
 				{
 					if (pDMSpriteDef2->uvsUsingOldForm)
-						vertexData[vert].uv = glm::vec2(pDMSpriteDef2->uvsOldForm[vert]) * S3D_UV_TO_FLOAT;
+						mesh.uvs[vert] = glm::vec2(pDMSpriteDef2->uvsOldForm[vert]) * S3D_UV_TO_FLOAT;
 					else
-						vertexData[vert].uv = pDMSpriteDef2->uvs[vert];
+						mesh.uvs[vert] = pDMSpriteDef2->uvs[vert];
 				}
 				else
 				{
-					vertexData[vert].uv = glm::vec2(0.0f, 0.0f);
+					mesh.uvs[vert] = glm::vec2(0.0f, 0.0f);
 				}
 
 				if (pDMSpriteDef2->numVertexNormals > 0)
 				{
-					vertexData[vert].normal = glm::vec3(pDMSpriteDef2->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
+					mesh.normals[vert] = glm::vec3(pDMSpriteDef2->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
 				}
 				else
 				{
-					vertexData[vert].normal = glm::vec3(0.0f, 0.0f, 0.0f);
+					mesh.normals[vert] = glm::vec3(0.0f, 0.0f, 0.0f);
 				}
 			}
 
@@ -984,11 +1011,11 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 			}
 			else
 			{
-				mesh.hasBlendIndices = false;
-				mesh.hasBlendWeights = false;
+				//mesh.hasBlendIndices = false;
+				//mesh.hasBlendWeights = false;
 			}
 
-			mesh.attachPointBoneIndex = pWldData->skeletonDagIndices[skin];
+			//mesh.attachPointBoneIndex = pWldData->skeletonDagIndices[skin];
 
 			if (pDMSpriteDef2->numSkinGroups > 0)
 			{
@@ -1000,6 +1027,283 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 	return true;
 }
 
+bool HierarchicalModelDefinition::InitFromEQMData(
+	std::string_view tag,
+	const std::vector<SEQMVertex>& vertices,
+	const std::vector<SEQMFace>& faces,
+	const std::vector<SEQMBone>& bones,
+	const std::vector<SParticlePoint>& points,
+	const std::vector<SActorParticle>& particles,
+	SEQMSkinData* skinData,
+	const MaterialPalettePtr& materialPalette)
+{
+	m_tag = std::string(tag);
+	m_materialPalette = materialPalette;
+	m_vertexMappings.assign(vertices.size(), 0xffffffff);
+
+	glm::vec3 maxPoint;
+	for (const auto& vertex : vertices)
+	{
+		maxPoint = glm::max(maxPoint, vertex.pos);
+	}
+	maxPoint.z /= 2.0f;
+	m_boundingRadius = glm::length(maxPoint);
+
+	if (tag.size() >= 4 && tag[3] == '_')
+	{
+		std::string_view prefix = tag.substr(0, 3);
+
+		m_boundingRadius = g_dataManager.GetDefaultBoundingRadius(prefix, m_boundingRadius);
+		m_disableAttachments = g_dataManager.GetDisableAttachments(prefix);
+		m_disableShieldAttachments = g_dataManager.GetDisableShieldAttachments(prefix);
+		m_disablePrimaryAttachments = g_dataManager.GetDisablePrimaryAttachments(prefix);
+		m_disableSecondaryAttachments = g_dataManager.GetDisableSecondaryAttachments(prefix);
+	}
+
+	InitBonesFromEQMData(bones);
+	InitSkinFromEQMData(vertices, faces, skinData);
+
+	InitCollisionData();
+
+	// TODO: Init points
+	// TODO: Init particles
+
+	return true;
+}
+
+void HierarchicalModelDefinition::InitSkinFromEQMData(
+	const std::vector<SEQMVertex>& vertices, const std::vector<SEQMFace>& faces, SEQMSkinData* skinData)
+{
+	m_numAttachedSkins = 1;
+	m_firstDefaultActiveSkin = 0;
+	m_numDefaultActiveSkins = 1;
+	m_fromEQM = true;
+
+	bool bakedLighting = m_materialPalette->GetMaterial(0)->GetType() == MaterialType_OpaqueCBS1_VSB
+		|| m_materialPalette->GetMaterial(0)->GetType() == MaterialType_ChromaCBS1_VSB;
+
+	m_attachedSkins.reserve(m_numAttachedSkins);
+	for (uint32_t skinIndex = 0; skinIndex < m_numAttachedSkins; ++skinIndex)
+	{
+		SSkinMesh& skin = m_attachedSkins.emplace_back(m_tag);
+		skin.vertices.resize(vertices.size());
+		skin.normals.resize(vertices.size());
+		skin.uvs.resize(vertices.size());
+		skin.tangents.resize(vertices.size());
+		skin.binormals.resize(vertices.size());
+
+		if (bakedLighting)
+		{
+			skin.colors.resize(vertices.size());
+		}
+		else
+		{
+			skin.uvs2.resize(vertices.size());
+		}
+
+		for (uint32_t vtxIndex = 0; vtxIndex < vertices.size(); ++vtxIndex)
+		{
+			skin.vertices[vtxIndex] = vertices[vtxIndex].pos;
+			skin.normals[vtxIndex] = vertices[vtxIndex].normal;
+			skin.uvs[vtxIndex] = glm::vec2(vertices[vtxIndex].uv.x, -vertices[vtxIndex].uv.y);
+
+			if (bakedLighting)
+			{
+				skin.colors[vtxIndex] = vertices[vtxIndex].color;
+			}
+			else
+			{
+				skin.uvs2[vtxIndex] = glm::vec2(vertices[vtxIndex].uv2.x, -vertices[vtxIndex].uv2.y);
+			}
+		}
+
+		for (uint32_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex)
+		{
+			glm::vec3 v0 = vertices[faces[faceIndex].vertices[0]].pos;
+			glm::vec3 v1 = vertices[faces[faceIndex].vertices[1]].pos;
+			glm::vec3 v2 = vertices[faces[faceIndex].vertices[2]].pos;
+
+			glm::vec3 e1 = v2 - v1;
+			glm::vec3 e2 = v0 - v1;
+
+			float u1 = skin.uvs[faces[faceIndex].vertices[2]].x - skin.uvs[faces[faceIndex].vertices[1]].x;
+			float u2 = skin.uvs[faces[faceIndex].vertices[0]].x - skin.uvs[faces[faceIndex].vertices[1]].x;
+
+			glm::vec3 binormal = (u2 * e1) - (u1 * e2);
+			binormal = glm::normalize(binormal);
+
+			skin.binormals[faces[faceIndex].vertices[0]] += binormal;
+			skin.binormals[faces[faceIndex].vertices[1]] += binormal;
+			skin.binormals[faces[faceIndex].vertices[2]] += binormal;
+
+			float v1_ = skin.uvs[faces[faceIndex].vertices[2]].y - skin.uvs[faces[faceIndex].vertices[1]].y;
+			float v2_ = skin.uvs[faces[faceIndex].vertices[0]].y - skin.uvs[faces[faceIndex].vertices[1]].y;
+
+			glm::vec3 tangent = (v2_ * e1) - (v1_ * e2);
+			tangent = glm::normalize(tangent);
+
+			skin.tangents[faces[faceIndex].vertices[0]] += tangent;
+			skin.tangents[faces[faceIndex].vertices[1]] += tangent;
+			skin.tangents[faces[faceIndex].vertices[2]] += tangent;
+		}
+
+		for (uint32_t vertIdx = 0; vertIdx < vertices.size(); ++vertIdx)
+		{
+			skin.binormals[vertIdx] = -glm::normalize(skin.binormals[vertIdx]);
+			skin.tangents[vertIdx] = glm::normalize(skin.tangents[vertIdx]);
+
+			if (glm::dot(glm::normalize(glm::cross(skin.tangents[vertIdx], skin.binormals[vertIdx])), skin.normals[vertIdx]) < 0.0f)
+			{
+				skin.binormals[vertIdx] = -skin.binormals[vertIdx];
+			}
+		}
+
+		skin.attributes.resize(faces.size());
+		skin.indices.resize(faces.size() * 3);
+
+		for (uint32_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex)
+		{
+			skin.indices[(faceIndex * 3) + 0] = faces[faceIndex].vertices[0];
+			skin.indices[(faceIndex * 3) + 1] = faces[faceIndex].vertices[1];
+			skin.indices[(faceIndex * 3) + 2] = faces[faceIndex].vertices[2];
+
+			skin.attributes[faceIndex] = faces[faceIndex].material;
+		}
+
+		skin.skinInfo.resize(m_numBones);
+		for (uint32_t boneIndex = 0; boneIndex < m_numBones; ++boneIndex)
+		{
+			auto& skinInfo = skin.skinInfo[boneIndex];
+			skinInfo.verts.reserve(vertices.size());
+			skinInfo.weights.reserve(vertices.size());
+			skinInfo.boneName = m_bones[boneIndex].GetTag();
+			skinInfo.offsetMatrix = glm::inverse(m_bones[boneIndex].GetMatrix());
+
+			for (uint32_t vertIndex = 0; vertIndex < vertices.size(); ++vertIndex)
+			{
+				SEQMSkinData* vertSkinData = skinData + vertIndex;
+				uint32_t numWeights = std::min(4u, vertSkinData->num_weights);
+
+				for (uint32_t weightIndex = 0; weightIndex < numWeights; ++weightIndex)
+				{
+					if ((uint32_t)vertSkinData->weights[weightIndex].bone == boneIndex)
+					{
+						skinInfo.verts.push_back(vertIndex);
+						skinInfo.weights.push_back(vertSkinData->weights[weightIndex].weight);
+					}
+				}
+			}
+		}
+	}
+}
+
+void HierarchicalModelDefinition::InitBonesFromEQMData(const std::vector<SEQMBone>& bones)
+{
+	m_numBones = static_cast<uint32_t>(bones.size());
+	m_numSubBones = 0;
+
+	if (!bones.empty())
+	{
+		// Convert SEQMBones into BoneDefinitions
+		m_bones.reserve(bones.size());
+
+		for (const SEQMBone& bone : bones)
+		{
+			m_bones.emplace_back(&bone);
+
+			if (!m_isNewStyleModel && bone.name == "ROOT_BONE")
+			{
+				m_isNewStyleModel = true;
+			}
+		}
+
+		// Update sub-bone hierarchy
+		for (uint32_t i = 0; i < m_numBones; ++i)
+		{
+			if (bones[i].num_children > 0)
+			{
+				int childIndex = bones[i].first_child_index;
+
+				while (childIndex != -1)
+				{
+					m_bones[i].AddSubBone(&m_bones[childIndex]);
+					++m_numSubBones;
+
+					childIndex = bones[childIndex].next_index;
+				}
+			}
+		}
+
+		UpdateDefaultPoseBoneMatrices(&m_bones[0], nullptr);
+	}
+}
+
+void HierarchicalModelDefinition::SetCollisionMesh(std::vector<glm::vec3>&& vertices, std::vector<uint32_t>&& indices)
+{
+	m_collisionVertices = std::move(vertices);
+	m_collisionIndices = std::move(indices);
+
+	InitCollisionData();
+}
+
+void HierarchicalModelDefinition::InitCollisionData()
+{
+	if (m_collisionIndices.empty() || m_collisionVertices.empty())
+	{
+		m_hasCollision = true;
+		m_colliSpherePos = glm::vec3(0.0f);
+		m_colliSphereRadius = m_boundingRadius;
+		m_colliBox = { -m_boundingRadius, m_boundingRadius };
+	}
+	else
+	{
+		// Calculate bounding box of collision data
+		m_colliBox = aabb::init_invalid;
+
+		for (uint32_t idx = 0; idx < m_collisionIndices.size(); idx += 3)
+		{
+			glm::vec3 v0 = m_collisionVertices[m_collisionIndices[idx + 0]];
+			glm::vec3 v1 = m_collisionVertices[m_collisionIndices[idx + 1]];
+			glm::vec3 v2 = m_collisionVertices[m_collisionIndices[idx + 2]];
+
+			m_colliBox.enclose(v0);
+			m_colliBox.enclose(v1);
+			m_colliBox.enclose(v2);
+		}
+
+		// We have collision if the box is valid
+		m_hasCollision = m_collisionIndices.size() > 3 && m_colliBox.valid();
+
+		if (m_hasCollision)
+		{
+			m_colliSpherePos = m_colliBox.center();
+			m_colliSphereRadius = glm::length(m_colliBox.max - m_colliSpherePos);
+		}
+		else
+		{
+			m_colliBox = aabb::init_zero;
+			m_colliSpherePos = glm::vec3(0.0f);
+			m_colliSphereRadius = 0.0f;
+		}
+	}
+}
+
+void HierarchicalModelDefinition::UpdateDefaultPoseBoneMatrices(BoneDefinition* bone, glm::mat4x4* parentMtx)
+{
+	glm::mat4x4 mtx = bone->GetDefaultPoseMatrix();
+
+	if (parentMtx)
+	{
+		mtx *= *parentMtx;
+	}
+
+	bone->SetDefaultPoseMatrix(mtx);
+
+	for (uint32_t i = 0; i < bone->GetNumSubBones(); ++i)
+	{
+		UpdateDefaultPoseBoneMatrices(bone->GetSubBone(i), &mtx);
+	}
+}
 
 //-------------------------------------------------------------------------------------------------
 
@@ -1333,6 +1637,21 @@ void Actor::SetBoundingRadius(float radius, bool adjustScale)
 	m_boundingRadius = radius;
 }
 
+void Actor::SetPosition(const glm::vec3& pos)
+{
+	m_position = pos;
+}
+
+void Actor::SetOrientation(const glm::vec3& orientation)
+{
+	m_orientation = orientation;
+}
+
+void Actor::SetScale(float scale)
+{
+	m_scale = scale;
+}
+
 //-------------------------------------------------------------------------------------------------
 
 SimpleActor::SimpleActor(
@@ -1443,6 +1762,12 @@ void SimpleActor::InitLOD()
 			}
 		}
 
+		// TODO: Support "LOD'd model"
+		if (!m_lodModels.empty())
+		{
+			m_model = m_lodModels[0].model;
+		}
+
 		if (const LODListElementPtr& element = pLODList->GetCollision())
 		{
 			std::string definitionTag = fmt::format("{}_SMD", element->definition);
@@ -1474,6 +1799,11 @@ void SimpleActor::InitLOD()
 		m_model->SetActor(this);
 		m_collisionModel = m_model;
 	}
+}
+
+bool SimpleActor::IsCollidable() const
+{
+	return m_collisionModel && m_collisionModel->GetDefinition()->m_hasCollision;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1684,6 +2014,11 @@ void HierarchicalActor::PutAllBonesInBoneGroup(int groupIndex, int maxNumAnims, 
 
 		m_boneGroups[groupIndex] = boneGroup;
 	}
+}
+
+bool HierarchicalActor::IsCollidable() const
+{
+	return m_model->GetDefinition()->m_hasCollision;
 }
 
 //-------------------------------------------------------------------------------------------------

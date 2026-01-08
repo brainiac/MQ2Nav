@@ -345,11 +345,11 @@ bool Material::InitFromWLDData(
 				&& (bitmap->GetType() == eBitmapTypeLayer || parsedBitmaps[i]->bitmaps[1]->GetType() == eBitmapTypeLayer))
 			{
 				m_textureSet->textures[i].textures[1] = parsedBitmaps[i]->bitmaps[1];
-				m_type = 3;
+				m_type = MaterialType_LuclinLayer;
 
 				if (m_tag.length() >= 3 && m_tag[0] == 'I' && m_tag[1] == 'T' && isdigit(m_tag[2]))
 				{
-					m_type = 4;
+					m_type = MaterialType_LuclinLayerT1;
 				}
 			}
 			else if (parsedBitmaps[i]->bitmaps.size() == 2
@@ -368,7 +368,7 @@ bool Material::InitFromWLDData(
 				m_textureSetAlt->textures[0].filename = bitmap->GetFileName();
 				m_textureSetAlt->textures[0].textures[0] = bitmap;
 
-				m_type = 1;
+				m_type = MaterialType_SingleDetail;
 				m_detailScale = bitmap->GetDetailScale();
 			}
 			else if (bitmap->GetType() == eBitmapTypePaletteDetailMain)
@@ -398,7 +398,7 @@ bool Material::InitFromWLDData(
 					m_detailPalette->detailInfo[curDetail].material = detailMaterial;
 				}
 
-				m_type = 2;
+				m_type = MaterialType_PaletteDetail;
 			}
 		}
 
@@ -413,7 +413,7 @@ bool Material::InitFromWLDData(
 
 	// TODO: Process material type, render method, transparency, etc
 
-	if (m_type == eBitmapTypeNormal)
+	if (m_type == MaterialType_Normal)
 	{
 		uint32_t renderMethod = m_renderMethod;
 
@@ -831,7 +831,7 @@ bool Material::UpdateMaterialFlags(bool eqmData)
 		}
 		[[fallthrough]];
 	default:
-		EQG_LOG_INFO("Unknown material type: {}", m_type);
+		EQG_LOG_INFO("Unknown material type: {}", (int)m_type);
 		break;
 	}
 

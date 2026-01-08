@@ -187,8 +187,8 @@ struct SParticlePoint
 
 struct ParticlePointDefinition
 {
-	ParticlePointDefinition(SParticlePoint* point, SimpleModelDefinition* model);
-	ParticlePointDefinition(SParticlePoint* point, HierarchicalModelDefinition* model);
+	ParticlePointDefinition(const SParticlePoint* point, SimpleModelDefinition* model);
+	ParticlePointDefinition(const SParticlePoint* point, HierarchicalModelDefinition* model);
 	ParticlePointDefinition(const std::string& name, int boneIndex, const glm::vec3& position,
 		const glm::vec3& orientation, const glm::vec3& scale);
 	ParticlePointDefinition(const ParticlePointDefinition&);
@@ -209,14 +209,14 @@ class ParticlePointDefinitionManager
 public:
 	ParticlePointDefinitionManager();
 	~ParticlePointDefinitionManager();
-	ParticlePointDefinitionManager(uint32_t numPoints, SParticlePoint* points, SimpleModelDefinition* model);
-	ParticlePointDefinitionManager(uint32_t numPoints, SParticlePoint* points, HierarchicalModelDefinition* model);
+	ParticlePointDefinitionManager(const std::vector<SParticlePoint>& points, SimpleModelDefinition* model);
+	ParticlePointDefinitionManager(const std::vector<SParticlePoint>& points, HierarchicalModelDefinition* model);
 
 	uint32_t GetNumPoints() const { return (uint32_t)m_points.size(); }
 	ParticlePointDefinition* GetPointDefinition(uint32_t index) const;
 
-	void AddPoint(SParticlePoint* point, SimpleModelDefinition* model);
-	void AddPoint(SParticlePoint* point, HierarchicalModelDefinition* model);
+	void AddPoint(const SParticlePoint* point, SimpleModelDefinition* model);
+	void AddPoint(const SParticlePoint* point, HierarchicalModelDefinition* model);
 
 	void AddPointDefinition(const std::string& name, int boneIndex, const glm::vec3& position,
 		const glm::vec3& orientation, const glm::vec3& scale);
@@ -297,8 +297,8 @@ constexpr int ParticleType_AnimationBased = 1;
 class ActorParticleDefinition
 {
 public:
-	ActorParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition);
-	ActorParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition);
+	ActorParticleDefinition(const SActorParticle* particle, SimpleModelDefinition* definition);
+	ActorParticleDefinition(const SActorParticle* particle, HierarchicalModelDefinition* definition);
 	ActorParticleDefinition(const ActorParticleDefinition& other);
 
 	int GetEmitterDefinitionID() const { return m_emitterDefinitionID; }
@@ -337,15 +337,15 @@ private:
 class ActorParticleDefinitionManager
 {
 public:
-	ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles, SimpleModelDefinition* definition);
-	ActorParticleDefinitionManager(uint32_t numParticles, SActorParticle* particles, HierarchicalModelDefinition* definition);
+	ActorParticleDefinitionManager(const std::vector<SActorParticle>& particles, SimpleModelDefinition* definition);
+	ActorParticleDefinitionManager(const std::vector<SActorParticle>& particles, HierarchicalModelDefinition* definition);
 	~ActorParticleDefinitionManager();
 
 	uint32_t GetNumParticles() const { return (uint32_t)m_particleDefinitions.size(); }
 	ActorParticleDefinition* GetParticleDefinition(uint32_t index) const;
 
-	void AddParticleDefinition(SActorParticle* particle, SimpleModelDefinition* definition);
-	void AddParticleDefinition(SActorParticle* particle, HierarchicalModelDefinition* definition);
+	void AddParticleDefinition(const SActorParticle* particle, SimpleModelDefinition* definition);
+	void AddParticleDefinition(const SActorParticle* particle, HierarchicalModelDefinition* definition);
 	void DeleteParticleDefinition(uint32_t index);
 
 	std::vector<std::unique_ptr<ActorParticleDefinition>> m_particleDefinitions;

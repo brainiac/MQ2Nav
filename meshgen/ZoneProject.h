@@ -136,6 +136,7 @@ public:
 
 	std::shared_ptr<ZoneRenderManager> GetRenderManager() const { return m_renderManager; }
 	ZoneResourceManager* GetResourceManager() const { return m_resourceMgr.get(); }
+	std::shared_ptr<Scene> GetScene() const { return m_scene; }
 
 	std::shared_ptr<ZoneCollisionMesh> GetCollisionMesh() const { return m_collisionMesh; }
 

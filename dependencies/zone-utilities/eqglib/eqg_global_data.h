@@ -28,6 +28,8 @@ public:
 	bool GetDisablePrimaryAttachments(std::string_view tag) const;
 	bool GetDisableSecondaryAttachments(std::string_view tag) const;
 
+	float GetDefaultBoundingRadius(std::string_view tag, float defaultValue) const;
+
 private:
 	std::string m_dataPath;
 	std::string m_spellPointModsPath;

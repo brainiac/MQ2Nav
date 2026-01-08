@@ -12,4 +12,18 @@
 	<Type Name="EQEmu::S3D::S3DFileObject">
 		<DisplayString>WLD Object {{ type={type} tag={tag,na} }}</DisplayString>
 	</Type>
+
+	<Type Name="taabb&lt;*&gt;">
+		<DisplayString>AABB {{min={{x={min.x} y={min.y} z={min.z}}} max={{x={max.x} y={max.y} z={max.z}}}}}</DisplayString>
+		<Expand>
+			<Item Name="min">min</Item>
+			<Item Name="max">max</Item>
+			<Synthetic Name="[Center]">
+				<DisplayString>{{ x={(min.x+max.x)*0.5f} y={(min.y+max.y)*0.5f} z={(min.z+max.z)*0.5f} }}</DisplayString>
+			</Synthetic>
+			<Synthetic Name="[Size]">
+				<DisplayString>{{ x={min.x-max.x} y={min.y-max.y} z={min.z-max.z} }}</DisplayString>
+			</Synthetic>
+		</Expand>
+	</Type>
 </AutoVisualizer>

@@ -434,6 +434,7 @@ public:
 	static ResourceType GetStaticResourceType() { return ResourceType::Material; }
 
 	std::string_view GetTag() const override { return m_tag; }
+	EMaterialType GetType() const { return m_type; }
 
 	bool RequiresUpdate() const
 	{
@@ -463,7 +464,7 @@ public:
 	uint32_t                    m_renderMaterial = 0;
 	float                       m_scaledAmbient = 0.0f;
 	float                       m_constantAmbient = 0.0f;
-	int                         m_type = 0;
+	EMaterialType               m_type = MaterialType_Normal;
 	float                       m_detailScale = 1.0f;
 	uint8_t                     m_alpha = 255;
 	bool                        m_transparent = false;

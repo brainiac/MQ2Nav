@@ -344,6 +344,8 @@ static bool IsAnimationCode(std::string_view code)
 
 bool WLDLoader::ParseAll()
 {
+	eqg::ScopedUseResourceManager useResourceManager(m_resourceMgr);
+
 	/// Actual loading sequence:
 	///
 	/// ParseBitmapsAndMaterials
@@ -1995,7 +1997,10 @@ bool WLDLoader::ParseActorDefinition(uint32_t objectIndex)
 
 		pNewActorDef->SetCollisionVolumeType(collisionVolumeType);
 
-		m_resourceMgr->Add(pNewActorDef);
+		if (!m_resourceMgr->Add(pNewActorDef))
+		{
+			EQG_LOG_ERROR("Failed to add actor definition to resource manager: {}", wldObj.tag);
+		}
 	}
 
 	ParsedActorDefinition* parsedActorDef = new ParsedActorDefinition;
@@ -2068,6 +2073,8 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 
 	if (actorDef->GetSimpleModelDefinition())
 	{
+		std::string actorName = wldObj.tag.empty() ? fmt::format("{}_{}", actorDef->GetTag(), objectIndex) : std::string(wldObj.tag);
+
 		actor = m_resourceMgr->CreateSimpleActor(
 			actorTag,
 			actorDef,
@@ -2077,7 +2084,8 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 			collisionVolumeType,
 			boundingRadius,
 			objectIndex,
-			pDMRGBTrackData.get());
+			pDMRGBTrackData.get(),
+			nullptr, 0, actorName);
 	}
 	else if (actorDef->GetHierarchicalModelDefinition())
 	{
@@ -2255,12 +2263,58 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 
 	std::unique_ptr<SHSpriteDefWLDData> hSpriteWLDData = std::make_unique<SHSpriteDefWLDData>();
 
+	// Collision data
+	std::vector<glm::vec3> collisionVertices;
+	std::vector<uint32_t> collisionIndices;
+
 	if (pHierSpriteDef->flags & WLD_OBJ_SPROPT_DAGCOLLISIONS)
 	{
 	}
 	else if (pHierSpriteDef->collision_volume_id != 0)
 	{
-		// TODO
+		WLDFileObject& polyInstObj = GetObjectFromID(pHierSpriteDef->collision_volume_id);
+		if (polyInstObj.type == WLD_OBJ_POLYHEDRONINSTANCE_TYPE)
+		{
+			WLD_OBJ_POLYHEDRONINSTANCE* polyInstance = (WLD_OBJ_POLYHEDRONINSTANCE*)polyInstObj.data;
+			WLDFileObject& polyDefObj = GetObjectFromID(polyInstance->definition_id);
+			if (polyDefObj.type == WLD_OBJ_POLYHEDRONDEFINITION_TYPE)
+			{
+				BufferReader polyReader(polyInstObj.data, polyInstObj.size);
+				WODL_OBJ_POLYHEDRONDEFINITION* polyDef = polyReader.read_ptr<WODL_OBJ_POLYHEDRONDEFINITION>();
+
+				bool haveNormals = (polyDef->flags & WLD_OBJ_POLYOPT_HAVEFACENORMALS) != 0;
+
+				if (polyDef->flags & WLD_OBJ_POLYOPT_HAVESCALEFACTOR)
+				{
+					polyReader.skip<float>();
+				}
+
+				glm::vec3* inVerts = reader.read_array<glm::vec3>(polyDef->num_vertices);
+				collisionVertices.assign(inVerts, inVerts + polyDef->num_vertices);
+
+				// faces appear to be capable of having more than three edges, so we treat them
+				// as a triangle fan and break them into triangles.
+				collisionIndices.reserve(polyDef->num_faces);
+
+				for (uint32_t i = 0; i < polyDef->num_faces; ++i)
+				{
+					uint32_t numVerts = reader.read<uint32_t>();
+					uint32_t* indices = reader.read_array<uint32_t>(numVerts);
+
+					for (uint32_t j = 2; j < numVerts; ++j)
+					{
+						collisionIndices.push_back(indices[0]);
+						collisionIndices.push_back(indices[j - 1]);
+						collisionIndices.push_back(indices[j]);
+					}
+
+					if (haveNormals)
+					{
+						reader.skip<float>(4);
+					}
+				}
+			}
+		}
 	}
 
 	if (pHierSpriteDef->flags & WLD_OBJ_SPROPT_HAVECENTEROFFSET)
@@ -2497,6 +2551,8 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 			defObj.tag, pHierSpriteInst->definition_id, wldObj.tag, objectIndex);
 		return false;
 	}
+
+	pHierarchicalModelDef->SetCollisionMesh(std::move(collisionVertices), std::move(collisionIndices));
 
 	if (!m_resourceMgr->Add(pHierarchicalModelDef))
 	{
@@ -2914,9 +2970,9 @@ bool WLDLoader::ParseLight(uint32_t objectIndex)
 		return false;
 	}
 
-	m_resourceMgr->Add(wldObj.tag, lightDef);
+	m_resourceMgr->Add(tag, lightDef);
 
-	std::shared_ptr<PointLight> pointLight = m_resourceMgr->CreatePointLight(lightDef, pHeader->pos, pHeader->radius);
+	std::shared_ptr<PointLight> pointLight = m_resourceMgr->CreatePointLight(wldObj.tag, lightDef, pHeader->pos, pHeader->radius);
 	m_pointLights.push_back(pointLight);
 
 	return true;

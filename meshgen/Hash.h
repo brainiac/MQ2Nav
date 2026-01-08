@@ -1,4 +1,4 @@
-// C++11 32bit FNV-1 and FNV-1a string hasing (Fowler–Noll–Vo hash)
+// C++11 32bit FNV-1 and FNV-1a string hasing (Fowler-Noll-Vo hash)
 
 #pragma once
 

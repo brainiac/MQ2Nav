@@ -3,85 +3,60 @@
 #include "meshgen/Scene.h"
 #include "meshgen/Components.h"
 
-TransformComponent& Entity::GetTransform()
+#include "entt/entity/handle.hpp"
+
+static void ConvertToLocalSpace(const entt::handle& entity);
+static void ConvertToWorldSpace(const entt::handle& entity);
+
+
+TransformComponent& GetTransform(const entt::handle& entity)
 {
-	return GetComponent<TransformComponent>();
+	return entity.get<TransformComponent>();
 }
 
-const TransformComponent& Entity::GetTransform() const
+entt::handle GetParent(const entt::handle& entity)
 {
-	return GetComponent<TransformComponent>();
+	return { *entity.registry(), entity.get<HierarchicalComponent>().parent };
 }
 
-Entity Entity::GetParent() const
+void SetParent(const entt::handle& entity, const entt::handle& parent)
 {
-	return Entity(GetParentHandle(), m_scene);
-}
-
-void Entity::SetParent(Entity parent)
-{
-	Entity currentParent = GetParent();
+	entt::handle currentParent = GetParent(entity);
 	if (currentParent == parent)
 		return;
 
 	// Remove from current parent's list of children.
-	if (currentParent)
+	if (currentParent != entt::null)
 	{
-		std::erase(currentParent.GetComponent<HierarchicalComponent>().children, *this);
+		std::erase(currentParent.get<HierarchicalComponent>().children, entity.entity());
 	}
 
-	auto& comp = GetComponent<HierarchicalComponent>();
-	comp.parent = parent;
+	auto& component = entity.get<HierarchicalComponent>();
+	component.parent = parent;
 
 	// Add self to parent's list of children.
-	if (parent)
+	if (parent != entt::null)
 	{
-		auto& children = comp.children;
+		auto& children = component.children;
 
-		// Make sure the child isn't already in the list.
-		if (std::ranges::find(children, *this) == children.end())
+		// Make sure child isn't already in the list
+		if (std::ranges::find(children, entity.entity()) == children.end())
 		{
-			children.push_back(*this);
+			children.push_back(entity.entity());
 		}
 	}
 }
 
-entt::entity Entity::GetParentHandle() const
+std::vector<entt::entity>& GetChildren(const entt::handle& entity)
 {
-	return GetComponent<HierarchicalComponent>().parent;
+	return entity.get<HierarchicalComponent>().children;
 }
 
-void Entity::SetParentHandle(entt::entity parent)
+bool RemoveChild(const entt::handle& entity, const entt::handle& child)
 {
-	GetComponent<HierarchicalComponent>().parent = parent;
-}
+	auto& children = GetChildren(entity);
 
-std::vector<entt::entity>& Entity::GetChildren()
-{
-	return GetComponent<HierarchicalComponent>().children;
-}
-
-const std::vector<entt::entity>& Entity::GetChildren() const
-{
-	return GetComponent<HierarchicalComponent>().children;
-}
-
-void Entity::AddChild(Entity child)
-{
-	auto& children = GetChildren();
-
-	// Make sure the child isn't already in the list.
-	if (std::ranges::find(children, child) == children.end())
-	{
-		children.push_back(child);
-	}
-}
-
-bool Entity::RemoveChild(Entity child)
-{
-	auto& children = GetChildren();
-
-	if (auto iter = std::ranges::find(children, child.m_entityHandle); iter != end(children))
+	if (auto iter = std::ranges::find(children, child.entity()); iter != end(children))
 	{
 		children.erase(iter);
 		return true;
@@ -90,31 +65,107 @@ bool Entity::RemoveChild(Entity child)
 	return false;
 }
 
-bool Entity::IsAncestorOf(Entity entity) const
+bool IsAncestorOf(const entt::handle& entity, const entt::handle& otherEntity)
 {
-	const auto& children = GetChildren();
+	const auto& children = GetChildren(entity);
 
 	if (children.empty())
 		return false;
 
-	if (std::ranges::find(children, entity.m_entityHandle) != end(children))
+	if (std::ranges::find(children, otherEntity) != end(children))
 		return true;
 
 	for (const auto& child : children)
 	{
-		if (Entity{ child, m_scene }.IsAncestorOf(entity))
+		if (IsAncestorOf({ *entity.registry(), child }, otherEntity))
 			return true;
 	}
 
 	return false;
 }
 
-bool Entity::IsDescendentOf(Entity entity) const
+bool IsDescendentOf(const entt::handle& entity, const entt::handle& otherEntity)
 {
-	return entity.IsAncestorOf(*this);
+	return IsAncestorOf(otherEntity, entity);
 }
 
-Entity::operator bool() const
+void ParentEntity(const entt::handle& entity, const entt::handle& parent)
 {
-	return m_entityHandle != entt::null && m_scene != nullptr && m_scene->m_registry.valid(m_entityHandle);
+	if (IsDescendentOf(parent, entity))
+	{
+		UnparentEntity(parent);
+
+		entt::handle newParent = GetParent(entity);
+		if (newParent != entt::null)
+		{
+			UnparentEntity(entity);
+			ParentEntity(parent, newParent);
+		}
+	}
+	else
+	{
+		entt::handle prev = GetParent(entity);
+		if (prev != entt::null)
+		{
+			UnparentEntity(entity);
+		}
+	}
+
+	entity.get<HierarchicalComponent>().parent = parent;
+	GetChildren(parent).push_back(entity);
+
+	ConvertToLocalSpace(entity);
+}
+
+void UnparentEntity(const entt::handle& entity, bool convertToWorldspace /* = true */)
+{
+	entt::handle parent = GetParent(entity);
+	if (parent == entt::null)
+		return;
+
+	std::erase(GetChildren(parent), entity);
+
+	if (convertToWorldspace)
+	{
+		ConvertToWorldSpace(entity);
+	}
+
+	entity.get<HierarchicalComponent>().parent = entt::null;
+}
+
+static void ConvertToLocalSpace(const entt::handle& entity)
+{
+	entt::handle parent = GetParent(entity);
+	if (parent == entt::null)
+		return;
+
+	auto& transformComponent = GetTransform(entity);
+
+	glm::mat4 parentTransform = GetWorldSpaceTransformMatrix(parent);
+	glm::mat4 localTransform = glm::inverse(parentTransform) * transformComponent.GetMatrix();
+
+	transformComponent.SetMatrix(localTransform);
+}
+
+static void ConvertToWorldSpace(const entt::handle& entity)
+{
+	entt::handle parent = GetParent(entity);
+	if (parent == entt::null)
+		return;
+
+	glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
+	GetTransform(entity).SetMatrix(transform);
+}
+
+glm::mat4 GetWorldSpaceTransformMatrix(const entt::handle& entity)
+{
+	glm::mat4 transform(1.0f);
+
+	entt::handle parent = GetParent(entity);
+	if (parent)
+	{
+		transform = GetWorldSpaceTransformMatrix(parent);
+	}
+
+	return transform * GetTransform(entity).GetMatrix();
 }

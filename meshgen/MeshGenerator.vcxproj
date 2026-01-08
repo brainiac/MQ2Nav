@@ -68,6 +68,7 @@
     <ClInclude Include="Components.h" />
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="ApplicationConfig.h" />
+    <ClInclude Include="EQComponents.h" />
     <ClInclude Include="ViewPanel.h" />
     <ClInclude Include="Editor.h" />
     <ClInclude Include="Entity.h" />
@@ -155,7 +156,6 @@
     <None Include="engine\debugdraw\vs_debugdraw_lines.sc" />
     <None Include="engine\debugdraw\vs_debugdraw_lines_stipple.sc" />
     <None Include="engine\shaderlib.sh" />
-    <None Include="Entity.inl" />
     <None Include="imgui\fs_imgui.sc" />
     <None Include="imgui\fs_imgui_image.sc" />
     <None Include="imgui\vs_imgui.sc" />

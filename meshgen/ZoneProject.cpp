@@ -8,6 +8,7 @@
 #include "meshgen/ChunkyTriMesh.h"
 #include "meshgen/Editor.h"
 #include "meshgen/NavMeshBuilder.h"
+#include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "meshgen/ZoneRenderManager.h"
 #include "meshgen/ZoneResourceManager.h"
@@ -186,10 +187,12 @@ ZoneProject::ZoneProject(Editor* editor, const std::string& name)
 	m_renderManager = std::make_unique<ZoneRenderManager>(this);
 	m_renderManager->InitShared();
 
+	m_scene = std::make_shared<Scene>(m_zoneShortName);
+
 	std::string eqPath = g_config.GetEverquestPath();
 	std::string outputPath = g_config.GetOutputPath();
 
-	m_resourceMgr = std::make_unique<ZoneResourceManager>(m_zoneShortName, eqPath, outputPath);
+	m_resourceMgr = std::make_unique<ZoneResourceManager>(m_zoneShortName, eqPath, outputPath, m_scene);
 
 	m_collisionMesh = std::make_shared<ZoneCollisionMesh>();
 
@@ -215,6 +218,8 @@ void ZoneProject::OnShutdown()
 {
 	CancelTasks();
 	m_renderManager->DestroyObjects();
+
+	m_scene->Clear();
 }
 
 void ZoneProject::Render()
@@ -420,6 +425,8 @@ bool ZoneProject::LoadZoneData()
 		SPDLOG_ERROR("LoadZone: Failed to load '{}'", m_zoneShortName);
 		return false;
 	}
+
+	m_resourceMgr->BuildScene(*m_scene);
 
 	m_zoneDataLoaded = true;
 	return true;

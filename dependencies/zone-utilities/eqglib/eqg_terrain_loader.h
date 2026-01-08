@@ -110,8 +110,6 @@ public:
 	float                    m_maxX = 0.0f;
 	float                    m_maxY = 0.0f;
 	float                    m_zHeight = 0.0f;
-	std::vector<SEQMVertex>  m_vertices;
-	std::vector<SEQMFace>    m_faces;
 
 	TerrainSystem*           m_terrain = nullptr;
 	SimpleActorPtr           m_actor;

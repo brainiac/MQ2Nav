@@ -222,16 +222,17 @@ public:
 		bool allSkinsActive = false,
 		Bone* pBone = nullptr);
 
-	virtual void AddActor(Actor* actor);
-	virtual void RemoveActor(Actor* actor);
+	virtual void AddActor(Actor* actor) {}
+	virtual void RemoveActor(Actor* actor) {}
 
 	virtual std::shared_ptr<PointLight> CreatePointLight(
+		std::string_view name,
 		const std::shared_ptr<LightDefinition>& lightDefinition,
 		const glm::vec3& position,
 		float radius);
 
-	virtual void AddLight(PointLight* light);
-	virtual void RemoveLight(PointLight* light);
+	virtual void AddLight(PointLight* light) {}
+	virtual void RemoveLight(PointLight* light) {}
 
 	virtual bool LoadTexture(Bitmap* bitmap, Archive* archive);
 	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);
@@ -241,6 +242,9 @@ public:
 
 	bool ReadFile(std::string_view filePath, std::vector<char>& data);
 
+	// TODO: Solidify interface. (Build into scene graph?)
+	const std::shared_ptr<Terrain>& GetTerrain() const { return m_terrain; }
+
 private:
 	std::string m_dataPath;
 	ResourceManager* m_parent;
@@ -249,12 +253,6 @@ private:
 	// Track resources by type and by tag (sorted). This is useful for debugging and
 	// inspecting, but we'll use the ResourceContainer for actual lookups.
 	std::map<ResourceType, std::map<std::string_view, std::shared_ptr<Resource>>> m_sortedResources;
-
-	// List of all currently constructed actors (instances)
-	std::unordered_set<Actor*> m_actors;
-
-	// List of all currently constructed point light instances
-	std::unordered_set<PointLight*> m_lights;
 
 	// There is only one terrain per zone.
 	std::shared_ptr<Terrain> m_terrain;

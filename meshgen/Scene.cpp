@@ -4,11 +4,13 @@
 
 #include "meshgen/Components.h"
 
+#include "entt/entity/handle.hpp"
+
 Scene::Scene(const std::string& name)
 	: m_name(name)
 {
 	m_sceneEntity = m_registry.create();
-	m_registry.emplace<IdentComponent>(m_sceneEntity, name);
+	m_registry.emplace<NameComponent>(m_sceneEntity, name);
 }
 
 Scene::~Scene()
@@ -24,128 +26,56 @@ void Scene::OnRender(const std::shared_ptr<Renderer>& renderer, float timeStep, 
 {
 }
 
-Entity Scene::CreateEntity(const std::string& name)
+entt::handle Scene::CreateEntity(const std::string_view& name)
 {
-	return CreateEntityWithParent({}, name);
+	return CreateEntityWithParent(entt::null, name);
 }
 
-Entity Scene::CreateEntityWithParent(Entity parent, const std::string& name)
+entt::handle Scene::CreateEntityWithParent(const entt::entity& parent, const std::string_view& name)
 {
-	Entity entity = Entity{ m_registry.create(), this };
+	entt::entity entity = m_registry.create();
 	
-	if (name.empty())
+	if (!name.empty())
 	{
-		entity.AddComponent<IdentComponent>(name);
+		m_registry.emplace<NameComponent>(entity, std::string{ name });
 	}
 
-	entity.AddComponent<TransformComponent>();
-	entity.AddComponent<HierarchicalComponent>(parent);
+	[[maybe_unused]] auto& xform = m_registry.emplace<TransformComponent>(entity);
+	[[maybe_unused]] auto& hierarchy = m_registry.emplace<HierarchicalComponent>(entity, parent);
 
-	if (parent)
+	if (m_registry.valid(parent))
 	{
-		entity.SetParent(parent);
+		SetParent({ m_registry, entity }, { m_registry, parent });
 	}
 
-	return entity;
+	return { m_registry, entity };
 }
 
-void Scene::DestroyEntity(const Entity& entity)
+void Scene::DestroyEntity(const entt::entity& entity)
 {
-	if (!entity)
+	if (!m_registry.valid(entity))
 		return;
 
 	// Callback to destroyed entity?
-
+	entt::handle handle{ m_registry, entity };
 
 	// Destroy children
-	auto children = entity.GetChildren();
+	auto& children = GetChildren(handle);
 	for (entt::entity child : children)
 	{
-		DestroyEntity(Entity{ child, this });
+		DestroyEntity(child);
 	}
 
 	// Remove self from parent
-	if (auto parent = entity.GetParent())
+	if (auto parent = GetParent(handle))
 	{
-		parent.RemoveChild(entity);
+		RemoveChild(parent, handle);
 	}
 
-	m_registry.destroy(entity);
+	handle.destroy();
 }
 
-void Scene::ConvertToLocalSpace(Entity entity)
+void Scene::Clear()
 {
-	Entity parent = entity.GetParent();
-	if (!parent)
-		return;
-
-	auto& transformComponent = entity.GetTransform();
-
-	glm::mat4 parentTransform = GetWorldSpaceTransformMatrix(parent);
-	glm::mat4 localTransform = glm::inverse(parentTransform) * transformComponent.GetTransform();
-
-	transformComponent.SetTransform(localTransform);
-}
-
-void Scene::ConvertToWorldSpace(Entity entity)
-{
-	Entity parent = entity.GetParent();
-	if (!parent)
-		return;
-
-	glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
-	entity.GetTransform().SetTransform(transform);
-}
-
-glm::mat4 Scene::GetWorldSpaceTransformMatrix(Entity entity) const
-{
-	glm::mat4 transform(1.0f);
-
-	Entity parent = entity.GetParent();
-	if (parent)
-	{
-		transform = GetWorldSpaceTransformMatrix(parent);
-	}
-
-	return transform * entity.GetTransform().GetTransform();
-}
-
-void Scene::ParentEntity(Entity entity, Entity parent)
-{
-	if (parent.IsDescendentOf(entity))
-	{
-		UnparentEntity(parent);
-
-		if (Entity newParent = entity.GetParent())
-		{
-			UnparentEntity(entity);
-			ParentEntity(parent, newParent);
-		}
-	}
-	else
-	{
-		if (Entity prev = entity.GetParent())
-		{
-			UnparentEntity(entity);
-		}
-	}
-
-	entity.SetParentHandle(parent);
-	parent.GetChildren().push_back(entity.GetHandle());
-
-	ConvertToLocalSpace(entity);
-}
-
-void Scene::UnparentEntity(Entity entity, bool convertToWorldspace)
-{
-	Entity parent = entity.GetParent();
-	if (!parent)
-		return;
-
-	std::erase(parent.GetChildren(), entity.GetHandle());
-
-	if (convertToWorldspace)
-		ConvertToWorldSpace(entity);
-
-	entity.SetParentHandle(entt::null);
+	m_registry.clear();
 }

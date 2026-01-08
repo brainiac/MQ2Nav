@@ -194,7 +194,7 @@ struct SMaterialFaceVertexData
 	SEQMVertexOld* verts_old;
 	SEQMVertex* verts;
 	SEQMFace* faces;
-	std::shared_ptr<MaterialPalette> material_palette;
+	MaterialPalettePtr material_palette;
 };
 
 bool EQGLoader::ParseMaterialsFacesAndVertices(BufferReader& reader, const char* string_pool, const std::string& tag,
@@ -417,49 +417,128 @@ bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& f
 		memcpy(vertices.data(), eqm_vertices, vertices.size() * sizeof(SEQMVertex));
 	}
 
-	// TODO: Load .pts / EQPT
-	// TODO: Load .prt / PTCL
+	// copy into vector
+	std::vector<SEQMFace> faces;
+	faces.resize(header->num_faces);
+	memcpy(faces.data(), eqm_faces, faces.size() * sizeof(SEQMFace));
 
-	SEQMBoneData* bones = nullptr;
-	SEQMSkinData* skin_data = nullptr;
+	// TODO: Load .pts / EQPT
+	std::vector<SParticlePoint> points;
+
+	// TODO: Load .prt / PTCL
+	std::vector<SActorParticle> particles;
+
+	HierarchicalModelDefinitionPtr hModelPtr = nullptr;
+	SimpleModelDefinitionPtr sModelPtr = nullptr;
 
 	if (header->num_bones > 0)
 	{
 		// This is an animated (hierarchical) model
-		bones = reader.read_array<SEQMBoneData>(header->num_bones);
-		std::vector<std::string_view> bone_names(header->num_bones);
+		SEQMBoneData* bone_data = reader.read_array<SEQMBoneData>(header->num_bones);
+		std::vector<SEQMBone> bones;
+		bones.reserve(header->num_bones);
 
 		for (uint32_t i = 0; i < header->num_bones; ++i)
 		{
-			bone_names[i] = string_pool + bones[i].name_index;
+			bones.emplace_back(string_pool + bone_data[i].name_index, bone_data[i]);
 		}
 
-		skin_data = reader.read_array<SEQMSkinData>(header->num_vertices);
+		SEQMSkinData* skin_data = reader.read_array<SEQMSkinData>(header->num_vertices);
 
-		// TODO: Create hierarchical model
+		std::string modelTag = fmt::format("{}_HMD", tag);
+
+		if (m_resourceMgr->Contains(modelTag, ResourceType::HierarchicalModelDefinition))
+		{
+			return true;
+		}
+
+		hModelPtr = m_resourceMgr->CreateHierarchicalModelDefinition();
+
+		if (!hModelPtr->InitFromEQMData(modelTag, vertices, faces, bones, points, particles,
+			skin_data, vertex_data.material_palette))
+		{
+			EQG_LOG_ERROR("Failed to create hierarchical model definition: {}", modelTag);
+			return false;
+		}
+
+		if (!m_resourceMgr->Add(hModelPtr))
+		{
+			EQG_LOG_ERROR("Failed to add new hierarchical model definition to resource manager: {}", modelTag);
+			return false;
+		}
 	}
 	else
 	{
-		// TODO: Create simple model
+		std::string modelTag = fmt::format("{}_SMD", tag);
+
+		if (m_resourceMgr->Contains(modelTag, ResourceType::SimpleModelDefinition))
+		{
+			return true;
+		}
+
+		sModelPtr = m_resourceMgr->CreateSimpleModelDefinition();
+
+		if (!sModelPtr->InitFromEQMData(modelTag, std::move(vertices), std::move(faces),
+			points, particles, vertex_data.material_palette))
+		{
+			EQG_LOG_ERROR("Failed to create simple model definition: {}", modelTag);
+			return false;
+		}
+
+		if (!m_resourceMgr->Add(sModelPtr))
+		{
+			EQG_LOG_ERROR("Failed to add new simple model definition to resource manager: {}", modelTag);
+			return false;
+		}
+
+		// FIXME
+		sModelPtr->InitStaticData();
 	}
 
-	std::vector<SFace> faces(header->num_faces);
-	for (size_t i = 0; i < header->num_faces; ++i)
+	std::string definitionTag = fmt::format("{}_ACTORDEF", tag);
+	ECollisionVolumeType colType = eCollisionVolumeNone;
+
+
+	ActorDefinitionPtr pActorDef;
+
+	if (hModelPtr)
 	{
-		faces[i].indices[0] = eqm_faces[i].vertices[0];
-		faces[i].indices[1] = eqm_faces[i].vertices[1];
-		faces[i].indices[2] = eqm_faces[i].vertices[2];
-		faces[i].flags = static_cast<EQG_FACEFLAGS>(eqm_faces[i].flags);
-		faces[i].materialIndex = eqm_faces[i].material;
+		pActorDef = std::make_shared<ActorDefinition>(definitionTag, hModelPtr);
+	}
+	else if (sModelPtr)
+	{
+		pActorDef = std::make_shared<ActorDefinition>(definitionTag, sModelPtr);
 	}
 
-	std::shared_ptr<eqg::Geometry> model = std::make_shared<eqg::Geometry>();
-	model->tag = fmt::format("{}_ACTORDEF", tag);
-	model->vertices = std::move(vertices);
-	model->faces = std::move(faces);
-	model->material_palette = vertex_data.material_palette;
+	if (!m_resourceMgr->Add(pActorDef))
+	{
+		EQG_LOG_ERROR("Failed to add actor definition to resource manager: {}", definitionTag);
+		return false;
+	}
 
-	models.push_back(model);
+	pActorDef->SetCallbackTag("SPRITECALLBACK");
+	pActorDef->SetCollisionVolumeType(colType);
+
+	// codepath for creating the old eqg::Geometry that we're trying to replace.
+	{
+		std::vector<SFace> faces(header->num_faces);
+		for (size_t i = 0; i < header->num_faces; ++i)
+		{
+			faces[i].indices[0] = eqm_faces[i].vertices[0];
+			faces[i].indices[1] = eqm_faces[i].vertices[1];
+			faces[i].indices[2] = eqm_faces[i].vertices[2];
+			faces[i].flags = static_cast<EQG_FACEFLAGS>(eqm_faces[i].flags);
+			faces[i].materialIndex = eqm_faces[i].material;
+		}
+
+		std::shared_ptr<eqg::Geometry> model = std::make_shared<eqg::Geometry>();
+		model->tag = fmt::format("{}_ACTORDEF", tag);
+		model->vertices = std::move(vertices);
+		model->faces = std::move(faces);
+		model->material_palette = vertex_data.material_palette;
+
+		models.push_back(model);
+	}
 	return true;
 }
 

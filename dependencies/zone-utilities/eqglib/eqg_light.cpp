@@ -44,10 +44,12 @@ bool LightDefinition::Init(
 
 
 PointLight::PointLight(ResourceManager* resourceMgr,
+	std::string_view name,
 	const std::shared_ptr<LightDefinition>& lightDef,
 	const glm::vec3& pos,
 	float radius)
 	: m_resourceMgr(resourceMgr)
+	, m_name(name)
 	, m_definition(lightDef)
 	, m_position(pos)
 	, m_radius(radius)

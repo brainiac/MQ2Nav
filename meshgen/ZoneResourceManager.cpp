@@ -4,59 +4,123 @@
 
 #include "meshgen/ZoneResourceManager.h"
 #include "meshgen/ApplicationConfig.h"
+#include "meshgen/EQComponents.h"
+#include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "common/NavMeshData.h"
 #include "mq/base/String.h"
 
-#include <rapidjson/document.h>
-
+#include "eqglib/eqg_global_data.h"
+#include "entt/entity/handle.hpp"
+#include "glm/gtx/matrix_decompose.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#include "rapidjson/document.h"
+#include "spdlog/spdlog.h"
 #include <filesystem>
 #include <sstream>
-#include <glm/gtx/matrix_decompose.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <spdlog/spdlog.h>
 
-#include "eqglib/eqg_global_data.h"
+#define SKIP_GLOBAL_LOAD 1
 
 namespace fs = std::filesystem;
 
-static void RotateVertex(glm::vec3& v, float rx, float ry, float rz)
+//============================================================================================================
+
+
+
+
+
+//============================================================================================================
+
+// This interface receives the objects created when loading a zone and turns them into entities that
+// we will place into our scene.
+
+class MGResourceManager : public eqg::ResourceManager
 {
-	glm::vec3 nv = v;
+public:
+	MGResourceManager(const std::string& data_path, eqg::ResourceManager* parent, ZoneResourceManager* zoneResourceMgr, bool isGlobal)
+		: eqg::ResourceManager(data_path, parent)
+		, m_zoneResourceMgr(zoneResourceMgr)
+		, m_isGlobal(isGlobal)
+	{
+	}
 
-	nv.y = (cos(rx) * v.y) - (sin(rx) * v.z);
-	nv.z = (sin(rx) * v.y) + (cos(rx) * v.z);
+	virtual void AddActor(eqg::Actor* actor) override
+	{
+		if (m_isGlobal)
+			return;
 
-	v = nv;
+		m_zoneResourceMgr->AddActor(actor);
+	}
 
-	nv.x = (cos(ry) * v.x) + (sin(ry) * v.z);
-	nv.z = -(sin(ry) * v.x) + (cos(ry) * v.z);
+	virtual void RemoveActor(eqg::Actor* actor) override
+	{
+		if (m_isGlobal)
+			return;
+		m_zoneResourceMgr->RemoveActor(actor);
+	}
 
-	v = nv;
+	virtual void AddLight(eqg::PointLight* light) override
+	{
+		if (m_isGlobal)
+			return;
+		m_zoneResourceMgr->AddPointLight(light);
+	}
 
-	nv.x = (cos(rz) * v.x) - (sin(rz) * v.y);
-	nv.y = (sin(rz) * v.x) + (cos(rz) * v.y);
+	virtual void RemoveLight(eqg::PointLight* light) override
+	{
+		if (m_isGlobal)
+			return;
+		m_zoneResourceMgr->RemovePointLight(light);
+	}
 
-	v = nv;
-}
+private:
+	ZoneResourceManager* m_zoneResourceMgr = nullptr;
+	bool m_isGlobal = false;
+};
+
 
 //============================================================================================================
 
 ZoneResourceManager::ZoneResourceManager(const std::string& zoneShortName,
-	const std::string& everquest_path, const std::string& mesh_path)
+	const std::string& everquest_path, const std::string& mesh_path, const std::shared_ptr<Scene>& scene)
 	: m_zoneName(zoneShortName)
 	, m_eqPath(everquest_path)
 	, m_meshPath(mesh_path)
+	, m_scene(scene)
 {
-	m_globalResourceMgr = std::make_unique<eqg::ResourceManager>(m_eqPath);
-	m_resourceMgr = std::make_unique<eqg::ResourceManager>(m_eqPath, m_globalResourceMgr.get());
+	m_globalResourceMgr = std::make_unique<MGResourceManager>(m_eqPath, nullptr, this, true);
+	m_resourceMgr = std::make_unique<MGResourceManager>(m_eqPath, m_globalResourceMgr.get(), this, false);
 
 	eqg::g_dataManager.Init(m_eqPath);
 }
 
 ZoneResourceManager::~ZoneResourceManager()
 {
+	m_actors.clear();
+	m_lights.clear();
+	m_scene->Clear();
+
+	map_eqg_models.clear();
+	map_placeables.clear();
+	map_areas.clear();
+	map_lights.clear();
+	global_load_assets.clear();
+	terrain.reset();
+
+	collide_verts.clear();
+	collide_indices.clear();
+	non_collide_verts.clear();
+	non_collide_indices.clear();
+	collide_vert_to_index.clear();
+	non_collide_vert_to_index.clear();
+
+	m_eqgLoaders.clear();
+	m_wldLoaders.clear();
+	m_archives.clear();
+
+	m_resourceMgr.reset();
+	m_globalResourceMgr.reset();
 }
 
 bool ZoneResourceManager::Load()
@@ -83,6 +147,30 @@ bool ZoneResourceManager::Load()
 	}
 
 	m_loaded = true;
+	return true;
+}
+
+bool ZoneResourceManager::BuildScene(Scene& scene)
+{
+	auto& registry = m_scene->GetRegistry();
+
+	m_sceneReady = true;
+
+	for (eqg::Actor* actor : m_pendingActors)
+	{
+		AddActor(actor);
+	}
+	m_pendingActors.clear();
+
+	for (eqg::PointLight* pointLight : m_pendingPointLights)
+	{
+		AddPointLight(pointLight);
+	}
+	m_pendingPointLights.clear();
+
+	registry.sort<NameComponent>([](const NameComponent& lhs, const NameComponent& rhs) {
+		return mq::ci_string_compare(lhs.name, rhs.name) < 0;
+	});
 	return true;
 }
 
@@ -119,6 +207,14 @@ bool ZoneResourceManager::BuildCollisionMesh(ZoneCollisionMesh& collisionMesh)
 	for (auto& [name, model] : map_eqg_models)
 	{
 		collisionMesh.addModel(name, model);
+	}
+
+	auto view = m_scene->GetAllEntitiesWith<const ActorComponent, const CollisionComponent>();
+	for (auto [entity, actor, collision] : view.each())
+	{
+		entt::handle handle{ m_scene->GetRegistry(), entity };
+
+		collisionMesh.addActor(handle, actor.actor);
 	}
 
 	// Add model instances
@@ -286,6 +382,7 @@ void ZoneResourceManager::LoadGlobalLoadFile()
 
 void ZoneResourceManager::PerformGlobalLoad(int phase)
 {
+#if !SKIP_GLOBAL_LOAD
 	SPDLOG_INFO("Loading GlobalLoad.txt phase {}", phase);
 
 	for (const GlobalLoadAsset& asset : global_load_assets)
@@ -309,6 +406,7 @@ void ZoneResourceManager::PerformGlobalLoad(int phase)
 			}
 		}
 	}
+#endif
 }
 
 void ZoneResourceManager::LoadGlobalChr()
@@ -596,6 +694,8 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive, int loadFlag
 	//============================================================================================================
 	// Load all the data that we build from the archive.
 
+
+
 	// Import models
 	for (const auto& model : loader->models)
 	{
@@ -736,7 +836,7 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive, int loadFlag
 		//	plac->tag.c_str(), plac->pos.x, plac->pos.y, plac->pos.z)
 		//map_placeables.push_back(plac);
 
-		LoadModelInst(plac);
+		//LoadModelInst(plac);
 	}
 
 	for (const auto& area : loader->areas)
@@ -1039,4 +1139,87 @@ void ZoneResourceManager::AddFace(const glm::vec3& v1, const glm::vec3& v2, cons
 		InsertVertex(v2);
 		InsertVertex(v3);
 	}
+}
+
+void ZoneResourceManager::AddActor(eqg::Actor* actor)
+{
+	if (!m_sceneReady)
+	{
+		m_pendingActors.push_back(actor);
+		return;
+	}
+
+	entt::handle entity = m_scene->CreateEntity(actor->GetActorName());
+
+	auto& transform = entity.get<TransformComponent>();
+	transform.position = actor->GetPosition();
+	transform.rotationEuler = actor->GetOrientation();
+	transform.scale = glm::vec3{ actor->GetScale() };
+
+	[[maybe_unused]]
+	auto& actorComponent = entity.emplace<ActorComponent>(actor);
+
+	if (!actor->GetTag().empty())
+	{
+		[[maybe_unused]]
+		auto& tagComponent = entity.emplace<TagComponent>(actor->GetTag());
+	}
+
+	eqg::SimpleModelPtr collisionModel = actor->GetCollisionModel();
+
+	// Note: This is simply the model used for collision. it may not actually have any collision facets
+	if (actor->IsCollidable())
+	{
+		auto& collisionComponent = entity.emplace<CollisionComponent>();
+
+		collisionComponent.collisionModel = actor->GetCollisionModel();
+		collisionComponent.boundingRadius = actor->GetBoundingRadius();
+	}
+
+	m_actors.emplace(actor, entity);
+}
+
+void ZoneResourceManager::RemoveActor(eqg::Actor* actor)
+{
+	auto iter = m_actors.find(actor);
+
+	if (iter == m_actors.end())
+		return;
+
+	m_scene->DestroyEntity(iter->second);
+
+	m_actors.erase(iter);
+}
+
+void ZoneResourceManager::AddPointLight(eqg::PointLight* light)
+{
+	if (!m_sceneReady)
+	{
+		m_pendingPointLights.push_back(light);
+		return;
+	}
+
+	entt::handle entity = m_scene->CreateEntity(light->GetDefinition()->GetTag());
+
+	TransformComponent& transform = entity.get<TransformComponent>();
+	transform.position = light->GetPosition();
+
+	PointLightComponent& lightComponent = entity.emplace<PointLightComponent>();
+	lightComponent.definition = light->GetDefinition();
+	lightComponent.dynamic = light->IsDynamic();
+	lightComponent.radius = light->GetRadius();
+
+	m_lights.emplace(light, entity);
+}
+
+void ZoneResourceManager::RemovePointLight(eqg::PointLight* light)
+{
+	auto iter = m_lights.find(light);
+
+	if (iter == m_lights.end())
+		return;
+
+	m_scene->DestroyEntity(iter->second);
+
+	m_lights.erase(iter);
 }
