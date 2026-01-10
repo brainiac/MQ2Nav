@@ -54,6 +54,12 @@
     <Filter Include="Header Files\imgui\fonts">
       <UniqueIdentifier>{90e9f03c-f8a2-4a2d-8e5e-717d76900123}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\natvis">
+      <UniqueIdentifier>{f2a9879f-944e-4496-957f-a21448e09007}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\natvis\entt">
+      <UniqueIdentifier>{f6a5ef07-89ce-4dca-90ea-1af93c2d9853}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -353,6 +359,39 @@
   <ItemGroup>
     <Natvis Include="meshgen.natvis">
       <Filter>Resource Files</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\core.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\entity.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\graph.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\locator.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\meta.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\poly.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\process.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\resource.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\signal.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\config.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
+    </Natvis>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\container.natvis">
+      <Filter>Resource Files\natvis\entt</Filter>
     </Natvis>
   </ItemGroup>
   <ItemGroup>

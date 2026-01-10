@@ -129,6 +129,17 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\config.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\container.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\core.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\entity.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\graph.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\locator.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\meta.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\poly.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\process.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\resource.natvis" />
+    <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\signal.natvis" />
     <Natvis Include="meshgen.natvis" />
   </ItemGroup>
   <ItemGroup>
