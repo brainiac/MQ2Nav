@@ -42,13 +42,15 @@ public:
 	std::shared_ptr<TerrainSystem> terrain;
 	std::shared_ptr<Geometry> terrain_model;
 
-	std::vector<std::string> mesh_names;
 	std::vector<std::string> actor_tags;
 
 	std::map<std::string, std::shared_ptr<MaterialPalette>> material_palettes;
 	std::map<std::string, std::shared_ptr<Material>> materials;
 
 	Archive* GetArchive() const { return m_archive; }
+
+	// Who owns these???
+	std::vector<ActorPtr> m_actors;
 
 private:
 	bool ParseFile(const std::string& fileName);

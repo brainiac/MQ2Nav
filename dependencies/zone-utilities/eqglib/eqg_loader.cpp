@@ -10,6 +10,8 @@
 #include "eqg_terrain_loader.h"
 #include "log_internal.h"
 
+#include "mq/base/Format.h"
+
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -692,7 +694,7 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 	// Note that this function tries to load .zon file for both version 1 and 2.
 
 	const char* string_pool = reader.read_array<const char>(header->string_pool_size);
-	mesh_names.resize(header->string_pool_size);
+	std::vector<std::string_view> mesh_names;
 
 	// translate string pool
 	for (uint32_t i = 0; i < header->num_meshes; ++i)
@@ -701,64 +703,123 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 
 		if (offset != -1)
 		{
-			mesh_names[i] = string_pool + offset;
+			mesh_names.push_back(string_pool + offset);
+		}
+		else
+		{
+			mesh_names.emplace_back();
 		}
 	}
 
-	auto& model_names = mesh_names;
+	m_resourceMgr->RemoveAllActors();
 
 	// load placables
 	EQG_LOG_TRACE("Parsing model instances.");
 
-	size_t name_index = 0;
+	std::string_view instanceName = string_pool;
+	std::string tempStr;
 
-	for (uint32_t i = 0; i < header->num_instances; ++i)
+	for (uint32_t instanceId = 0; instanceId < header->num_instances; ++instanceId)
 	{
 		SZONInstance* instance = reader.read_ptr<SZONInstance>();
 
-		uint32_t num_lit_verts = 0;
-		uint32_t* pLitData = nullptr;
+		std::span<uint32_t> litVerts;
 
 		if (header->version > 1)
 		{
-			num_lit_verts = reader.read<uint32_t>();
-			pLitData = reader.read_array<uint32_t>(num_lit_verts);
-		}
-		else
-		{
-			// TODO: Search for .LIT file that matches this model.
-			std::string litFileName = mesh_names[instance->name] + ".LIT";
-			(void)litFileName;
+			uint32_t numLitVerts = reader.read<uint32_t>();
+			uint32_t* pLitData = reader.read_array<uint32_t>(numLitVerts);
+
+			litVerts = { pLitData, numLitVerts };
 		}
 
 		if (header->version > 1)
 		{
-			while (name_index < mesh_names.size())
+			std::string_view instance_name_sv{ instanceName };
+
+			while (ci_ends_with(instance_name_sv, ".TER") || ci_ends_with(instance_name_sv, ".MOD"))
 			{
-				std::string_view mesh_name = mesh_names[name_index++];
-				if (!ci_ends_with(mesh_name, ".TER") && !ci_ends_with(mesh_name, ".MOD"))
-					break;
+				instanceName = instanceName.data() + instance_name_sv.length() + 1;
+				instance_name_sv = instanceName;
 			}
 		}
 
-		if (i > 0 && instance->mesh_id != -1)
+		std::unique_ptr<uint8_t[]> litBuffer;
+		uint32_t numLitVerts = 0;
+
+		if (instance->mesh_id != -1
+			&& (header->version == 1 || instanceId > 0))
 		{
-			std::string_view tag_name= mesh_names[instance->mesh_id];
-			tag_name = tag_name.substr(0, tag_name.size() - 4); // strip extension
-			std::string instance_tag = to_upper_copy(tag_name) + "_ACTORDEF";
-			std::string instance_name = header->version > 1 && name_index < model_names.size() ? model_names[name_index] : "";
+			std::string_view tag_name = mesh_names[instance->mesh_id];
+			tag_name = tag_name.substr(0, tag_name.size() - 4);
+			std::string definitionTag = fmt::format("{}_ACTORDEF", mq::fmt_uppercase(tag_name));
 
-			std::shared_ptr<Placeable> obj = std::make_shared<Placeable>();
-			obj->tag = std::move(instance_tag);
-			//obj->model_file = std::move(instance_name);
-			obj->pos = instance->translation;
-			obj->rotate = instance->rotation.zyx;
-			obj->scale = glm::vec3(instance->scale);
+			if (header->version == 1)
+			{
+				tempStr = fmt::format("{}_{}", mq::fmt_uppercase(tag_name), instanceId);
+				instanceName = tempStr;
 
-			// This would be called ZoneActor_0%5d if we had a place to keep it.
+				std::string litFileName = fmt::format("{}.LIT", string_pool + instance->name);
 
-			placeables.push_back(obj);
+				uint32_t litSize;
+				litBuffer = m_archive->Get(litFileName, litSize);
+				if (!litBuffer)
+					litBuffer = m_resourceMgr->ReadFile(litFileName, litSize);
+				if (litBuffer)
+				{
+					BufferReader litReader(litBuffer, litSize);
+
+					char* temp = litReader.read_array<char>(4);
+					if (temp && strncmp(temp, "EQGP", 4) == 0)
+					{
+						numLitVerts = litReader.read<uint32_t>();
+						uint32_t* litData = litReader.read_array<uint32_t>(numLitVerts);
+
+						litVerts = { litData, numLitVerts };
+					}
+				}
+			}
+
+			ActorDefinitionPtr pActorDef = m_resourceMgr->Get<ActorDefinition>(definitionTag);
+			if (!pActorDef)
+			{
+				EQG_LOG_WARN("Missing actor definition '{}' while loading model instance '{}'",
+					definitionTag, instanceName);
+				continue;
+			}
+
+			ECollisionVolumeType volumetype = eCollisionVolumeNone;
+			float boundingRadius = pActorDef->CalculateBoundingRadius();
+			glm::vec3 pos = instance->translation;
+			glm::vec3 orientation = glm::vec3(instance->rotation.z, instance->rotation.y, instance->rotation.x);
+			float scale = instance->scale;
+
+			std::string actorTag = fmt::format("ZoneActor_{:05}", instanceId);
+
+			ActorPtr actor;
+			
+			if (pActorDef->GetHierarchicalModelDefinition())
+			{
+				actor = m_resourceMgr->CreateHierarchicalActor(actorTag, pActorDef, pos, orientation, scale,
+					volumetype, boundingRadius, instanceId, nullptr, litVerts, instanceName);
+			}
+			else if (pActorDef->GetSimpleModelDefinition())
+			{
+				actor = m_resourceMgr->CreateSimpleActor(actorTag, pActorDef, pos, orientation, scale,
+					volumetype, boundingRadius, instanceId, nullptr, litVerts, instanceName);
+			}
+
+			if (actor == nullptr)
+			{
+				EQG_LOG_ERROR("Failed to create actor '{}'", instanceName);
+			}
+			else
+			{
+				m_actors.push_back(actor);
+			}
 		}
+
+		instanceName = instanceName.data() + instanceName.size() + 1;
 	}
 
 	EQG_LOG_TRACE("Parsing zone regions.");

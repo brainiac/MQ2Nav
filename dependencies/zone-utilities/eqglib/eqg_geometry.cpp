@@ -476,18 +476,18 @@ bool SimpleModel::SetRGBs(SDMRGBTrackWLDData* pDMRGBTrackWLDData)
 	return true;
 }
 
-bool SimpleModel::SetRGBs(uint32_t* pRGBs, uint32_t numRGBs)
+bool SimpleModel::SetRGBs(const std::span<uint32_t>& RGBs)
 {
-	if (numRGBs != m_definition->m_numVertices)
+	if (RGBs.size() != m_definition->m_numVertices)
 	{
-		EQG_LOG_WARN("Invalid number of RGB vertices. Has {}, expected {}. tag={}", numRGBs,
+		EQG_LOG_WARN("Invalid number of RGB vertices. Has {}, expected {}. tag={}", RGBs.size(),
 			m_definition->m_numVertices,
 			m_definition->GetTag());
 		return false;
 	}
 
-	m_bakedDiffuseLighting.resize(numRGBs);
-	memcpy(m_bakedDiffuseLighting.data(), pRGBs, numRGBs * sizeof(uint32_t));
+	m_bakedDiffuseLighting.resize(RGBs.size());
+	memcpy(m_bakedDiffuseLighting.data(), RGBs.data(), RGBs.size_bytes());
 	return true;
 }
 
@@ -1665,8 +1665,7 @@ SimpleActor::SimpleActor(
 	ECollisionVolumeType collisionVolumeType,
 	int actorIndex,
 	SDMRGBTrackWLDData* DMRGBTrackWLDData,
-	uint32_t* RGBs,
-	uint32_t numRGBs,
+	const std::span<uint32_t>& RGBs,
 	std::string_view actorName)
 	: Actor(resourceMgr)
 {
@@ -1688,9 +1687,9 @@ SimpleActor::SimpleActor(
 		m_model->SetRGBs(DMRGBTrackWLDData);
 	}
 
-	if (RGBs != nullptr)
+	if (!RGBs.empty())
 	{
-		m_model->SetRGBs(RGBs, numRGBs);
+		m_model->SetRGBs(RGBs);
 	}
 
 	DoInitCallback();
@@ -1819,8 +1818,7 @@ HierarchicalActor::HierarchicalActor(
 	ECollisionVolumeType collisionVolumeType,
 	int actorIndex,
 	SDMRGBTrackWLDData* DMRGBTrackWLDData,
-	uint32_t* RGBs,
-	uint32_t numRGBs,
+	const std::span<uint32_t>& RGBs,
 	std::string_view actorName)
 	: Actor(resourceMgr)
 {

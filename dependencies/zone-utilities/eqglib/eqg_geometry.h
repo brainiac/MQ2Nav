@@ -9,9 +9,9 @@
 #include "wld_types.h"
 
 #include "common/math/aabb.h"
-
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 #include <chrono>
+#include <span>
 #include <vector>
 
 namespace eqg {
@@ -569,7 +569,7 @@ public:
 	ActorParticleManager* GetParticleManager() const { return m_particleManager.get(); }
 
 	bool SetRGBs(SDMRGBTrackWLDData* pDMRGBTrackWLDData);
-	bool SetRGBs(uint32_t* pRGBs, uint32_t numRGBs);
+	bool SetRGBs(const std::span<uint32_t>& RGBs);
 
 	SimpleModelDefinitionPtr      m_definition;
 	Actor*                        m_actor = nullptr; // owning actor
@@ -762,10 +762,8 @@ public:
 		ECollisionVolumeType collisionVolumeType,
 		int actorIndex,
 		SDMRGBTrackWLDData* DMRGBTrackWLDData = nullptr,
-		uint32_t* RGBs = nullptr,
-		uint32_t numRGBs = 0,
-		std::string_view actorName = ""
-	);
+		const std::span<uint32_t>& RGBs = {},
+		std::string_view actorName = "");
 	SimpleActor(
 		ResourceManager* resourceMgr,
 		std::string_view actorTag,
@@ -812,8 +810,7 @@ public:
 		ECollisionVolumeType collisionVolumeType,
 		int actorIndex,
 		SDMRGBTrackWLDData* DMRGBTrackWLDData = nullptr,
-		uint32_t* RGBs = nullptr,
-		uint32_t numRGBs = 0,
+		const std::span<uint32_t>& RGBs = {},
 		std::string_view actorName = ""
 	);
 

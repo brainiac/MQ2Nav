@@ -180,8 +180,7 @@ public:
 		float boundingRadius = 1.0f,
 		int actorIndex = -1,
 		SDMRGBTrackWLDData* DMRGBTrackWLDData = nullptr,
-		uint32_t* rgbData = nullptr,
-		uint32_t numRGBs = 0,
+		const std::span<uint32_t>& RGBs = {},
 		std::string_view actorName = "");
 
 	virtual std::shared_ptr<SimpleActor> CreateSimpleActor(
@@ -201,8 +200,7 @@ public:
 		float boundingRadius = 1.0f,
 		int actorIndex = -1,
 		SDMRGBTrackWLDData* DMRGBTrackWLDData = nullptr,
-		uint32_t* RGBs = nullptr,
-		uint32_t numRGBs = 0,
+		const std::span<uint32_t>& RGBs = {},
 		std::string_view actorName = "");
 
 	virtual std::shared_ptr<HierarchicalActor> CreateHierarchicalActor(
@@ -224,6 +222,7 @@ public:
 
 	virtual void AddActor(Actor* actor) {}
 	virtual void RemoveActor(Actor* actor) {}
+	virtual void RemoveAllActors() {}
 
 	virtual std::shared_ptr<PointLight> CreatePointLight(
 		std::string_view name,
@@ -241,6 +240,7 @@ public:
 	std::shared_ptr<Terrain> GetTerrain();
 
 	bool ReadFile(std::string_view filePath, std::vector<char>& data);
+	std::unique_ptr<uint8_t[]> ReadFile(std::string_view filePath, uint32_t& size);
 
 	// TODO: Solidify interface. (Build into scene graph?)
 	const std::shared_ptr<Terrain>& GetTerrain() const { return m_terrain; }

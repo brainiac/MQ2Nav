@@ -674,10 +674,17 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(
 				}
 			}
 
-			actor = resourceMgr->CreateSimpleActor(tag, pActorDef, groupElement->position, glm::vec3(0.0f), groupElement->scale,
+			actor = resourceMgr->CreateSimpleActor(
+				tag,
+				pActorDef,
+				groupElement->position,
+				glm::vec3(0.0f),
+				groupElement->scale,
 				pActorDef->GetSimpleModelDefinition()->GetDefaultCollisionType(),
 				pActorDef->GetSimpleModelDefinition()->GetDefaultBoundingRadius(),
-				objectID, nullptr, groupElement->litData.data(), static_cast<uint32_t>(groupElement->litData.size()),
+				objectID,
+				nullptr,
+				{ groupElement->litData.data(), groupElement->litData.size() },
 				instName);
 		}
 		else
@@ -1420,7 +1427,7 @@ bool WaterSheet::Init(const std::vector<std::string>& tokens, size_t& k)
 	glm::vec3 orientation(0.0f);
 	glm::vec3 position = glm::vec3(glm::vec2(m_minX, m_minY) + center, m_zHeight);
 
-	m_actor = resourceMgr->CreateSimpleActor("", pActorDef, position, orientation, 1.0f, eCollisionVolumeNone, 1.0f, -1, nullptr, nullptr, 0, m_name);
+	m_actor = resourceMgr->CreateSimpleActor(m_name, pActorDef, position, orientation, 1.0f, eCollisionVolumeNone, 1.0f, -1, nullptr, {}, m_name);
 	m_actor->GetSimpleModel()->InitBatchInstances();
 
 	return true;

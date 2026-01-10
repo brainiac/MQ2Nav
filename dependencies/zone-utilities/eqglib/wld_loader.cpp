@@ -2085,7 +2085,8 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 			boundingRadius,
 			objectIndex,
 			pDMRGBTrackData.get(),
-			nullptr, 0, actorName);
+			{},
+			actorName);
 	}
 	else if (actorDef->GetHierarchicalModelDefinition())
 	{

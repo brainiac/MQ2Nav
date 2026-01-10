@@ -150,35 +150,60 @@ std::shared_ptr<LightDefinition> ResourceManager::CreateLightDefinition() const
 	return std::make_shared<LightDefinition>();
 }
 
-std::shared_ptr<SimpleActor> ResourceManager::CreateSimpleActor(std::string_view actorTag,
-	const std::shared_ptr<ActorDefinition>& simpleActorDef, const glm::vec3& position, const glm::vec3& orientation,
-	float scale, ECollisionVolumeType collisionVolumeType, float boundingRadius, int actorIndex,
-	SDMRGBTrackWLDData* DMRGBTrackWLDData, uint32_t* rgbData, uint32_t numRGBs, std::string_view actorName)
+std::shared_ptr<SimpleActor> ResourceManager::CreateSimpleActor(
+	std::string_view actorTag,
+	const std::shared_ptr<ActorDefinition>& simpleActorDef,
+	const glm::vec3& position,
+	const glm::vec3& orientation,
+	float scale,
+	ECollisionVolumeType collisionVolumeType,
+	float boundingRadius,
+	int actorIndex,
+	SDMRGBTrackWLDData* DMRGBTrackWLDData,
+	const std::span<uint32_t>& RGBs,
+	std::string_view actorName)
 {
 	return std::make_shared<SimpleActor>(this, actorTag, simpleActorDef, position, orientation,
-		scale, boundingRadius, collisionVolumeType, actorIndex, DMRGBTrackWLDData, rgbData, numRGBs, actorName);
+		scale, boundingRadius, collisionVolumeType, actorIndex, DMRGBTrackWLDData, RGBs, actorName);
 }
 
-std::shared_ptr<SimpleActor> ResourceManager::CreateSimpleActor(std::string_view actorTag,
-	const std::shared_ptr<ActorDefinition>& simpleActorDef, int actorIndex, bool useDefaultBoundingRadius,
+std::shared_ptr<SimpleActor> ResourceManager::CreateSimpleActor(
+	std::string_view actorTag,
+	const std::shared_ptr<ActorDefinition>& simpleActorDef,
+	int actorIndex,
+	bool useDefaultBoundingRadius,
 	std::string_view actorName)
 {
 	return std::make_shared<SimpleActor>(this, actorTag, simpleActorDef, actorIndex, useDefaultBoundingRadius,
 		actorName);
 }
 
-std::shared_ptr<HierarchicalActor> ResourceManager::CreateHierarchicalActor(std::string_view actorTag,
-	const ActorDefinitionPtr& actorDef, const glm::vec3& position, const glm::vec3& orientation, float scale,
-	ECollisionVolumeType collisionVolumeType, float boundingRadius, int actorIndex, SDMRGBTrackWLDData* DMRGBTrackWLDData,
-	uint32_t* RGBs, uint32_t numRGBs, std::string_view actorName)
+std::shared_ptr<HierarchicalActor> ResourceManager::CreateHierarchicalActor(
+	std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef,
+	const glm::vec3& position,
+	const glm::vec3& orientation,
+	float scale,
+	ECollisionVolumeType collisionVolumeType,
+	float boundingRadius,
+	int actorIndex,
+	SDMRGBTrackWLDData* DMRGBTrackWLDData,
+	const std::span<uint32_t>& RGBs,
+	std::string_view actorName)
 {
 	return std::make_shared<HierarchicalActor>(this, actorTag, actorDef, position, orientation,
-		boundingRadius, scale, collisionVolumeType, actorIndex, DMRGBTrackWLDData, RGBs, numRGBs, actorName);
+		boundingRadius, scale, collisionVolumeType, actorIndex, DMRGBTrackWLDData, RGBs, actorName);
 }
 
-std::shared_ptr<HierarchicalActor> ResourceManager::CreateHierarchicalActor(std::string_view actorTag,
-	const ActorDefinitionPtr& actorDef, int actorIndex, bool allSkinsActive, bool useDefaultBoundingRadius, bool sharedBoneGroups,
-	Bone* pBone, std::string_view actorName)
+std::shared_ptr<HierarchicalActor> ResourceManager::CreateHierarchicalActor(
+	std::string_view actorTag,
+	const ActorDefinitionPtr& actorDef,
+	int actorIndex,
+	bool allSkinsActive,
+	bool useDefaultBoundingRadius,
+	bool sharedBoneGroups,
+	Bone* pBone,
+	std::string_view actorName)
 {
 	return std::make_shared<HierarchicalActor>(this, actorTag, actorDef, actorIndex, allSkinsActive,
 		useDefaultBoundingRadius, sharedBoneGroups, pBone, actorName);
@@ -310,6 +335,40 @@ bool ResourceManager::ReadFile(std::string_view filePath, std::vector<char>& buf
 	return false;
 }
 
+std::unique_ptr<uint8_t[]> ResourceManager::ReadFile(std::string_view filePath, uint32_t& size)
+{
+	size = 0;
+	std::filesystem::path p = std::filesystem::path(m_dataPath) / filePath;
+	std::error_code ec;
+	if (!std::filesystem::exists(p, ec))
+	{
+		return nullptr;
+	}
+
+	FILE* f = _fsopen(p.string().c_str(), "rb", _SH_DENYNO);
+	if (!f)
+	{
+		return nullptr;
+	}
+
+	fseek(f, 0, SEEK_END);
+	size_t sz = ftell(f);
+	fseek(f, 0, SEEK_SET);
+
+	auto buffer = std::make_unique<uint8_t[]>(sz);
+	size_t res = fread(buffer.get(), 1, sz, f);
+	if (res != sz)
+	{
+		size = 0;
+		return nullptr;
+	}
+
+	fclose(f);
+
+	size = static_cast<uint32_t>(sz);
+	return buffer;
+}
+
 std::shared_ptr<Terrain> ResourceManager::InitTerrain()
 {
 	// Reset the terrain object
@@ -317,7 +376,6 @@ std::shared_ptr<Terrain> ResourceManager::InitTerrain()
 
 	return m_terrain;
 }
-
 
 std::shared_ptr<Terrain> ResourceManager::GetTerrain()
 {
