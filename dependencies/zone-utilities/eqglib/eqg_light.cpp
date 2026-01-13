@@ -28,8 +28,11 @@ bool LightDefinition::Init(
 	m_updateInterval = updateInterval;
 	m_skipFrames = skipFrames;
 	
-	m_framesIntensity.resize(frameCount);
-	memcpy(m_framesIntensity.data(), framesIntensity, frameCount * sizeof(float));
+	if (framesIntensity)
+	{
+		m_framesIntensity.resize(frameCount);
+		memcpy(m_framesIntensity.data(), framesIntensity, frameCount * sizeof(float));
+	}
 
 	if (framesColor)
 	{
@@ -54,13 +57,10 @@ PointLight::PointLight(ResourceManager* resourceMgr,
 	, m_position(pos)
 	, m_radius(radius)
 {
-	m_resourceMgr->AddLight(this);
 }
 
 PointLight::~PointLight()
 {
-	m_resourceMgr->RemoveLight(this);
 }
-
 
 } // namespace eqg

@@ -25,8 +25,8 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 	m_materialPalette = pWldData->materialPalette;
 	m_boundingRadius = pWldData->boundingRadius;
 	m_centerOffset = pWldData->centerOffset;
-	m_numVertices = pWldData->numVertices;
-	m_numFaces = pWldData->numFaces;
+	m_numVertices = static_cast<uint32_t>(pWldData->vertices.size());
+	m_numFaces = static_cast<uint32_t>(pWldData->faces.size());
 
 	if (pWldData->trackDefinition != nullptr)
 	{
@@ -48,7 +48,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 
 	uint32_t currFace = 0;
 	uint32_t currVert = 0;
-	for (uint32_t group = 0; group < pWldData->numFaceMaterialGroups; ++group)
+	for (uint32_t group = 0; group < static_cast<uint32_t>(pWldData->faceMaterialGroups.size()); ++group)
 	{
 		uint32_t materialIndex = pWldData->faceMaterialGroups[group].material_index;
 		if (materialIndex < numMaterials)
@@ -69,15 +69,12 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 
 	if (m_numVertices > 0)
 	{
-
-		m_vertices.resize(m_numVertices * m_numFrames);
-		m_uvs.resize(m_numVertices);
-		m_normals.resize(m_numVertices);
-		m_colors.resize(m_numVertices);
-
 		const glm::vec3 centerOffset = pWldData->centerOffset;
 		const float scaleFactor = pWldData->vertexScaleFactor;
 
+		// NOTE: Some of this might be able to be de-duplicated with the hierarchical definition if we create a mesh/sub-mesh object
+
+		m_vertices.resize(m_numVertices * m_numFrames);
 		for (uint32_t i = 0; i < m_numVertices; ++i)
 		{
 			m_vertices[i] = centerOffset + glm::vec3(pWldData->vertices[i]) * scaleFactor;
@@ -85,46 +82,60 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 			m_aabb.enclose(m_vertices[i]);
 		}
 
-		if (pWldData->numUVs > 0)
+		if (pWldData->uvs.index() == 0)
 		{
-			if (pWldData->uvsUsingOldForm)
+			std::span<glm::vec2>& uvs = std::get<0>(pWldData->uvs);
+			if (!uvs.empty())
 			{
-				for (uint32_t i = 0; i < m_numVertices; ++i)
+				m_uvs.assign(uvs.begin(), uvs.end());
+			}
+			else
+			{
+				m_uvs.assign(m_numVertices, glm::vec2(0.0f, 0.0f));
+			}
+		}
+		else
+		{
+			std::span<glm::i16vec2>& uvs = std::get<1>(pWldData->uvs);
+
+			if (!uvs.empty())
+			{
+				m_uvs.resize(m_numVertices);
+				for (size_t vert = 0; vert < m_numVertices; ++vert)
 				{
-					m_uvs[i] = glm::vec2(pWldData->uvsOldForm[i]) * S3D_UV_TO_FLOAT;
+					m_uvs[vert] = glm::vec2(uvs[vert]) * S3D_UV_TO_FLOAT;
 				}
 			}
 			else
 			{
-				for (uint32_t i = 0; i < m_numVertices; ++i)
-				{
-					m_uvs[i] = pWldData->uvs[i];
-				}
+				m_uvs.assign(m_numVertices, glm::vec2(0.0f, 0.0f));
 			}
+		}
+
+		// Fill vertex normals
+		if (pWldData->vertexNormals.empty())
+		{
+			m_normals.assign(m_numVertices, glm::vec3(0.0f, 0.0f, 0.0f));
 		}
 		else
 		{
-			memset(m_uvs.data(), 0, sizeof(glm::vec2) * pWldData->numUVs);
-		}
+			m_normals.resize(m_numVertices);
 
-		if (pWldData->numVertexNormals > 0)
-		{
-			for (uint32_t i = 0; i < m_numVertices; ++i)
+			for (size_t vert = 0; vert < m_numVertices; ++vert)
 			{
-				m_normals[i] = glm::vec3(pWldData->vertexNormals[i]) * S3D_NORM_TO_FLOAT;
+				m_normals[vert] = glm::vec3(pWldData->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
 			}
 		}
-		else
-		{
-			memset(m_normals.data(), 0, sizeof(glm::vec3) * m_numVertices);
-		}
 
-		if (pWldData->numRGBs > 0)
+		m_colors.resize(m_numVertices);
+		if (!pWldData->rgbData.empty())
 		{
-			memcpy(m_colors.data(), pWldData->rgbData, sizeof(uint32_t) * m_numVertices);
+
+			memcpy(m_colors.data(), pWldData->rgbData.data(), pWldData->rgbData.size_bytes());
 		}
 		else
 		{
+
 			memset(m_colors.data(), -1, sizeof(uint32_t) * m_numVertices);
 		}
 
@@ -158,7 +169,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 	}
 
 	// Initialize faces
-	WLD_MATERIALGROUP* faceGroups = pWldData->faceMaterialGroups;
+	WLD_MATERIALGROUP* faceGroups = pWldData->faceMaterialGroups.data();
 
 	m_faces.resize(m_numFaces);
 	m_faceNormals.resize(m_numFaces);
@@ -176,7 +187,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 		if (face > groupStart + groupSize)
 		{
 			// Increment to next group
-			if (curGroup < pWldData->numFaceMaterialGroups - 1)
+			if (curGroup < pWldData->faceMaterialGroups.size() - 1)
 				++curGroup;
 
 			groupSize = faceGroups[curGroup].group_size;
@@ -573,10 +584,14 @@ Bone::Bone(const BoneDefinition* boneDef)
 		else if (auto pHierarchicalDef = pAttachedActorDef->GetHierarchicalModelDefinition())
 		{
 			m_attachedActor = resourceMgr->CreateHierarchicalActor("", pAttachedActorDef, -1, false, false, true, this);
+
+			resourceMgr->AddActor(m_attachedActor);
 		}
 		else
 		{
 			m_attachedActor = resourceMgr->CreateParticleActor("", pAttachedActorDef, -1, false, this);
+
+			resourceMgr->AddActor(m_attachedActor);
 		}
 	}
 
@@ -933,59 +948,82 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 			SSkinMesh& mesh = m_attachedSkins.emplace_back(pDMSpriteDef2->tag);
 			mesh.tag = pDMSpriteDef2->tag;
 			mesh.oldModel = true;
-			mesh.vertices.resize(pDMSpriteDef2->numVertices);
-			mesh.uvs.resize(pDMSpriteDef2->numVertices);
-			mesh.normals.resize(pDMSpriteDef2->numVertices);
 
 			// Fill vertices
 			const glm::vec3 centerOffset = pDMSpriteDef2->centerOffset;
 			const float scaleFactor = pDMSpriteDef2->vertexScaleFactor;
 
-			for (uint32_t vert = 0; vert < pDMSpriteDef2->numVertices; ++vert)
+			mesh.vertices.resize(pDMSpriteDef2->vertices.size());
+			for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 			{
 				mesh.vertices[vert] = centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor;
+			}
 
-				if (pDMSpriteDef2->numUVs > 0)
+			if (pDMSpriteDef2->uvs.index() == 0)
+			{
+				std::span<glm::vec2>& uvs = std::get<0>(pDMSpriteDef2->uvs);
+
+				if (!uvs.empty())
 				{
-					if (pDMSpriteDef2->uvsUsingOldForm)
-						mesh.uvs[vert] = glm::vec2(pDMSpriteDef2->uvsOldForm[vert]) * S3D_UV_TO_FLOAT;
-					else
-						mesh.uvs[vert] = pDMSpriteDef2->uvs[vert];
+					mesh.uvs.assign(uvs.begin(), uvs.end());
 				}
 				else
 				{
-					mesh.uvs[vert] = glm::vec2(0.0f, 0.0f);
+					mesh.uvs.assign(mesh.vertices.size(), glm::vec2(0.0f, 0.0f));
 				}
+			}
+			else
+			{
+				std::span<glm::i16vec2>& uvs = std::get<1>(pDMSpriteDef2->uvs);
 
-				if (pDMSpriteDef2->numVertexNormals > 0)
+				if (!uvs.empty())
+				{
+					mesh.uvs.resize(pDMSpriteDef2->vertices.size());
+					for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
+					{
+						mesh.uvs[vert] = glm::vec2(uvs[vert]) * S3D_UV_TO_FLOAT;
+					}
+				}
+				else
+				{
+					mesh.uvs.assign(mesh.vertices.size(), glm::vec2(0.0f, 0.0f));
+				}
+			}
+
+			// Fill vertex normals
+			if (pDMSpriteDef2->vertexNormals.empty())
+			{
+				mesh.normals.resize(pDMSpriteDef2->vertices.size(), glm::vec3(0.0f, 0.0f, 0.0f));
+			}
+			else
+			{
+				mesh.normals.resize(pDMSpriteDef2->vertices.size());
+
+				for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 				{
 					mesh.normals[vert] = glm::vec3(pDMSpriteDef2->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
-				}
-				else
-				{
-					mesh.normals[vert] = glm::vec3(0.0f, 0.0f, 0.0f);
 				}
 			}
 
 			// Fill indices
-			mesh.indices.resize(pDMSpriteDef2->numFaces * 3);
+			mesh.indices.resize(pDMSpriteDef2->faces.size() * 3);
 			auto indices = mesh.indices.data();
 
 			uint32_t index = 0;
-			for (uint32_t face = 0; face < pDMSpriteDef2->numFaces; ++face)
+			for (uint32_t face = 0; face < pDMSpriteDef2->faces.size(); ++face, index += 3)
 			{
-				indices[index++] = pDMSpriteDef2->faces[face].indices[0];
-				indices[index++] = pDMSpriteDef2->faces[face].indices[1];
-				indices[index++] = pDMSpriteDef2->faces[face].indices[2];
+				indices[index + 0] = pDMSpriteDef2->faces[face].indices[0];
+				indices[index + 1] = pDMSpriteDef2->faces[face].indices[1];
+				indices[index + 2] = pDMSpriteDef2->faces[face].indices[2];
 			}
 
 			// fill material index table for faces
-			mesh.materialIndexTable.resize(pDMSpriteDef2->numFaceMaterialGroups);
+			mesh.materialIndexTable.resize(pDMSpriteDef2->faceMaterialGroups.size());
 			auto materialIndices = mesh.materialIndexTable.data();
-			mesh.attributes.resize(pDMSpriteDef2->numFaces);
+			mesh.attributes.resize(pDMSpriteDef2->faces.size());
 			uint32_t groupStart = 0;
 
-			for (uint32_t groupNum = 0; groupNum < pDMSpriteDef2->numFaceMaterialGroups; ++groupNum)
+			for (uint32_t groupNum = 0; groupNum < pDMSpriteDef2->faceMaterialGroups.size(); ++groupNum)
 			{
 				auto& pFaceGroup = pDMSpriteDef2->faceMaterialGroups[groupNum];
 				uint32_t materialIndex = pFaceGroup.material_index;
@@ -1005,7 +1043,7 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 				groupStart += groupSize;
 			}
 
-			if (pDMSpriteDef2->numSkinGroups > 0)
+			if (!pDMSpriteDef2->skinGroups.empty())
 			{
 				// TODO: Generate mesh from SSkinMesh data
 			}
@@ -1017,7 +1055,7 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 
 			//mesh.attachPointBoneIndex = pWldData->skeletonDagIndices[skin];
 
-			if (pDMSpriteDef2->numSkinGroups > 0)
+			if (!pDMSpriteDef2->skinGroups.empty())
 			{
 				// D3DXBONECOMBINATION stuff...
 			}
@@ -1416,7 +1454,7 @@ void HierarchicalModel::Init(const HierarchicalModelDefinitionPtr& definition)
 	// Create our set of bones from the list of bone definitions
 	if (m_definition->GetNumBones() > 0)
 	{
-		m_bones.resize(m_definition->GetNumBones());
+		m_bones.reserve(m_definition->GetNumBones());
 		const auto& definitionBones = m_definition->GetBones();
 
 		// Create bones
@@ -1693,8 +1731,6 @@ SimpleActor::SimpleActor(
 	}
 
 	DoInitCallback();
-
-	m_resourceMgr->AddActor(this);
 }
 
 SimpleActor::SimpleActor(ResourceManager* resourceMgr,
@@ -1718,14 +1754,11 @@ SimpleActor::SimpleActor(ResourceManager* resourceMgr,
 	}
 
 	SetCollisionVolumeType(m_definition->GetCollisionVolumeType());
-
-	m_resourceMgr->AddActor(this);
 }
 
 
 SimpleActor::~SimpleActor()
 {
-	m_resourceMgr->RemoveActor(this);
 }
 
 void SimpleActor::InitLOD()
@@ -1829,10 +1862,8 @@ HierarchicalActor::HierarchicalActor(
 
 	InitLOD();
 
-	m_model = std::make_shared<HierarchicalModel>();
-
-
-	m_resourceMgr->AddActor(this);
+	//m_model = std::make_shared<HierarchicalModel>();
+	//m_resourceMgr->AddActor(this);
 }
 
 HierarchicalActor::HierarchicalActor(ResourceManager* resourceMgr,
@@ -1869,13 +1900,10 @@ HierarchicalActor::HierarchicalActor(ResourceManager* resourceMgr,
 			// TODO
 		}
 	}
-
-	m_resourceMgr->AddActor(this);
 }
 
 HierarchicalActor::~HierarchicalActor()
 {
-	m_resourceMgr->RemoveActor(this);
 }
 
 void HierarchicalActor::InitLOD()
@@ -2032,12 +2060,10 @@ ParticleActor::ParticleActor(ResourceManager* resourceMgr, std::string_view acto
 	// TODO: Create Emitter
 
 	SetHasParentBone(bone != nullptr);
-
-	resourceMgr->AddActor(this);
 }
 
 ParticleActor::~ParticleActor()
 {
-	m_resourceMgr->RemoveActor(this);
 }
+
 } // namespace eqg

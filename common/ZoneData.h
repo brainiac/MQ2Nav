@@ -4,10 +4,9 @@
 
 #pragma once
 
+#if 0
 #include "eqglib/eqg_loader.h"
 #include "eqglib/wld_loader.h"
-
-using EQGGeometryPtr = std::shared_ptr<eqg::Geometry>;
 
 class ZoneDataLoader;
 
@@ -16,8 +15,8 @@ struct ModelInfo
 	glm::vec3 min = { 0, 0, 0 };
 	glm::vec3 max = { 0, 0, 0 };
 
-	EQGGeometryPtr oldModel;
-	EQGGeometryPtr newModel;
+	//EQGGeometryPtr oldModel;
+	//EQGGeometryPtr newModel;
 };
 
 class ZoneData
@@ -43,3 +42,5 @@ private:
 	std::unique_ptr<ZoneDataLoader> m_loader;
 	std::map<std::string, std::shared_ptr<ModelInfo>> m_modelInfo;
 };
+
+#endif

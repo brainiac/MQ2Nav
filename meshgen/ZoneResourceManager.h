@@ -83,18 +83,15 @@ private:
 	void PerformGlobalLoad(int phase);
 	void LoadGlobalChr();
 
-	friend class MGResourceManager;
-	void AddActor(eqg::Actor* actor);
-	void RemoveActor(eqg::Actor* actor);
+	void AddActor(const eqg::ActorPtr& actor);
+	void RemoveActor(const eqg::ActorPtr& actor);
 
-	void AddPointLight(eqg::PointLight* light);
-	void RemovePointLight(eqg::PointLight* light);
+	void AddPointLight(const eqg::PointLightPtr& light);
+	void RemovePointLight(const eqg::PointLightPtr& light);
 
-	//void TraverseBone(std::shared_ptr<eqg::s3d::SkeletonTrack::Bone> bone, glm::vec3 parent_trans, glm::vec3 parent_rot, glm::vec3 parent_scale);
-	bool LoadModelInst(const PlaceablePtr& model_inst);
+	void AddArea(const eqg::TerrainAreaPtr& areaPtr);
 
 	void AddFace(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, bool collidable);
-
 
 	//---------------------------------------------------------------------------
 
@@ -125,17 +122,6 @@ private:
 	std::unordered_map<glm::vec3, uint32_t, KeyFuncs, KeyFuncs> collide_vert_to_index;
 	std::unordered_map<glm::vec3, uint32_t, KeyFuncs, KeyFuncs> non_collide_vert_to_index;
 
-	TerrainPtr terrain;
-	//std::map<std::string_view, S3DGeometryPtr> map_models;
-	//std::map<std::string_view, SkeletonTrackPtr> map_anim_models;
-	std::map<std::string, EQGGeometryPtr> map_eqg_models;
-	EQGGeometryPtr terrain_model;
-
-	std::vector<PlaceablePtr> map_placeables;
-	//std::vector<S3DGeometryPtr> map_s3d_geometry;
-	std::vector<TerrainAreaPtr> map_areas;
-	std::vector<std::shared_ptr<eqg::Light>> map_lights;
-
 	std::vector<GlobalLoadAsset> global_load_assets;
 
 	int m_dynamicObjects = 0;
@@ -149,15 +135,12 @@ private:
 	// Our scene object
 	std::shared_ptr<Scene> m_scene;
 
-	// List of all currently constructed actors (instances)
+	// List of all currently known actors
 	std::unordered_map<eqg::Actor*, entt::entity> m_actors;
 
-	// List of all currently constructed point light instances
+	// List of all currently known point light instances
 	std::unordered_map<eqg::PointLight*, entt::entity> m_lights;
 
-	// container for stuff before we're ready for it ...
-
-	std::vector<eqg::Actor*> m_pendingActors;
-	std::vector<eqg::PointLight*> m_pendingPointLights;
-	bool m_sceneReady = false;
+	// List of all currently known terrain areas
+	std::unordered_map<eqg::TerrainArea*, entt::entity> m_areas;
 };

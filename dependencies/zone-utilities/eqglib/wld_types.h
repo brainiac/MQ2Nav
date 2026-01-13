@@ -5,6 +5,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
+#include <variant>
 #include <vector>
 
 namespace eqg {
@@ -558,31 +560,14 @@ struct SDMSpriteDef2WLDData
 	std::string_view tag;
 	float vertexScaleFactor;
 
-	uint32_t numVertices;
-	glm::i16vec3* vertices;
-
-	uint32_t numUVs;
-	bool uvsUsingOldForm;
-	glm::vec2* uvs;
-	glm::u16vec2* uvsOldForm;
-
-	uint32_t numVertexNormals;
-	glm::u8vec3* vertexNormals;
-
-	uint32_t numRGBs;
-	uint32_t* rgbData;
-
-	uint32_t numFaces;
-	WLD_DMFACE2* faces;
-
-	uint32_t numSkinGroups;
-	WLD_SKINGROUP* skinGroups;
-
-	uint32_t numFaceMaterialGroups;
-	WLD_MATERIALGROUP* faceMaterialGroups;
-
-	uint32_t numVertexMaterialGroups;
-	WLD_MATERIALGROUP* vertexMaterialGroups;
+	std::span<glm::i16vec3> vertices;
+	std::span<glm::i8vec3> vertexNormals;
+	std::span<uint32_t> rgbData;
+	std::span<WLD_DMFACE2> faces;
+	std::span<WLD_SKINGROUP> skinGroups;
+	std::span<WLD_MATERIALGROUP> faceMaterialGroups;
+	std::span<WLD_MATERIALGROUP> vertexMaterialGroups;
+	std::variant<std::span<glm::vec2>, std::span<glm::i16vec2>> uvs;
 
 	std::shared_ptr<MaterialPalette> materialPalette;
 

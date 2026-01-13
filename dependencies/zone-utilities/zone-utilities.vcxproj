@@ -33,7 +33,6 @@
     <ClInclude Include="eqglib\eqg_terrain.h" />
     <ClInclude Include="eqglib\eqg_terrain_loader.h" />
     <ClInclude Include="eqglib\eqg_types_fwd.h" />
-    <ClInclude Include="eqglib\light.h" />
     <ClInclude Include="eqglib\buffer_reader.h" />
     <ClInclude Include="eqglib\log_internal.h" />
     <ClInclude Include="eqglib\octree.h" />
@@ -41,7 +40,6 @@
     <ClInclude Include="eqglib\pch.h" />
     <ClInclude Include="eqglib\archive.h" />
     <ClInclude Include="eqglib\pfs_crc.h" />
-    <ClInclude Include="eqglib\placeable.h" />
     <ClInclude Include="eqglib\eqg_resource.h" />
     <ClInclude Include="eqglib\str_util.h" />
     <ClInclude Include="eqglib\wld_loader.h" />

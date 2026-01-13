@@ -45,35 +45,6 @@ public:
 	{
 	}
 
-	virtual void AddActor(eqg::Actor* actor) override
-	{
-		if (m_isGlobal)
-			return;
-
-		m_zoneResourceMgr->AddActor(actor);
-	}
-
-	virtual void RemoveActor(eqg::Actor* actor) override
-	{
-		if (m_isGlobal)
-			return;
-		m_zoneResourceMgr->RemoveActor(actor);
-	}
-
-	virtual void AddLight(eqg::PointLight* light) override
-	{
-		if (m_isGlobal)
-			return;
-		m_zoneResourceMgr->AddPointLight(light);
-	}
-
-	virtual void RemoveLight(eqg::PointLight* light) override
-	{
-		if (m_isGlobal)
-			return;
-		m_zoneResourceMgr->RemovePointLight(light);
-	}
-
 private:
 	ZoneResourceManager* m_zoneResourceMgr = nullptr;
 	bool m_isGlobal = false;
@@ -99,14 +70,10 @@ ZoneResourceManager::~ZoneResourceManager()
 {
 	m_actors.clear();
 	m_lights.clear();
+	m_areas.clear();
 	m_scene->Clear();
 
-	map_eqg_models.clear();
-	map_placeables.clear();
-	map_areas.clear();
-	map_lights.clear();
 	global_load_assets.clear();
-	terrain.reset();
 
 	collide_verts.clear();
 	collide_indices.clear();
@@ -154,19 +121,28 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 {
 	auto& registry = m_scene->GetRegistry();
 
-	m_sceneReady = true;
-
-	for (eqg::Actor* actor : m_pendingActors)
+	for (const eqg::ActorPtr& actor : m_resourceMgr->GetActors())
 	{
 		AddActor(actor);
 	}
-	m_pendingActors.clear();
 
-	for (eqg::PointLight* pointLight : m_pendingPointLights)
+	for (const eqg::PointLightPtr& pointLight : m_resourceMgr->GetLights())
 	{
 		AddPointLight(pointLight);
 	}
-	m_pendingPointLights.clear();
+
+	const auto& terrain = m_resourceMgr->GetTerrain();
+
+	if (terrain)
+	{
+		for (const eqg::TerrainAreaPtr& terrainArea : terrain->m_areas)
+		{
+			AddArea(terrainArea);
+		}
+
+		
+	}
+
 
 	registry.sort<NameComponent>([](const NameComponent& lhs, const NameComponent& rhs) {
 		return mq::ci_string_compare(lhs.name, rhs.name) < 0;
@@ -181,47 +157,52 @@ bool ZoneResourceManager::BuildCollisionMesh(ZoneCollisionMesh& collisionMesh)
 	collisionMesh.clear();
 
 	// load terrain geometry
-	if (terrain)
+	if (auto terrainSystem = m_resourceMgr->GetTerrainSystem())
+	{
+		// Invisible walls
+		auto& invis_walls = terrainSystem->GetInvisWalls();
+		for (auto& wall : invis_walls)
+		{
+			auto& verts = wall->GetVertices();
+			float wallHeight = wall->GetWallHeight();
+
+			for (int j = 0; j < (int)verts.size() - 1; ++j)
+			{
+				glm::vec3 v1 = verts[j].yxz;
+				glm::vec3 v2 = verts[j + 1].yxz;
+
+				glm::vec3 v3 = v1;
+				v3.z += wallHeight;
+
+				glm::vec3 v4 = v2;
+				v4.z += wallHeight;
+
+				AddFace(v2, v1, v3, true);
+				AddFace(v3, v4, v2, true);
+
+				AddFace(v3, v1, v2, true);
+				AddFace(v2, v4, v3, true);
+			}
+		}
+
+		collisionMesh.addTerrainSystem(terrainSystem);
+	}
+
+	if (auto terrain = m_resourceMgr->GetTerrain())
 	{
 		collisionMesh.addTerrain(terrain);
 	}
 
-	if (terrain_model)
-	{
-		collisionMesh.addZoneGeometry(terrain_model);
-	}
-
-	//for (auto& model : map_s3d_geometry)
-	//{
-	//	collisionMesh.addZoneGeometry(model);
-	//}
-
 	collisionMesh.addPolys(collide_verts, collide_indices);
 
 	// Load models
-	//for (auto& [name, model] : map_models)
-	//{
-	//	collisionMesh.addModel(name, model);
-	//}
-
-	for (auto& [name, model] : map_eqg_models)
-	{
-		collisionMesh.addModel(name, model);
-	}
 
 	auto view = m_scene->GetAllEntitiesWith<const ActorComponent, const CollisionComponent>();
 	for (auto [entity, actor, collision] : view.each())
 	{
 		entt::handle handle{ m_scene->GetRegistry(), entity };
 
-		collisionMesh.addActor(handle, actor.actor);
-	}
-
-	// Add model instances
-	for (const auto& obj : map_placeables)
-	{
-		if (!obj->ignore_for_collision)
-			collisionMesh.addModelInstance(obj);
+		collisionMesh.addActor(handle, actor.actor.get());
 	}
 
 	bool result = collisionMesh.finalize();
@@ -307,6 +288,7 @@ void ZoneResourceManager::LoadDoors()
 		return;
 	}
 
+#if 0
 	for (DoorParams& params : doors)
 	{
 		std::shared_ptr<eqg::Placeable> gen_plac = std::make_shared<eqg::Placeable>();
@@ -327,6 +309,7 @@ void ZoneResourceManager::LoadDoors()
 		LoadModelInst(gen_plac);
 		++m_dynamicObjects;
 	}
+#endif
 }
 
 void ZoneResourceManager::LoadGlobalLoadFile()
@@ -430,13 +413,6 @@ void ZoneResourceManager::Clear()
 	current_non_collide_index = 0;
 	collide_vert_to_index.clear();
 	non_collide_vert_to_index.clear();
-	terrain.reset();
-	//map_models.clear();
-	//map_anim_models.clear();
-	map_eqg_models.clear();
-
-	map_placeables.clear();
-	//map_s3d_geometry.clear();
 	m_dynamicObjects = 0;
 	m_hasDynamicObjects = false;
 
@@ -564,20 +540,10 @@ bool ZoneResourceManager::LoadZone()
 		LoadS3D("obequip_lexit", eqg::LoadFlag_ItemAnims);
 	}
 
-	if (!loadedEQG)
-	{
-		// Load zone data: <zonename>.s3d
-		eqg::WLDLoader* zone_archive = LoadS3D(m_zoneName);
-		if (!zone_archive)
-		{
-			return false; // Zone doesn't exist
-		}
-	}
-
 	// TODO: Load <zonename>_chr.txt
 
 	// Load <zonename>_assets.txt
-	LoadAssetsFile();
+	//LoadAssetsFile();
 
 
 	if (!loadedEQG)
@@ -691,164 +657,6 @@ eqg::EQGLoader* ZoneResourceManager::LoadEQG(eqg::Archive* archive, int loadFlag
 	if (!loader->Load(archive, loadFlags))
 		return nullptr;
 
-	//============================================================================================================
-	// Load all the data that we build from the archive.
-
-
-
-	// Import models
-	for (const auto& model : loader->models)
-	{
-		map_eqg_models[model->tag] = model;
-	}
-
-	// Import the terrain (only once)
-	if (terrain)
-	{
-		if (loader->terrain)
-		{
-			SPDLOG_WARN("Already have a terrain loaded when loading {}", archive->GetFileName());
-		}
-	}
-	else
-	{
-		terrain = loader->terrain;
-
-		if (terrain)
-		{
-			// Water sheets
-			auto& water_sheets = terrain->GetWaterSheets();
-			for (size_t i = 0; i < water_sheets.size(); ++i)
-			{
-				auto& sheet = water_sheets[i];
-
-				//if (sheet->GetTile())
-				//{
-				//	for (const auto& tile : terrain->tiles)
-				//	{
-				//		float x = tile->tile_pos.x;
-				//		float y = tile->tile_pos.y;
-				//		float z = tile->base_water_level;
-
-				//		float QuadVertex1X = x;
-				//		float QuadVertex1Y = y;
-				//		float QuadVertex1Z = z;
-
-				//		float QuadVertex2X = QuadVertex1X + (terrain->GetParams().quads_per_tile * terrain->GetParams().units_per_vert);
-				//		float QuadVertex2Y = QuadVertex1Y;
-				//		float QuadVertex2Z = QuadVertex1Z;
-
-				//		float QuadVertex3X = QuadVertex2X;
-				//		float QuadVertex3Y = QuadVertex1Y + (terrain->GetParams().quads_per_tile * terrain->GetParams().units_per_vert);
-				//		float QuadVertex3Z = QuadVertex1Z;
-
-				//		float QuadVertex4X = QuadVertex1X;
-				//		float QuadVertex4Y = QuadVertex3Y;
-				//		float QuadVertex4Z = QuadVertex1Z;
-
-				//		uint32_t current_vert = (uint32_t)non_collide_verts.size() + 3;
-				//		non_collide_verts.push_back(glm::vec3(QuadVertex1X, QuadVertex1Y, QuadVertex1Z));
-				//		non_collide_verts.push_back(glm::vec3(QuadVertex2X, QuadVertex2Y, QuadVertex2Z));
-				//		non_collide_verts.push_back(glm::vec3(QuadVertex3X, QuadVertex3Y, QuadVertex3Z));
-				//		non_collide_verts.push_back(glm::vec3(QuadVertex4X, QuadVertex4Y, QuadVertex4Z));
-
-				//		non_collide_indices.push_back(current_vert);
-				//		non_collide_indices.push_back(current_vert - 2);
-				//		non_collide_indices.push_back(current_vert - 1);
-
-				//		non_collide_indices.push_back(current_vert);
-				//		non_collide_indices.push_back(current_vert - 3);
-				//		non_collide_indices.push_back(current_vert - 2);
-				//	}
-				//}
-				//else
-				//{
-				//	uint32_t id = (uint32_t)non_collide_verts.size();
-
-				//	non_collide_verts.push_back(glm::vec3(sheet->GetMinY(), sheet->GetMinX(), sheet->GetZHeight()));
-				//	non_collide_verts.push_back(glm::vec3(sheet->GetMinY(), sheet->GetMaxX(), sheet->GetZHeight()));
-				//	non_collide_verts.push_back(glm::vec3(sheet->GetMaxY(), sheet->GetMinX(), sheet->GetZHeight()));
-				//	non_collide_verts.push_back(glm::vec3(sheet->GetMaxY(), sheet->GetMaxX(), sheet->GetZHeight()));
-
-				//	non_collide_indices.push_back(id);
-				//	non_collide_indices.push_back(id + 1);
-				//	non_collide_indices.push_back(id + 2);
-
-				//	non_collide_indices.push_back(id + 1);
-				//	non_collide_indices.push_back(id + 3);
-				//	non_collide_indices.push_back(id + 2);
-				//}
-			}
-
-			// Invisible wals
-			auto& invis_walls = terrain->GetInvisWalls();
-			for (auto& wall : invis_walls)
-			{
-				auto& verts = wall->GetVertices();
-				float wallHeight = wall->GetWallHeight();
-
-				for (int j = 0; j < (int)verts.size() - 1; ++j)
-				{
-					glm::vec3 v1 = verts[j].yxz;
-					glm::vec3 v2 = verts[j + 1].yxz;
-
-					glm::vec3 v3 = v1;
-					v3.z += wallHeight;
-
-					glm::vec3 v4 = v2;
-					v4.z += wallHeight;
-
-					AddFace(v2, v1, v3, true);
-					AddFace(v3, v4, v2, true);
-
-					AddFace(v3, v1, v2, true);
-					AddFace(v2, v4, v3, true);
-				}
-			}
-
-			//for (const auto& object : terrain->objects)
-			//{
-			//	//map_placeables.push_back(object);
-			//	LoadModelInst(object);
-			//}
-		}
-	}
-
-	if (terrain_model)
-	{
-		if (loader->terrain_model)
-		{
-			SPDLOG_WARN("Already have a TER model loaded when loading {}", archive->GetFileName());
-		}
-	}
-	else
-	{
-		terrain_model = loader->terrain_model;
-	}
-
-	for (const auto& plac : loader->placeables)
-	{
-		// TODO: come up with external list of models to ignore.
-		if (plac->tag == "OBJ_BLOCKERA_ACTORDEF")
-			plac->ignore_for_collision = true;
-
-		//eqLogMessage(LogTrace, "Adding placeable %s at (%.2f, %.2f, %.2f)",
-		//	plac->tag.c_str(), plac->pos.x, plac->pos.y, plac->pos.z)
-		//map_placeables.push_back(plac);
-
-		//LoadModelInst(plac);
-	}
-
-	for (const auto& area : loader->areas)
-	{
-		map_areas.push_back(area);
-	}
-
-	for (const auto& lights : loader->lights)
-	{
-		map_lights.push_back(lights);
-	}
-
 	m_eqgLoaders.push_back(std::move(loader));
 	return m_eqgLoaders.back().get();
 }
@@ -884,77 +692,6 @@ eqg::WLDLoader* ZoneResourceManager::LoadWLD(eqg::Archive* archive, const std::s
 
 	if (!loader->ParseAll())
 		return nullptr;
-
-	// Load objects from the .wld
-	auto& objectList = loader->GetObjectList();
-	for (auto& obj : objectList)
-	{
-		//if (obj.type == eqg::WLD_OBJ_ZONE_TYPE)
-		//{
-		//	eqg::WLDFragment29* frag = static_cast<eqg::WLDFragment29*>(obj.parsed_data);
-		//	auto region = frag->region;
-
-		//	SPDLOG_TRACE("Processing zone region '{}' '{}' for s3d.", region->tag, region->old_style_tag);
-		//}
-		//else if (obj.type == eqg::WLD_OBJ_REGION_TYPE)
-		//{
-		//	// Regions with DMSPRITEDEF2 make up the geometry of the zone
-		//	eqg::WLDFragment22* region_frag = static_cast<eqg::WLDFragment22*>(obj.parsed_data);
-
-		//	if (region_frag->region_sprite_index != -1 && region_frag->region_sprite_is_def)
-		//	{
-		//		// Get the geometry from this sprite index
-		//		auto& sprite_obj = loader->GetObject(region_frag->region_sprite_index);
-		//		if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEDEFINITION2_TYPE)
-		//		{
-		//			//auto model = static_cast<eqg::WLDFragment36*>(sprite_obj.parsed_data)->geometry;
-
-		//			//map_s3d_geometry.push_back(model);
-		//		}
-		//	}
-		//}
-		//else if (obj.type == eqg::WLD_OBJ_ACTORINSTANCE_TYPE)
-		//{
-		//	eqg::WLDFragment15* frag = static_cast<eqg::WLDFragment15*>(obj.parsed_data);
-		//	if (!frag->placeable)
-		//		continue;
-
-		//	//map_s3d_model_instances.push_back(frag->placeable);
-		//	LoadModelInst(frag->placeable);
-		//}
-		//else if (obj.type == eqg::WLD_OBJ_ACTORDEFINITION_TYPE)
-		//{
-		//	std::string_view tag = obj.tag;
-		//	if (tag.empty())
-		//		continue;
-
-		//	eqg::WLDFragment14* obj_frag = static_cast<eqg::WLDFragment14*>(obj.parsed_data);
-		//	int sprite_id = obj_frag->sprite_id;
-
-		//	auto& sprite_obj = loader->GetObjectFromID(sprite_id);
-
-		//	if (sprite_obj.type == eqg::WLD_OBJ_DMSPRITEINSTANCE_TYPE)
-		//	{
-		//		eqg::WLDFragment2D* r_frag = static_cast<eqg::WLDFragment2D*>(sprite_obj.parsed_data);
-		//		auto m_ref = r_frag->sprite_id;
-
-		//		//eqg::WLDFragment36* mod_frag = static_cast<eqg::WLDFragment36*>(loader->GetObjectFromID(m_ref).parsed_data);
-		//		//auto mod = mod_frag->geometry;
-
-		//		//map_models.emplace(tag, mod);
-		//	}
-		//	else if (sprite_obj.type == eqg::WLD_OBJ_HIERARCHICALSPRITEINSTANCE_TYPE)
-		//	{
-		//		eqg::WLDFragment11* r_frag = static_cast<eqg::WLDFragment11*>(sprite_obj.parsed_data);
-		//		auto s_ref = r_frag->def_id;
-
-		//		eqg::WLDFragment10* skeleton_frag = static_cast<eqg::WLDFragment10*>(loader->GetObjectFromID(s_ref).parsed_data);
-		//		auto skele = skeleton_frag->track;
-
-		//		map_anim_models.emplace(tag, skele);
-		//	}
-		//}
-	}
 	
 	m_wldLoaders.push_back(std::move(loader));
 	SPDLOG_TRACE("Loaded {} from {}", fileName, archive->GetFileName());
@@ -1052,43 +789,6 @@ void ZoneResourceManager::LoadAssetsFile()
 //	}
 //}
 
-bool ZoneResourceManager::LoadModelInst(const PlaceablePtr& inst)
-{
-	if (auto map_eqg_models_iter = map_eqg_models.find(inst->tag); map_eqg_models_iter != map_eqg_models.end())
-	{
-		map_placeables.push_back(inst);
-
-		SPDLOG_TRACE("Adding model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
-		return true;
-	}
-
-	//if (auto map_models_iter = map_models.find(inst->tag); map_models_iter != map_models.end())
-	//{
-	//	map_placeables.push_back(inst);
-
-	//	SPDLOG_TRACE("Adding model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
-	//	return true;
-	//}
-
-	//if (auto map_anim_models_iter = map_anim_models.find(inst->tag); map_anim_models_iter != map_anim_models.end())
-	//{
-	//	const auto& skel = map_anim_models_iter->second;
-
-	//	auto& bones = skel->GetBones();
-
-	//	if (!bones.empty())
-	//	{
-	//		TraverseBone(bones[0], inst->GetPosition(), inst->GetRotation(), inst->GetScale());
-	//	}
-
-	//	SPDLOG_TRACE("Adding hierarchical model instance '{}' at ({}, {}, {})", inst->tag, inst->pos.x, inst->pos.y, inst->pos.z);
-	//	return true;
-	//}
-	
-	SPDLOG_WARN("Could not find model for '{}'", inst->tag);
-	return false;
-}
-
 void ZoneResourceManager::AddFace(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, bool collidable)
 {
 	if (!collidable)
@@ -1141,14 +841,8 @@ void ZoneResourceManager::AddFace(const glm::vec3& v1, const glm::vec3& v2, cons
 	}
 }
 
-void ZoneResourceManager::AddActor(eqg::Actor* actor)
+void ZoneResourceManager::AddActor(const eqg::ActorPtr& actor)
 {
-	if (!m_sceneReady)
-	{
-		m_pendingActors.push_back(actor);
-		return;
-	}
-
 	entt::handle entity = m_scene->CreateEntity(actor->GetActorName());
 
 	auto& transform = entity.get<TransformComponent>();
@@ -1176,12 +870,12 @@ void ZoneResourceManager::AddActor(eqg::Actor* actor)
 		collisionComponent.boundingRadius = actor->GetBoundingRadius();
 	}
 
-	m_actors.emplace(actor, entity);
+	m_actors.emplace(actor.get(), entity);
 }
 
-void ZoneResourceManager::RemoveActor(eqg::Actor* actor)
+void ZoneResourceManager::RemoveActor(const eqg::ActorPtr& actor)
 {
-	auto iter = m_actors.find(actor);
+	auto iter = m_actors.find(actor.get());
 
 	if (iter == m_actors.end())
 		return;
@@ -1191,14 +885,8 @@ void ZoneResourceManager::RemoveActor(eqg::Actor* actor)
 	m_actors.erase(iter);
 }
 
-void ZoneResourceManager::AddPointLight(eqg::PointLight* light)
+void ZoneResourceManager::AddPointLight(const eqg::PointLightPtr& light)
 {
-	if (!m_sceneReady)
-	{
-		m_pendingPointLights.push_back(light);
-		return;
-	}
-
 	entt::handle entity = m_scene->CreateEntity(light->GetDefinition()->GetTag());
 
 	TransformComponent& transform = entity.get<TransformComponent>();
@@ -1209,12 +897,12 @@ void ZoneResourceManager::AddPointLight(eqg::PointLight* light)
 	lightComponent.dynamic = light->IsDynamic();
 	lightComponent.radius = light->GetRadius();
 
-	m_lights.emplace(light, entity);
+	m_lights.emplace(light.get(), entity);
 }
 
-void ZoneResourceManager::RemovePointLight(eqg::PointLight* light)
+void ZoneResourceManager::RemovePointLight(const eqg::PointLightPtr& light)
 {
-	auto iter = m_lights.find(light);
+	auto iter = m_lights.find(light.get());
 
 	if (iter == m_lights.end())
 		return;
@@ -1222,4 +910,58 @@ void ZoneResourceManager::RemovePointLight(eqg::PointLight* light)
 	m_scene->DestroyEntity(iter->second);
 
 	m_lights.erase(iter);
+}
+
+void ZoneResourceManager::AddArea(const eqg::TerrainAreaPtr& areaPtr)
+{
+	entt::handle entity = m_scene->CreateEntity(areaPtr->name);
+
+	TransformComponent& transform = entity.get<TransformComponent>();
+	transform.position = areaPtr->position;
+	transform.rotation = areaPtr->orientation;
+	transform.scale = areaPtr->scale;
+
+	AreaComponent& areaComponent = entity.emplace<AreaComponent>();
+	areaComponent.area = areaPtr;
+	areaComponent.draw = true;
+
+	switch (areaPtr->environment.type)
+	{
+	case eqg::AreaEnvironment::UnderWater:
+		areaComponent.color = mq::MQColor(0, 0, 255); // blue
+		break;
+
+	case eqg::AreaEnvironment::UnderLava:
+		areaComponent.color = mq::MQColor(255, 0, 0); // red
+		break;
+
+	case eqg::AreaEnvironment::UnderIceWater:
+		areaComponent.color = mq::MQColor(128, 0, 128); // purple
+		break;
+
+	case eqg::AreaEnvironment::Fog:
+		areaComponent.color = mq::MQColor(198, 147, 10); // brownish
+		break;
+
+	case eqg::AreaEnvironment::Portal:
+		areaComponent.color = mq::MQColor(255, 0, 255); // magenta
+		break;
+
+	default:
+		areaComponent.color = mq::MQColor(255, 255, 255); // white
+	}
+
+	if (areaPtr->environment.flags & eqg::AreaEnvironment::Kill)
+	{
+		areaComponent.color = mq::MQColor(255, 165, 0); // orange
+	}
+	else if (areaPtr->environment.flags & eqg::AreaEnvironment::Slippery)
+	{
+		areaComponent.color = mq::MQColor(0, 255, 0); // green
+	}
+	else if (areaPtr->environment.flags & eqg::AreaEnvironment::Teleport
+		|| areaPtr->environment.flags & eqg::AreaEnvironment::TeleportIndex)
+	{
+		areaComponent.color = mq::MQColor(255, 255, 0); // yellow
+	}
 }

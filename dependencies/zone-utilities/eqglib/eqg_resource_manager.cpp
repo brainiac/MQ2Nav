@@ -221,6 +221,11 @@ std::shared_ptr<PointLight> ResourceManager::CreatePointLight(std::string_view n
 	return std::make_shared<PointLight>(this, name, lightDefinition, position, radius);
 }
 
+std::shared_ptr<Terrain> ResourceManager::CreateTerrain()
+{
+	return std::make_shared<Terrain>();
+}
+
 //-------------------------------------------------------------------------------------------------
 
 bool ResourceManager::LoadTexture(Bitmap* bitmap, Archive* archive)
@@ -367,19 +372,6 @@ std::unique_ptr<uint8_t[]> ResourceManager::ReadFile(std::string_view filePath, 
 
 	size = static_cast<uint32_t>(sz);
 	return buffer;
-}
-
-std::shared_ptr<Terrain> ResourceManager::InitTerrain()
-{
-	// Reset the terrain object
-	m_terrain = std::make_shared<Terrain>();
-
-	return m_terrain;
-}
-
-std::shared_ptr<Terrain> ResourceManager::GetTerrain()
-{
-	return m_terrain;
 }
 
 } // namespace eqg

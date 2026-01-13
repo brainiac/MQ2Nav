@@ -30,9 +30,6 @@
     <ClInclude Include="eqglib\eqg_terrain_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="eqglib\light.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="eqglib\octree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -43,9 +40,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="eqglib\pfs_crc.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="eqglib\placeable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="eqglib\wld_loader.h">

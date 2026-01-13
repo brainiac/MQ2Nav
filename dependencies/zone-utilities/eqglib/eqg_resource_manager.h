@@ -3,6 +3,7 @@
 #include "eqg_geometry.h"
 #include "eqg_light.h"
 #include "eqg_resource.h"
+#include "eqg_types_fwd.h"
 
 #include <map>
 #include <memory>
@@ -220,9 +221,7 @@ public:
 		bool allSkinsActive = false,
 		Bone* pBone = nullptr);
 
-	virtual void AddActor(Actor* actor) {}
-	virtual void RemoveActor(Actor* actor) {}
-	virtual void RemoveAllActors() {}
+	virtual std::shared_ptr<Terrain> CreateTerrain();
 
 	virtual std::shared_ptr<PointLight> CreatePointLight(
 		std::string_view name,
@@ -230,20 +229,31 @@ public:
 		const glm::vec3& position,
 		float radius);
 
-	virtual void AddLight(PointLight* light) {}
-	virtual void RemoveLight(PointLight* light) {}
-
 	virtual bool LoadTexture(Bitmap* bitmap, Archive* archive);
 	virtual bool LoadBitmapData(Bitmap* bitmap, Archive* archive);
-
-	virtual std::shared_ptr<Terrain> InitTerrain();
-	std::shared_ptr<Terrain> GetTerrain();
 
 	bool ReadFile(std::string_view filePath, std::vector<char>& data);
 	std::unique_ptr<uint8_t[]> ReadFile(std::string_view filePath, uint32_t& size);
 
-	// TODO: Solidify interface. (Build into scene graph?)
-	const std::shared_ptr<Terrain>& GetTerrain() const { return m_terrain; }
+	//===============================================================================================
+
+	void SetTerrain(const TerrainPtr& terrain) { m_terrain = terrain; }
+	TerrainPtr GetTerrain() const { return m_terrain; }
+	TerrainPtr GetOrCreateTerrain()
+	{
+		if (!m_terrain)
+			m_terrain = CreateTerrain();
+		return m_terrain;
+	}
+
+	void SetTerrainSystem(const TerrainSystemPtr& terrainSystem) { m_terrainSystem = terrainSystem; }
+	TerrainSystemPtr GetTerrainSystem() const { return m_terrainSystem; }
+
+	void AddActor(const ActorPtr& actor) { m_actors.push_back(actor); }
+	const std::vector<ActorPtr>& GetActors() const { return m_actors; }
+
+	void AddLight(const PointLightPtr& light) { m_lights.push_back(light); }
+	const std::vector<PointLightPtr>& GetLights() const { return m_lights; }
 
 private:
 	std::string m_dataPath;
@@ -255,7 +265,11 @@ private:
 	std::map<ResourceType, std::map<std::string_view, std::shared_ptr<Resource>>> m_sortedResources;
 
 	// There is only one terrain per zone.
-	std::shared_ptr<Terrain> m_terrain;
+	TerrainPtr m_terrain;
+	TerrainSystemPtr m_terrainSystem;
+
+	std::vector<ActorPtr> m_actors;
+	std::vector<PointLightPtr> m_lights;
 };
 
 struct ScopedUseResourceManager

@@ -23,15 +23,19 @@ struct AreaEnvironment
 		UnderIceWater,
 		UnderWater2,
 		UnderWater3,
+		Fog,
+		Portal,
 	};
 
 	// Flags on the environment
 	enum Flags : uint8_t
 	{
-		Flags_None = 0,
-		Slippery = 0x04,
-		Kill = 0x10,
-		Teleport = 0x20,
+		Flags_None    = 0,
+		Mover         = 0x01,
+		Pain          = 0x02,
+		Slippery      = 0x04,
+		Kill          = 0x10,
+		Teleport      = 0x20,
 		TeleportIndex = 0x40,
 	};
 
@@ -39,7 +43,7 @@ struct AreaEnvironment
 	Flags     flags;
 	int16_t   teleportIndex;
 
-	AreaEnvironment(std::string_view areaTag);
+	AreaEnvironment(std::string_view areaTag, uint32_t type = 0);
 	AreaEnvironment() : type(Type_None), flags(Flags_None), teleportIndex(0) {}
 	AreaEnvironment(Type env) : type(env), flags(Flags_None), teleportIndex(0) {}
 	AreaEnvironment(Flags flags) : type(Type_None), flags(flags), teleportIndex(0) {}
@@ -53,11 +57,6 @@ struct AreaEnvironment
 static_assert(sizeof(AreaEnvironment) == 4);
 
 AreaEnvironment ParseAreaTag(std::string_view areaTag);
-
-inline AreaEnvironment::AreaEnvironment(std::string_view areaTag)
-{
-	*this = ParseAreaTag(areaTag);
-}
 
 inline AreaEnvironment::Flags operator|(AreaEnvironment::Flags a, AreaEnvironment::Flags b) { return static_cast<AreaEnvironment::Flags>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b)); }
 inline AreaEnvironment::Flags operator|=(AreaEnvironment::Flags& a, AreaEnvironment::Flags b) { return a = a | b; }
@@ -89,6 +88,31 @@ struct SArea
 	std::vector<glm::vec3> centers;
 };
 
+struct SEQGTerrainData
+{
+	std::span<SEQMVertex> vertices;
+	std::span<SEQMFace>   faces;
+	MaterialPalettePtr    materialPalette;
+};
+
+class TerrainArea
+{
+public:
+	TerrainArea(const std::string_view& name, const glm::vec3& position,
+		const glm::vec3& orientation, const glm::vec3& scale, uint32_t type = 0);
+
+	std::string name;
+	AreaEnvironment environment = AreaEnvironment::Type_None;
+
+	glm::vec3 position;
+	glm::vec3 orientation;
+	glm::vec3 scale;
+
+	glm::mat4x4 transform;
+	class TerrainObjectGroup* group = nullptr;
+};
+using TerrainAreaPtr = std::shared_ptr<TerrainArea>;
+
 class Terrain
 {
 public:
@@ -96,18 +120,26 @@ public:
 	virtual ~Terrain();
 
 	bool InitFromWLDData(const STerrainWLDData& wldData);
+	bool InitFromEQGData(const std::span<SEQMVertex>& vertices, const std::span<SEQMFace>& faces,
+		const std::span<uint32_t>& RGBs, const MaterialPalettePtr& materialPalette);
+	void InitAreasFromEQGData(const std::span<SZONArea>& zonAreas, const char* stringPool);
 
-private:
+	void AddArea(const TerrainAreaPtr& area) { m_areas.push_back(area); }
+
+public:
 	std::vector<glm::vec3> m_vertices;
 	std::vector<glm::vec2> m_uvs;
+	std::vector<glm::vec2> m_uvs2;
 	std::vector<glm::vec3> m_normals;
 	std::vector<uint32_t>  m_rgbColors;
 	std::vector<uint32_t>  m_rgbTints;
 	std::vector<SFace>     m_faces;
-	glm::vec3              m_bbMin;
-	glm::vec3              m_bbMax;
-	std::shared_ptr<MaterialPalette> m_materialPalette;
+	aabb                   m_aabb{ aabb::init_invalid };
+	MaterialPalettePtr     m_materialPalette;
 	uint32_t               m_constantAmbientColor = 0;
+	uint32_t               m_vertexOffset = 0;
+	uint32_t               m_faceOffset = 0;
+	bool                   m_fromEQG = false;
 
 	// WLD/S3D data
 	uint32_t               m_numWLDRegions = 0;
@@ -115,6 +147,9 @@ private:
 	std::vector<uint32_t>  m_wldAreaIndices;
 	std::vector<AreaEnvironment> m_wldAreaEnvironments;
 	std::shared_ptr<SWorldTreeWLDData> m_wldBspTree;
+
+	// EQG areas
+	std::vector<TerrainAreaPtr> m_areas;
 
 	// Teleports
 	std::vector<AreaTeleport> m_teleports;

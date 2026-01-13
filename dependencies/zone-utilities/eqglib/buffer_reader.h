@@ -184,6 +184,18 @@ public:
 	}
 
 	template <typename T>
+	bool read_array(std::span<T>& out, size_t count)
+	{
+		size_t len = sizeof(T) * count;
+		if (pos_ + len > size_)
+			return false;
+
+		out = { (T*)(buffer_ + pos_), count };
+		pos_ += len;
+		return true;
+	}
+
+	template <typename T>
 	T read()
 	{
 		T data;

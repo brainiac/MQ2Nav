@@ -342,39 +342,20 @@ bool TerrainSystem::LoadTiles()
 			m_lights.push_back(light);
 		}
 
-		for (const auto& object : tile->m_objects)
-		{
-			auto placeable = std::make_shared<Placeable>();
-			placeable->tag = object->m_name;
-			placeable->pos = object->position;
-			placeable->rotate = object->orientation;
-			placeable->scale = object->scale;
-			placeable->terrain_object = object;
-
-			//objects.push_back(placeable);
-		}
-
 		for (const auto& object_group : tile->m_groups)
 		{
 			for (const auto& area : object_group->m_areas)
 			{
 				m_areas.push_back(area);
 			}
-
-			for (const auto& object : object_group->m_objects)
-			{
-				auto placeable = std::make_shared<Placeable>();
-				placeable->tag = object->m_name;
-				placeable->pos = object->position;
-				placeable->rotate = object->orientation;
-				placeable->scale = object->scale;
-				placeable->terrain_object = object;
-
-				//objects.push_back(placeable);
-			}
 		}
 
 		m_tiles.push_back(tile);
+	}
+
+	for (const auto& area : m_areas)
+	{
+		ResourceManager::Get()->GetOrCreateTerrain()->AddArea(area);
 	}
 
 	return true;
@@ -586,11 +567,16 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(std::string_view name, int o
 
 	if (pActorDef->GetHierarchicalModelDefinition())
 	{
+		// FIXME: This constructor isn't working yet
 		actor = resourceMgr->CreateHierarchicalActor(tag, pActorDef, objectID, true, true, false, nullptr, instName);
+
+		//resourceMgr->AddActor(std::move(actor));
 	}
 	else if (pActorDef->GetSimpleModelDefinition())
 	{
 		actor = resourceMgr->CreateSimpleActor(tag, pActorDef, objectID, true, instName);
+
+		resourceMgr->AddActor(std::move(actor));
 	}
 
 	auto terrainObject = std::make_shared<TerrainObject>(name, actor, objectID);
@@ -697,6 +683,7 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(
 	terrainObject->group = group;
 
 	actor->SetTerrainObject(terrainObject.get());
+	resourceMgr->AddActor(actor);
 
 	if (m_objects.contains(objectID))
 	{
@@ -930,20 +917,11 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 				return false;
 			loc -= glm::ivec2{ 100000, 100000 };
 
-			std::shared_ptr<TerrainArea> area = std::make_shared<TerrainArea>();
-			area->name = name;
-			area->shape = shape;
-			area->type = type;
-			area->position = GetPosInTile(pos);
-			area->orientation = glm::radians(rot);
-			area->extents = size * 0.5f;
+			std::shared_ptr<TerrainArea> area = std::make_shared<TerrainArea>(name,
+				GetPosInTile(pos), glm::radians(rot).zyx, size * 0.5f, type);
 
-			area->transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), area->position), glm::vec3(area->extents));
-			area->transform *= glm::mat4_cast(glm::quat{ area->orientation });
-
-			// Is scale always 1? Scale transform by extents to convert a unit cube into proper area rectangle.
-			area->scale = scale;
-			if (area->scale != glm::vec3(1.0f, 1.0f, 1.0f))
+			// Is scale always 1?
+			if (scale != glm::vec3(1.0f, 1.0f, 1.0f))
 			{
 				EQG_LOG_WARN("Area with scale not handled");
 			}
@@ -1074,21 +1052,9 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 	m_areas.reserve(definition->areas.size());
 	for (const auto& area : definition->areas)
 	{
-		auto newArea = std::make_shared<TerrainArea>();
-		newArea->name = area->name;
-		newArea->shape = "Box";
-		newArea->type = 0;
+		auto newArea = std::make_shared<TerrainArea>(area->name, area->position,
+			glm::radians(area->orientation).zyx, area->extents * 0.5f);
 		newArea->group = this;
-
-		// Set positions to be in world space
-		newArea->transform = m_transform * area->transform;
-		newArea->scale = glm::vec3(1.0f);
-
-		glm::quat orient;
-		glm::vec3 skew;
-		glm::vec4 perspective;
-		glm::decompose(newArea->transform, newArea->extents, orient, newArea->position, skew, perspective);
-		newArea->orientation = glm::eulerAngles(orient);
 
 		m_areas.push_back(newArea);
 	}
@@ -1370,7 +1336,15 @@ void TerrainLightDefinition::UpdateLightDefinition()
 
 void TerrainLight::UpdateLightInstance()
 {
-	m_light = ResourceManager::Get()->CreatePointLight(m_name, m_definition->GetDefinition(), m_position, m_radius);
+	if (m_light)
+	{
+		EQG_LOG_ERROR("Already created a light instance for {}!", m_name);
+	}
+	else
+	{
+		m_light = ResourceManager::Get()->CreatePointLight(m_name, m_definition->GetDefinition(), m_position, m_radius);
+		ResourceManager::Get()->AddLight(m_light);
+	}
 }
 
 //============================================================================
@@ -1429,6 +1403,8 @@ bool WaterSheet::Init(const std::vector<std::string>& tokens, size_t& k)
 
 	m_actor = resourceMgr->CreateSimpleActor(m_name, pActorDef, position, orientation, 1.0f, eCollisionVolumeNone, 1.0f, -1, nullptr, {}, m_name);
 	m_actor->GetSimpleModel()->InitBatchInstances();
+
+	resourceMgr->AddActor(m_actor);
 
 	return true;
 }

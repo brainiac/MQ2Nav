@@ -41,7 +41,17 @@ class ResourceManager;
 class SimpleActor;
 using SimpleActorPtr = std::shared_ptr<SimpleActor>;
 
+class Terrain;
+using TerrainPtr = std::shared_ptr<Terrain>;
+
+class TerrainArea;
+using TerrainAreaPtr = std::shared_ptr<TerrainArea>;
+
 class TerrainObject;
+using TerrainObjectPtr = std::shared_ptr<TerrainObject>;
+
+class TerrainSystem;
+using TerrainSystemPtr = std::shared_ptr<TerrainSystem>;
 
 class WaterSheet;
 using WaterSheetPtr = std::shared_ptr<WaterSheet>;

@@ -62,9 +62,6 @@ public:
 
 	uint32_t GetConstantAmbient() const { return m_constantAmbient; }
 
-	std::vector<std::shared_ptr<Actor>> m_actors;
-	std::vector<std::shared_ptr<PointLight>> m_pointLights;
-
 private:
 	bool ParseBitmapsAndMaterials(
 		std::pair<uint32_t, uint32_t> bitmapRange,

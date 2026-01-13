@@ -3,8 +3,7 @@
 
 #include "eqg_geometry.h"
 #include "eqg_terrain.h"
-#include "light.h"
-#include "placeable.h"
+#include "eqg_types_fwd.h"
 
 #include <cstdint>
 #include <map>
@@ -19,7 +18,6 @@ class BufferReader;
 class Light;
 class LODList;
 class Material;
-class Placeable;
 class ResourceManager;
 class TerrainSystem;
 class TerrainArea;
@@ -35,28 +33,15 @@ public:
 
 	bool Load(Archive* archive, int loadFlags = 0);
 
-	std::vector<std::shared_ptr<Geometry>> models;
-	std::vector<std::shared_ptr<Placeable>> placeables;
-	std::vector<std::shared_ptr<TerrainArea>> areas;
-	std::vector<std::shared_ptr<Light>> lights;
-	std::shared_ptr<TerrainSystem> terrain;
-	std::shared_ptr<Geometry> terrain_model;
-
-	std::vector<std::string> actor_tags;
-
-	std::map<std::string, std::shared_ptr<MaterialPalette>> material_palettes;
-	std::map<std::string, std::shared_ptr<Material>> materials;
-
 	Archive* GetArchive() const { return m_archive; }
 
-	// Who owns these???
-	std::vector<ActorPtr> m_actors;
+	std::map<std::string, MaterialPalettePtr> material_palettes;
+	std::map<std::string, MaterialPtr> materials;
 
 private:
 	bool ParseFile(const std::string& fileName);
 
 	bool ParseZone(const std::vector<char>& buffer, const std::string& tag);
-	bool ParseZoneV2(const std::vector<char>& buffer, const std::string& tag);
 	bool ParseModel(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag);
 	bool ParseTerrain(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag);
 	bool ParseLOD(const std::vector<char>& buffer, const std::string& tag);
@@ -68,6 +53,9 @@ private:
 	ResourceManager*         m_resourceMgr = nullptr;
 	std::string              m_fileName;
 	int                      m_loadFlags = 0;
+
+	// Temp pointer to .ZON data during load
+	std::span<uint8_t>       m_zonData;
 };
 
 struct LODListElement
@@ -108,7 +96,6 @@ using LODListPtr = std::shared_ptr<LODList>;
 
 } // namespace eqg
 
-using PlaceablePtr = std::shared_ptr<eqg::Placeable>;
-using EQGGeometryPtr = std::shared_ptr<eqg::Geometry>;
-using TerrainPtr = std::shared_ptr<eqg::TerrainSystem>;
+using TerrainSystemPtr = std::shared_ptr<eqg::TerrainSystem>;
+using TerrainPtr = std::shared_ptr<eqg::Terrain>;
 using TerrainAreaPtr = std::shared_ptr<eqg::TerrainArea>;

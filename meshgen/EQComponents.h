@@ -1,6 +1,9 @@
 #pragma once
 
+
 #include "eqglib/eqg_geometry.h"
+#include "eqglib/eqg_terrain.h"
+#include "mq/base/Color.h"
 
 namespace eqg
 {
@@ -9,7 +12,7 @@ namespace eqg
 
 struct ActorComponent
 {
-	eqg::Actor* actor;
+	eqg::ActorPtr actor;
 };
 
 struct CollisionComponent
@@ -23,4 +26,11 @@ struct PointLightComponent
 	float radius;
 	bool dynamic;
 	eqg::LightDefinitionPtr definition;
+};
+
+struct AreaComponent
+{
+	eqg::TerrainAreaPtr area;
+	mq::MQColor color;
+	bool draw;
 };

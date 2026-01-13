@@ -485,10 +485,7 @@ bool WLDLoader::ParseAll()
 	{
 		if (m_objects[i].type == WLD_OBJ_ACTORINSTANCE_TYPE)
 		{
-			if (!ParseActorInstance(i))
-			{
-				EQG_LOG_WARN("Failed to parse actor instance: {} ({})", m_objects[i].tag, i);
-			}
+			ParseActorInstance(i);
 		}
 	}
 
@@ -2016,7 +2013,10 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 	WLDFileObject& wldObj = m_objects[objectIndex];
 
 	if (wldObj.type != WLD_OBJ_ACTORINSTANCE_TYPE)
+	{
+		EQG_LOG_WARN("Failed to parse actor instance: {} ({})", wldObj.tag, objectIndex);
 		return false;
+	}
 
 	BufferReader reader(wldObj.data, wldObj.size);
 	WLD_OBJ_ACTORINSTANCE* pWLDActorInst = reader.read_ptr<WLD_OBJ_ACTORINSTANCE>();
@@ -2053,6 +2053,18 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 	// Find actor definition
 	if (pWLDActorInst->actor_def_id >= 0)
 	{
+		if (static_cast<uint32_t>(pWLDActorInst->actor_def_id) < m_numObjects)
+		{
+			auto& obj = GetObjectFromID(pWLDActorInst->actor_def_id);
+			EQG_LOG_DEBUG("Actor instance reference object by ID (EQ doesn't load these: id={} tag={})",
+				pWLDActorInst->actor_def_id, obj.tag);
+		}
+		else
+		{
+			EQG_LOG_DEBUG("Actor instance reference object by ID (EQ doesn't load these: id={} tag=???)",
+				pWLDActorInst->actor_def_id);
+		}
+
 		return false;
 	}
 
@@ -2070,11 +2082,10 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 	);
 
 	std::shared_ptr<Actor> actor;
+	std::string actorName = wldObj.tag.empty() ? fmt::format("{}_{}", actorDef->GetTag(), objectIndex) : std::string(wldObj.tag);
 
 	if (actorDef->GetSimpleModelDefinition())
 	{
-		std::string actorName = wldObj.tag.empty() ? fmt::format("{}_{}", actorDef->GetTag(), objectIndex) : std::string(wldObj.tag);
-
 		actor = m_resourceMgr->CreateSimpleActor(
 			actorTag,
 			actorDef,
@@ -2090,26 +2101,27 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 	}
 	else if (actorDef->GetHierarchicalModelDefinition())
 	{
-		actor = std::make_shared<HierarchicalActor>(
-			m_resourceMgr,
+		actor = m_resourceMgr->CreateHierarchicalActor(
 			actorTag,
 			actorDef,
 			position,
 			orientation,
 			scaleFactor,
-			boundingRadius,
 			collisionVolumeType,
+			boundingRadius,
 			objectIndex,
-			pDMRGBTrackData.get());
+			pDMRGBTrackData.get(),
+			{},
+			actorName);
 	}
 
 	if (!actor)
 	{
 		EQG_LOG_ERROR("Failed to create ActorInstance for {} ({})", wldObj.tag, objectIndex);
-		return true;
+		return false;
 	}
 
-	m_actors.push_back(actor);
+	m_resourceMgr->AddActor(std::move(actor));
 
 	auto parsedActorInstance = new ParsedActorInstance();
 	parsedActorInstance->actorInstance = actor;
@@ -2246,6 +2258,8 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 		return false;
 	}
 
+	EQG_LOG_DEBUG("ParseHierarchicalModel: {}", defObj.tag);
+
 	if (auto pExistingDef = m_resourceMgr->Get<HierarchicalModelDefinition>(defObj.tag))
 	{
 		if (defObj.parsed_data == nullptr)
@@ -2280,7 +2294,7 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 			WLDFileObject& polyDefObj = GetObjectFromID(polyInstance->definition_id);
 			if (polyDefObj.type == WLD_OBJ_POLYHEDRONDEFINITION_TYPE)
 			{
-				BufferReader polyReader(polyInstObj.data, polyInstObj.size);
+				BufferReader polyReader(polyDefObj.data, polyDefObj.size);
 				WODL_OBJ_POLYHEDRONDEFINITION* polyDef = polyReader.read_ptr<WODL_OBJ_POLYHEDRONDEFINITION>();
 
 				bool haveNormals = (polyDef->flags & WLD_OBJ_POLYOPT_HAVEFACENORMALS) != 0;
@@ -2290,7 +2304,7 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 					polyReader.skip<float>();
 				}
 
-				glm::vec3* inVerts = reader.read_array<glm::vec3>(polyDef->num_vertices);
+				glm::vec3* inVerts = polyReader.read_array<glm::vec3>(polyDef->num_vertices);
 				collisionVertices.assign(inVerts, inVerts + polyDef->num_vertices);
 
 				// faces appear to be capable of having more than three edges, so we treat them
@@ -2299,8 +2313,8 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 
 				for (uint32_t i = 0; i < polyDef->num_faces; ++i)
 				{
-					uint32_t numVerts = reader.read<uint32_t>();
-					uint32_t* indices = reader.read_array<uint32_t>(numVerts);
+					uint32_t numVerts = polyReader.read<uint32_t>();
+					uint32_t* indices = polyReader.read_array<uint32_t>(numVerts);
 
 					for (uint32_t j = 2; j < numVerts; ++j)
 					{
@@ -2311,7 +2325,7 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 
 					if (haveNormals)
 					{
-						reader.skip<float>(4);
+						polyReader.skip<float>(4);
 					}
 				}
 			}
@@ -2595,68 +2609,64 @@ bool WLDLoader::ParseDMSpriteDef2(uint32_t objectIndex, std::unique_ptr<SDMSprit
 
 	if (pWLDObj->num_vertices)
 	{
-		pSpriteDef->numVertices = pWLDObj->num_vertices;
-		if (!reader.read_array(pSpriteDef->vertices, pSpriteDef->numVertices))
+		if (!reader.read_array(pSpriteDef->vertices, pWLDObj->num_vertices))
 			return false;
 	}
 
 	if (pWLDObj->num_uvs)
-	{
-		pSpriteDef->numUVs = pWLDObj->num_uvs;
-		
+	{		
 		if (IsOldVersion())
 		{
-			pSpriteDef->uvsUsingOldForm = true;
-			if (!reader.read_array(pSpriteDef->uvsOldForm, pSpriteDef->numUVs))
+			std::span<glm::i16vec2> oldUVs;
+			if (!reader.read_array(oldUVs, pWLDObj->num_uvs))
 				return false;
+
+			pSpriteDef->uvs = oldUVs;
 		}
 		else
 		{
-			pSpriteDef->uvsUsingOldForm = false;
-			if (!reader.read_array(pSpriteDef->uvs, pSpriteDef->numUVs))
+			std::span<glm::vec2> UVs;
+
+			if (!reader.read_array(UVs, pWLDObj->num_uvs))
 				return false;
+
+			pSpriteDef->uvs = UVs;
 		}
 	}
 
 	if (pWLDObj->num_vertex_normals)
 	{
-		pSpriteDef->numVertexNormals = pWLDObj->num_vertex_normals;
-		if (!reader.read_array(pSpriteDef->vertexNormals, pSpriteDef->numVertexNormals))
+		if (!reader.read_array(pSpriteDef->vertexNormals, pWLDObj->num_vertex_normals))
 			return false;
 	}
 
 	if (pWLDObj->num_rgb_colors)
 	{
-		pSpriteDef->numRGBs = pWLDObj->num_rgb_colors;
-		if (!reader.read_array(pSpriteDef->rgbData, pSpriteDef->numRGBs))
+		if (!reader.read_array(pSpriteDef->rgbData, pWLDObj->num_rgb_colors))
 			return false;
 	}
 
 	if (pWLDObj->num_faces)
 	{
-		pSpriteDef->numFaces = pWLDObj->num_faces;
-		if (!reader.read_array(pSpriteDef->faces, pSpriteDef->numFaces))
+		if (!reader.read_array(pSpriteDef->faces, pWLDObj->num_faces))
 			return false;
 	}
 
 	if (pWLDObj->num_skin_groups)
 	{
-		pSpriteDef->numSkinGroups = pWLDObj->num_skin_groups;
-		if (!reader.read_array(pSpriteDef->skinGroups, pSpriteDef->numSkinGroups))
+		if (!reader.read_array(pSpriteDef->skinGroups, pWLDObj->num_skin_groups))
 			return false;
 	}
 
 	if (pWLDObj->num_fmaterial_groups)
 	{
-		pSpriteDef->numFaceMaterialGroups = pWLDObj->num_fmaterial_groups;
-		if (!reader.read_array(pSpriteDef->faceMaterialGroups, pSpriteDef->numFaceMaterialGroups))
+		if (!reader.read_array(pSpriteDef->faceMaterialGroups, pWLDObj->num_fmaterial_groups))
 			return false;
 	}
 
 	if (pWLDObj->num_vmaterial_groups)
 	{
-		pSpriteDef->numVertexMaterialGroups = pWLDObj->num_vmaterial_groups;
-		if (!reader.read_array(pSpriteDef->vertexMaterialGroups, pSpriteDef->numVertexMaterialGroups))
+		if (!reader.read_array(pSpriteDef->vertexMaterialGroups, pWLDObj->num_vmaterial_groups))
 			return false;
 	}
 
@@ -2734,7 +2744,7 @@ bool WLDLoader::ParseTerrain(
 		}
 	}
 
-	std::shared_ptr<Terrain> pTerrain = m_resourceMgr->InitTerrain();
+	std::shared_ptr<Terrain> pTerrain = m_resourceMgr->CreateTerrain();
 
 	// Parse areas, send them to the terrain
 	for (uint32_t objectIndex = zoneRange.first; objectIndex < zoneRange.second; ++objectIndex)
@@ -2766,6 +2776,8 @@ bool WLDLoader::ParseTerrain(
 		EQG_LOG_ERROR("Failed to init terrain from wld data");
 		return false;
 	}
+
+	m_resourceMgr->SetTerrain(std::move(pTerrain));
 
 	return true;
 }
@@ -2974,7 +2986,7 @@ bool WLDLoader::ParseLight(uint32_t objectIndex)
 	m_resourceMgr->Add(tag, lightDef);
 
 	std::shared_ptr<PointLight> pointLight = m_resourceMgr->CreatePointLight(wldObj.tag, lightDef, pHeader->pos, pHeader->radius);
-	m_pointLights.push_back(pointLight);
+	m_resourceMgr->AddLight(std::move(pointLight));
 
 	return true;
 }

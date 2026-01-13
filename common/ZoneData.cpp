@@ -3,6 +3,7 @@
 //
 
 #include "ZoneData.h"
+#if 0
 
 #include "eqglib/eqg_loader.h"
 
@@ -94,30 +95,30 @@ public:
 		return loadedSomething;
 	}
 
-	EQGGeometryPtr GetModel(const std::string& modelName)
-	{
-		std::string name = mq::to_lower_copy(modelName) + ".mod";
-		auto fileIter = m_modelsByFile.find(name);
-		if (fileIter != m_modelsByFile.end())
-		{
-			return fileIter->second;
-		}
+	//EQGGeometryPtr GetModel(const std::string& modelName)
+	//{
+	//	std::string name = mq::to_lower_copy(modelName) + ".mod";
+	//	auto fileIter = m_modelsByFile.find(name);
+	//	if (fileIter != m_modelsByFile.end())
+	//	{
+	//		return fileIter->second;
+	//	}
 
-		auto iter = m_models.find(modelName);
-		if (iter != m_models.end())
-		{
-			return iter->second;
-		}
+	//	auto iter = m_models.find(modelName);
+	//	if (iter != m_models.end())
+	//	{
+	//		return iter->second;
+	//	}
 
-		//EQGGeometryPtr model;
-		//if (eqg::LoadEQGModel(m_archive, name, model))
-		//{
-		//	model->SetName(modelName);
-		//	m_models[modelName] = model;
-		//}
+	//	//EQGGeometryPtr model;
+	//	//if (eqg::LoadEQGModel(m_archive, name, model))
+	//	//{
+	//	//	model->SetName(modelName);
+	//	//	m_models[modelName] = model;
+	//	//}
 
-		//return model;
-	}
+	//	//return model;
+	//}
 
 	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
@@ -147,8 +148,8 @@ private:
 	ZoneData* m_zd;
 	eqg::Archive m_archive;
 
-	std::map<std::string, EQGGeometryPtr> m_models;
-	std::map<std::string, EQGGeometryPtr> m_modelsByFile;
+	//std::map<std::string, EQGGeometryPtr> m_models;
+	//std::map<std::string, EQGGeometryPtr> m_modelsByFile;
 };
 
 //----------------------------------------------------------------------------
@@ -270,16 +271,16 @@ public:
 	//	return nullptr;
 	//}
 
-	EQGGeometryPtr GetEQGModel(const std::string& modelName)
-	{
-		std::string eqgName = mq::to_lower_copy(modelName) + ".mod";
+	//EQGGeometryPtr GetEQGModel(const std::string& modelName)
+	//{
+	//	std::string eqgName = mq::to_lower_copy(modelName) + ".mod";
 
-		auto iter = m_eqgModels.find(eqgName);
-		if (iter != m_eqgModels.end())
-			return iter->second;
+	//	auto iter = m_eqgModels.find(eqgName);
+	//	if (iter != m_eqgModels.end())
+	//		return iter->second;
 
-		return nullptr;
-	}
+	//	return nullptr;
+	//}
 
 	virtual std::shared_ptr<ModelInfo> GetModelInfo(const std::string& modelName) override
 	{
@@ -329,7 +330,7 @@ private:
 	ZoneData* m_zd;
 
 	//std::map<std::string, S3DGeometryPtr> m_s3dModels;
-	std::map<std::string, EQGGeometryPtr> m_eqgModels;
+	//std::map<std::string, EQGGeometryPtr> m_eqgModels;
 };
 
 //----------------------------------------------------------------------------
@@ -349,15 +350,15 @@ void ZoneData::LoadZone()
 {
 	m_loader.reset();
 
-	if (EQGDataLoader::IsValid(this))
-		m_loader = std::make_unique<EQGDataLoader>(this);
-	else if (S3DDataLoader::IsValid(this))
-		m_loader = std::make_unique<S3DDataLoader>(this);
-	else
-		return;
+	//if (EQGDataLoader::IsValid(this))
+	//	m_loader = std::make_unique<EQGDataLoader>(this);
+	//else if (S3DDataLoader::IsValid(this))
+	//	m_loader = std::make_unique<S3DDataLoader>(this);
+	//else
+	//	return;
 
-	if (!m_loader->Load())
-		m_loader.reset();
+	//if (!m_loader->Load())
+	//	m_loader.reset();
 }
 
 std::shared_ptr<ModelInfo> ZoneData::GetModelInfo(const std::string& modelName)
@@ -373,3 +374,5 @@ bool ZoneData::IsLoaded()
 {
 	return m_loader != nullptr;
 }
+
+#endif

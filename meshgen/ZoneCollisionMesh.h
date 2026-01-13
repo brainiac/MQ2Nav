@@ -32,16 +32,11 @@ public:
 
 	void addVertex(float x, float y, float z);
 	void addTriangle(int a, int b, int c);
-	void addTriangle(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3);
+	void addTriangle(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3);
 
+	void addTerrainSystem(const TerrainSystemPtr& terrain);
 	void addTerrain(const TerrainPtr& terrain);
 	void addPolys(const std::vector<glm::vec3>& verts, const std::vector<uint32_t>& indices);
-
-	//void addModel(std::string_view name, const S3DGeometryPtr& model);
-	void addModel(std::string_view name, const EQGGeometryPtr& model);
-	void addModelInstance(const PlaceablePtr& inst);
-	//void addZoneGeometry(const S3DGeometryPtr& model); // For s3d zone geometry
-	void addZoneGeometry(const EQGGeometryPtr& model); // For TER zone geometry
 
 	void addActor(entt::handle handle, const eqg::Actor* actor);
 

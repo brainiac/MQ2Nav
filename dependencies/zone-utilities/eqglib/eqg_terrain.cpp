@@ -13,78 +13,124 @@ namespace eqg {
 
 //=================================================================================================
 
-AreaEnvironment ParseAreaTag(std::string_view areaTag)
+AreaEnvironment TypeToEnvironment(uint32_t type)
+{
+	AreaEnvironment env;
+
+	switch (type & 0xff)
+	{
+	case 0: break;
+	case 1: env.type = AreaEnvironment::UnderWater; break;
+	case 2: env.type = AreaEnvironment::UnderSlime; break;
+	case 3: env.type = AreaEnvironment::UnderLava; break;
+	case 4: env.type = AreaEnvironment::UnderIceWater; break;
+	case 5: env.type = AreaEnvironment::UnderWater; break;
+	case 6: env.type = AreaEnvironment::UnderSlime; break;
+	case 7: env.type = AreaEnvironment::UnderLava; break;
+	case 8: env.type = AreaEnvironment::UnderIceWater; break;
+	case 9: env.type = AreaEnvironment::UnderWater2; break;
+	case 10: env.type = AreaEnvironment::UnderWater3; break;
+	default: break;
+	}
+
+	if (type & 0x80000000)
+		env.flags |= AreaEnvironment::Teleport;
+	if (type & 0x40000000)
+		env.flags |= AreaEnvironment::Kill;
+	if (type & 0x20000000)
+		env.flags |= AreaEnvironment::Mover;
+	if (type & 0x10000000)
+		env.flags |= AreaEnvironment::Slippery;
+	if (type & 0x0C000000)
+		env.flags |= AreaEnvironment::Pain;
+
+	return env;
+}
+
+AreaEnvironment ParseAreaTag(std::string_view areaTag, uint32_t type = 0)
 {
 	if (areaTag.length() < 4)
 		return {};
+
+	AreaEnvironment inEnv = TypeToEnvironment(type);
 
 	if (areaTag[0] == 'A')
 	{
 		if (areaTag.starts_with("AWT"))
 		{
-			return AreaEnvironment::UnderWater;
+			return { AreaEnvironment::UnderWater, inEnv.flags };
 		}
 
 		if (areaTag.starts_with("ALV"))
 		{
-			return AreaEnvironment::UnderLava;
+			return { AreaEnvironment::UnderLava, inEnv.flags };
 		}
 
 		if (areaTag.starts_with("AVW"))
 		{
-			return AreaEnvironment::UnderIceWater;
+			return { AreaEnvironment::UnderIceWater, inEnv.flags };
 		}
 
 		if (areaTag.starts_with("APK"))
 		{
-			return AreaEnvironment::Kill;
+			return inEnv | AreaEnvironment::Kill;
 		}
 
 		if (areaTag.starts_with("ATP"))
 		{
 			// Old style teleport. No coordinates, just index.
-			AreaEnvironment env = AreaEnvironment::TeleportIndex;
-			env.teleportIndex = (int16_t)str_to_int(areaTag.substr(3), -1);
+			AreaEnvironment env = inEnv | AreaEnvironment::TeleportIndex;
+			env.teleportIndex = (int16_t)str_to_int(areaTag.substr(4), -1);
 
 			return env;
 		}
 
 		if (areaTag.starts_with("ASL"))
 		{
-			return AreaEnvironment::Slippery;
+			return inEnv | AreaEnvironment::Slippery;
+		}
+
+		if (areaTag.starts_with("AFG"))
+		{
+			return { AreaEnvironment::Fog, inEnv.flags };
+		}
+
+		if (areaTag.starts_with("APV"))
+		{
+			return { AreaEnvironment::Portal, inEnv.flags };
 		}
 	}
 	else
 	{
-		AreaEnvironment env;
+		AreaEnvironment env = inEnv;
 
 		if (areaTag.starts_with("DR"))
 		{
-			env = AreaEnvironment::Type_None;
+			env.type = AreaEnvironment::Type_None;
 		}
 		else if (areaTag.starts_with("WT"))
 		{
-			env = AreaEnvironment::UnderWater;
+			env.type = AreaEnvironment::UnderWater;
 		}
 		else if (areaTag.starts_with("LA"))
 		{
-			env = AreaEnvironment::UnderLava;
+			env.type = AreaEnvironment::UnderLava;
 		}
 		else if (areaTag.starts_with("SL"))
 		{
-			env = AreaEnvironment::UnderSlime;
+			env.type = AreaEnvironment::UnderSlime;
 		}
 		else if (areaTag.starts_with("VW"))
 		{
-			env = AreaEnvironment::UnderIceWater;
+			env.type = AreaEnvironment::UnderIceWater;
 		}
 		else if (areaTag.starts_with("W2"))
 		{
-			env = AreaEnvironment::UnderWater2;
+			env.type = AreaEnvironment::UnderWater2;
 		}
 		else if (areaTag.starts_with("W3"))
 		{
-			env = AreaEnvironment::UnderWater3;
+			env.type = AreaEnvironment::UnderWater3;
 		}
 
 		if (areaTag[2] == 'P')
@@ -104,7 +150,7 @@ AreaEnvironment ParseAreaTag(std::string_view areaTag)
 		{
 			if (areaTag[31] == 'M')
 			{
-				// An unused area type.
+				env.flags |= AreaEnvironment::Mover; // An unused area type?
 			}
 		}
 
@@ -120,7 +166,7 @@ AreaEnvironment ParseAreaTag(std::string_view areaTag)
 		{
 			if (areaTag[33] == 'P' || areaTag[33] == 'F')
 			{
-				// An unused area type
+				env.flags |= AreaEnvironment::Pain; // An unused area type?
 			}
 		}
 
@@ -129,6 +175,12 @@ AreaEnvironment ParseAreaTag(std::string_view areaTag)
 
 	return {};
 }
+
+AreaEnvironment::AreaEnvironment(std::string_view areaTag, uint32_t type)
+{
+	*this = ParseAreaTag(areaTag, type);
+}
+
 
 bool ParseAreaTeleportTag(std::string_view areaTag, AreaTeleport& teleport)
 {
@@ -161,11 +213,25 @@ bool ParseAreaTeleportTag(std::string_view areaTag, AreaTeleport& teleport)
 	return true;
 }
 
+TerrainArea::TerrainArea(const std::string_view& name, const glm::vec3& position,
+	const glm::vec3& orientation, const glm::vec3& scale, uint32_t type)
+	: name(name)
+	, environment(name, type)
+	, position(position)
+	, orientation(orientation)
+	, scale(scale)
+{
+	transform = glm::scale(glm::identity<glm::mat4x4>(), this->scale);
+	transform = glm::translate(transform, this->position);
+	transform *= glm::mat4_cast(glm::quat{ this->orientation });
+
+	//area->transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), area->position), glm::vec3(area->extents));
+	//area->transform *= glm::mat4_cast(glm::quat{ area->orientation });
+}
+
 //=================================================================================================
 
 Terrain::Terrain()
-	: m_bbMin(std::numeric_limits<float>::max())
-	, m_bbMax(std::numeric_limits<float>::min())
 {
 }
 
@@ -185,8 +251,8 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 	{
 		if (region.regionSprite)
 		{
-			numFaces += region.regionSprite->numFaces;
-			numVertices += region.regionSprite->numVertices;
+			numFaces += static_cast<uint32_t>(region.regionSprite->faces.size());
+			numVertices += static_cast<uint32_t>(region.regionSprite->vertices.size());
 		}
 		else
 		{
@@ -254,73 +320,89 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 			}
 		}
 
-		if (SDMSpriteDef2WLDData* pSprite = wldRegion.regionSprite.get())
+		if (SDMSpriteDef2WLDData* pDMSpriteDef2 = wldRegion.regionSprite.get())
 		{
-			if (!m_materialPalette && pSprite->materialPalette)
+			if (!m_materialPalette && pDMSpriteDef2->materialPalette)
 			{
-				m_materialPalette = pSprite->materialPalette;
+				m_materialPalette = pDMSpriteDef2->materialPalette;
 			}
 
-			// Copy over vertices and indices
-			for (uint32_t i = 0; i < pSprite->numVertices; ++i)
+			const glm::vec3 centerOffset = pDMSpriteDef2->centerOffset;
+			const float scaleFactor = pDMSpriteDef2->vertexScaleFactor;
+
+			for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 			{
-				glm::vec3& outVertex = m_vertices[vertexOffset + i];
-				glm::i16vec3* inVertex = pSprite->vertices + i;
+				glm::vec3 newVert = centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor;
+				m_vertices[vertexOffset + vert] = newVert;
 
-				outVertex = glm::vec3(inVertex->x, inVertex->y, inVertex->z) * pSprite->vertexScaleFactor + pSprite->centerOffset;
+				m_aabb.enclose(newVert);
+			}
 
-				if (pSprite->numUVs)
+			if (pDMSpriteDef2->uvs.index() == 0)
+			{
+				std::span<glm::vec2>& uvs = std::get<0>(pDMSpriteDef2->uvs);
+
+				if (!uvs.empty())
 				{
-					if (pSprite->uvsOldForm)
+					memcpy(m_uvs.data() + vertexOffset, uvs.data(), uvs.size_bytes());
+				}
+				else
+				{
+					memset(m_uvs.data() + vertexOffset, 0, sizeof(glm::vec2) * pDMSpriteDef2->vertices.size());
+				}
+			}
+			else
+			{
+				std::span<glm::i16vec2>& uvs = std::get<1>(pDMSpriteDef2->uvs);
+
+				if (!uvs.empty())
+				{
+					for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 					{
-						glm::vec2& outUV = m_uvs[vertexOffset + i];
-						glm::u16vec2* inUV = pSprite->uvsOldForm + i;
-
-						outUV = glm::vec2(inUV->x, inUV->y) * S3D_UV_TO_FLOAT;
-					}
-					else
-					{
-						glm::vec2& outUV = m_uvs[vertexOffset + i];
-						glm::vec2* inUV = pSprite->uvs + i;
-
-						outUV = *inUV;
+						m_uvs[vertexOffset + vert] = glm::vec2(uvs[vert]) * S3D_UV_TO_FLOAT;
 					}
 				}
 				else
 				{
-					m_uvs[vertexOffset + i] = glm::vec2(0.0f, 0.0f);
+					memset(m_uvs.data() + vertexOffset, 0, sizeof(glm::vec2) * pDMSpriteDef2->vertices.size());
 				}
+			}
 
-				if (pSprite->numVertexNormals)
+			if (pDMSpriteDef2->vertexNormals.empty())
+			{
+				memset(m_normals.data() + vertexOffset, 0, sizeof(glm::vec3) * pDMSpriteDef2->vertices.size());
+			}
+			else
+			{
+				for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 				{
-					glm::vec3& outNormal = m_normals[vertexOffset + i];
-					glm::u8vec3* inNormal = pSprite->vertexNormals + i;
-
-					outNormal = glm::vec3(inNormal->x, inNormal->y, inNormal->z) * S3D_NORM_TO_FLOAT;
+					m_normals[vertexOffset + vert] = glm::vec3(pDMSpriteDef2->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
 				}
-				else
+			}
+
+			if (pDMSpriteDef2->rgbData.empty())
+			{
+				for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 				{
-					m_normals[vertexOffset + i] = glm::vec3(0.0f, 0.0f, 0.0f);
+					m_rgbColors[vertexOffset + vert] = 0xff1f1f1f;
 				}
-
-				if (pSprite->numRGBs)
+			}
+			else
+			{
+				for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 				{
-					m_rgbColors[vertexOffset + i] = pSprite->rgbData[i];
+					m_rgbColors[vertexOffset + vert] = pDMSpriteDef2->rgbData[vert];
 				}
-				else
-				{
-					m_rgbColors[vertexOffset + i] = 0xff1f1f1f;
-				}
+			}
 
-				m_rgbTints[vertexOffset + i] = 0xff808080;
-
-				m_bbMin = glm::min(m_bbMin, outVertex);
-				m_bbMax = glm::max(m_bbMax, outVertex);
+			for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
+			{
+				m_rgbTints[vertexOffset + vert] = 0xff808080;
 			}
 
 			// Initialize faces and materials
-			WLD_MATERIALGROUP* faceGroups = pSprite->faceMaterialGroups;
-			uint32_t numMaterials = pSprite->materialPalette->GetNumMaterials();
+			WLD_MATERIALGROUP* faceGroups = pDMSpriteDef2->faceMaterialGroups.data();
+			uint32_t numMaterials = pDMSpriteDef2->materialPalette->GetNumMaterials();
 
 			uint32_t curGroup = 0;
 			uint32_t groupSize = faceGroups[curGroup].group_size;
@@ -330,14 +412,14 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 
 			uint32_t groupStart = 0;
 			Material* pMaterial = materialIndex >= 0 && materialIndex < (int16_t)numMaterials
-				? pSprite->materialPalette->GetMaterial(materialIndex) : nullptr;
+				? pDMSpriteDef2->materialPalette->GetMaterial(materialIndex) : nullptr;
 
-			for (uint32_t face = 0; face < pSprite->numFaces; ++face)
+			for (uint32_t face = 0; face < static_cast<uint32_t>(pDMSpriteDef2->faces.size()); ++face)
 			{
 				if (face > groupStart + groupSize)
 				{
 					// Increment to next group
-					if (curGroup < pSprite->numFaceMaterialGroups - 1)
+					if (curGroup < pDMSpriteDef2->faceMaterialGroups.size() - 1)
 						++curGroup;
 
 					groupSize = faceGroups[curGroup].group_size;
@@ -348,21 +430,21 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 					groupStart = face;
 
 					pMaterial = materialIndex >= 0 && materialIndex < (int16_t)numMaterials
-						? pSprite->materialPalette->GetMaterial(materialIndex) : nullptr;
+						? pDMSpriteDef2->materialPalette->GetMaterial(materialIndex) : nullptr;
 				}
 
 				SFace& outFace = m_faces[faceOffset + face];
-				WLD_DMFACE2* inFace = pSprite->faces + face;
+				WLD_DMFACE2& inFace = pDMSpriteDef2->faces[face];
 
-				outFace.indices = glm::uvec3{ inFace->indices[0], inFace->indices[1], inFace->indices[2] } + faceOffset;
+				outFace.indices = glm::uvec3{ inFace.indices[2], inFace.indices[1], inFace.indices[0] } + vertexOffset;
 				outFace.materialIndex = materialIndex;
 				outFace.flags = 0
-					| (inFace->flags & S3D_FACEFLAG_PASSABLE ? EQG_FACEFLAG_PASSABLE : 0)
+					| (inFace.flags & S3D_FACEFLAG_PASSABLE ? EQG_FACEFLAG_PASSABLE : 0)
 					| (!pMaterial || pMaterial->IsTransparent() ? EQG_FACEFLAG_TRANSPARENT : 0);
 			}
 
-			vertexOffset += pSprite->numVertices;
-			faceOffset += pSprite->numFaces;
+			vertexOffset += static_cast<uint32_t>(pDMSpriteDef2->vertices.size());
+			faceOffset += static_cast<uint32_t>(pDMSpriteDef2->faces.size());
 		}
 	}
 
@@ -416,6 +498,74 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 	m_constantAmbientColor = wldData.constantAmbientColor;
 
 	return true;
+}
+
+bool Terrain::InitFromEQGData(
+	const std::span<SEQMVertex>& vertices,
+	const std::span<SEQMFace>& faces,
+	const std::span<uint32_t>& RGBs,
+	const MaterialPalettePtr& materialPalette)
+{
+	m_fromEQG = true;
+	m_materialPalette = materialPalette;
+
+	m_vertices.resize(m_vertexOffset + vertices.size());
+	m_uvs.resize(m_vertexOffset + vertices.size());
+	m_uvs2.resize(m_vertexOffset + vertices.size());
+	m_normals.resize(m_vertexOffset + vertices.size());
+	m_rgbColors.resize(m_vertexOffset + vertices.size());
+	m_rgbTints.resize(m_vertexOffset + vertices.size());
+	m_faces.resize(m_faceOffset + faces.size());
+
+	for (uint32_t index = 0; index < vertices.size(); ++index)
+	{
+		SEQMVertex& inVertex = vertices[index];
+
+		m_vertices[m_vertexOffset + index] = inVertex.pos;
+		m_normals[m_vertexOffset + index] = inVertex.normal;
+		m_uvs[m_vertexOffset + index] = inVertex.uv;
+		m_uvs2[m_vertexOffset + index] = inVertex.uv2;
+
+		if (!RGBs.empty())
+		{
+			m_rgbColors[m_vertexOffset + index] = RGBs[index];
+		}
+		else
+		{
+			m_rgbColors[m_vertexOffset + index] = 0x001f1f1f;
+		}
+
+		m_rgbTints[m_vertexOffset + index] = inVertex.color;
+		m_aabb.enclose(inVertex.pos);
+	}
+
+	for (uint32_t index = 0; index < faces.size(); ++index)
+	{
+		SFace& outFace = m_faces[m_faceOffset + index];
+		SEQMFace& inFace = faces[index];
+
+		outFace.flags = inFace.flags & 0xffff;
+		outFace.materialIndex = static_cast<uint16_t>(inFace.material);
+		outFace.indices = { inFace.vertices[0], inFace.vertices[1], inFace.vertices[2] };
+	}
+
+	m_vertexOffset = static_cast<uint32_t>(m_vertices.size());
+	m_faceOffset = static_cast<uint32_t>(m_faces.size());
+
+	// TOOD: Calculate tangents and binormals
+	
+	return true;
+}
+
+void Terrain::InitAreasFromEQGData(const std::span<SZONArea>& zonAreas, const char* stringPool)
+{
+	for (const SZONArea& area : zonAreas)
+	{
+		auto newArea = std::make_shared<TerrainArea>(stringPool + area.name,
+			area.center, area.orientation, area.extents);
+
+		m_areas.push_back(std::move(newArea));
+	}
 }
 
 } // namespace eqg

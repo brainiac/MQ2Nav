@@ -3,7 +3,6 @@
 #include "eqg_structs.h"
 #include "eqg_loader.h"
 #include "eqg_types_fwd.h"
-#include "placeable.h"
 
 #include <memory>
 #include <map>
@@ -166,27 +165,6 @@ struct TerrainObjectGroupDefinition
 	bool Load(Archive* archive, const std::string& group_name);
 };
 using TerrainObjectGroupDefinitionPtr = std::shared_ptr<TerrainObjectGroupDefinition>;
-
-//------------------------------------------------------------------------------
-// Terrain Areas
-
-class TerrainArea
-{
-public:
-	std::string    name;
-	std::string    shape;
-	uint32_t       type = 0;
-
-	glm::vec3      position;
-	glm::vec3      orientation;
-	glm::vec3      extents;
-
-	glm::mat4x4    transform;
-	glm::vec3      scale; // should probably just remove
-
-	TerrainObjectGroup* group = nullptr;
-};
-using TerrainAreaPtr = std::shared_ptr<TerrainArea>;
 
 //-------------------------------------------------------------------------------
 // Terrain Objects

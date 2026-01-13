@@ -56,7 +56,7 @@ bool Animation::InitFromWLDData(std::string_view animTag, const std::vector<std:
 {
 	m_tag = animTag;
 	m_looping = IsLoopingAnimation(animTag);
-	m_numTracks = tracks.size();
+	m_numTracks = static_cast<uint32_t>(tracks.size());
 
 	uint32_t maxFrames = 1;
 	for (const auto& track : tracks)

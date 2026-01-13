@@ -55,6 +55,8 @@ bool EQGLoader::Load(Archive* archive, int loadFlags)
 
 		fclose(pZonFile);
 		pZonFile = nullptr;
+
+		m_zonData = { reinterpret_cast<uint8_t*>(zonBuffer.data()), sz };
 	}
 
 	const std::vector<std::string>& files = m_archive->GetFileNames();
@@ -86,7 +88,7 @@ bool EQGLoader::Load(Archive* archive, int loadFlags)
 		{
 			std::string fileName = fs::path(zonFilePath).filename().replace_extension().string();
 
-			if (!ParseZoneV2(zonBuffer, fileName))
+			if (!ParseZone(zonBuffer, fileName))
 				return false;
 		}
 	}
@@ -97,6 +99,8 @@ bool EQGLoader::Load(Archive* archive, int loadFlags)
 
 		loaded_anything = true;
 	}
+
+	m_zonData = {};
 
 	return loaded_anything;
 }
@@ -133,8 +137,6 @@ bool EQGLoader::ParseFile(const std::string& fileName)
 			// Model
 			EQG_LOG_TRACE("EQGM: Model: {}", fileName);
 			success = ParseModel(fileBuffer, fileName, tag);
-
-			actor_tags.push_back(tag);
 		}
 		else if (strncmp(pMagic, "EQGS", 4) == 0)
 		{
@@ -521,26 +523,6 @@ bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& f
 	pActorDef->SetCallbackTag("SPRITECALLBACK");
 	pActorDef->SetCollisionVolumeType(colType);
 
-	// codepath for creating the old eqg::Geometry that we're trying to replace.
-	{
-		std::vector<SFace> faces(header->num_faces);
-		for (size_t i = 0; i < header->num_faces; ++i)
-		{
-			faces[i].indices[0] = eqm_faces[i].vertices[0];
-			faces[i].indices[1] = eqm_faces[i].vertices[1];
-			faces[i].indices[2] = eqm_faces[i].vertices[2];
-			faces[i].flags = static_cast<EQG_FACEFLAGS>(eqm_faces[i].flags);
-			faces[i].materialIndex = eqm_faces[i].material;
-		}
-
-		std::shared_ptr<eqg::Geometry> model = std::make_shared<eqg::Geometry>();
-		model->tag = fmt::format("{}_ACTORDEF", tag);
-		model->vertices = std::move(vertices);
-		model->faces = std::move(faces);
-		model->material_palette = vertex_data.material_palette;
-
-		models.push_back(model);
-	}
 	return true;
 }
 
@@ -568,11 +550,7 @@ bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string&
 		return false;
 	}
 
-	SEQMFace* eqm_faces = vertex_data.faces;
-	SEQMVertex* eqm_vertices = vertex_data.verts;
 	SEQMUVSet* uv_set = nullptr;
-
-	std::vector<SEQMVertex> vertices(header->num_vertices);
 
 	// Load secondary UV
 	if (header->version == 2)
@@ -590,14 +568,17 @@ bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string&
 		}
 	}
 
+	std::vector<SEQMVertex> vertexStorage(header->num_vertices);
+	std::span<SEQMVertex> eqmVertices;
+
 	// Convert old vertices to new vertices
-	if (eqm_vertices == nullptr)
+	if (vertex_data.verts == nullptr)
 	{
 		SEQMVertexOld* old_verts = vertex_data.verts_old;
 
 		for (uint32_t index = 0; index < header->num_vertices; ++index)
 		{
-			SEQMVertex& new_vertex = vertices[index];
+			SEQMVertex& new_vertex = vertexStorage[index];
 			SEQMVertexOld& old_vertex = old_verts[index];
 
 			new_vertex.pos = old_vertex.pos;
@@ -614,32 +595,75 @@ bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string&
 				new_vertex.uv2 = { 0.0f, 0.0f };
 			}
 		}
+
+		eqmVertices = vertexStorage;
 	}
 	else
 	{
-		memcpy(vertices.data(), eqm_vertices, vertices.size() * sizeof(SEQMVertex));
+		eqmVertices = { vertex_data.verts, header->num_vertices };
 	}
 
-	// TODO: Load .lit data
+	std::span<SEQMFace> eqmFaces = { vertex_data.faces, header->num_faces };
 
-	std::vector<SFace> faces(header->num_faces);
-	for (size_t i = 0; i < header->num_faces; ++i)
+	std::string litFileName = fmt::format("{}.LIT", tag);
+
+	// We need this to exist out here so that the buffer doesn't go out of scope. We're using it
+	// to own the data we pass in with the std::span...
+	// ReSharper disable once CppJoinDeclarationAndAssignment
+	// ReSharper disable once CppTooWideScope
+	std::unique_ptr<uint8_t[]> litBuffer;
+	std::span<uint32_t> litVerts;
+
+	// Check to see if we have a LIT data from a matching v2 EQGZ file
+	if (!m_zonData.empty())
 	{
-		faces[i].indices[0] = eqm_faces[i].vertices[0];
-		faces[i].indices[1] = eqm_faces[i].vertices[1];
-		faces[i].indices[2] = eqm_faces[i].vertices[2];
-		faces[i].flags = static_cast<EQG_FACEFLAGS>(eqm_faces[i].flags);
-		faces[i].materialIndex = eqm_faces[i].material;
+		BufferReader litReader(m_zonData);
+
+		SZONHeader* header = litReader.read_ptr<SZONHeader>();
+		if (strncmp(header->magic, "EQGZ", 4) == 0 && header->version == 2)
+		{
+			litReader.skip<char>(header->string_pool_size);
+			litReader.skip<int>(header->num_meshes);
+			litReader.skip<SZONInstance>();
+			uint32_t numLitVerts = litReader.read<uint32_t>();
+
+			uint32_t* litData = litReader.read_array<uint32_t>(numLitVerts);
+			litVerts = { litData, numLitVerts };
+		}
 	}
 
-	// TODO: Load this data and WLD regions directly into a terrain geometry object
-	std::shared_ptr<eqg::Geometry> model = std::make_shared<eqg::Geometry>();
-	model->tag = fmt::format("{}_ACTORDEF", tag);
-	model->vertices = std::move(vertices);
-	model->faces = std::move(faces);
-	model->material_palette = vertex_data.material_palette;
+	if (!litVerts.data())
+	{
+		uint32_t litSize;
+		litBuffer = m_archive->Get(litFileName, litSize);
+		if (!litBuffer)
+			litBuffer = m_resourceMgr->ReadFile(litFileName, litSize);
+		if (litBuffer)
+		{
+			BufferReader litReader(litBuffer, litSize);
 
-	terrain_model = model;
+			char* temp = litReader.read_array<char>(4);
+			if (temp && strncmp(temp, "EQGP", 4) == 0)
+			{
+				uint32_t numLitVerts = litReader.read<uint32_t>();
+				uint32_t* litData = litReader.read_array<uint32_t>(numLitVerts);
+
+				litVerts = { litData, numLitVerts };
+			}
+		}
+	}
+
+	if (!litVerts.empty() && litVerts.size() != eqmVertices.size())
+	{
+		EQG_LOG_WARN("LIT data vertex count mismatch: {} != {}", litVerts.size(), eqmVertices.size());
+		litVerts = {};
+	}
+
+	std::shared_ptr<Terrain> newTerrain = m_resourceMgr->CreateTerrain();
+
+	newTerrain->InitFromEQGData(eqmVertices, eqmFaces, litVerts, vertex_data.material_palette);
+
+	m_resourceMgr->SetTerrain(std::move(newTerrain));
 	return true;
 }
 
@@ -654,7 +678,7 @@ bool EQGLoader::ParseTerrainProject(const std::vector<char>& buffer)
 		return false;
 	}
 
-	terrain = loading_terrain;
+	m_resourceMgr->SetTerrainSystem(loading_terrain);
 	return true;
 }
 
@@ -711,9 +735,8 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 		}
 	}
 
-	m_resourceMgr->RemoveAllActors();
+	//m_resourceMgr->RemoveAllActors();
 
-	// load placables
 	EQG_LOG_TRACE("Parsing model instances.");
 
 	std::string_view instanceName = string_pool;
@@ -727,6 +750,7 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 
 		if (header->version > 1)
 		{
+			// V2 has a uint32 after each SZONInstance for the baked lighting
 			uint32_t numLitVerts = reader.read<uint32_t>();
 			uint32_t* pLitData = reader.read_array<uint32_t>(numLitVerts);
 
@@ -815,30 +839,30 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 			}
 			else
 			{
-				m_actors.push_back(actor);
+				m_resourceMgr->AddActor(std::move(actor));
 			}
 		}
 
 		instanceName = instanceName.data() + instanceName.size() + 1;
 	}
 
-	EQG_LOG_TRACE("Parsing zone regions.");
+	EQG_LOG_TRACE("Parsing zone areas.");
 
-	for (uint32_t i = 0; i < header->num_areas; ++i)
+	std::span<SZONArea> areas;
+	if (!reader.read_array(areas, header->num_areas))
 	{
-		SZONArea* area = reader.read_ptr<SZONArea>();
-
-		auto newArea = std::make_shared<TerrainArea>();
-		newArea->name = string_pool + area->name;
-		newArea->position = area->center;
-		newArea->orientation = area->orientation;
-		newArea->scale = glm::vec3(1.0f);
-		newArea->extents = area->extents;
-
-		newArea->transform = glm::translate(glm::identity<glm::mat4x4>(), newArea->position);
-		newArea->transform *= glm::mat4_cast(glm::quat{ area->orientation });
-		
-		areas.push_back(newArea);
+		EQG_LOG_ERROR("Failed to parse zone areas.");
+	}
+	else
+	{
+		if (const auto& terrain = m_resourceMgr->GetTerrain())
+		{
+			terrain->InitAreasFromEQGData(areas, string_pool);
+		}
+		else
+		{
+			EQG_LOG_ERROR("Missing terrain when trying to initialize areas!");
+		}
 	}
 
 	EQG_LOG_TRACE("Parsing zone lights.");
@@ -847,21 +871,18 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 	{
 		SZONLight* light = reader.read_ptr<SZONLight>();
 
-		auto newLight = std::make_shared<Light>();
-		newLight->tag = std::string(string_pool + light->name) + "_LIGHTDEF";
-		newLight->pos = light->pos;
-		newLight->color.push_back(light->color);
-		newLight->radius = light->radius;
+		LightDefinitionPtr lightDef = m_resourceMgr->CreateLightDefinition();
 
-		lights.push_back(newLight);
+		std::string lightTag = fmt::format("{}_LIGHTDEF", string_pool + light->name);
+
+		lightDef->Init(lightTag, 1, nullptr, &light->color, 0, 1, false);
+
+		std::shared_ptr<PointLight> pLight = m_resourceMgr->CreatePointLight(
+			string_pool + light->name, lightDef, light->pos, light->radius);
+		m_resourceMgr->AddLight(std::move(pLight));
 	}
 
 	return true;
-}
-
-bool EQGLoader::ParseZoneV2(const std::vector<char>& buffer, const std::string& tag)
-{
-	return ParseZone(buffer, tag);
 }
 
 //============================================================================

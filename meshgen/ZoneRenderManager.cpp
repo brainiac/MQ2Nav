@@ -1,4 +1,8 @@
+#include "pch.h"
 #include "meshgen/ResourceManager.h"
+
+#include "meshgen/EQComponents.h"
+#include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "meshgen/ZoneProject.h"
 #include "meshgen/ZoneRenderManager.h"
@@ -7,14 +11,13 @@
 #include "common/NavMesh.h"
 #include "im3d/im3d_math.h"
 
-#include <glm/gtc/type_ptr.hpp>
-#include <recast/DebugUtils/Include/DebugDraw.h>
-#include <recast/Detour/Include/DetourNavMeshQuery.h>
-#include <imgui/imgui.h>
-#include <math.h>
-
-#include "DetourDebugDraw.h"
-#include "Recast.h"
+#include "glm/gtc/type_ptr.hpp"
+#include "imgui/imgui.h"
+#include "recast/DebugUtils/Include/DebugDraw.h"
+#include "recast/DebugUtils/Include/DetourDebugDraw.h"
+#include "recast/Detour/Include/DetourNavMeshQuery.h"
+#include "recast/Recast/Include/Recast.h"
+#include <cmath>
 
 
 ZoneRenderManager* g_zoneRenderManager = nullptr;
@@ -425,14 +428,32 @@ void ZoneRenderManager::DrawGrid()
 	}
 }
 
+void ZoneRenderManager::RenderEntities()
+{
+	ZoneRenderDebugDraw dd(this);
+
+	//auto view = m_project->GetScene()->GetAllEntitiesWith<TransformComponent, AreaComponent>();
+	//for (auto [entity, transform, area] : view.each())
+	//{
+	//	dd.depthMask(false);
+	//	dd.begin(DU_DRAW_TRIS);
+
+	//	dd.end();
+
+	//	dd.begin(DU_DRAW_LINES, 2.0f);
+	//	dd.end();
+	//}
+}
+
 void ZoneRenderManager::Render()
 {
 	if (m_project && m_project->IsZoneLoaded())
 	{
 		DrawCollisionMesh();
 		DrawGrid();
-
+		RenderEntities();
 	}
+
 	if (!m_points.empty())
 	{
 		if (isValid(m_ddPointsVB) && m_points.size() == m_lastPointsSize)
