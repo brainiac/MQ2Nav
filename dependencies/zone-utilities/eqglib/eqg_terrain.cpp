@@ -5,6 +5,7 @@
 #include "archive.h"
 #include "buffer_reader.h"
 #include "eqg_material.h"
+#include "eqg_math.h"
 #include "eqg_resource_manager.h"
 #include "eqg_structs.h"
 #include "log_internal.h"
@@ -221,12 +222,6 @@ TerrainArea::TerrainArea(const std::string_view& name, const glm::vec3& position
 	, orientation(orientation)
 	, scale(scale)
 {
-	transform = glm::scale(glm::identity<glm::mat4x4>(), this->scale);
-	transform = glm::translate(transform, this->position);
-	transform *= glm::mat4_cast(glm::quat{ this->orientation });
-
-	//area->transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), area->position), glm::vec3(area->extents));
-	//area->transform *= glm::mat4_cast(glm::quat{ area->orientation });
 }
 
 //=================================================================================================
@@ -562,7 +557,7 @@ void Terrain::InitAreasFromEQGData(const std::span<SZONArea>& zonAreas, const ch
 	for (const SZONArea& area : zonAreas)
 	{
 		auto newArea = std::make_shared<TerrainArea>(stringPool + area.name,
-			area.center, area.orientation, area.extents);
+			area.center.yzx, EQ_TO_RAD(area.orientation).yxz, area.extents.yzx * 2.0f);
 
 		m_areas.push_back(std::move(newArea));
 	}

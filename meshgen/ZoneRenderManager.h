@@ -158,7 +158,7 @@ public:
 private:
 	void DrawCollisionMesh();
 	void DrawGrid();
-	void DrawEntities();
+	void RenderEntities();
 
 private:
 	ZoneProject* m_project;

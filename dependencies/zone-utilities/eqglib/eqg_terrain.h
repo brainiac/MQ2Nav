@@ -108,7 +108,6 @@ public:
 	glm::vec3 orientation;
 	glm::vec3 scale;
 
-	glm::mat4x4 transform;
 	class TerrainObjectGroup* group = nullptr;
 };
 using TerrainAreaPtr = std::shared_ptr<TerrainArea>;

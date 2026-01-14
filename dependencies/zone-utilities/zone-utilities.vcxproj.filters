@@ -90,6 +90,9 @@
     <ClInclude Include="eqglib\eqg_global_data.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="eqglib\eqg_math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqglib\eqg_loader.cpp">

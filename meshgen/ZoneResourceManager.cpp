@@ -139,8 +139,6 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 		{
 			AddArea(terrainArea);
 		}
-
-		
 	}
 
 
@@ -168,8 +166,8 @@ bool ZoneResourceManager::BuildCollisionMesh(ZoneCollisionMesh& collisionMesh)
 
 			for (int j = 0; j < (int)verts.size() - 1; ++j)
 			{
-				glm::vec3 v1 = verts[j].yxz;
-				glm::vec3 v2 = verts[j + 1].yxz;
+				glm::vec3 v1 = verts[j];
+				glm::vec3 v2 = verts[j + 1];
 
 				glm::vec3 v3 = v1;
 				v3.z += wallHeight;

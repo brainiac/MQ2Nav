@@ -2,6 +2,7 @@
 #include "meshgen/ResourceManager.h"
 
 #include "meshgen/EQComponents.h"
+#include "meshgen/Entity.h"
 #include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "meshgen/ZoneProject.h"
@@ -430,19 +431,79 @@ void ZoneRenderManager::DrawGrid()
 
 void ZoneRenderManager::RenderEntities()
 {
-	ZoneRenderDebugDraw dd(this);
+	if (!m_project || !m_project->GetScene())
+		return;
 
-	//auto view = m_project->GetScene()->GetAllEntitiesWith<TransformComponent, AreaComponent>();
-	//for (auto [entity, transform, area] : view.each())
-	//{
-	//	dd.depthMask(false);
-	//	dd.begin(DU_DRAW_TRIS);
+	auto view = m_project->GetScene()->GetAllEntitiesWith<TransformComponent, AreaComponent>();
+	for (auto [entity, transform, area] : view.each())
+	{
+		if (!area.draw)
+			continue;
 
-	//	dd.end();
+		// Get world space transform matrix
+		entt::handle handle{ m_project->GetScene()->GetRegistry(), entity };
+		glm::mat4 worldMatrix = GetWorldSpaceTransformMatrix(handle);
 
-	//	dd.begin(DU_DRAW_LINES, 2.0f);
-	//	dd.end();
-	//}
+		mq::MQColor fillColor_ = area.color;
+		fillColor_.Alpha = 51;
+		uint32_t fillColor = fillColor_.ToABGR();
+
+		static const glm::vec3 unitCubeVerts[8] = {
+			{ -0.5f, -0.5f, -0.5f },
+			{  0.5f, -0.5f, -0.5f },
+			{  0.5f, -0.5f,  0.5f },
+			{ -0.5f, -0.5f,  0.5f },
+			{ -0.5f,  0.5f, -0.5f },
+			{  0.5f,  0.5f, -0.5f },
+			{  0.5f,  0.5f,  0.5f },
+			{ -0.5f,  0.5f,  0.5f },
+		};
+
+		static const int faceIndices[6][12] = {
+			{ 4, 6, 5,  4, 7, 6,   4, 5, 6,  4, 6, 7 },
+			{ 0, 1, 2,  0, 2, 3,   0, 2, 1,  0, 3, 2 },
+			{ 1, 6, 2,  1, 5, 6,   1, 2, 6,  1, 6, 5 },
+			{ 0, 3, 7,  0, 7, 4,   0, 7, 3,  0, 4, 7 },
+			{ 2, 7, 3,  2, 6, 7,   2, 3, 7,  2, 7, 6 },
+			{ 0, 5, 1,  0, 4, 5,   0, 1, 5,  0, 5, 4 },
+		};
+
+		static const int edgeIndices[12][2] = {
+			{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 },
+			{ 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 },
+			{ 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
+		};
+
+		// Transform vertices to world space
+		glm::vec3 verts[8];
+		for (int i = 0; i < 8; ++i)
+		{
+			glm::vec4 v = worldMatrix * glm::vec4(unitCubeVerts[i], 1.0f);
+			verts[i] = glm::vec3(v);
+		}
+
+		uint16_t baseIndex = static_cast<uint16_t>(m_tris.size());
+		for (int i = 0; i < 8; ++i)
+		{
+			m_tris.emplace_back(verts[i], fillColor);
+		}
+		for (int face = 0; face < 6; ++face)
+		{
+			for (int tri = 0; tri < 12; ++tri)
+			{
+				m_triIndices.push_back(baseIndex + faceIndices[face][tri]);
+			}
+		}
+
+		ImColor wireImColor = area.color.ToImColor();
+
+		for (int edge = 0; edge < 12; ++edge)
+		{
+			const glm::vec3& v0 = verts[edgeIndices[edge][0]];
+			const glm::vec3& v1 = verts[edgeIndices[edge][1]];
+			m_lines.emplace_back(v0, 2.0f, wireImColor, v1, 2.0f, wireImColor);
+		}
+	}
 }
 
 void ZoneRenderManager::Render()
@@ -451,6 +512,9 @@ void ZoneRenderManager::Render()
 	{
 		DrawCollisionMesh();
 		DrawGrid();
+
+		m_navMeshRender->Render();
+
 		RenderEntities();
 	}
 
@@ -555,8 +619,6 @@ void ZoneRenderManager::Render()
 		m_tris.clear();
 		m_triIndices.clear();
 	}
-
-	m_navMeshRender->Render();
 }
 
 //----------------------------------------------------------------------------

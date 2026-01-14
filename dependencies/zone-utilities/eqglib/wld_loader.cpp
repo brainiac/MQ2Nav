@@ -10,6 +10,7 @@
 #include "eqg_geometry.h"
 #include "eqg_light.h"
 #include "eqg_material.h"
+#include "eqg_math.h"
 #include "eqg_particles.h"
 #include "eqg_resource_manager.h"
 #include "eqg_terrain.h"
@@ -19,8 +20,6 @@
 #include <ranges>
 
 namespace eqg {
-
-constexpr float EQ_TO_RAD = glm::pi<float>() / 256.0f;
 
 static const uint8_t decoder_array[] = { 0x95, 0x3A, 0xC5, 0x2A, 0x95, 0x7A, 0x95, 0x6A };
 
@@ -2075,11 +2074,7 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 
 	// Convert positional information.
 	glm::vec3 position = glm::vec3(location->x, location->y, location->z);
-	glm::vec3 orientation = glm::vec3(
-		location->roll * EQ_TO_RAD,
-		-location->pitch * EQ_TO_RAD,
-		location->heading * EQ_TO_RAD
-	);
+	glm::vec3 orientation = glm::vec3(location->roll, -location->pitch, location->heading);
 
 	std::shared_ptr<Actor> actor;
 	std::string actorName = wldObj.tag.empty() ? fmt::format("{}_{}", actorDef->GetTag(), objectIndex) : std::string(wldObj.tag);
@@ -2090,7 +2085,7 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 			actorTag,
 			actorDef,
 			position,
-			orientation,
+			EQ_TO_RAD(orientation),
 			scaleFactor,
 			collisionVolumeType,
 			boundingRadius,

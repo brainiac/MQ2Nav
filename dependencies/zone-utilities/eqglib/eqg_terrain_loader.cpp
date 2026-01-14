@@ -9,11 +9,9 @@
 #include "eqg_structs.h"
 #include "log_internal.h"
 
-#include <glm/gtx/matrix_decompose.hpp>
+#include "glm/gtx/matrix_decompose.hpp"
 
 namespace eqg {
-
-constexpr float EQ_TO_RAD = glm::pi<float>() / 256.0f;
 
 TerrainSystem::TerrainSystem(Archive* archive)
 	: m_archive(archive)
@@ -372,6 +370,10 @@ bool InvisibleWall::Load(BufferReader& reader)
 
 	if (!reader.read(m_vertices.data(), m_vertices.size()))
 		return false;
+
+	// Convert coordinate system
+	for (glm::vec3& vert : m_vertices)
+		vert = vert.yxz;
 
 	return true;
 }
@@ -918,7 +920,7 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 			loc -= glm::ivec2{ 100000, 100000 };
 
 			std::shared_ptr<TerrainArea> area = std::make_shared<TerrainArea>(name,
-				GetPosInTile(pos), glm::radians(rot).zyx, size * 0.5f, type);
+				GetPosInTile(pos).yzx, glm::radians(rot).yzx, size.yzx, type);
 
 			// Is scale always 1?
 			if (scale != glm::vec3(1.0f, 1.0f, 1.0f))
@@ -1052,8 +1054,8 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 	m_areas.reserve(definition->areas.size());
 	for (const auto& area : definition->areas)
 	{
-		auto newArea = std::make_shared<TerrainArea>(area->name, area->position,
-			glm::radians(area->orientation).zyx, area->extents * 0.5f);
+		auto newArea = std::make_shared<TerrainArea>(area->name, area->position.yzx,
+			glm::radians(area->orientation).yzx, area->extents.yzx);
 		newArea->group = this;
 
 		m_areas.push_back(newArea);
