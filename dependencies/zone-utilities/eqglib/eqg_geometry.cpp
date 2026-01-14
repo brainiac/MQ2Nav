@@ -77,7 +77,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 		m_vertices.resize(m_numVertices * m_numFrames);
 		for (uint32_t i = 0; i < m_numVertices; ++i)
 		{
-			m_vertices[i] = centerOffset + glm::vec3(pWldData->vertices[i]) * scaleFactor;
+			m_vertices[i] = (centerOffset + glm::vec3(pWldData->vertices[i]) * scaleFactor).yzx;
 
 			m_aabb.enclose(m_vertices[i]);
 		}
@@ -123,7 +123,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 
 			for (size_t vert = 0; vert < m_numVertices; ++vert)
 			{
-				m_normals[vert] = glm::vec3(pWldData->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
+				m_normals[vert] = (glm::vec3(pWldData->vertexNormals[vert]) * S3D_NORM_TO_FLOAT).yzx;
 			}
 		}
 
@@ -146,7 +146,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 			// Vertices follow the header
 			glm::i16vec3* trackVertices = (glm::i16vec3*)(trackDef + 1);
 			const float scaleFactor = 1.0f / (float)(1 << trackDef->scale);
-			const glm::vec3 centerOffset = pWldData->centerOffset;
+			const glm::vec3 centerOffset = pWldData->centerOffset.yzx;
 
 			for (uint32_t curFrame = 0; curFrame < m_numFrames; ++curFrame)
 			{
@@ -156,7 +156,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 				{
 					uint32_t vertex = offset + frameVertex;
 
-					m_vertices[vertex] = centerOffset + glm::vec3(trackVertices[vertex]) * scaleFactor;
+					m_vertices[vertex] = (centerOffset + glm::vec3(trackVertices[vertex]) * scaleFactor).yzx;
 
 					m_aabb.enclose(m_vertices[vertex]);
 				}
@@ -300,12 +300,12 @@ void SimpleModelDefinition::InitVerticesFromEQMData(std::vector<SEQMVertex>&& ve
 
 		for (uint32_t i = 0; i < m_numVertices; ++i)
 		{
-			m_vertices[i] = vertices[i].pos;
+			m_vertices[i] = vertices[i].pos.yzx;
 			m_uvs[i] = vertices[i].uv;
 			m_uv2s[i] = vertices[i].uv2;
 			m_colors[i] = 0xffffffff;
 			m_colorTint[i] = vertices[i].color;
-			m_normals[i] = vertices[i].normal;
+			m_normals[i] = vertices[i].normal.yzx;
 
 			m_aabb.enclose(m_vertices[i]);
 		}

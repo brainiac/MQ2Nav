@@ -2073,8 +2073,8 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 	std::string actorTag = wldObj.tag.empty() ? fmt::format("ZoneActor_{:05}", objectIndex) : std::string(wldObj.tag);
 
 	// Convert positional information.
-	glm::vec3 position = glm::vec3(location->x, location->y, location->z);
-	glm::vec3 orientation = glm::vec3(location->roll, -location->pitch, location->heading);
+	glm::vec3 position = glm::vec3(location->y, location->z, location->x);
+	glm::vec3 orientation = glm::vec3(-location->pitch, location->heading, location->roll);
 
 	std::shared_ptr<Actor> actor;
 	std::string actorName = wldObj.tag.empty() ? fmt::format("{}_{}", actorDef->GetTag(), objectIndex) : std::string(wldObj.tag);
@@ -2099,8 +2099,8 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 		actor = m_resourceMgr->CreateHierarchicalActor(
 			actorTag,
 			actorDef,
-			position,
-			orientation,
+			position.yzx,
+			EQ_TO_RAD(orientation).yzx,
 			scaleFactor,
 			collisionVolumeType,
 			boundingRadius,
@@ -2877,6 +2877,7 @@ bool WLDLoader::ParseWorldTree(uint32_t objectIndex, STerrainWLDData& terrain)
 		SWorldTreeNodeWLDData& node = worldTree.nodes[i];
 
 		node.plane = data->plane;
+		node.plane.normal = node.plane.normal.yzx;
 		node.region = data->region;
 		node.front = data->node[0];
 		node.back = data->node[1];

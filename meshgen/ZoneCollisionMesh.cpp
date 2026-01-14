@@ -73,9 +73,9 @@ void ZoneCollisionMesh::addTriangle(const glm::vec3& v1, const glm::vec3& v2, co
 {
 	int index = m_vertCount;
 
-	addVertex(v1.y, v1.z, v1.x);
-	addVertex(v2.y, v2.z, v2.x);
-	addVertex(v3.y, v3.z, v3.x);
+	addVertex(v1.x, v1.y, v1.z);
+	addVertex(v2.x, v2.y, v2.z);
+	addVertex(v3.x, v3.y, v3.z);
 
 	addTriangle(index, index + 1, index + 2);
 }

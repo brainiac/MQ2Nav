@@ -327,7 +327,7 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 
 			for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 			{
-				glm::vec3 newVert = centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor;
+				glm::vec3 newVert = (centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor).yzx;
 				m_vertices[vertexOffset + vert] = newVert;
 
 				m_aabb.enclose(newVert);
@@ -371,7 +371,7 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 			{
 				for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 				{
-					m_normals[vertexOffset + vert] = glm::vec3(pDMSpriteDef2->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
+					m_normals[vertexOffset + vert] = glm::vec3(pDMSpriteDef2->vertexNormals[vert]).yzx * S3D_NORM_TO_FLOAT;
 				}
 			}
 

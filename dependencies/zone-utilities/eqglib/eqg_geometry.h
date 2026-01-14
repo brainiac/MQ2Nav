@@ -346,7 +346,6 @@ public:
 	std::vector<uint32_t>         m_collidableIndices;
 	aabb                          m_collisionBox{ aabb::init_invalid };
 
-
 	aabb                          m_aabb{ aabb::init_invalid };
 	glm::vec3                     m_centerOffset = glm::vec3(0.0f);
 	float                         m_boundingRadius = 0.0f;
