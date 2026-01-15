@@ -814,8 +814,8 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 
 			ECollisionVolumeType volumetype = eCollisionVolumeNone;
 			float boundingRadius = pActorDef->CalculateBoundingRadius();
-			glm::vec3 pos = instance->translation;
-			glm::vec3 orientation = glm::vec3(instance->rotation.z, instance->rotation.y, instance->rotation.x);
+			glm::vec3 pos = instance->translation.yzx;
+			glm::vec3 orientation = glm::vec3(instance->rotation.z, instance->rotation.y, instance->rotation.x).yzx;
 			float scale = instance->scale;
 
 			std::string actorTag = fmt::format("ZoneActor_{:05}", instanceId);

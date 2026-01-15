@@ -665,7 +665,7 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(
 			actor = resourceMgr->CreateSimpleActor(
 				tag,
 				pActorDef,
-				groupElement->position,
+				groupElement->position.yzx,
 				glm::vec3(0.0f),
 				groupElement->scale,
 				pActorDef->GetSimpleModelDefinition()->GetDefaultCollisionType(),
@@ -884,13 +884,12 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 				obj->orientation = glm::radians(rot);
 				obj->scale = scale;
 
-				// TODO: Update position into actor
 				obj->transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), obj->position), obj->scale);
 				obj->transform *= glm::mat4_cast(glm::quat{ obj->orientation });
 
 
-				obj->m_actor->SetPosition(obj->position);
-				obj->m_actor->SetOrientation(obj->orientation);
+				obj->m_actor->SetPosition(obj->position.yzx);
+				obj->m_actor->SetOrientation(obj->orientation.yzx);
 				obj->m_actor->SetScale(obj->scale.x);
 
 				m_objects.push_back(obj);
@@ -1039,8 +1038,8 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 			glm::decompose(newObject->transform, newObject->scale, orient, newObject->position, skew, perspective);
 			newObject->orientation = glm::eulerAngles(orient);
 
-			newObject->m_actor->SetPosition(newObject->position);
-			newObject->m_actor->SetOrientation(newObject->orientation);
+			newObject->m_actor->SetPosition(newObject->position.yzx);
+			newObject->m_actor->SetOrientation(newObject->orientation.yzx);
 			newObject->m_actor->SetScale(newObject->scale.x);
 
 			m_objects.push_back(newObject);
@@ -1403,7 +1402,7 @@ bool WaterSheet::Init(const std::vector<std::string>& tokens, size_t& k)
 	glm::vec3 orientation(0.0f);
 	glm::vec3 position = glm::vec3(glm::vec2(m_minX, m_minY) + center, m_zHeight);
 
-	m_actor = resourceMgr->CreateSimpleActor(m_name, pActorDef, position, orientation, 1.0f, eCollisionVolumeNone, 1.0f, -1, nullptr, {}, m_name);
+	m_actor = resourceMgr->CreateSimpleActor(m_name, pActorDef, position.yzx, orientation.yzx, 1.0f, eCollisionVolumeNone, 1.0f, -1, nullptr, {}, m_name);
 	m_actor->GetSimpleModel()->InitBatchInstances();
 
 	resourceMgr->AddActor(m_actor);

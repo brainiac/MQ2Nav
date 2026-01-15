@@ -1005,7 +1005,7 @@ void ZoneResourceManager::CreateWldAreaEntities(const eqg::Terrain& terrain)
 		hullComp.edges = std::move(hull.edges);
 		hullComp.environment = hull.environment;
 		hullComp.areaTag = std::move(hull.areaTag);
-
+		hullComp.color = AreaEnvironmentToColor(hull.environment);
 
 	}
 
