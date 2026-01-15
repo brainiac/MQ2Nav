@@ -39,16 +39,17 @@ struct AreaEnvironment
 		TeleportIndex = 0x40,
 	};
 
-	Type      type;
-	Flags     flags;
-	int16_t   teleportIndex;
+	Type      type{ Type_None };
+	Flags     flags{ Flags_None };
+	int16_t   teleportIndex : 15 = -1;
+	int16_t   hasTeleportEntry : 1 = 0;
 
 	AreaEnvironment(std::string_view areaTag, uint32_t type = 0);
-	AreaEnvironment() : type(Type_None), flags(Flags_None), teleportIndex(0) {}
-	AreaEnvironment(Type env) : type(env), flags(Flags_None), teleportIndex(0) {}
-	AreaEnvironment(Flags flags) : type(Type_None), flags(flags), teleportIndex(0) {}
-	AreaEnvironment(Flags flags, uint16_t teleportIndex) : type(Type_None), flags(flags), teleportIndex(teleportIndex) {}
-	AreaEnvironment(Type env, Flags flags) : type(env), flags(flags), teleportIndex(0) {}
+	AreaEnvironment() = default;
+	AreaEnvironment(Type env) : type(env) {}
+	AreaEnvironment(Flags flags) : flags(flags) {}
+	AreaEnvironment(Flags flags, uint16_t teleportIndex) : flags(flags), teleportIndex(teleportIndex) {}
+	AreaEnvironment(Type env, Flags flags) : type(env), flags(flags) {}
 	AreaEnvironment(Type env, Flags flags, uint16_t teleportIndex) : type(env), flags(flags), teleportIndex(teleportIndex) {}
 
 	// Combines another environment with this one to produce a new environment with flags mixed
@@ -66,17 +67,17 @@ inline AreaEnvironment::Flags operator&=(AreaEnvironment::Flags& a, AreaEnvironm
 inline AreaEnvironment AreaEnvironment::operator|(AreaEnvironment other) const
 {
 	// Other environment type replacees, but flags mix.
-	return AreaEnvironment(other.type, flags | other.flags, other.teleportIndex ? other.teleportIndex : 0);
+	return AreaEnvironment(other.type, flags | other.flags, other.teleportIndex ? other.teleportIndex : -1);
 }
 
 struct AreaTeleport
 {
 	std::string tag;
-	int teleportIndex;
+	int teleportIndex{ -1 };
 
-	glm::vec3 position;
-	float heading;
-	int zoneId;
+	glm::vec3 position{};
+	float heading{};
+	int zoneId{};
 };
 bool ParseAreaTeleportTag(std::string_view areaTag, AreaTeleport& teleport);
 
@@ -124,6 +125,8 @@ public:
 	void InitAreasFromEQGData(const std::span<SZONArea>& zonAreas, const char* stringPool);
 
 	void AddArea(const TerrainAreaPtr& area) { m_areas.push_back(area); }
+
+private:
 
 public:
 	std::vector<glm::vec3> m_vertices;

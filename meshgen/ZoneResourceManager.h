@@ -54,6 +54,8 @@ public:
 	int GetNumArchives() const;
 	eqg::Archive* GetArchive(int index) const;
 
+	eqg::ResourceManager* GetResourceManager() const { return m_resourceMgr.get(); }
+
 	bool BuildScene(Scene& scene);
 
 private:
@@ -90,6 +92,7 @@ private:
 	void RemovePointLight(const eqg::PointLightPtr& light);
 
 	void AddArea(const eqg::TerrainAreaPtr& areaPtr);
+	void CreateWldAreaEntities(const eqg::Terrain& terrain);
 
 	void AddFace(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, bool collidable);
 

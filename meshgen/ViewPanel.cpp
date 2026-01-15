@@ -30,6 +30,12 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		if (ImGui::Checkbox("Draw Grid", &drawGrid))
 			renderManager->SetDrawGrid(drawGrid);
 
+		ImGui::SeparatorText("Debug Visualization");
+
+		bool drawBspPlanes = renderManager->GetDrawBspPlanes();
+		if (ImGui::Checkbox("Draw BSP Planes", &drawBspPlanes))
+			renderManager->SetDrawBspPlanes(drawBspPlanes);
+
 		ImGui::SeparatorText("Navigation Mesh Render");
 		auto navMeshRender = renderManager->GetNavMeshRender();
 

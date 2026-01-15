@@ -1,23 +1,38 @@
 
 #pragma once
 
-#include <entt/entity/registry.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
+#include "mq/base/Color.h"
+
+#include "entt/entity/registry.hpp"
+#include "glm/gtx/quaternion.hpp"
+#include "glm/gtx/matrix_decompose.hpp"
 
 namespace eqg
 {
 	class Actor;
 }
 
-struct NameComponent
+struct IdentityComponent
 {
 	std::string name;
 };
 
-struct TagComponent
+enum class EntityType
 {
-	std::string tag;
+	Actor,
+	Area,
+	PointLight,
+
+	Unspecified,
+};
+
+struct EntityTypeComponent
+{
+	EntityType type = EntityType::Unspecified;
+};
+
+struct HiddenComponent
+{
 };
 
 struct HierarchicalComponent
@@ -90,4 +105,26 @@ private:
 public:
 	__declspec(property(get = GetRotation, put = SetRotation)) glm::quat rotation;
 	__declspec(property(get = GetRotationEuler, put = SetRotationEuler)) glm::vec3 rotationEuler;
+};
+
+struct TagComponent
+{
+	std::string tag;
+};
+
+//============================================================================
+// Render components
+
+struct RenderBoundingBoxComponent
+{
+	mq::MQColor color;
+};
+
+struct RenderConvexHulls
+{
+	// Hull geometry for rendering
+	std::vector<glm::vec3> vertices;
+	std::vector<uint16_t> triangleIndices;  // Triangulated faces
+	std::vector<std::pair<uint16_t, uint16_t>> edges;  // Wireframe edges
+	mq::MQColor color;
 };

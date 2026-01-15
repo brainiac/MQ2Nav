@@ -10,7 +10,7 @@ Scene::Scene(const std::string& name)
 	: m_name(name)
 {
 	m_sceneEntity = m_registry.create();
-	m_registry.emplace<NameComponent>(m_sceneEntity, name);
+	m_registry.emplace<IdentityComponent>(m_sceneEntity, name);
 }
 
 Scene::~Scene()
@@ -37,7 +37,7 @@ entt::handle Scene::CreateEntityWithParent(const entt::entity& parent, const std
 	
 	if (!name.empty())
 	{
-		m_registry.emplace<NameComponent>(entity, std::string{ name });
+		m_registry.emplace<IdentityComponent>(entity, std::string{ name });
 	}
 
 	[[maybe_unused]] auto& xform = m_registry.emplace<TransformComponent>(entity);

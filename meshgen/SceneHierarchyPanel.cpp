@@ -56,7 +56,7 @@ void SceneHierarchyPanel::OnImGuiRender(bool* p_open)
 					ImGui::TableSetupScrollFreeze(0, 1);
 					ImGui::TableHeadersRow();
 
-					auto view = m_scene->GetAllEntitiesWith<NameComponent>();
+					auto view = m_scene->GetAllEntitiesWith<IdentityComponent>();
 					for (auto entity : view)
 					{
 						entt::handle handle{ m_scene->GetRegistry(), entity };
@@ -83,7 +83,7 @@ void SceneHierarchyPanel::OnImGuiRender(bool* p_open)
 
 void SceneHierarchyPanel::DrawEntityRow(const entt::handle& entity)
 {
-	NameComponent& tag = entity.get<NameComponent>();
+	IdentityComponent& tag = entity.get<IdentityComponent>();
 	std::string_view name = tag.name;
 	if (name.empty())
 		name = "Unnamed";

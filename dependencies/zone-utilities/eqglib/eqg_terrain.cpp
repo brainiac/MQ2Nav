@@ -197,7 +197,7 @@ bool ParseAreaTeleportTag(std::string_view areaTag, AreaTeleport& teleport)
 	std::string_view x = areaTag.substr(10, 6); // [10-16)
 	if (areaTag.length() < 31 || teleport.zoneId == 255)
 	{
-		teleport.teleportIndex = str_to_int(x, 0);
+		teleport.teleportIndex = str_to_int(x, -1);
 		return true;
 	}
 	teleport.position.x = str_to_float(x, 0);
@@ -207,6 +207,8 @@ bool ParseAreaTeleportTag(std::string_view areaTag, AreaTeleport& teleport)
 
 	std::string_view z = areaTag.substr(22, 6); // [22-28)
 	teleport.position.z = str_to_float(z, 0);
+
+	teleport.position = teleport.position.yzx;
 
 	std::string_view heading = areaTag.substr(28, 3); // [28-31)
 	teleport.heading = str_to_float(heading, 0)/* * EQ_TO_RAD*/;
@@ -470,8 +472,23 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 					}
 					else
 					{
-						teleport.teleportIndex = (int)m_teleports.size();
-						m_teleports.push_back(teleport);
+						auto iter = std::ranges::find_if(m_teleports,
+							[&areaTag](const AreaTeleport& teleport)
+						{
+							return teleport.tag == areaTag;
+						});
+
+						if (iter == m_teleports.end())
+						{
+							teleport.teleportIndex = (int)m_teleports.size();
+							env.hasTeleportEntry = true;
+							m_teleports.push_back(teleport);
+						}
+						else
+						{
+							env.hasTeleportEntry = true;
+							teleport.teleportIndex = (int)std::distance(m_teleports.begin(), iter);
+						}
 					}
 
 					env.teleportIndex = (int16_t)teleport.teleportIndex;

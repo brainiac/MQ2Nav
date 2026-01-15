@@ -4,6 +4,7 @@
 
 #include "meshgen/ZoneResourceManager.h"
 #include "meshgen/ApplicationConfig.h"
+#include "meshgen/ConvexHullBuilder.h"
 #include "meshgen/EQComponents.h"
 #include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
@@ -135,14 +136,21 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 
 	if (terrain)
 	{
+		// EQG zones use TerrainArea with bounding boxes
 		for (const eqg::TerrainAreaPtr& terrainArea : terrain->m_areas)
 		{
 			AddArea(terrainArea);
 		}
+
+		// WLD zones use BSP trees for area bounds
+		if (terrain->m_wldBspTree && !terrain->m_wldAreas.empty())
+		{
+			CreateWldAreaEntities(*terrain);
+		}
 	}
 
 
-	registry.sort<NameComponent>([](const NameComponent& lhs, const NameComponent& rhs) {
+	registry.sort<IdentityComponent>([](const IdentityComponent& lhs, const IdentityComponent& rhs) {
 		return mq::ci_string_compare(lhs.name, rhs.name) < 0;
 	});
 	return true;
@@ -910,6 +918,53 @@ void ZoneResourceManager::RemovePointLight(const eqg::PointLightPtr& light)
 	m_lights.erase(iter);
 }
 
+mq::MQColor AreaEnvironmentToColor(const eqg::AreaEnvironment& env)
+{
+	mq::MQColor color;
+
+	// Set color based on environment type
+	switch (env.type)
+	{
+	case eqg::AreaEnvironment::UnderWater:
+		color = mq::MQColor(0, 0, 255); // blue
+		break;
+	case eqg::AreaEnvironment::UnderLava:
+		color = mq::MQColor(255, 0, 0); // red
+		break;
+	case eqg::AreaEnvironment::UnderIceWater:
+		color = mq::MQColor(128, 0, 128); // purple
+		break;
+	case eqg::AreaEnvironment::UnderSlime:
+		color = mq::MQColor(75, 255, 75); // green
+		break;
+	case eqg::AreaEnvironment::Fog:
+		color = mq::MQColor(198, 147, 10); // brownish
+		break;
+	case eqg::AreaEnvironment::Portal:
+		color = mq::MQColor(255, 0, 255); // magenta
+		break;
+	default:
+		color = mq::MQColor(255, 255, 255); // white
+	}
+
+	// Override color for special flags
+	if (env.flags & eqg::AreaEnvironment::Kill)
+	{
+		color = mq::MQColor(255, 165, 0); // orange
+	}
+	else if (env.flags & eqg::AreaEnvironment::Slippery)
+	{
+		color = mq::MQColor(0, 240, 240); // cyan
+	}
+	else if (env.flags & eqg::AreaEnvironment::Teleport
+		|| env.flags & eqg::AreaEnvironment::TeleportIndex)
+	{
+		color = mq::MQColor(255, 255, 0); // yellow
+	}
+
+	return color;
+}
+
 void ZoneResourceManager::AddArea(const eqg::TerrainAreaPtr& areaPtr)
 {
 	entt::handle entity = m_scene->CreateEntity(areaPtr->name);
@@ -921,45 +976,38 @@ void ZoneResourceManager::AddArea(const eqg::TerrainAreaPtr& areaPtr)
 
 	AreaComponent& areaComponent = entity.emplace<AreaComponent>();
 	areaComponent.area = areaPtr;
-	areaComponent.draw = true;
+	areaComponent.color = AreaEnvironmentToColor(areaPtr->environment);
 
-	switch (areaPtr->environment.type)
+	RenderBoundingBoxComponent& renderComponent = entity.emplace<RenderBoundingBoxComponent>();
+	renderComponent.color = AreaEnvironmentToColor(areaPtr->environment);
+}
+
+void ZoneResourceManager::CreateWldAreaEntities(const eqg::Terrain& terrain)
+{
+	if (!terrain.m_wldBspTree)
 	{
-	case eqg::AreaEnvironment::UnderWater:
-		areaComponent.color = mq::MQColor(0, 0, 255); // blue
-		break;
-
-	case eqg::AreaEnvironment::UnderLava:
-		areaComponent.color = mq::MQColor(255, 0, 0); // red
-		break;
-
-	case eqg::AreaEnvironment::UnderIceWater:
-		areaComponent.color = mq::MQColor(128, 0, 128); // purple
-		break;
-
-	case eqg::AreaEnvironment::Fog:
-		areaComponent.color = mq::MQColor(198, 147, 10); // brownish
-		break;
-
-	case eqg::AreaEnvironment::Portal:
-		areaComponent.color = mq::MQColor(255, 0, 255); // magenta
-		break;
-
-	default:
-		areaComponent.color = mq::MQColor(255, 255, 255); // white
+		return;
 	}
 
-	if (areaPtr->environment.flags & eqg::AreaEnvironment::Kill)
+	auto hulls = BuildConvexHullsFromTerrain(terrain);
+
+	for (auto& hull : hulls)
 	{
-		areaComponent.color = mq::MQColor(255, 165, 0); // orange
+		if (hull.vertices.empty() || hull.triangleIndices.empty())
+			continue;
+
+		entt::handle entity = m_scene->CreateEntity(hull.areaTag);
+
+		// Create convex hull component
+		ConvexHullComponent& hullComp = entity.emplace<ConvexHullComponent>();
+		hullComp.vertices = std::move(hull.vertices);
+		hullComp.triangleIndices = std::move(hull.triangleIndices);
+		hullComp.edges = std::move(hull.edges);
+		hullComp.environment = hull.environment;
+		hullComp.areaTag = std::move(hull.areaTag);
+
+
 	}
-	else if (areaPtr->environment.flags & eqg::AreaEnvironment::Slippery)
-	{
-		areaComponent.color = mq::MQColor(0, 255, 0); // green
-	}
-	else if (areaPtr->environment.flags & eqg::AreaEnvironment::Teleport
-		|| areaPtr->environment.flags & eqg::AreaEnvironment::TeleportIndex)
-	{
-		areaComponent.color = mq::MQColor(255, 255, 0); // yellow
-	}
+
+	SPDLOG_INFO("Created {} WLD area entities from BSP tree", hulls.size());
 }

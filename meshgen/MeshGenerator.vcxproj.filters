@@ -68,6 +68,9 @@
     <ClCompile Include="ZoneResourceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ConvexHullBuilder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="ApplicationConfig.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -191,6 +194,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ZoneResourceManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ConvexHullBuilder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ApplicationConfig.h">
