@@ -35,6 +35,8 @@ void ZoneCollisionMesh::setMaxExtents(const std::pair<glm::vec3, glm::vec3>& max
 
 void ZoneCollisionMesh::addVertex(float x, float y, float z)
 {
+	if (x < -10000 || y < -10000 || z < -10000)
+		return;
 	if (m_vertCount + 1 > vcap)
 	{
 		vcap = !vcap ? 8 : vcap * 2;
@@ -193,8 +195,7 @@ void ZoneCollisionMesh::addActor(entt::handle handle, const eqg::Actor* actor)
 {
 	TransformComponent& transform = handle.get<TransformComponent>();
 
-	// some objects have a really wild position, just ignore them.
-	if (IsPositionOutOfBounds(transform.position))
+	if (handle.any_of<HiddenComponent>())
 		return;
 
 	// Get model transform

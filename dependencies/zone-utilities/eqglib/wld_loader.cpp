@@ -2099,8 +2099,8 @@ bool WLDLoader::ParseActorInstance(uint32_t objectIndex)
 		actor = m_resourceMgr->CreateHierarchicalActor(
 			actorTag,
 			actorDef,
-			position.yzx,
-			EQ_TO_RAD(orientation).yzx,
+			position,
+			EQ_TO_RAD(orientation),
 			scaleFactor,
 			collisionVolumeType,
 			boundingRadius,

@@ -876,6 +876,12 @@ void ZoneResourceManager::AddActor(const eqg::ActorPtr& actor)
 		collisionComponent.boundingRadius = actor->GetBoundingRadius();
 	}
 
+	// some objects have a really wild position, just disable them.
+	if (IsPositionOutOfBounds(transform.position))
+	{
+		entity.emplace<HiddenComponent>();
+	}
+
 	m_actors.emplace(actor.get(), entity);
 }
 

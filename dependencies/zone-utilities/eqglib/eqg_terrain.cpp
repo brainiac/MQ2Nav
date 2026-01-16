@@ -533,8 +533,8 @@ bool Terrain::InitFromEQGData(
 	{
 		SEQMVertex& inVertex = vertices[index];
 
-		m_vertices[m_vertexOffset + index] = inVertex.pos;
-		m_normals[m_vertexOffset + index] = inVertex.normal;
+		m_vertices[m_vertexOffset + index] = inVertex.pos.yzx;
+		m_normals[m_vertexOffset + index] = inVertex.normal.yzx;
 		m_uvs[m_vertexOffset + index] = inVertex.uv;
 		m_uvs2[m_vertexOffset + index] = inVertex.uv2;
 

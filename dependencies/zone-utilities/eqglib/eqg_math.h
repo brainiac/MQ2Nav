@@ -9,7 +9,7 @@ constexpr float EQ_TO_RAD(IsArithmetic auto value)
 {
 	// EQ uses a lookup table, we use math, but if we handle fractional parts
 	// we will end up with different numbers than EQ.
-	return static_cast<int>(value) / 256.0f;
+	return static_cast<int>(value) * glm::pi<float>() * 0.00390625f; // 1/256
 }
 
 template <typename T, glm::qualifier Q>

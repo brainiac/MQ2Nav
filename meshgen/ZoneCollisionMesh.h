@@ -13,7 +13,8 @@
 
 inline bool IsPositionOutOfBounds(const glm::vec3& pos)
 {
-	return pos.z < -30000 || pos.x > 15000 || pos.y > 15000 || pos.z > 15000;
+	return pos.z < -15000 || pos.y < -15000 || pos.x < -15000
+		|| pos.x > 15000 || pos.y > 15000 || pos.z > 15000;
 }
 
 class ZoneCollisionMesh
