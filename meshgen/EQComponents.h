@@ -38,20 +38,28 @@ struct AreaComponent
 	mq::MQColor color;
 };
 
-struct WldAreaComponent
+struct WireframeMeshComponent
 {
+	std::vector<glm::vec3> vertices;
+	std::vector<uint16_t>  indices;
+	std::vector<std::pair<uint16_t, uint16_t>> edges;  // Wireframe edges
 };
 
-// Convex hull computed from WLD BSP tree for rendering area bounds
 struct ConvexHullComponent
 {
-	// Hull geometry for rendering
 	std::vector<glm::vec3> vertices;
-	std::vector<uint16_t> triangleIndices;  // Triangulated faces
-	std::vector<std::pair<uint16_t, uint16_t>> edges;  // Wireframe edges
+	std::vector<uint16_t>  indices;
+};
+
+struct WldAreaComponent
+{
+	eqg::AreaEnvironment environment;
+	eqg::AreaTeleport teleport;
+
+	uint32_t areaIndex;
+	const eqg::SArea* area;
 	mq::MQColor color;
 
-	// Area information
-	eqg::AreaEnvironment environment;
-	std::string areaTag;
+	std::vector<ConvexHullComponent> hulls;
 };
+

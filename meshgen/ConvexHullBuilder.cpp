@@ -121,13 +121,13 @@ void BuildConvexHull(const aabb& aabb, ConvexHullResult& result, const std::vect
 		for (size_t i = 1; i + 1 < faceIndices.size(); ++i)
 		{
 			// Front
-			result.triangleIndices.push_back((uint16_t)faceIndices[0]);
-			result.triangleIndices.push_back((uint16_t)faceIndices[i]);
-			result.triangleIndices.push_back((uint16_t)faceIndices[i + 1]);
+			result.indices.push_back((uint16_t)faceIndices[0]);
+			result.indices.push_back((uint16_t)faceIndices[i]);
+			result.indices.push_back((uint16_t)faceIndices[i + 1]);
 			// Back
-			result.triangleIndices.push_back((uint16_t)faceIndices[0]);
-			result.triangleIndices.push_back((uint16_t)faceIndices[i + 1]);
-			result.triangleIndices.push_back((uint16_t)faceIndices[i]);
+			result.indices.push_back((uint16_t)faceIndices[0]);
+			result.indices.push_back((uint16_t)faceIndices[i + 1]);
+			result.indices.push_back((uint16_t)faceIndices[i]);
 		}
 	}
 }
@@ -161,19 +161,11 @@ void BuildConvexHull(const eqg::Terrain& terrain, std::vector<ConvexHullResult>&
 			}
 
 			ConvexHullResult result;
-
-			result.environment = env;
-			const eqg::SArea& area = terrain.m_wldAreas[areaIndices[regionIndex]];
-			result.areaTag = area.tag;
-
-			if (result.environment.hasTeleportEntry)
-			{
-				result.teleport = &terrain.m_teleports[result.environment.teleportIndex];
-			}
+			result.regionIndex = regionIndex;
 
 			BuildConvexHull(terrain.m_aabb, result, planes);
 			
-			if (!result.triangleIndices.empty())
+			if (!result.indices.empty())
 			{
 				results.push_back(std::move(result));
 			}
@@ -227,7 +219,7 @@ void TraverseBSP(
 	}
 }
 
-std::vector<ConvexHullResult> BuildConvexHullsFromTerrain(const eqg::Terrain& terrain)
+std::vector<ConvexHullResult> BuildConvexHullsFromRegions(const eqg::Terrain& terrain)
 {
 	std::vector<ConvexHullResult> results;
 

@@ -19,6 +19,7 @@
 #include "rapidjson/document.h"
 #include "spdlog/spdlog.h"
 #include <filesystem>
+#include <ranges>
 #include <sstream>
 
 #define SKIP_GLOBAL_LOAD 1
@@ -995,25 +996,103 @@ void ZoneResourceManager::CreateWldAreaEntities(const eqg::Terrain& terrain)
 		return;
 	}
 
-	auto hulls = BuildConvexHullsFromTerrain(terrain);
+	SPDLOG_INFO("Generating area volumes from BSP Tree");
+
+	auto hulls = BuildConvexHullsFromRegions(terrain);
+
+	std::unordered_map<uint32_t, WireframeMeshComponent*> wireframeComponents;
+	std::unordered_map<uint32_t, entt::handle> handles;
+
+	auto& areaIndices = terrain.m_wldAreaIndices;
+	auto& areas = terrain.m_wldAreas;
+	auto& environments = terrain.m_wldAreaEnvironments;
 
 	for (auto& hull : hulls)
 	{
-		if (hull.vertices.empty() || hull.triangleIndices.empty())
+		if (hull.vertices.empty() || hull.indices.empty())
 			continue;
 
-		entt::handle entity = m_scene->CreateEntity(hull.areaTag);
+		uint32_t areaIndex = areaIndices[hull.regionIndex];
+		WireframeMeshComponent* wireframeComponent;
+		ConvexHullComponent* convexHull = nullptr;
 
-		// Create convex hull component
-		ConvexHullComponent& hullComp = entity.emplace<ConvexHullComponent>();
-		hullComp.vertices = std::move(hull.vertices);
-		hullComp.triangleIndices = std::move(hull.triangleIndices);
-		hullComp.edges = std::move(hull.edges);
-		hullComp.environment = hull.environment;
-		hullComp.areaTag = std::move(hull.areaTag);
-		hullComp.color = AreaEnvironmentToColor(hull.environment);
+		auto iter = wireframeComponents.find(areaIndex);
+		if (iter == wireframeComponents.end())
+		{
+			const eqg::SArea* area = &areas[areaIndex];
+			entt::handle entity = m_scene->CreateEntity(area->tag);
+			handles.emplace(areaIndex, entity);
 
+			WldAreaComponent* wldComponent = &entity.emplace<WldAreaComponent>();
+			wldComponent->environment = environments[hull.regionIndex];
+			wldComponent->area = area;
+			if (wldComponent->environment.hasTeleportEntry)
+				wldComponent->teleport = terrain.m_teleports[wldComponent->environment.teleportIndex];
+			wldComponent->color = AreaEnvironmentToColor(wldComponent->environment);
+			wldComponent->areaIndex = areaIndex;
+
+			wireframeComponent = &entity.emplace<WireframeMeshComponent>();
+
+			wireframeComponents.emplace(areaIndex, wireframeComponent);
+			convexHull = &wldComponent->hulls.emplace_back();
+		}
+		else
+		{
+			wireframeComponent = iter->second;
+			convexHull = &handles[areaIndex].get<WldAreaComponent>().hulls.emplace_back();
+		}
+
+		uint16_t baseIndex = static_cast<uint16_t>(wireframeComponent->vertices.size());
+
+		// Combine vertices
+		wireframeComponent->vertices.reserve(wireframeComponent->vertices.size() + hull.vertices.size());
+		wireframeComponent->vertices.insert(wireframeComponent->vertices.end(), hull.vertices.begin(), hull.vertices.end());
+		convexHull->vertices = std::move(hull.vertices);
+
+		// Combine indices
+		wireframeComponent->indices.reserve(wireframeComponent->indices.size() + hull.indices.size());
+		for (uint16_t index : hull.indices)
+			wireframeComponent->indices.push_back(baseIndex + index);
+		convexHull->indices = std::move(hull.indices);
+
+		// Combine edges
+		if (wireframeComponent->edges.empty())
+			wireframeComponent->edges = std::move(hull.edges);
+		else
+		{
+			wireframeComponent->edges.reserve(wireframeComponent->edges.size() + hull.edges.size());
+
+			for (auto [start, end] : hull.edges)
+				wireframeComponent->edges.emplace_back(baseIndex + start, baseIndex + end);
+		}
 	}
+
+	// Now that we have all the convex hulls consolidated, lets create a position for each one at its center.
+	for (const auto& [areaIndex, hullComponent] : wireframeComponents)
+	{
+		glm::vec3 center{ 0.0f, 0.0f, 0.0f };
+		uint32_t numPoints = 0;
+
+		// Calculate the center
+		for (const glm::vec3& vertex : hullComponent->vertices)
+		{
+			center += vertex;
+		}
+
+		numPoints += static_cast<uint32_t>(hullComponent->vertices.size());
+
+		center /= static_cast<float>(numPoints);
+
+		// Center the hulls on the new center point.
+		for (glm::vec3& vertex : hullComponent->vertices)
+		{
+			vertex -= center;
+		}
+
+		TransformComponent& transform = handles[areaIndex].get<TransformComponent>();
+		transform.position = center;
+	}
+
 
 	SPDLOG_INFO("Created {} WLD area entities from BSP tree", hulls.size());
 }

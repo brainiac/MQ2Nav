@@ -654,35 +654,37 @@ void ZoneRenderManager::RenderEntities()
 		}
 	}
 
-	auto hullView = m_project->GetScene()->GetAllEntitiesWith<ConvexHullComponent>();
-	for (auto [entity, hull] : hullView.each())
+	auto hullView = m_project->GetScene()->GetAllEntitiesWith<TransformComponent, WldAreaComponent, WireframeMeshComponent>();
+	for (auto [entity, transform, area, hull] : hullView.each())
 	{
 		if (registry.any_of<HiddenComponent>(entity))
 			continue;
 
-		mq::MQColor fillColor_ = hull.color;
+		mq::MQColor fillColor_ = area.color;
 		fillColor_.Alpha = 51; // 20% opacity
 		uint32_t fillColor = fillColor_.ToABGR();
+		ImColor wireImColor = area.color.ToImColor();
+
+		// TODO: Create buffers for all of our volumes
+		glm::mat4x4 worldMat = transform.GetMatrix();
 
 		// Add vertices with fill color
 		uint16_t baseIndex = static_cast<uint16_t>(m_tris.size());
 		for (const auto& vert : hull.vertices)
 		{
-			m_tris.emplace_back(vert, fillColor);
+			m_tris.emplace_back(worldMat * glm::vec4(vert, 1.0f), fillColor);
 		}
 
-		// Add triangle indices
-		for (uint16_t idx : hull.triangleIndices)
+		for (uint16_t idx : hull.indices)
 		{
 			m_triIndices.push_back(baseIndex + idx);
 		}
 
 		// Add wireframe edges
-		ImColor wireImColor = hull.color.ToImColor();
 		for (const auto& edge : hull.edges)
 		{
-			const glm::vec3& v0 = hull.vertices[edge.first];
-			const glm::vec3& v1 = hull.vertices[edge.second];
+			const glm::vec3& v0 = worldMat * glm::vec4(hull.vertices[edge.first], 1.0f);
+			const glm::vec3& v1 = worldMat * glm::vec4(hull.vertices[edge.second], 1.0f);
 			m_lines.emplace_back(v0, 2.0f, wireImColor, v1, 2.0f, wireImColor);
 		}
 	}

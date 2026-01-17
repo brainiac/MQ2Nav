@@ -489,11 +489,12 @@ bool SimpleModel::SetRGBs(SDMRGBTrackWLDData* pDMRGBTrackWLDData)
 
 bool SimpleModel::SetRGBs(const std::span<uint32_t>& RGBs)
 {
-	if (RGBs.size() != m_definition->m_numVertices)
+	if (RGBs.size() < m_definition->m_numVertices)
 	{
-		EQG_LOG_WARN("Invalid number of RGB vertices. Has {}, expected {}. tag={}", RGBs.size(),
+		EQG_LOG_DEBUG("Invalid number of RGB vertices. Has {}, expected {}. tag={}", RGBs.size(),
 			m_definition->m_numVertices,
 			m_definition->GetTag());
+
 		return false;
 	}
 
