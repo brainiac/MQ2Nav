@@ -39,7 +39,7 @@ void Logging::Initialize()
 	{
 		auto sink = std::make_shared<spdlog::sinks::msvc_sink_mt>();
 		sink->set_level(spdlog::level::debug);
-		sink->set_pattern("%L %Y-%m-%d %T.%f [%n] %v (%s%#)");
+		sink->set_pattern("%L %Y-%m-%d %T.%f [%n] %v (%s:%#)");
 		g_logger->sinks().push_back(sink);
 	}
 #endif

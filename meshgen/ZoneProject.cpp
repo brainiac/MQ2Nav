@@ -189,6 +189,8 @@ ZoneProject::ZoneProject(Editor* editor, const std::string& name)
 
 	m_scene = std::make_shared<Scene>(m_zoneShortName);
 
+	m_renderManager->SetRegistry(&m_scene->GetRegistry());
+
 	std::string eqPath = g_config.GetEverquestPath();
 	std::string outputPath = g_config.GetOutputPath();
 

@@ -13,13 +13,14 @@
   <ItemGroup>
     <ClCompile Include="..\dependencies\im3d\im3d.cpp" />
     <ClCompile Include="ArchiveBrowserPanel.cpp" />
+    <ClCompile Include="AreaVolumeRenderSystem.cpp" />
     <ClCompile Include="BackgroundTaskManager.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="ApplicationConfig.cpp" />
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="ConvexHullBuilder.cpp" />
+    <ClCompile Include="GeometryUtils.cpp" />
     <ClCompile Include="ViewPanel.cpp" />
     <ClCompile Include="Editor.cpp" />
     <ClCompile Include="Entity.cpp" />
@@ -63,6 +64,7 @@
     <ClInclude Include="..\dependencies\im3d\im3d_config.h" />
     <ClInclude Include="..\dependencies\im3d\im3d_math.h" />
     <ClInclude Include="ArchiveBrowserPanel.h" />
+    <ClInclude Include="AreaVolumeRenderSystem.h" />
     <ClInclude Include="BackgroundTaskManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ChunkyTriMesh.h" />
@@ -70,6 +72,7 @@
     <ClInclude Include="ConvexVolumeTool.h" />
     <ClInclude Include="ApplicationConfig.h" />
     <ClInclude Include="EQComponents.h" />
+    <ClInclude Include="GeometryUtils.h" />
     <ClInclude Include="ViewPanel.h" />
     <ClInclude Include="Editor.h" />
     <ClInclude Include="Entity.h" />
@@ -89,7 +92,6 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="Logging.h" />
     <ClInclude Include="ConsolePanel.h" />
-    <ClInclude Include="ConvexHullBuilder.h" />
     <ClInclude Include="ZoneResourceManager.h" />
     <ClInclude Include="NavMeshBuilder.h" />
     <ClInclude Include="NavMeshInfoTool.h" />

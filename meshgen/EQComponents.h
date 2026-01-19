@@ -1,11 +1,16 @@
 #pragma once
 
+//
+// EQComponents.h
+// Component definitions for EverQuest zone entities
+//
 
 #include "eqglib/eqg_geometry.h"
 #include "eqglib/eqg_terrain.h"
 #include "eqglib/wld_types.h"
 #include "mq/base/Color.h"
 
+#include <bgfx/bgfx.h>
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -38,19 +43,16 @@ struct AreaComponent
 	mq::MQColor color;
 };
 
-struct WireframeMeshComponent
-{
-	std::vector<glm::vec3> vertices;
-	std::vector<uint16_t>  indices;
-	std::vector<std::pair<uint16_t, uint16_t>> edges;  // Wireframe edges
-};
-
+// Convex hull - primitive shape useful for applying modifications to the navmesh.
 struct ConvexHullComponent
 {
 	std::vector<glm::vec3> vertices;
-	std::vector<uint16_t>  indices;
+	std::vector<uint16_t> indices;
 };
 
+// The individual WLD Area. Also stores the list of convex hulls that compose the area,
+// since we may need it for the navmesh. AreaVolumeComponent will merge these, which
+// may result in a shape that is no longer convex.
 struct WldAreaComponent
 {
 	eqg::AreaEnvironment environment;
@@ -63,3 +65,15 @@ struct WldAreaComponent
 	std::vector<ConvexHullComponent> hulls;
 };
 
+// Merged volumes that correspond with a single wld area.
+struct AreaVolumeComponent
+{
+	std::vector<glm::vec3> vertices;
+	std::vector<std::vector<uint16_t>> faces;         // Polygon faces (not triangulated)
+};
+
+// Render configuration for AreaVolumeComponent.
+struct AreaVolumeRenderComponent
+{
+	uint32_t color = 0x33FFFFFF;    // ABGR, 20% alpha default
+};

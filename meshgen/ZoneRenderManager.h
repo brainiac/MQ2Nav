@@ -1,5 +1,7 @@
 #pragma once
 
+#include "meshgen/AreaVolumeRenderSystem.h"
+
 #include <bgfx/bgfx.h>
 #include <glm/glm.hpp>
 #include <imgui/imgui.h>
@@ -22,7 +24,29 @@ struct dtMeshTile;
 struct NavMeshConfig;
 
 
-struct DebugDrawGridTexturedVertex
+struct ZoneRenderShared
+{
+	bool m_initialized = false;
+
+	bgfx::TextureHandle m_gridTexture = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_texSampler = BGFX_INVALID_HANDLE;
+
+	bgfx::ProgramHandle m_inputGeoProgram = BGFX_INVALID_HANDLE;
+	bgfx::ProgramHandle m_meshTileProgram = BGFX_INVALID_HANDLE;
+
+	// Primitives implementation
+	bgfx::ProgramHandle m_pointsProgram = BGFX_INVALID_HANDLE;
+	bgfx::ProgramHandle m_linesProgram = BGFX_INVALID_HANDLE;
+	bgfx::VertexBufferHandle m_quad1VB = BGFX_INVALID_HANDLE;   // unit quad for lines
+	bgfx::VertexBufferHandle m_quad2VB = BGFX_INVALID_HANDLE;   // unit quad for points
+	bgfx::IndexBufferHandle m_quadIB = BGFX_INVALID_HANDLE;
+
+	void init();
+	void shutdown();
+};
+
+
+struct SimpleColoredTexturedVertex
 {
 	glm::vec3 pos;
 	glm::vec2 uv;
@@ -41,7 +65,7 @@ struct DebugDrawGridTexturedVertex
 	inline static bgfx::VertexLayout ms_layout;
 };
 
-struct DebugDrawPolyVertex
+struct SimpleColoredVertex
 {
 	glm::vec3 pos;
 	uint32_t  color;
@@ -50,24 +74,25 @@ struct DebugDrawPolyVertex
 	{
 		ms_layout
 			.begin()
-			.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
 			.end();
 	}
 
-	DebugDrawPolyVertex(glm::vec3 pos, uint32_t color) : pos(pos), color(color) {}
+	SimpleColoredVertex() = default;
+	SimpleColoredVertex(glm::vec3 pos, uint32_t color) : pos(pos), color(color) {}
 
 	inline static bgfx::VertexLayout ms_layout;
 };
 
-struct DebugDrawLineVertex
+struct LineInstanceVertex
 {
 	glm::vec4 linePosWidthA;
 	glm::vec4 lineColA;
 	glm::vec4 linePosWidthB;
 	glm::vec4 lineColB;
 
-	DebugDrawLineVertex(glm::vec3 posA, float widthA, ImColor colA, glm::vec3 posB, float widthB, ImColor colB)
+	LineInstanceVertex(glm::vec3 posA, float widthA, ImColor colA, glm::vec3 posB, float widthB, ImColor colB)
 		: linePosWidthA(posA.x, posA.y, posA.z, widthA)
 		, lineColA(colA.Value.x, colA.Value.y, colA.Value.z, colA.Value.w)
 		, linePosWidthB(posB.x, posB.y, posB.z, widthB)
@@ -75,7 +100,16 @@ struct DebugDrawLineVertex
 	{
 	}
 
-	DebugDrawLineVertex(glm::vec3 posA, float widthA, ImColor colA)
+	LineInstanceVertex(const glm::vec3& posA, float widthA, const glm::vec4& colA,
+		const glm::vec3& posB, float widthB, const glm::vec4& colB)
+		: linePosWidthA(posA.x, posA.y, posA.z, widthA)
+		, lineColA(colA)
+		, linePosWidthB(posB.x, posB.y, posB.z, widthB)
+		, lineColB(colB)
+	{
+	}
+
+	LineInstanceVertex(glm::vec3 posA, float widthA, ImColor colA)
 		: linePosWidthA(posA.x, posA.y, posA.z, widthA)
 		, lineColA(colA.Value.x, colA.Value.y, colA.Value.z, colA.Value.w)
 	{
@@ -95,13 +129,13 @@ struct DebugDrawLineVertex
 	inline static bgfx::VertexLayout ms_layout;
 };
 
-struct DebugDrawPointVertex
+struct PointInstanceVertex
 {
 	glm::vec4 pos;
 	glm::vec4 color;
 	glm::vec4 width;
 
-	DebugDrawPointVertex(const glm::vec3& pos, float width, ImColor color)
+	PointInstanceVertex(const glm::vec3& pos, float width, ImColor color)
 		: pos(pos.x, pos.y, pos.z, 1.0f)
 		, color(color.Value.x, color.Value.y, color.Value.z, color.Value.w)
 		, width(width, 0, 0, 0)
@@ -131,10 +165,14 @@ public:
 	static void InitShared();
 	static void ShutdownShared();
 
+	void SetRegistry(entt::registry* registry);
+
 	void DestroyObjects();
 	void Render();
 
 	void Rebuild();
+
+	ZoneRenderShared* GetShared();
 
 	void OnNavMeshChanged(const std::shared_ptr<NavMeshProject>& navMesh);
 
@@ -176,13 +214,14 @@ private:
 
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
+	AreaVolumeRenderSystem m_areaVolumeSystem;
 	float m_pointSize = 0.5f;
 
-	std::vector<DebugDrawPointVertex> m_points;
+	std::vector<PointInstanceVertex> m_points;
 	size_t m_lastPointsSize = 0;
-	std::vector<DebugDrawLineVertex> m_lines;
+	std::vector<LineInstanceVertex> m_lines;
 	size_t m_lastLinesSize = 0;
-	std::vector<DebugDrawPolyVertex> m_tris;
+	std::vector<SimpleColoredVertex> m_tris;
 	size_t m_lastTrisSize = 0;
 	std::vector<uint16_t> m_triIndices;
 	size_t m_lastTrisIndicesSize = 0;
@@ -252,8 +291,8 @@ private:
 	int m_numIndices = 0;
 };
 
-struct DebugDrawLineVertex;
-struct DebugDrawPolyVertex;
+struct LineInstanceVertex;
+struct SimpleColoredVertex;
 
 class ZoneNavMeshRender
 {
@@ -324,10 +363,10 @@ public:
 	uint32_t PolyToCol(const dtPoly* poly);
 
 private:
-	void BuildMeshTile(std::vector<DebugDrawPolyVertex>& vertices, std::vector<uint32_t>& indices,
+	void BuildMeshTile(std::vector<SimpleColoredVertex>& vertices, std::vector<uint32_t>& indices,
 		dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags);
 	
-	void BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& vertices,
+	void BuildPolyBoundaries(std::vector<LineInstanceVertex>& vertices,
 		const dtMeshTile* tile, uint32_t color, float width, bool inner);
 
 	ZoneRenderManager* m_mgr;

@@ -68,9 +68,6 @@
     <ClCompile Include="ZoneResourceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ConvexHullBuilder.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ApplicationConfig.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -191,12 +188,15 @@
     <ClCompile Include="ArchiveBrowserPanel.cpp">
       <Filter>Source Files\panels</Filter>
     </ClCompile>
+    <ClCompile Include="AreaVolumeRenderSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeometryUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ZoneResourceManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ConvexHullBuilder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ApplicationConfig.h">
@@ -358,7 +358,13 @@
     <ClInclude Include="ArchiveBrowserPanel.h">
       <Filter>Header Files\panels</Filter>
     </ClInclude>
+    <ClInclude Include="AreaVolumeRenderSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="EQComponents.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometryUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

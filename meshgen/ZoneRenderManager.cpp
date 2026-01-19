@@ -43,106 +43,93 @@ struct DebugDrawQuadTemplateVertex
 	inline static bgfx::VertexLayout ms_layout;
 };
 
-struct ZoneRenderShared
+void ZoneRenderShared::init()
 {
-	bool m_initialized = false;
+	if (m_initialized)
+		return;
 
-	bgfx::TextureHandle m_gridTexture = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_texSampler = BGFX_INVALID_HANDLE;
+	SimpleColoredTexturedVertex::init();
+	SimpleColoredVertex::init();
+	DebugDrawQuadTemplateVertex::init();
+	LineInstanceVertex::init();
+	PointInstanceVertex::init();
 
-	bgfx::ProgramHandle m_inputGeoProgram = BGFX_INVALID_HANDLE;
-	bgfx::ProgramHandle m_meshTileProgram = BGFX_INVALID_HANDLE;
+	// Create the grid texture
+	static constexpr int TEXTURE_SIZE = 64;
+	uint32_t data[TEXTURE_SIZE * TEXTURE_SIZE];
+	int size = TEXTURE_SIZE;
+	int mipLevel = 0;
 
-	// Primitives implementation
-	bgfx::ProgramHandle m_pointsProgram = BGFX_INVALID_HANDLE;
-	bgfx::ProgramHandle m_linesProgram = BGFX_INVALID_HANDLE;
-	bgfx::VertexBufferHandle m_quad1VB = BGFX_INVALID_HANDLE;
-	bgfx::VertexBufferHandle m_quad2VB = BGFX_INVALID_HANDLE;
-	bgfx::IndexBufferHandle m_quadIB = BGFX_INVALID_HANDLE;
-
-	void init()
+	m_gridTexture = bgfx::createTexture2D(size, size, true, 1, bgfx::TextureFormat::RGBA8, 0, nullptr);
+	while (size > 0)
 	{
-		if (m_initialized)
-			return;
-
-		DebugDrawGridTexturedVertex::init();
-		DebugDrawPolyVertex::init();
-		DebugDrawQuadTemplateVertex::init();
-		DebugDrawLineVertex::init();
-		DebugDrawPointVertex::init();
-
-		// Create the grid texture
-		static constexpr int TEXTURE_SIZE = 64;
-		uint32_t data[TEXTURE_SIZE * TEXTURE_SIZE];
-		int size = TEXTURE_SIZE;
-		int mipLevel = 0;
-
-		m_gridTexture = bgfx::createTexture2D(size, size, true, 1, bgfx::TextureFormat::RGBA8, 0, nullptr);
-		while (size > 0)
+		for (int y = 0; y < size; ++y)
 		{
-			for (int y = 0; y < size; ++y)
-			{
-				for (int x = 0; x < size; ++x)
-					data[x + y * size] = (x == 0 || y == 0) ? 0xffd7d7d7 : 0xffffffff;
-			}
-			bgfx::updateTexture2D(m_gridTexture, 0, mipLevel++, 0, 0, size, size, bgfx::copy(data, sizeof(uint32_t) * size * size));
-
-			size /= 2;
+			for (int x = 0; x < size; ++x)
+				data[x + y * size] = (x == 0 || y == 0) ? 0xffd7d7d7 : 0xffffffff;
 		}
+		bgfx::updateTexture2D(m_gridTexture, 0, mipLevel++, 0, 0, size, size, bgfx::copy(data, sizeof(uint32_t) * size * size));
 
-		m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
-
-		bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
-		m_inputGeoProgram = g_resourceMgr->GetProgramHandle("inputgeom");
-		m_meshTileProgram = g_resourceMgr->GetProgramHandle("meshtile");
-
-		m_linesProgram = g_resourceMgr->GetProgramHandle("lines");
-		m_pointsProgram = g_resourceMgr->GetProgramHandle("points");
-
-		glm::vec3 linesQuad[] = {
-			{ 0.0, -1.0, 0.0 },
-			{ 0.0,  1.0, 0.0 },
-			{ 1.0,  1.0, 0.0 },
-			{ 1.0, -1.0, 0.0 }
-		};
-		m_quad1VB = bgfx::createVertexBuffer(bgfx::copy(linesQuad, sizeof(linesQuad)), DebugDrawQuadTemplateVertex::ms_layout, 0);
-
-		glm::vec3 pointQuad[] = {
-			{ -0.5f, -0.5f, 0.0f },
-			{ -0.5f,  0.5f, 0.0f },
-			{  0.5f,  0.5f, 0.0f },
-			{  0.5f, -0.5f, 0.0f }
-		};
-		m_quad2VB = bgfx::createVertexBuffer(bgfx::copy(pointQuad, sizeof(pointQuad)), DebugDrawQuadTemplateVertex::ms_layout, 0);
-
-		uint16_t linesIndices[] = {
-			0, 1, 2, 0, 2, 3
-		};
-		m_quadIB = bgfx::createIndexBuffer(bgfx::copy(linesIndices, sizeof(linesIndices)), 0);
-
-		m_initialized = true;
+		size /= 2;
 	}
 
-	void shutdown()
-	{
-		if (m_initialized)
-		{
-			bgfx::destroy(m_gridTexture);
-			bgfx::destroy(m_texSampler);
-			bgfx::destroy(m_inputGeoProgram);
-			bgfx::destroy(m_meshTileProgram);
-			bgfx::destroy(m_linesProgram);
-			bgfx::destroy(m_quad1VB);
-			bgfx::destroy(m_quad2VB);
-			bgfx::destroy(m_quadIB);
-			bgfx::destroy(m_pointsProgram);
-		}
+	m_texSampler = bgfx::createUniform("textureSampler", bgfx::UniformType::Sampler);
 
-		m_initialized = false;
+	bgfx::RendererType::Enum type = bgfx::RendererType::Direct3D11;
+	m_inputGeoProgram = g_resourceMgr->GetProgramHandle("inputgeom");
+	m_meshTileProgram = g_resourceMgr->GetProgramHandle("meshtile");
+
+	m_linesProgram = g_resourceMgr->GetProgramHandle("lines");
+	m_pointsProgram = g_resourceMgr->GetProgramHandle("points");
+
+	glm::vec3 linesQuad[] = {
+		{ 0.0, -1.0, 0.0 },
+		{ 0.0,  1.0, 0.0 },
+		{ 1.0,  1.0, 0.0 },
+		{ 1.0, -1.0, 0.0 }
+	};
+	m_quad1VB = bgfx::createVertexBuffer(bgfx::copy(linesQuad, sizeof(linesQuad)), DebugDrawQuadTemplateVertex::ms_layout, 0);
+
+	glm::vec3 pointQuad[] = {
+		{ -0.5f, -0.5f, 0.0f },
+		{ -0.5f,  0.5f, 0.0f },
+		{  0.5f,  0.5f, 0.0f },
+		{  0.5f, -0.5f, 0.0f }
+	};
+	m_quad2VB = bgfx::createVertexBuffer(bgfx::copy(pointQuad, sizeof(pointQuad)), DebugDrawQuadTemplateVertex::ms_layout, 0);
+
+	uint16_t linesIndices[] = {
+		0, 1, 2, 0, 2, 3
+	};
+	m_quadIB = bgfx::createIndexBuffer(bgfx::copy(linesIndices, sizeof(linesIndices)), 0);
+
+	m_initialized = true;
+}
+
+void ZoneRenderShared::shutdown()
+{
+	if (m_initialized)
+	{
+		bgfx::destroy(m_gridTexture);
+		bgfx::destroy(m_texSampler);
+		bgfx::destroy(m_inputGeoProgram);
+		bgfx::destroy(m_meshTileProgram);
+		bgfx::destroy(m_linesProgram);
+		bgfx::destroy(m_quad1VB);
+		bgfx::destroy(m_quad2VB);
+		bgfx::destroy(m_quadIB);
+		bgfx::destroy(m_pointsProgram);
 	}
-};
+
+	m_initialized = false;
+}
 
 static ZoneRenderShared s_shared;
+
+ZoneRenderShared* ZoneRenderManager::GetShared()
+{
+	return &s_shared;
+}
 
 //============================================================================
 
@@ -325,6 +312,8 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 	m_zoneInputGeometry = new ZoneInputGeometryRender(this);
 	m_navMeshRender = new ZoneNavMeshRender(this);
 
+	m_areaVolumeSystem.Init(this);
+
 	// TEMP
 	g_zoneRenderManager = this;
 
@@ -334,6 +323,8 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 
 ZoneRenderManager::~ZoneRenderManager()
 {
+	m_areaVolumeSystem.Shutdown();
+
 	delete m_zoneInputGeometry;
 	m_zoneInputGeometry = nullptr;
 
@@ -352,6 +343,11 @@ void ZoneRenderManager::InitShared()
 void ZoneRenderManager::ShutdownShared()
 {
 	s_shared.shutdown();
+}
+
+void ZoneRenderManager::SetRegistry(entt::registry* registry)
+{
+	m_areaVolumeSystem.SetRegistry(registry);
 }
 
 void ZoneRenderManager::DestroyObjects()
@@ -654,40 +650,7 @@ void ZoneRenderManager::RenderEntities()
 		}
 	}
 
-	auto hullView = m_project->GetScene()->GetAllEntitiesWith<TransformComponent, WldAreaComponent, WireframeMeshComponent>();
-	for (auto [entity, transform, area, hull] : hullView.each())
-	{
-		if (registry.any_of<HiddenComponent>(entity))
-			continue;
-
-		mq::MQColor fillColor_ = area.color;
-		fillColor_.Alpha = 51; // 20% opacity
-		uint32_t fillColor = fillColor_.ToABGR();
-		ImColor wireImColor = area.color.ToImColor();
-
-		// TODO: Create buffers for all of our volumes
-		glm::mat4x4 worldMat = transform.GetMatrix();
-
-		// Add vertices with fill color
-		uint16_t baseIndex = static_cast<uint16_t>(m_tris.size());
-		for (const auto& vert : hull.vertices)
-		{
-			m_tris.emplace_back(worldMat * glm::vec4(vert, 1.0f), fillColor);
-		}
-
-		for (uint16_t idx : hull.indices)
-		{
-			m_triIndices.push_back(baseIndex + idx);
-		}
-
-		// Add wireframe edges
-		for (const auto& edge : hull.edges)
-		{
-			const glm::vec3& v0 = worldMat * glm::vec4(hull.vertices[edge.first], 1.0f);
-			const glm::vec3& v1 = worldMat * glm::vec4(hull.vertices[edge.second], 1.0f);
-			m_lines.emplace_back(v0, 2.0f, wireImColor, v1, 2.0f, wireImColor);
-		}
-	}
+	// Note: WldAreaComponent entities with AreaVolumeComponent are rendered by AreaVolumeRenderSystem
 }
 
 void ZoneRenderManager::Render()
@@ -701,13 +664,17 @@ void ZoneRenderManager::Render()
 		m_navMeshRender->Render();
 
 		RenderEntities();
+
+		// Update and render area volumes via ECS system
+		m_areaVolumeSystem.Update();
+		m_areaVolumeSystem.Render();
 	}
 
 	if (!m_points.empty())
 	{
 		if (isValid(m_ddPointsVB) && m_points.size() == m_lastPointsSize)
 		{
-			bgfx::update(m_ddPointsVB, 0, bgfx::copy(m_points.data(), static_cast<uint32_t>(m_points.size()) * DebugDrawPointVertex::ms_layout.getStride()));
+			bgfx::update(m_ddPointsVB, 0, bgfx::copy(m_points.data(), static_cast<uint32_t>(m_points.size()) * PointInstanceVertex::ms_layout.getStride()));
 		}
 		else
 		{
@@ -717,8 +684,8 @@ void ZoneRenderManager::Render()
 			}
 
 			m_ddPointsVB = bgfx::createDynamicVertexBuffer(
-				bgfx::copy(m_points.data(), static_cast<uint32_t>(m_points.size()) * DebugDrawPointVertex::ms_layout.getStride()),
-				DebugDrawPointVertex::ms_layout);
+				bgfx::copy(m_points.data(), static_cast<uint32_t>(m_points.size()) * PointInstanceVertex::ms_layout.getStride()),
+				PointInstanceVertex::ms_layout);
 		}
 
 		m_lastPointsSize = m_points.size();
@@ -738,7 +705,7 @@ void ZoneRenderManager::Render()
 	{
 		if (isValid(m_ddLinesVB) && m_lines.size() == m_lastLinesSize)
 		{
-			bgfx::update(m_ddLinesVB, 0, bgfx::copy(m_lines.data(), static_cast<uint32_t>(m_lines.size()) * DebugDrawLineVertex::ms_layout.getStride()));
+			bgfx::update(m_ddLinesVB, 0, bgfx::copy(m_lines.data(), static_cast<uint32_t>(m_lines.size()) * LineInstanceVertex::ms_layout.getStride()));
 		}
 		else
 		{
@@ -748,8 +715,8 @@ void ZoneRenderManager::Render()
 			}
 
 			m_ddLinesVB = bgfx::createDynamicVertexBuffer(
-				bgfx::copy(m_lines.data(), static_cast<uint32_t>(m_lines.size()) * DebugDrawLineVertex::ms_layout.getStride()),
-				DebugDrawLineVertex::ms_layout);
+				bgfx::copy(m_lines.data(), static_cast<uint32_t>(m_lines.size()) * LineInstanceVertex::ms_layout.getStride()),
+				LineInstanceVertex::ms_layout);
 		}
 
 		m_lastLinesSize = m_lines.size();
@@ -769,7 +736,7 @@ void ZoneRenderManager::Render()
 	{
 		if (isValid(m_ddTrisVB) && m_tris.size() == m_lastTrisSize && m_triIndices.size() == m_lastTrisIndicesSize)
 		{
-			bgfx::update(m_ddTrisVB, 0, bgfx::copy(m_tris.data(), static_cast<uint32_t>(m_tris.size()) * DebugDrawPolyVertex::ms_layout.getStride()));
+			bgfx::update(m_ddTrisVB, 0, bgfx::copy(m_tris.data(), static_cast<uint32_t>(m_tris.size()) * SimpleColoredVertex::ms_layout.getStride()));
 			bgfx::update(m_ddIndexBuffer, 0, bgfx::copy(m_triIndices.data(), static_cast<uint32_t>(m_triIndices.size() * sizeof(uint16_t))));
 		}
 		else
@@ -785,8 +752,8 @@ void ZoneRenderManager::Render()
 			}
 
 			m_ddTrisVB = bgfx::createDynamicVertexBuffer(
-				bgfx::copy(m_tris.data(), static_cast<uint32_t>(m_tris.size()) * DebugDrawPolyVertex::ms_layout.getStride()),
-				DebugDrawPolyVertex::ms_layout);
+				bgfx::copy(m_tris.data(), static_cast<uint32_t>(m_tris.size()) * SimpleColoredVertex::ms_layout.getStride()),
+				SimpleColoredVertex::ms_layout);
 			m_ddIndexBuffer = bgfx::createDynamicIndexBuffer(
 				bgfx::copy(m_triIndices.data(), static_cast<uint32_t>(m_triIndices.size() * sizeof(uint16_t))));
 		}
@@ -856,10 +823,10 @@ void ZoneInputGeometryRender::CreateObjects()
 	const uint32_t unwalkable = duRGBA(192, 128, 0, 255);
 
 	// Create buffer to hold list of triangles
-	const bgfx::Memory* vb = bgfx::alloc(ntris * 3 * DebugDrawGridTexturedVertex::ms_layout.getStride());
+	const bgfx::Memory* vb = bgfx::alloc(ntris * 3 * SimpleColoredTexturedVertex::ms_layout.getStride());
 	const bgfx::Memory* ib = bgfx::alloc(ntris * 3 * sizeof(uint32_t));
 
-	DebugDrawGridTexturedVertex* pVertex = reinterpret_cast<DebugDrawGridTexturedVertex*>(vb->data);
+	SimpleColoredTexturedVertex* pVertex = reinterpret_cast<SimpleColoredTexturedVertex*>(vb->data);
 	uint32_t* pIndex = reinterpret_cast<uint32_t*>(ib->data);
 
 	int index;
@@ -902,7 +869,7 @@ void ZoneInputGeometryRender::CreateObjects()
 	}
 
 	m_numIndices = index;
-	m_vbh = bgfx::createVertexBuffer(vb, DebugDrawGridTexturedVertex::ms_layout);
+	m_vbh = bgfx::createVertexBuffer(vb, SimpleColoredTexturedVertex::ms_layout);
 	m_ibh = bgfx::createIndexBuffer(ib, BGFX_BUFFER_INDEX32);
 }
 
@@ -1223,10 +1190,10 @@ void ZoneNavMeshRender::Build()
 	const dtNavMesh& mesh = *navMesh->GetNavMesh();
 
 	// Build navmesh tiles
-	std::vector<DebugDrawPolyVertex> navMeshTileVertices;
+	std::vector<SimpleColoredVertex> navMeshTileVertices;
 	std::vector<uint32_t> navMeshTileIndices;
-	std::vector<DebugDrawLineVertex> polyBoundaryVertices;
-	std::vector<DebugDrawPointVertex> polyPointVertices;
+	std::vector<LineInstanceVertex> polyBoundaryVertices;
+	std::vector<PointInstanceVertex> polyPointVertices;
 
 	size_t numMeshTileVertices = 0;
 	size_t numPolyBoundaryVertices = 0;
@@ -1299,8 +1266,8 @@ void ZoneNavMeshRender::Build()
 	{
 		// Create vertex buffer from gathered data.
 		m_tilePolysVB = bgfx::createVertexBuffer(bgfx::copy(navMeshTileVertices.data(),
-			static_cast<uint32_t>(navMeshTileVertices.size()) * DebugDrawPolyVertex::ms_layout.getStride()),
-			DebugDrawPolyVertex::ms_layout);
+			static_cast<uint32_t>(navMeshTileVertices.size()) * SimpleColoredVertex::ms_layout.getStride()),
+			SimpleColoredVertex::ms_layout);
 		m_tileIndices = { 0, static_cast<uint32_t>(navMeshTileIndices.size()) };
 		m_indexBuffer = bgfx::createIndexBuffer(
 			bgfx::copy(navMeshTileIndices.data(), static_cast<uint32_t>(navMeshTileIndices.size()) * sizeof(uint32_t)),
@@ -1311,8 +1278,8 @@ void ZoneNavMeshRender::Build()
 	{
 		// Lines buffer
 		m_lineInstances = bgfx::createVertexBuffer(bgfx::copy(polyBoundaryVertices.data(),
-			static_cast<uint32_t>(polyBoundaryVertices.size()) * DebugDrawLineVertex::ms_layout.getStride()),
-			DebugDrawLineVertex::ms_layout);
+			static_cast<uint32_t>(polyBoundaryVertices.size()) * LineInstanceVertex::ms_layout.getStride()),
+			LineInstanceVertex::ms_layout);
 		m_lineIndices = static_cast<int>(polyBoundaryVertices.size());
 	}
 
@@ -1320,8 +1287,8 @@ void ZoneNavMeshRender::Build()
 	{
 		// Points buffer
 		m_pointsInstances = bgfx::createVertexBuffer(bgfx::copy(polyPointVertices.data(),
-			static_cast<uint32_t>(polyPointVertices.size()) * DebugDrawPointVertex::ms_layout.getStride()),
-			DebugDrawPointVertex::ms_layout);
+			static_cast<uint32_t>(polyPointVertices.size()) * PointInstanceVertex::ms_layout.getStride()),
+			PointInstanceVertex::ms_layout);
 		m_pointsIndices = static_cast<int>(polyPointVertices.size());
 	}
 }
@@ -1379,7 +1346,7 @@ void ZoneNavMeshRender::BuildNodes()
 //============================================================================
 //============================================================================
 
-void ZoneNavMeshRender::BuildMeshTile(std::vector<DebugDrawPolyVertex>& vertices, std::vector<uint32_t>& indices,
+void ZoneNavMeshRender::BuildMeshTile(std::vector<SimpleColoredVertex>& vertices, std::vector<uint32_t>& indices,
 	dtPolyRef base, const dtNavMesh& mesh, const dtNavMeshQuery* query, const dtMeshTile* tile, uint8_t flags)
 {
 	int currIndex = (int)vertices.size();
@@ -1450,7 +1417,7 @@ static float distancePtLine2d(const float* pt, const float* p, const float* q)
 	return dx * dx + dz * dz;
 }
 
-void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<DebugDrawLineVertex>& vertices,
+void ZoneNavMeshRender::BuildPolyBoundaries(std::vector<LineInstanceVertex>& vertices,
 	const dtMeshTile* tile, uint32_t color, float width, bool inner)
 {
 	static constexpr float threshold = 0.01f * 0.01f;

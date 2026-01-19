@@ -4,8 +4,8 @@
 
 #include "meshgen/ZoneResourceManager.h"
 #include "meshgen/ApplicationConfig.h"
-#include "meshgen/ConvexHullBuilder.h"
 #include "meshgen/EQComponents.h"
+#include "meshgen/GeometryUtils.h"
 #include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "common/NavMeshData.h"
@@ -25,12 +25,6 @@
 #define SKIP_GLOBAL_LOAD 1
 
 namespace fs = std::filesystem;
-
-//============================================================================================================
-
-
-
-
 
 //============================================================================================================
 
@@ -935,6 +929,12 @@ mq::MQColor AreaEnvironmentToColor(const eqg::AreaEnvironment& env)
 	case eqg::AreaEnvironment::UnderWater:
 		color = mq::MQColor(0, 0, 255); // blue
 		break;
+	case eqg::AreaEnvironment::UnderWater2:
+		color = mq::MQColor(64, 64, 255); // blue
+		break;
+	case eqg::AreaEnvironment::UnderWater3:
+		color = mq::MQColor(128, 128, 255); // blue
+		break;
 	case eqg::AreaEnvironment::UnderLava:
 		color = mq::MQColor(255, 0, 0); // red
 		break;
@@ -1000,7 +1000,7 @@ void ZoneResourceManager::CreateWldAreaEntities(const eqg::Terrain& terrain)
 
 	auto hulls = BuildConvexHullsFromRegions(terrain);
 
-	std::unordered_map<uint32_t, WireframeMeshComponent*> wireframeComponents;
+	std::unordered_map<uint32_t, AreaVolumeComponent*> areaVolumeComponents;
 	std::unordered_map<uint32_t, entt::handle> handles;
 
 	auto& areaIndices = terrain.m_wldAreaIndices;
@@ -1009,15 +1009,15 @@ void ZoneResourceManager::CreateWldAreaEntities(const eqg::Terrain& terrain)
 
 	for (auto& hull : hulls)
 	{
-		if (hull.vertices.empty() || hull.indices.empty())
+		if (hull.vertices.empty() || hull.faces.empty())
 			continue;
 
 		uint32_t areaIndex = areaIndices[hull.regionIndex];
-		WireframeMeshComponent* wireframeComponent;
+		AreaVolumeComponent* areaVolumeComponent;
 		ConvexHullComponent* convexHull = nullptr;
 
-		auto iter = wireframeComponents.find(areaIndex);
-		if (iter == wireframeComponents.end())
+		auto iter = areaVolumeComponents.find(areaIndex);
+		if (iter == areaVolumeComponents.end())
 		{
 			const eqg::SArea* area = &areas[areaIndex];
 			entt::handle entity = m_scene->CreateEntity(area->tag);
@@ -1031,68 +1031,80 @@ void ZoneResourceManager::CreateWldAreaEntities(const eqg::Terrain& terrain)
 			wldComponent->color = AreaEnvironmentToColor(wldComponent->environment);
 			wldComponent->areaIndex = areaIndex;
 
-			wireframeComponent = &entity.emplace<WireframeMeshComponent>();
+			areaVolumeComponent = &entity.emplace<AreaVolumeComponent>();
 
-			wireframeComponents.emplace(areaIndex, wireframeComponent);
+			areaVolumeComponents.emplace(areaIndex, areaVolumeComponent);
 			convexHull = &wldComponent->hulls.emplace_back();
 		}
 		else
 		{
-			wireframeComponent = iter->second;
+			areaVolumeComponent = iter->second;
 			convexHull = &handles[areaIndex].get<WldAreaComponent>().hulls.emplace_back();
 		}
 
-		uint16_t baseIndex = static_cast<uint16_t>(wireframeComponent->vertices.size());
+		uint16_t baseIndex = static_cast<uint16_t>(areaVolumeComponent->vertices.size());
 
-		// Combine vertices
-		wireframeComponent->vertices.reserve(wireframeComponent->vertices.size() + hull.vertices.size());
-		wireframeComponent->vertices.insert(wireframeComponent->vertices.end(), hull.vertices.begin(), hull.vertices.end());
-		convexHull->vertices = std::move(hull.vertices);
-
-		// Combine indices
-		wireframeComponent->indices.reserve(wireframeComponent->indices.size() + hull.indices.size());
-		for (uint16_t index : hull.indices)
-			wireframeComponent->indices.push_back(baseIndex + index);
-		convexHull->indices = std::move(hull.indices);
-
-		// Combine edges
-		if (wireframeComponent->edges.empty())
-			wireframeComponent->edges = std::move(hull.edges);
-		else
+		// Combine vertices & face indices into AreaVolumeComponent
+		areaVolumeComponent->vertices.reserve(areaVolumeComponent->vertices.size() + hull.vertices.size());
+		areaVolumeComponent->vertices.insert(areaVolumeComponent->vertices.end(), hull.vertices.begin(), hull.vertices.end());
+		
+		areaVolumeComponent->faces.reserve(areaVolumeComponent->faces.size() + hull.faces.size());
+		for (const auto& face : hull.faces)
 		{
-			wireframeComponent->edges.reserve(wireframeComponent->edges.size() + hull.edges.size());
+			std::vector<uint16_t> adjustedFace;
+			adjustedFace.reserve(face.size());
+			for (uint16_t idx : face)
+			{
+				adjustedFace.push_back(baseIndex + idx);
+			}
+			areaVolumeComponent->faces.push_back(std::move(adjustedFace));
+		}
 
-			for (auto [start, end] : hull.edges)
-				wireframeComponent->edges.emplace_back(baseIndex + start, baseIndex + end);
+		// Store triangulated hull for navmesh use
+		convexHull->vertices = hull.vertices;
+
+		for (const auto& face : hull.faces)
+		{
+			// Fan triangulation from first vertex
+			for (size_t i = 1; i + 1 < face.size(); ++i)
+			{
+				convexHull->indices.push_back(face[0]);
+				convexHull->indices.push_back(face[i]);
+				convexHull->indices.push_back(face[i + 1]);
+			}
 		}
 	}
 
-	// Now that we have all the convex hulls consolidated, lets create a position for each one at its center.
-	for (const auto& [areaIndex, hullComponent] : wireframeComponents)
+	// Now that we have all the convex hulls consolidated, process each area
+	for (const auto& [areaIndex, areaVolume] : areaVolumeComponents)
 	{
+		// Create a transform to give this object local space coordinates.
 		glm::vec3 center{ 0.0f, 0.0f, 0.0f };
-		uint32_t numPoints = 0;
 
 		// Calculate the center
-		for (const glm::vec3& vertex : hullComponent->vertices)
+		for (const glm::vec3& vertex : areaVolume->vertices)
 		{
 			center += vertex;
 		}
+		center /= static_cast<float>(areaVolume->vertices.size());
 
-		numPoints += static_cast<uint32_t>(hullComponent->vertices.size());
-
-		center /= static_cast<float>(numPoints);
-
-		// Center the hulls on the new center point.
-		for (glm::vec3& vertex : hullComponent->vertices)
+		// Center the volume on the new center point
+		for (glm::vec3& vertex : areaVolume->vertices)
 		{
 			vertex -= center;
 		}
 
 		TransformComponent& transform = handles[areaIndex].get<TransformComponent>();
 		transform.position = center;
+
+		// Add render component with fill color from WldAreaComponent
+		WldAreaComponent& wldArea = handles[areaIndex].get<WldAreaComponent>();
+		AreaVolumeRenderComponent& renderComp = handles[areaIndex].emplace<AreaVolumeRenderComponent>();
+
+		mq::MQColor fillColor = wldArea.color;
+		fillColor.Alpha = 51; // 20% opacity
+		renderComp.color = fillColor.ToABGR();
 	}
 
-
-	SPDLOG_INFO("Created {} WLD area entities from BSP tree", hulls.size());
+	SPDLOG_INFO("Created {} WLD area entities from BSP tree", areaVolumeComponents.size());
 }
