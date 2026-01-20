@@ -5,6 +5,7 @@
 #include "pch.h"
 #include "BitmapBrowserPanel.h"
 
+#include "meshgen/ApplicationConfig.h"
 #include "meshgen/Editor.h"
 #include "meshgen/MGBitmap.h"
 #include "meshgen/ZoneProject.h"
@@ -12,6 +13,10 @@
 
 #include "imgui/fonts/IconsFontAwesome.h"
 #include "imgui/imgui_impl_bgfx.h"
+#include "mq/base/Config.h"
+
+#include <algorithm>
+#include <ranges>
 
 BitmapBrowserPanel::BitmapBrowserPanel(Editor* editor)
 	: PanelWindow("Bitmap Browser", "BitmapPane")
@@ -21,11 +26,55 @@ BitmapBrowserPanel::BitmapBrowserPanel(Editor* editor)
 
 BitmapBrowserPanel::~BitmapBrowserPanel()
 {
+	SaveSettings();
+}
+
+void BitmapBrowserPanel::Initialize()
+{
+	PanelWindow::Initialize();
+
+	const std::string& settingsFile = g_config.GetSettingsFileName();
+
+	int viewMode = mq::GetPrivateProfileInt(settingsName, "ViewMode", static_cast<int>(m_viewMode), settingsFile);
+	m_viewMode = static_cast<ViewMode>(std::clamp(viewMode, 0, 1));
+
+	m_gridThumbnailSize = static_cast<float>(mq::GetPrivateProfileInt(settingsName, "ThumbnailSize", static_cast<int>(m_gridThumbnailSize), settingsFile));
+	m_gridThumbnailSize = std::clamp(m_gridThumbnailSize, 32.0f, 256.0f);
+
+	m_showPreview = mq::GetPrivateProfileBool(settingsName, "ShowPreview", m_showPreview, settingsFile);
+
+	m_previewHeight = static_cast<float>(mq::GetPrivateProfileInt(settingsName, "PreviewHeight", static_cast<int>(m_previewHeight), settingsFile));
+	m_previewHeight = std::clamp(m_previewHeight, 50.0f, 600.0f);
+}
+
+void BitmapBrowserPanel::SaveSettings()
+{
+	const std::string& settingsFile = g_config.GetSettingsFileName();
+
+	mq::WritePrivateProfileInt(settingsName, "ViewMode", static_cast<int>(m_viewMode), settingsFile);
+	mq::WritePrivateProfileInt(settingsName, "ThumbnailSize", static_cast<int>(m_gridThumbnailSize), settingsFile);
+	mq::WritePrivateProfileBool(settingsName, "ShowPreview", m_showPreview, settingsFile);
+	mq::WritePrivateProfileInt(settingsName, "PreviewHeight", static_cast<int>(m_previewHeight), settingsFile);
+}
+
+bool BitmapBrowserPanel::MatchesFilter(std::string_view name) const
+{
+	if (m_filterBuffer[0] == '\0')
+		return true;
+
+	return eqg::ci_find_substr(name, m_filterBuffer) != -1;
 }
 
 void BitmapBrowserPanel::DrawBitmapList(ZoneResourceManager* resourceMgr)
 {
 	auto* eqgResourceMgr = resourceMgr->GetResourceManager();
+
+	if (!resourceMgr->IsLoaded())
+	{
+		ImGui::Text("No zone loaded");
+		return;
+	}
+
 	const auto& bitmaps = eqgResourceMgr->GetResourcesByType(eqg::ResourceType::Bitmap);
 
 	if (bitmaps.empty())
@@ -34,7 +83,20 @@ void BitmapBrowserPanel::DrawBitmapList(ZoneResourceManager* resourceMgr)
 		return;
 	}
 
-	ImGui::Text("%zu bitmaps loaded", bitmaps.size());
+	if (m_filterBuffer[0] != '\0')
+	{
+		size_t filteredCount = 0;
+		for (const auto& name : bitmaps | std::views::keys)
+		{
+			if (MatchesFilter(name))
+				++filteredCount;
+		}
+		ImGui::Text("%zu of %zu bitmaps", filteredCount, bitmaps.size());
+	}
+	else
+	{
+		ImGui::Text("%zu bitmaps loaded", bitmaps.size());
+	}
 	ImGui::Separator();
 
 	// Calculate available space for list and preview
@@ -53,6 +115,9 @@ void BitmapBrowserPanel::DrawBitmapList(ZoneResourceManager* resourceMgr)
 
 			for (const auto& [name, resource] : bitmaps)
 			{
+				if (!MatchesFilter(name))
+					continue;
+
 				MGBitmap* bitmap = static_cast<MGBitmap*>(resource.get());
 
 				ImGui::TableNextRow();
@@ -60,7 +125,7 @@ void BitmapBrowserPanel::DrawBitmapList(ZoneResourceManager* resourceMgr)
 				// Name column
 				ImGui::TableNextColumn();
 				bool isSelected = (m_selectedBitmap == bitmap);
-				if (ImGui::Selectable(std::string(name).c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
+				if (ImGui::Selectable(bitmap->GetFileName().c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
 				{
 					m_selectedBitmap = bitmap;
 				}
@@ -82,6 +147,13 @@ void BitmapBrowserPanel::DrawBitmapList(ZoneResourceManager* resourceMgr)
 void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
 {
 	auto* eqgResourceMgr = resourceMgr->GetResourceManager();
+
+	if (!resourceMgr->IsLoaded())
+	{
+		ImGui::Text("No zone loaded");
+		return;
+	}
+
 	const auto& bitmaps = eqgResourceMgr->GetResourcesByType(eqg::ResourceType::Bitmap);
 
 	if (bitmaps.empty())
@@ -90,7 +162,20 @@ void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
 		return;
 	}
 
-	ImGui::Text("%zu bitmaps loaded", bitmaps.size());
+	if (m_filterBuffer[0] != '\0')
+	{
+		size_t filteredCount = 0;
+		for (const auto& name : bitmaps | std::views::keys)
+		{
+			if (MatchesFilter(name))
+				++filteredCount;
+		}
+		ImGui::Text("%zu of %zu bitmaps", filteredCount, bitmaps.size());
+	}
+	else
+	{
+		ImGui::Text("%zu bitmaps loaded", bitmaps.size());
+	}
 	ImGui::Separator();
 
 	// Calculate available space for grid and preview
@@ -98,10 +183,15 @@ void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
 	float gridHeight = availableHeight - ((m_showPreview ? m_previewHeight : 0) + ImGui::GetTextLineHeightWithSpacing() + 14.0f);
 	gridHeight = std::max(gridHeight, 50.0f);
 
-	ImDrawList* drawList = ImGui::GetWindowDrawList();
-
 	if (ImGui::BeginChild("BitmapGrid", ImVec2(0, gridHeight), ImGuiChildFlags_Borders))
 	{
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		
+		// Push clip rect to prevent drawing outside the child window
+		ImVec2 clipMin = ImGui::GetWindowPos();
+		ImVec2 clipMax = ImVec2(clipMin.x + ImGui::GetWindowWidth(), clipMin.y + ImGui::GetWindowHeight());
+		drawList->PushClipRect(clipMin, clipMax, true);
+
 		float availableWidth = ImGui::GetContentRegionAvail().x;
 		float cellPadding = 4.0f;
 		float labelHeight = ImGui::GetTextLineHeight() + 4.0f;
@@ -114,12 +204,14 @@ void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
 		int itemIndex = 0;
 		for (const auto& [name, resource] : bitmaps)
 		{
+			if (!MatchesFilter(name))
+				continue;
+
 			MGBitmap* bitmap = static_cast<MGBitmap*>(resource.get());
 
 			int column = itemIndex % columns;
 			int row = itemIndex / columns;
 
-			// Calculate fixed position for this cell
 			float cellX = column * (cellWidth + spacing);
 			float cellY = row * (cellHeight + spacing);
 
@@ -190,17 +282,38 @@ void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
 
 			// Draw filename label centered below the thumbnail
 			std::string nameStr(name);
-			ImVec2 textSize = ImGui::CalcTextSize(nameStr.c_str(), nullptr, false, cellWidth - cellPadding * 2);
-			float textX = cellScreenPos.x + (cellWidth - std::min(textSize.x, cellWidth - cellPadding * 2)) * 0.5f;
+			float maxTextWidth = cellWidth - cellPadding * 2;
+			ImVec2 textSize = ImGui::CalcTextSize(nameStr.c_str());
+			
+			std::string displayText = nameStr;
+			if (textSize.x > maxTextWidth)
+			{
+				// Text is too wide, need to elide with "..."
+				const char* ellipsis = "...";
+				float ellipsisWidth = ImGui::CalcTextSize(ellipsis).x;
+				float availableWidth = maxTextWidth - ellipsisWidth;
+				
+				// Binary search for the right truncation point
+				size_t low = 0;
+				size_t high = nameStr.length();
+				while (low < high)
+				{
+					size_t mid = (low + high + 1) / 2;
+					float width = ImGui::CalcTextSize(nameStr.c_str(), nameStr.c_str() + mid).x;
+					if (width <= availableWidth)
+						low = mid;
+					else
+						high = mid - 1;
+				}
+				displayText = nameStr.substr(0, low) + ellipsis;
+				textSize = ImGui::CalcTextSize(displayText.c_str());
+			}
+			
+			float textX = cellScreenPos.x + (cellWidth - textSize.x) * 0.5f;
 			float textY = cellScreenPos.y + m_gridThumbnailSize + cellPadding * 2;
 
-			// Clip the text to the cell width
-			ImGui::GetWindowDrawList()->AddText(
-				ImVec2(textX, textY),
-				ImGui::GetColorU32(ImGuiCol_Text),
-				nameStr.c_str());
+			drawList->AddText(ImVec2(textX, textY), ImGui::GetColorU32(ImGuiCol_Text), displayText.c_str());
 
-			// Tooltip with full name and dimensions
 			if (hovered)
 			{
 				ImGui::BeginTooltip();
@@ -217,17 +330,16 @@ void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
 		int totalRows = (static_cast<int>(bitmaps.size()) + columns - 1) / columns;
 		float contentHeight = totalRows * (cellHeight + spacing);
 		ImGui::SetCursorPosY(contentHeight);
+
+		drawList->PopClipRect();
 	}
 	ImGui::EndChild();
 
-	// Draw preview below the grid
 	DrawBitmapPreview();
 }
 
 void BitmapBrowserPanel::DrawBitmapPreview()
 {
-	float y1 = ImGui::GetCursorPos().y;
-
 	// Draw resize handle
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_SeparatorHovered));
@@ -246,8 +358,6 @@ void BitmapBrowserPanel::DrawBitmapPreview()
 
 	ImGui::PopStyleColor(3);
 
-	float y2 = ImGui::GetCursorPos().y;
-
 	// Collapsible preview header
 	m_showPreview = ImGui::CollapsingHeader("Preview",
 		m_showPreview ? ImGuiTreeNodeFlags_DefaultOpen : 0);
@@ -263,12 +373,7 @@ void BitmapBrowserPanel::DrawBitmapPreview()
 		return;
 	}
 
-	float y3 = ImGui::GetCursorPos().y;
-
-	float lineHeightWithSpacing = ImGui::GetTextLineHeightWithSpacing();
-
-
-	if (ImGui::BeginChild("PreviewContent", ImVec2(0, m_previewHeight), ImGuiChildFlags_None))
+	if (ImGui::BeginChild("PreviewContent", ImVec2(0, m_previewHeight - 4), ImGuiChildFlags_None))
 	{
 		ImGui::Text("File: %s", m_selectedBitmap->GetFileName().c_str());
 		ImGui::Text("Dimensions: %ux%u", m_selectedBitmap->GetWidth(), m_selectedBitmap->GetHeight());
@@ -389,6 +494,41 @@ void BitmapBrowserPanel::DrawToolbar()
 		ImGui::SliderFloat("##ThumbnailSize", &m_gridThumbnailSize, 32.0f, 256.0f, "%.0f px");
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Thumbnail Size");
+	}
+
+	// Filter input
+	ImGui::SameLine();
+
+	// Calculate remaining width for filter box
+	float filterWidth = ImGui::GetContentRegionAvail().x;
+	ImGui::SetNextItemWidth(filterWidth);
+
+	// Draw the filter input with hint text
+	ImGui::InputTextWithHint("##Filter", ICON_FA_SEARCH " Filter...", m_filterBuffer, sizeof(m_filterBuffer),
+		ImGuiInputTextFlags_AutoSelectAll);
+
+	// Handle escape key to clear filter when input is focused
+	if (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Escape))
+	{
+		m_filterBuffer[0] = '\0';
+		ImGui::SetWindowFocus(nullptr);
+	}
+
+	// Draw X button inside the input if there's text
+	if (m_filterBuffer[0] != '\0')
+	{
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 24.0f);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
+		if (ImGui::SmallButton(ICON_FA_TIMES "##ClearFilter"))
+		{
+			m_filterBuffer[0] = '\0';
+		}
+		ImGui::PopStyleColor(3);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Clear filter");
 	}
 
 	ImGui::Separator();

@@ -19,7 +19,7 @@ public:
 	PanelWindow(std::string_view panelName, std::string_view settingsName);
 	virtual ~PanelWindow() = default;
 
-	void Initialize();
+	virtual void Initialize();
 
 	virtual void OnImGuiRender(bool* p_open) = 0;
 
@@ -113,6 +113,8 @@ public:
 					return value.compare(m_panels[otherHash]->panelName) < 0;
 				}
 			), hash);
+
+		panel->Initialize();
 
 		return panel;
 	}
