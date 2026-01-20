@@ -302,7 +302,7 @@ bool EQGLoader::ParseMaterialsFacesAndVertices(BufferReader& reader, const char*
 		SEQMMaterial* material = used_materials[cur_material].first_usage_material;
 		SEQMFXParameter* params = used_materials[cur_material].first_usage_material_params;
 
-		std::string mat_tag = string_pool + material->name_index;
+		std::string mat_tag = fmt::format("{}{}", tag, string_pool + material->name_index);
 		std::shared_ptr<Material> material_instance;
 
 		auto iter = this->materials.find(mat_tag);

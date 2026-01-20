@@ -10,7 +10,6 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace eqg {
 
@@ -30,6 +29,14 @@ namespace detail
 {
 	template <class T>
 	concept StringLike = std::is_convertible_v<T, std::string_view>;
+
+	// Hash combine helper for building composite hash values
+	template <class T>
+	void hash_combine(std::size_t& seed, const T& v)
+	{
+		std::hash<T> hasher;
+		seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	}
 }
 
 template <class T>
@@ -59,21 +66,25 @@ struct ResourceKey
 	{
 		using is_transparent = void;
 
+		using ResType = std::underlying_type_t<ResourceType>;
+
 		template <detail::StringLike T>
 		std::size_t operator()(const std::pair<T, ResourceType>& pair) const
 		{
-			std::size_t h1 = std::hash<std::string_view>()(std::string_view(pair.first));
-			std::size_t h2 = std::hash<std::underlying_type_t<ResourceType>>()(static_cast<std::underlying_type_t<ResourceType>>(pair.second));
+			size_t hash = 0;
+			detail::hash_combine(hash, std::hash<std::string_view>()(std::string_view(pair.first)));
+			detail::hash_combine(hash, std::hash<ResType>()(static_cast<ResType>(pair.second)));
 
-			return h1 ^ h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
+			return hash;
 		}
 
 		std::size_t operator()(const ResourceKey& key) const
 		{
-			std::size_t h1 = std::hash<std::string>()(key.tag);
-			std::size_t h2 = std::hash<std::underlying_type_t<ResourceType>>()(static_cast<std::underlying_type_t<ResourceType>>(key.type));
+			size_t hash = 0;
+			detail::hash_combine(hash, std::hash<std::string_view>()(std::string_view(key.tag)));
+			detail::hash_combine(hash, std::hash<ResType>()(static_cast<ResType>(key.type)));
 
-			return h1 ^ h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
+			return hash;
 		}
 	};
 
@@ -254,6 +265,16 @@ public:
 
 	void AddLight(const PointLightPtr& light) { m_lights.push_back(light); }
 	const std::vector<PointLightPtr>& GetLights() const { return m_lights; }
+
+	// Get all resources of a specific type
+	const std::map<std::string_view, std::shared_ptr<Resource>>& GetResourcesByType(ResourceType type) const
+	{
+		static const std::map<std::string_view, std::shared_ptr<Resource>> s_empty;
+		auto it = m_sortedResources.find(type);
+		if (it != m_sortedResources.end())
+			return it->second;
+		return s_empty;
+	}
 
 private:
 	std::string m_dataPath;

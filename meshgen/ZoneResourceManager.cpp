@@ -6,6 +6,7 @@
 #include "meshgen/ApplicationConfig.h"
 #include "meshgen/EQComponents.h"
 #include "meshgen/GeometryUtils.h"
+#include "meshgen/MGBitmap.h"
 #include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "common/NavMeshData.h"
@@ -39,6 +40,28 @@ public:
 		, m_zoneResourceMgr(zoneResourceMgr)
 		, m_isGlobal(isGlobal)
 	{
+	}
+
+	// Create our custom bitmap type that supports bgfx textures
+	virtual std::shared_ptr<eqg::Bitmap> CreateBitmap() const override
+	{
+		return std::make_shared<MGBitmap>();
+	}
+
+	// Load texture data and create GPU texture
+	virtual bool LoadTexture(eqg::Bitmap* bitmap, eqg::Archive* archive) override
+	{
+		// First load the raw bitmap data using the base class implementation
+		if (!eqg::ResourceManager::LoadBitmapData(bitmap, archive))
+		{
+			SPDLOG_ERROR("MGResourceManager::LoadTexture: Failed to load bitmap data for {}",
+				bitmap->GetFileName());
+			return false;
+		}
+
+		// Now create the GPU texture from the loaded data
+		// The bitmap should be a MGBitmap since we created it via CreateBitmap()
+		return bitmap->LoadTexture();
 	}
 
 private:

@@ -675,10 +675,22 @@ bool WLDLoader::ParseBitmap(uint32_t objectIndex)
 				auto parts = split_view(fileNames[bitmapIndex], ',');
 
 				// Blindly assumes that this has 4 parts, because the eqg code didn't check for it...
-				wldData.detailScale = str_to_float(parts[1], 1.0f);
-				wldData.grassDensity = str_to_int(parts[2], 0);
-				wldData.fileName = parts[3];
-				fileNames[bitmapIndex] = parts[3];
+				// but it can have a space after the comma.
+				std::string_view part = parts[1];
+				if (!part.empty() && part[0] == ' ')
+					part = part.substr(1);
+				wldData.detailScale = str_to_float(part, 1.0f);
+
+				part = parts[2];
+				if (!part.empty() && part[0] == ' ')
+					part = part.substr(1);
+				wldData.grassDensity = str_to_int(part, 0);
+
+				part = parts[3];
+				if (!part.empty() && part[0] == ' ')
+					part = part.substr(1);
+				wldData.fileName = part;
+				fileNames[bitmapIndex] = part;
 			}
 		}
 

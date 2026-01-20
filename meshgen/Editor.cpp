@@ -9,6 +9,7 @@
 #include "meshgen/Application.h"
 #include "meshgen/ArchiveBrowserPanel.h"
 #include "meshgen/BackgroundTaskManager.h"
+#include "meshgen/BitmapBrowserPanel.h"
 #include "meshgen/ConsolePanel.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/PanelManager.h"
@@ -54,6 +55,7 @@ void Editor::OnInit()
 	m_panelManager->AddPanel<ViewPanel>(this);
 	m_panelManager->AddPanel<ToolsPanel>(this);
 	m_panelManager->AddPanel<ArchiveBrowserPanel>(this);
+	m_panelManager->AddPanel<BitmapBrowserPanel>(this);
 	m_panelManager->AddPanel<SceneHierarchyPanel>(this);
 
 	m_panelManager->AddDockingLayout({
@@ -66,6 +68,7 @@ void Editor::OnInit()
 		.assignments = {
 			{.panelName = "Scene Hierarchy", .dockName = "LeftPane", .open = true },
 			{.panelName = "Archive Browser", .dockName = "LeftPane", .open = false },
+			{.panelName = "Bitmap Browser", .dockName = "LeftPane", .open = false },
 			{.panelName = "Console Log", .dockName = "BottomPane", .open = true },
 			{.panelName = "Properties", .dockName = "RightPane", .open = true },
 			{.panelName = "Tools", .dockName = "RightPane", .open = true },

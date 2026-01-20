@@ -57,6 +57,13 @@ public:
 	{
 	}
 
+	BufferReader(const BufferReader& reader)
+		: buffer_(reader.buffer_)
+		, pos_(reader.pos_)
+		, size_(reader.size_)
+	{
+	}
+
 	const uint8_t& operator[](size_t pos) const { return buffer_[pos]; }
 	const uint8_t* data() const { return buffer_ + pos_; }
 

@@ -242,7 +242,7 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 	{
 		if (!archive->Get(bitmap->GetFileName(), buffer))
 		{
-			EQG_LOG_ERROR("Failed to load {} from {}", bitmap->GetFileName(), archive->GetFileName());
+			EQG_LOG_ERROR("Failed to load {} from {}: not found in archive", bitmap->GetFileName(), archive->GetFileName());
 			return false;
 		}
 	}
@@ -264,15 +264,19 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 
 	if (strncmp(magic, "BM", 2) == 0)
 	{
+		BufferReader readerCopy(reader);
+
 		// Handle BMP
-		BITMAPFILEHEADER* bmpHeader = reader.read_ptr<BITMAPFILEHEADER>();
-		BITMAPINFOHEADER* bmpInfo = reader.read_ptr<BITMAPINFOHEADER>();
+		BITMAPFILEHEADER* bmpHeader = readerCopy.read_ptr<BITMAPFILEHEADER>();
+		BITMAPINFOHEADER* bmpInfo = readerCopy.read_ptr<BITMAPINFOHEADER>();
 
 		bitmap->SetSize(bmpInfo->biWidth, abs(bmpInfo->biHeight));
 		bitmap->SetSourceSize(bmpInfo->biWidth, bmpInfo->biHeight);
 
-		char* rawData = buffer.data() + bmpHeader->bfOffBits;
-		rawDataSize = (uint32_t)buffer.size() - bmpHeader->bfOffBits;
+		//uint32_t dataOffset = bmpHeader->bfOffBits;
+		uint32_t dataOffset = 0;
+		char* rawData = buffer.data() + dataOffset;
+		rawDataSize = (uint32_t)buffer.size() - dataOffset;
 		rawDataCopy = std::make_unique<char[]>(rawDataSize);
 		memcpy(rawDataCopy.get(), rawData, rawDataSize);
 	}
@@ -280,17 +284,25 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 	{
 		// Handle DDS
 
-		reader.skip<uint32_t>();
+		BufferReader readerCopy(reader);
+
+		readerCopy.skip<uint32_t>();
 
 		// This could be a DDSURFACEDESC or a DDSURFACEDESC2. Read the smaller of the two types,
 		// but ideally we should detect which version first.
-		DDSURFACEDESC* ddsHeader = reader.read_ptr<DDSURFACEDESC>();
+		DDSURFACEDESC* ddsHeader = readerCopy.read_ptr<DDSURFACEDESC>();
 
 		bitmap->SetSize(ddsHeader->dwWidth, ddsHeader->dwHeight);
 		bitmap->SetSourceSize(ddsHeader->dwWidth, ddsHeader->dwHeight);
 
-		uint32_t dataOffset = sizeof(uint32_t) + ddsHeader->dwSize;
-		char* rawData = buffer.data() + sizeof(uint32_t) + ddsHeader->dwSize;
+		// some of these EQ dds files report having zero mip maps, which causes the texture loader
+		// to basically load nothing.
+		if (ddsHeader->dwMipMapCount == 0)
+			ddsHeader->dwMipMapCount = 1;
+
+		//uint32_t dataOffset = sizeof(uint32_t) + ddsHeader->dwSize;
+		uint32_t dataOffset = 0;
+		char* rawData = buffer.data() + dataOffset;
 		rawDataSize = (uint32_t)buffer.size() - dataOffset;
 		rawDataCopy = std::make_unique<char[]>(rawDataSize);
 		memcpy(rawDataCopy.get(), rawData, rawDataSize);

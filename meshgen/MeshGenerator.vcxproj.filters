@@ -188,6 +188,12 @@
     <ClCompile Include="ArchiveBrowserPanel.cpp">
       <Filter>Source Files\panels</Filter>
     </ClCompile>
+    <ClCompile Include="BitmapBrowserPanel.cpp">
+      <Filter>Source Files\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="MGBitmap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="AreaVolumeRenderSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -357,6 +363,12 @@
     </ClInclude>
     <ClInclude Include="ArchiveBrowserPanel.h">
       <Filter>Header Files\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="BitmapBrowserPanel.h">
+      <Filter>Header Files\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="MGBitmap.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AreaVolumeRenderSystem.h">
       <Filter>Header Files</Filter>

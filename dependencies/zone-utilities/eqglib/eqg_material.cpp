@@ -160,7 +160,7 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 	int frame_interval = 0;
 	//std::vector<std::string> frames;
 
-	if (type != 2) // not detail palette
+	if (type != MaterialType_SingleDetail) // not detail palette
 	{
 		for (uint32_t param_index = 0; param_index < num_effect_params; ++param_index)
 		{
@@ -217,13 +217,15 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 	m_textureSet->updateInterval = frame_interval;
 	m_effectParams.resize(num_effect_params);
 
+	ResourceManager* resourceMgr = ResourceManager::Get();
+
 	if (type == 2) // detail palette
 	{
 		
 	}
 	else
 	{
-		uint32_t curr_bitmap = 0;
+		uint32_t currentBitmap = 0;
 
 		for (uint32_t fx_param = 0; fx_param < num_effect_params; ++fx_param)
 		{
@@ -265,19 +267,56 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 				break;
 
 			case eEQMFXParameterTexture:
+			{
 				param.type = FXParameterType_Texture;
-				
-				// this is where we load the textures for the material
-				const char* filename = string_pool + in_param->n_value;
 
-				if (curr_bitmap == 0)
+				// this is where we load the textures for the material
+				std::string_view filename = string_pool + in_param->n_value;
+				BitmapPtr bitmap;
+
+				if (filename != "None")
 				{
-					for (uint32_t index = 0; index < m_textureSet->textures.size(); ++index)
+					bool isEnvironmentMap = find_substr(filename, "Environment") != -1;
+
+					if (m_type == MaterialType_AlphaWater && isEnvironmentMap)
+					{
+						// something about sky/cubemap
+					}
+					else if (m_type == MaterialType_AlphaLavaH && find_substr(filename, "Environment") != -1)
+					{
+						bitmap = resourceMgr->CreateBitmap(filename, archive, true);
+					}
+					else
+					{
+						bitmap = resourceMgr->CreateBitmap(filename, archive, false);
+					}
+				}
+
+				for (uint32_t index = 0; index < m_textureSet->textures.size(); ++index)
+				{
+					if (currentBitmap == 0)
 					{
 						m_textureSet->textures[index].flags = 0;
 						m_textureSet->textures[index].filename = filename;
 					}
+
+					if (bitmap)
+					{
+						m_textureSet->textures[index].textures[currentBitmap] = bitmap;
+					}
+					else
+					{
+						m_textureSet->textures[index].textures[currentBitmap].reset();
+					}
 				}
+
+				if (bitmap)
+				{
+					// TODO: Additional animation frames?
+				}
+			}
+
+			default: break;
 			}
 		}
 	}
