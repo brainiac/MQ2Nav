@@ -625,6 +625,8 @@ public:
 	void UpdateBoneToWorldMatrices(glm::mat4x4* parentMatrix = nullptr);
 	void UpdateBoneToWorldMatrices(Bone* bone, glm::mat4x4* parentMatrix);
 
+	void SetRGBs(const std::span<uint32_t>& RGBs);
+
 private:
 	DefinitionPtrType             m_definition;
 	Actor*                        m_actor = nullptr; // owning actor
@@ -633,6 +635,7 @@ private:
 	uint32_t                      m_activeMeshes = 0;
 
 	MaterialPalettePtr            m_materialPalette; // copy of the material palette from the definition
+	std::vector<uint32_t>         m_bakedDiffuseLighting;
 
 	std::unique_ptr<ParticlePointManager> m_pointManager;
 	std::unique_ptr<ActorParticleManager> m_particleManager;
@@ -834,10 +837,13 @@ public:
 	virtual bool IsCollidable() const override;
 
 private:
-	void InitLOD();
+	bool InitLOD();
 	void SetAllSkinsActive();
+	void SetDefaultSkinsActive();
 	void PutAllBonesInBoneGroup(int groupIndex, int maxNumAnims, bool newBoneNames);
 	void AttachLODModels(HierarchicalModel* parent, HierarchicalModel* child);
+	void SetupAttachmentBones();
+	void Detach();
 
 	HierarchicalModelPtr     m_model;
 	SimpleModelPtr           m_collisionModel;

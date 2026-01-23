@@ -2314,6 +2314,10 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 				glm::vec3* inVerts = polyReader.read_array<glm::vec3>(polyDef->num_vertices);
 				collisionVertices.assign(inVerts, inVerts + polyDef->num_vertices);
 
+				// Fix coordinates
+				for (glm::vec3& vert : collisionVertices)
+					vert = vert.yzx;
+
 				// faces appear to be capable of having more than three edges, so we treat them
 				// as a triangle fan and break them into triangles.
 				collisionIndices.reserve(polyDef->num_faces);
@@ -2326,8 +2330,8 @@ bool WLDLoader::ParseHierarchicalModel(uint32_t objectIndex, std::shared_ptr<Hie
 					for (uint32_t j = 2; j < numVerts; ++j)
 					{
 						collisionIndices.push_back(indices[0]);
-						collisionIndices.push_back(indices[j - 1]);
 						collisionIndices.push_back(indices[j]);
+						collisionIndices.push_back(indices[j - 1]);
 					}
 
 					if (haveNormals)

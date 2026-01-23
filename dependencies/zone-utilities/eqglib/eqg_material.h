@@ -148,7 +148,6 @@ public:
 	void SetType(EBitmapType type) { m_type = type; }
 	void SetSize(uint32_t width, uint32_t height) { m_width = width; m_height = height; }
 	void SetSourceSize(uint32_t width, uint32_t height) { m_sourceWidth = width; m_sourceHeight = height; }
-	void SetForceMipMap(bool force) { m_forceMipMap = force; }
 
 	bool InitFromWLDData(SBitmapWLDData* wldData, Archive* archive);
 	bool Init(std::string_view fileName, Archive* archive, bool cubeMap);
@@ -167,7 +166,6 @@ private:
 	uint32_t                 m_height = 0;
 	uint32_t                 m_objectIndex = (uint32_t)-1;
 	bool                     m_hasTexture = false;
-	bool                     m_forceMipMap = false;
 
 	//std::unique_ptr<char[]>  m_rawData;
 	//uint32_t                 m_byteSize = 0;

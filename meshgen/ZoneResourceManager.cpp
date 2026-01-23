@@ -48,22 +48,6 @@ public:
 		return std::make_shared<MGBitmap>();
 	}
 
-	// Load texture data and create GPU texture
-	virtual bool LoadTexture(eqg::Bitmap* bitmap, eqg::Archive* archive) override
-	{
-		// First load the raw bitmap data using the base class implementation
-		if (!eqg::ResourceManager::LoadBitmapData(bitmap, archive))
-		{
-			SPDLOG_ERROR("MGResourceManager::LoadTexture: Failed to load bitmap data for {}",
-				bitmap->GetFileName());
-			return false;
-		}
-
-		// Now create the GPU texture from the loaded data
-		// The bitmap should be a MGBitmap since we created it via CreateBitmap()
-		return bitmap->LoadTexture();
-	}
-
 private:
 	ZoneResourceManager* m_zoneResourceMgr = nullptr;
 	bool m_isGlobal = false;
@@ -139,6 +123,28 @@ bool ZoneResourceManager::Load()
 bool ZoneResourceManager::BuildScene(Scene& scene)
 {
 	auto& registry = m_scene->GetRegistry();
+
+#if 0 // cobalt scar druid ring - just testing. should work with switches being loaded.
+	auto pActorDef = m_resourceMgr->Get<eqg::ActorDefinition>("DRAGCIRCLE200_ACTORDEF");
+	if (pActorDef)
+	{
+		glm::mat4 mat{
+			0.19509030878543854, 0.9807851910591125, 0.0, 0.0,
+			-0.9807851910591125, 0.19509030878543854, 0.0, 0.0,
+			0.0, 0.0, 0.9999999403953552, 0.0,
+			-1062.3533935546875, -1621.2421875, 293.53326416015625,1.0
+		};
+
+		glm::vec3 scale, translation;
+		glm::quat orientation;
+		glm::vec3 skew;
+		glm::vec4 perspective;
+		glm::decompose(mat, scale, orientation, translation, skew, perspective);
+
+		auto actor = m_resourceMgr->CreateSimpleActor("DRAGCIRCLE200", pActorDef, translation.yzx, glm::eulerAngles(orientation).yzx, scale.x, eqg::eCollisionVolumeNone);
+		AddActor(actor);
+	}
+#endif
 
 	for (const eqg::ActorPtr& actor : m_resourceMgr->GetActors())
 	{

@@ -5,6 +5,7 @@
 #include "archive.h"
 #include "buffer_reader.h"
 #include "eqg_material.h"
+#include "eqg_math.h"
 #include "eqg_resource_manager.h"
 #include "eqg_structs.h"
 #include "log_internal.h"
@@ -521,6 +522,11 @@ glm::vec3 TerrainTile::GetPosInTile(const glm::vec3& pos) const
 	return glm::vec3{ pos.x + m_tilePos.x, pos.y + m_tilePos.y, pos.z + terrain_height };
 }
 
+glm::vec3 TerrainTile::GetWorldPos(const glm::vec3& pos) const
+{
+	return glm::vec3{ m_tilePos.x + pos.x, m_tilePos.y + pos.y, pos.z };
+}
+
 TerrainLightDefinitionPtr TerrainSystem::GetLightDefinition(std::string_view tag)
 {
 	for (const auto& lightDef : m_lightDefinitions)
@@ -569,10 +575,9 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(std::string_view name, int o
 
 	if (pActorDef->GetHierarchicalModelDefinition())
 	{
-		// FIXME: This constructor isn't working yet
 		actor = resourceMgr->CreateHierarchicalActor(tag, pActorDef, objectID, true, true, false, nullptr, instName);
 
-		//resourceMgr->AddActor(std::move(actor));
+		resourceMgr->AddActor(std::move(actor));
 	}
 	else if (pActorDef->GetSimpleModelDefinition())
 	{
@@ -584,13 +589,9 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(std::string_view name, int o
 	auto terrainObject = std::make_shared<TerrainObject>(name, actor, objectID);
 	actor->SetTerrainObject(terrainObject.get());
 
-	if (m_objects.contains(objectID))
+	if (!m_usedObjectIDs.contains(objectID))
 	{
-		EQG_LOG_ERROR("Duplicate object ID {} in terrain!", objectID);
-	}
-	else
-	{
-		m_objects.emplace(objectID, terrainObject);
+		m_usedObjectIDs.emplace(objectID);
 		m_maxObjectID = std::max(m_maxObjectID, objectID);
 	}
 
@@ -666,7 +667,7 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(
 				tag,
 				pActorDef,
 				groupElement->position.yzx,
-				glm::vec3(0.0f),
+				groupElement->orientation.yzx,
 				groupElement->scale,
 				pActorDef->GetSimpleModelDefinition()->GetDefaultCollisionType(),
 				pActorDef->GetSimpleModelDefinition()->GetDefaultBoundingRadius(),
@@ -687,13 +688,9 @@ TerrainObjectPtr TerrainSystem::CreateTerrainObject(
 	actor->SetTerrainObject(terrainObject.get());
 	resourceMgr->AddActor(actor);
 
-	if (m_objects.contains(objectID))
+	if (!m_usedObjectIDs.contains(objectID))
 	{
-		EQG_LOG_ERROR("Duplicate object ID {} in terrain!", objectID);
-	}
-	else
-	{
-		m_objects.emplace(objectID, terrainObject);
+		m_usedObjectIDs.insert(objectID);
 		m_maxObjectID = std::max(m_maxObjectID, objectID);
 	}
 
@@ -705,7 +702,7 @@ int TerrainSystem::GetNextObjectID()
 	// Search for an empty ID???
 	for (int i = 1; i < m_maxObjectID; ++i)
 	{
-		if (!m_objects.contains(i))
+		if (!m_usedObjectIDs.contains(i))
 			return i;
 	}
 
@@ -884,10 +881,6 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 				obj->orientation = glm::radians(rot);
 				obj->scale = scale;
 
-				obj->transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), obj->position), obj->scale);
-				obj->transform *= glm::mat4_cast(glm::quat{ obj->orientation });
-
-
 				obj->m_actor->SetPosition(obj->position.yzx);
 				obj->m_actor->SetOrientation(obj->orientation.yzx);
 				obj->m_actor->SetScale(obj->scale.x);
@@ -1003,15 +996,13 @@ bool TerrainTile::Load(BufferReader& reader, int version)
 //============================================================================
 
 TerrainObjectGroup::TerrainObjectGroup(TerrainTile* tile, const TerrainLoc& loc, float zOffset)
-	: m_position(tile->m_tilePos + glm::vec3(loc.position.x, loc.position.y, loc.position.z + (loc.scale.z * zOffset)))
+	: m_position(glm::vec3(loc.position.x, loc.position.y, loc.position.z))
 	, m_orientation(glm::radians(loc.orientation))
 	, m_scale(loc.scale)
 	, m_tile(tile)
+	, m_zOffset(zOffset)
 {
-	m_transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), m_position), m_scale);
-	m_transform *= glm::mat4_cast(glm::quat{ m_orientation });
 }
-
 
 void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 {
@@ -1019,6 +1010,9 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 
 	if (!m_definition)
 		return;
+
+	glm::mat4x4 tileRotation = glm::toMat4(glm::quat{ m_orientation });
+	glm::vec3 tileWorldPos = m_tile->GetWorldPos(m_position);
 
 	m_objects.reserve(definition->objects.size());
 	for (const auto& object : definition->objects)
@@ -1028,19 +1022,23 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 			newObject->m_name = to_upper_copy(object->name) + "_ACTORDEF";
 			newObject->m_objectID = object->object_id;
 			newObject->group = this;
+			newObject->position = object->position;
+			newObject->orientation = object->orientation;
+			newObject->scale = glm::vec3(object->scale);
 
-			// Set positions to be in world space
-			newObject->transform = m_transform * object->transform;
+			glm::vec3 rotatedPosition = tileRotation * glm::vec4(object->position, 1.0f);
+			glm::vec3 worldPos = tileWorldPos + rotatedPosition * m_scale.x;
+			worldPos.z += m_zOffset * m_scale.x;
 
-			glm::quat orient;
-			glm::vec3 skew;
-			glm::vec4 perspective;
-			glm::decompose(newObject->transform, newObject->scale, orient, newObject->position, skew, perspective);
-			newObject->orientation = glm::eulerAngles(orient);
+			glm::vec3 position = worldPos; /*groupTransform * glm::vec4(newObject->position.yzx, 1.0f);*/
+			glm::vec3 orientation = (newObject->orientation + m_orientation) * glm::vec3(1.0f, 1.0f, 1.0f);
+			glm::vec3 scale = newObject->scale * m_scale;
 
-			newObject->m_actor->SetPosition(newObject->position.yzx);
-			newObject->m_actor->SetOrientation(newObject->orientation.yzx);
-			newObject->m_actor->SetScale(newObject->scale.x);
+			glm::vec3 orientation_degrees = glm::degrees(orientation);
+
+			newObject->m_actor->SetPosition(position.yzx);
+			newObject->m_actor->SetOrientation(orientation.yzx);
+			newObject->m_actor->SetScale(scale.x);
 
 			m_objects.push_back(newObject);
 		}
@@ -1053,8 +1051,12 @@ void TerrainObjectGroup::Initialize(TerrainObjectGroupDefinition* definition)
 	m_areas.reserve(definition->areas.size());
 	for (const auto& area : definition->areas)
 	{
-		auto newArea = std::make_shared<TerrainArea>(area->name, area->position.yzx,
-			glm::radians(area->orientation).yzx, area->extents.yzx);
+		glm::vec3 rotatedPosition = tileRotation * glm::vec4(area->position, 1.0f);
+		glm::vec3 worldPos = tileWorldPos + rotatedPosition * m_scale.x;
+		worldPos.z += m_zOffset * m_scale.x;
+
+		auto newArea = std::make_shared<TerrainArea>(area->name, worldPos.yzx,
+			glm::radians(m_orientation + area->orientation).yzx, area->extents.yzx * m_scale);
 		newArea->group = this;
 
 		m_areas.push_back(newArea);
@@ -1080,8 +1082,6 @@ bool TerrainObjectGroupDefinitionObjectElement::Load(const std::vector<std::stri
 
 		if (token == "*END_OBJECT")
 		{
-			transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), position), glm::vec3(scale));
-			transform *= glm::mat4_cast(glm::quat{ orientation });
 			return true;
 		}
 
@@ -1139,8 +1139,6 @@ bool TerrainObjectGroupDefinitionAreaElement::Load(const std::vector<std::string
 
 		if (token == "*END_AREA")
 		{
-			transform = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), position), extents);
-			transform *= glm::mat4_cast(glm::quat{ orientation });
 			return true;
 		}
 
@@ -1156,7 +1154,7 @@ bool TerrainObjectGroupDefinitionAreaElement::Load(const std::vector<std::string
 			if (k + 3 >= tokens.size())
 				break;
 
-			position = { std::stof(tokens[k + 1]), std::stof(tokens[k + 2]), std::stof(tokens[k + 3]) };
+			position = { std::stof(tokens[k]), std::stof(tokens[k + 1]), std::stof(tokens[k + 2]) };
 			k += 3;
 		}
 		else if (token == "*ROTATION")
@@ -1164,7 +1162,7 @@ bool TerrainObjectGroupDefinitionAreaElement::Load(const std::vector<std::string
 			if (k + 3 >= tokens.size())
 				break;
 
-			orientation = glm::radians(glm::vec3{ std::stof(tokens[k + 1]), std::stof(tokens[k + 2]), std::stof(tokens[k + 3]) });
+			orientation = glm::radians(glm::vec3{ std::stof(tokens[k]), std::stof(tokens[k + 1]), std::stof(tokens[k + 2]) });
 			k += 3;
 		}
 		else if (token == "*EXTENTS")
@@ -1172,7 +1170,7 @@ bool TerrainObjectGroupDefinitionAreaElement::Load(const std::vector<std::string
 			if (k + 1 >= tokens.size())
 				break;
 
-			extents = { std::stof(tokens[k + 1]), std::stof(tokens[k + 2]), std::stof(tokens[k + 3]) };
+			extents = { std::stof(tokens[k]), std::stof(tokens[k + 1]), std::stof(tokens[k + 2]) };
 			k += 3;
 		}
 	}

@@ -799,7 +799,14 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 						numLitVerts = litReader.read<uint32_t>();
 						uint32_t* litData = litReader.read_array<uint32_t>(numLitVerts);
 
-						litVerts = { litData, numLitVerts };
+						if (litData)
+						{
+							litVerts = { litData, numLitVerts };
+						}
+						else
+						{
+							EQG_LOG_WARN("Baked lighting file \"{}\" is corrupt!", litFileName);
+						}
 					}
 				}
 			}
@@ -843,7 +850,10 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 			}
 		}
 
-		instanceName = instanceName.data() + instanceName.size() + 1;
+		if (instanceId + 1 < header->num_instances)
+		{
+			instanceName = instanceName.data() + instanceName.size() + 1;
+		}
 	}
 
 	EQG_LOG_TRACE("Parsing zone areas.");
@@ -933,6 +943,7 @@ LODListElement::LODListElement(std::string_view data)
 	{
 		type = LOD;
 		definition = parts[1];
+		to_upper(definition);
 
 		if (parts.size() < 3)
 		{
@@ -952,6 +963,7 @@ LODListElement::LODListElement(std::string_view data)
 	{
 		type = Collision;
 		definition = parts[1];
+		to_upper(definition);
 	}
 	else
 	{

@@ -99,14 +99,8 @@ std::shared_ptr<Bitmap> ResourceManager::CreateBitmap(std::string_view fileName,
 
 	auto pBitmap = CreateBitmap();
 
-	if (archive == nullptr)
-	{
-		pBitmap->SetForceMipMap(true);
-	}
-
 	if (!pBitmap->Init(fileName, archive, cubeMap))
 	{
-		EQG_LOG_ERROR("Failed to create bitmap from file {} cubeMap={}", fileName, cubeMap);
 		return nullptr;
 	}
 
@@ -230,7 +224,13 @@ std::shared_ptr<Terrain> ResourceManager::CreateTerrain()
 
 bool ResourceManager::LoadTexture(Bitmap* bitmap, Archive* archive)
 {
-	return LoadBitmapData(bitmap, archive);
+	if (!LoadBitmapData(bitmap, archive))
+	{
+		return false;
+	}
+
+	// Load the texture from the bitmap into a bgfx texture
+	return bitmap->LoadTexture();
 }
 
 bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
@@ -242,7 +242,7 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 	{
 		if (!archive->Get(bitmap->GetFileName(), buffer))
 		{
-			EQG_LOG_ERROR("Failed to load {} from {}: not found in archive", bitmap->GetFileName(), archive->GetFileName());
+			EQG_LOG_WARN("Failed to load '{}': Not found in archive '{}'", bitmap->GetFileName(), archive->GetFileName());
 			return false;
 		}
 	}
@@ -251,7 +251,7 @@ bool ResourceManager::LoadBitmapData(Bitmap* bitmap, Archive* archive)
 		// Read the path from disk
 		if (!ReadFile(bitmap->GetFileName(), buffer))
 		{
-			EQG_LOG_ERROR("Failed to load {} from disk", bitmap->GetFileName());
+			EQG_LOG_WARN("Failed to load '{}': Not found on disk", bitmap->GetFileName());
 			return false;
 		}
 	}

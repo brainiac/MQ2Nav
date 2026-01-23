@@ -40,6 +40,8 @@ public:
 	void addPolys(const std::vector<glm::vec3>& verts, const std::vector<uint32_t>& indices);
 
 	void addActor(entt::handle handle, const eqg::Actor* actor);
+	bool addSimpleModel(const glm::mat4& mtx, const eqg::SimpleModel* model);
+	bool addHierarchicalModel(const glm::mat4& mtx, const eqg::HierarchicalModel* model);
 
 	bool finalize();
 

@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
-	<Type Name="EQEmu::EQG::Region">
-		<DisplayString>EQG::Region {{ name={name} alt_name={alt_name} flags={flag[0]},{flag[1]} pos={x},{y},{z} }}</DisplayString>
-	</Type>
-	<Type Name="EQEmu::S3D::S3DFileObject">
-		<DisplayString>WLD Object {{ type={type} tag={tag,na} }}</DisplayString>
-	</Type>
-
 	<Type Name="taabb&lt;*&gt;">
 		<DisplayString>AABB {{min={{x={min.x} y={min.y} z={min.z}}} max={{x={max.x} y={max.y} z={max.z}}}}}</DisplayString>
 		<Expand>
@@ -19,5 +12,9 @@
 				<DisplayString>{{ x={min.x-max.x} y={min.y-max.y} z={min.z-max.z} }}</DisplayString>
 			</Synthetic>
 		</Expand>
+	</Type>
+
+	<Type Name="eqg::Bone">
+		<DisplayString>Bone {m_definition->m_tag}</DisplayString>
 	</Type>
 </AutoVisualizer>

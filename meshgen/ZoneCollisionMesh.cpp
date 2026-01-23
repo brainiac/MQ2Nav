@@ -208,20 +208,43 @@ void ZoneCollisionMesh::addActor(entt::handle handle, const eqg::Actor* actor)
 		return;
 	}
 
+	// If we have a collision model, use it. SimpleModels will set this if they have collision.
 	eqg::SimpleModelPtr collisionModel = actor->GetCollisionModel();
-	if (!collisionModel)
+	if (collisionModel)
 	{
-		SPDLOG_WARN("Ignoring placement of actor '{}': It has no collision model!", actor->GetActorName());
-		return;
+		auto pDefinition = collisionModel->GetDefinition();
+		auto& faceIndices = pDefinition->m_collidableIndices;
+
+		SPDLOG_DEBUG("Adding simple model {} to collision mesh ({} faces) at {:.2f} {:.2f} {:.2f}", actor->GetActorName(), faceIndices.size(),
+			transform.position.x, transform.position.y, transform.position.z);
+
+		if (addSimpleModel(mtx, collisionModel.get()))
+			return;
 	}
 
-	auto pDefinition = collisionModel->GetDefinition();
+	// If this is a hierarchical model, we have two options: A special collision model represented by vertices
+	// and indices, or we enumerate the bones and produce a mesh from the bones.
+	eqg::HierarchicalModelPtr hModel = actor->GetHierarchicalModel();
+	if (hModel)
+	{
+		auto pDefinition = hModel->GetDefinition();
+
+		SPDLOG_DEBUG("Adding hierarchical model {} to collision mesh at {:.2f} {:.2f} {:.2f}", actor->GetActorName(),
+			transform.position.x, transform.position.y, transform.position.z);
+
+		if (addHierarchicalModel(mtx, hModel.get()))
+			return;
+	}
+
+	SPDLOG_WARN("Ignoring placement of actor '{}': It has no collision model!", actor->GetActorName());
+}
+
+bool ZoneCollisionMesh::addSimpleModel(const glm::mat4& mtx, const eqg::SimpleModel* model)
+{
+	auto pDefinition = model->GetDefinition();
 	auto& faces = pDefinition->m_faces;
 	auto& faceIndices = pDefinition->m_collidableIndices;
 	auto& vertices = pDefinition->m_vertices;
-
-	SPDLOG_DEBUG("Adding {} to collision mesh ({} faces) at {:.2f} {:.2f} {:.2f}", actor->GetActorName(), faceIndices.size(),
-		transform.position.x, transform.position.y, transform.position.z);
 
 	for (uint32_t faceIndex : faceIndices)
 	{
@@ -233,6 +256,31 @@ void ZoneCollisionMesh::addActor(entt::handle handle, const eqg::Actor* actor)
 			glm::vec3(mtx * glm::vec4(vertices[face.indices[2]], 1))
 		);
 	}
+
+	return !faceIndices.empty();
+}
+
+bool ZoneCollisionMesh::addHierarchicalModel(const glm::mat4& mtx, const eqg::HierarchicalModel* model)
+{
+	auto pDefinition = model->GetDefinition();
+	auto& vertices = pDefinition->m_collisionVertices;
+	auto& indices = pDefinition->m_collisionIndices;
+
+	if (!vertices.empty() && !indices.empty())
+	{
+		for (size_t i = 0; i < indices.size(); i += 3)
+		{
+			addTriangle(
+				glm::vec3(mtx * glm::vec4(vertices[indices[i + 0]], 1)),
+				glm::vec3(mtx * glm::vec4(vertices[indices[i + 1]], 1)),
+				glm::vec3(mtx * glm::vec4(vertices[indices[i + 2]], 1))
+			);
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 

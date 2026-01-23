@@ -126,8 +126,6 @@ struct TerrainObjectGroupDefinitionObjectElement
 	float scale;
 	int object_id = 0;
 
-	glm::mat4x4 transform;
-
 	struct ElementFile
 	{
 		std::string tag;
@@ -148,8 +146,6 @@ struct TerrainObjectGroupDefinitionAreaElement
 	glm::vec3 position;
 	glm::vec3 orientation;
 	glm::vec3 extents;
-
-	glm::mat4x4 transform;
 
 	bool Load(const std::vector<std::string>& tokens, size_t& k);
 };
@@ -190,8 +186,6 @@ public:
 	glm::vec3      orientation{ 0 };
 	glm::vec3      scale{ 0 };
 
-	glm::mat4x4    transform{ 0 };
-
 	uint32_t*      rgbLitData = nullptr;
 
 	TerrainObjectGroup* group = nullptr;
@@ -208,7 +202,7 @@ public:
 	glm::vec3      m_position;
 	glm::vec3      m_orientation;
 	glm::vec3      m_scale;
-	glm::mat4x4    m_transform;
+	float          m_zOffset;
 
 	TerrainTile*                  m_tile = nullptr;
 	TerrainObjectGroupDefinition* m_definition = nullptr;
@@ -308,6 +302,8 @@ public:
 	bool Load(BufferReader& reader, int version);
 
 	glm::vec3 GetPosInTile(const glm::vec3& pos) const;
+	glm::vec3 GetWorldPos(const glm::vec3& pos) const;
+
 	int GetTileLocX() const { return m_tileLoc.x; }
 	int GetTileLocY() const { return m_tileLoc.y; }
 	
@@ -404,7 +400,7 @@ public:
 	std::vector<TerrainObjectGroupDefinitionPtr> m_groupDefinitions;
 	std::vector<TerrainLightDefinitionPtr> m_lightDefinitions;
 	TerrainLightDefinitionPtr      m_defaultLightDefinition;
-	std::unordered_map<int, TerrainObjectPtr> m_objects;
+	std::unordered_set<int>        m_usedObjectIDs;
 
 	std::vector<TerrainLightPtr>   m_lights;
 	std::vector<TerrainAreaPtr>    m_areas;

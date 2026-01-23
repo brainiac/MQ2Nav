@@ -119,14 +119,9 @@ bool Bitmap::Init(std::string_view fileName, Archive* archive, bool cubeMap)
 	}
 	else
 	{
-		if (!resourceMgr->LoadTexture(this, archive))
-		{
-			EQG_LOG_ERROR("Failed to create texture for {}", m_fileName);
-			return false;
-		}
+		m_hasTexture = resourceMgr->LoadTexture(this, archive);
 	}
 
-	m_hasTexture = true;
 	return true;
 }
 

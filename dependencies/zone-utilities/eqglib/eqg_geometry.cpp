@@ -1329,6 +1329,12 @@ void HierarchicalModelDefinition::InitCollisionData()
 
 void HierarchicalModelDefinition::UpdateDefaultPoseBoneMatrices(BoneDefinition* bone, glm::mat4x4* parentMtx)
 {
+	// FIXME: why is this null?
+	if (!bone)
+	{
+		return;
+	}
+
 	glm::mat4x4 mtx = bone->GetDefaultPoseMatrix();
 
 	if (parentMtx)
@@ -1581,6 +1587,14 @@ void HierarchicalModel::UpdateBoneToWorldMatrices(Bone* bone, glm::mat4x4* paren
 	// TODO
 }
 
+void HierarchicalModel::SetRGBs(const std::span<uint32_t>& RGBs)
+{
+	if (!RGBs.empty())
+	{
+		m_bakedDiffuseLighting.assign(RGBs.begin(), RGBs.end());
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 
 Actor::Actor(ResourceManager* resourceMgr)
@@ -1819,7 +1833,7 @@ void SimpleActor::InitLOD()
 			}
 		}
 
-		if (!m_collisionModel)
+		if (!m_collisionModel && !m_lodModels.empty())
 		{
 			m_collisionModel = m_lodModels[0].model;
 		}
@@ -1861,10 +1875,28 @@ HierarchicalActor::HierarchicalActor(
 	m_actorIndex = actorIndex;
 	m_definition = actorDef;
 
-	InitLOD();
+	if (!InitLOD())
+	{
+		m_model = std::make_shared<HierarchicalModel>();
 
-	//m_model = std::make_shared<HierarchicalModel>();
-	//m_resourceMgr->AddActor(this);
+		m_model->Init(m_definition->GetHierarchicalModelDefinition());
+		m_model->SetRGBs(RGBs);
+		m_model->SetActor(this);
+	}
+
+	SetAllSkinsActive();
+	m_model->SetBoneParent(this);
+
+	// TODO: Setup animations/bone groups
+
+	SetPosition(position);
+	SetOrientation(orientation);
+	SetScale(scaleFactor);
+	SetBoundingRadius(boundingRadius);
+	SetCollisionVolumeType(collisionVolumeType);
+
+	SetupAttachmentBones();
+	DoInitCallback();
 }
 
 HierarchicalActor::HierarchicalActor(ResourceManager* resourceMgr,
@@ -1886,28 +1918,42 @@ HierarchicalActor::HierarchicalActor(ResourceManager* resourceMgr,
 	m_bones.resize(eNumBones, nullptr);
 	m_boneGroups.resize(eNumBoneGroups);
 
-	InitLOD();
-	SetAllSkinsActive();
+	if (!InitLOD())
+	{
+		m_model = std::make_shared<HierarchicalModel>();
+
+		m_model->Init(m_definition->GetHierarchicalModelDefinition());
+		m_model->SetActor(this);
+	}
+
+	if (allSkinsActive)
+	{
+		SetAllSkinsActive();
+	}
+	else
+	{
+		SetDefaultSkinsActive();
+	}
 	m_model->SetBoneParent(this);
 
-	if (m_model->GetDefinition()->GetDefaultAnimation())
+	// TODO: Setup animations/bone groups
+
+	if (useDefaultBoundingRadius)
 	{
-		if (m_model->GetDefinition()->IsNewStyleModel())
-		{
-			PutAllBonesInBoneGroup(eBoneGroupUpperBody, 1, true);
-		}
-		else
-		{
-			// TODO
-		}
+		SetBoundingRadius(m_model->GetDefinition()->GetDefaultBoundingRadius());
 	}
+
+	SetCollisionVolumeType(actorDef->GetCollisionVolumeType());
+	SetHasParentBone(pBone != nullptr);
+
+	SetupAttachmentBones();
 }
 
 HierarchicalActor::~HierarchicalActor()
 {
 }
 
-void HierarchicalActor::InitLOD()
+bool HierarchicalActor::InitLOD()
 {
 	std::string_view defTag = m_definition->GetTag();
 	if (defTag.ends_with("_ACTORDEF"))
@@ -1947,6 +1993,12 @@ void HierarchicalActor::InitLOD()
 			AttachLODModels(m_lodModels[0].model.get(), m_lodModels[i].model.get());
 		}
 
+		// TODO: Support "LOD'd model"
+		if (!m_lodModels.empty())
+		{
+			m_model = m_lodModels[0].model;
+		}
+
 		if (const LODListElementPtr& element = pLODList->GetCollision())
 		{
 			std::string definitionTag = fmt::format("{}_SMD", element->definition);
@@ -1964,14 +2016,11 @@ void HierarchicalActor::InitLOD()
 				EQG_LOG_ERROR("Failed to load collision model {} from LOD List for {}", definitionTag, defTag);
 			}
 		}
-	}
-	else
-	{
-		m_model = std::make_shared<HierarchicalModel>();
 
-		m_model->Init(m_definition->GetHierarchicalModelDefinition());
-		m_model->SetActor(this);
+		return true;
 	}
+
+	return false;
 }
 
 void HierarchicalActor::AttachLODModels(HierarchicalModel* parent, HierarchicalModel* child)
@@ -2027,6 +2076,10 @@ void HierarchicalActor::SetAllSkinsActive()
 	}
 }
 
+void HierarchicalActor::SetDefaultSkinsActive()
+{
+}
+
 void HierarchicalActor::PutAllBonesInBoneGroup(int groupIndex, int maxNumAnims, bool newBoneNames)
 {
 	if (m_boneGroups[groupIndex] == nullptr)
@@ -2046,6 +2099,14 @@ void HierarchicalActor::PutAllBonesInBoneGroup(int groupIndex, int maxNumAnims, 
 bool HierarchicalActor::IsCollidable() const
 {
 	return m_model->GetDefinition()->m_hasCollision;
+}
+
+void HierarchicalActor::SetupAttachmentBones()
+{
+}
+
+void HierarchicalActor::Detach()
+{
 }
 
 //-------------------------------------------------------------------------------------------------
