@@ -15,7 +15,7 @@
 #include "meshgen/PanelManager.h"
 #include "meshgen/PropertiesPanel.h"
 #include "meshgen/RenderManager.h"
-#include "meshgen/SceneHierarchyPanel.h"
+#include "meshgen/SceneObjectsPanel.h"
 #include "meshgen/Scene.h"
 #include "meshgen/SelectionManager.h"
 #include "meshgen/SettingsDialog.h"
@@ -56,7 +56,7 @@ void Editor::OnInit()
 	m_panelManager->AddPanel<ToolsPanel>(this);
 	m_panelManager->AddPanel<ArchiveBrowserPanel>(this);
 	m_panelManager->AddPanel<BitmapBrowserPanel>(this);
-	m_panelManager->AddPanel<SceneHierarchyPanel>(this);
+	m_panelManager->AddPanel<SceneObjectsPanel>(this);
 
 	m_panelManager->AddDockingLayout({
 		.splits = {
@@ -66,7 +66,7 @@ void Editor::OnInit()
 			{.initialDock = "LeftPane", .newDock = "LeftBottomPane", .direction = ImGuiDir_Down, .ratio = .50f },
 		},
 		.assignments = {
-			{.panelName = "Scene Hierarchy", .dockName = "LeftPane", .open = true },
+			{.panelName = "Scene Objects", .dockName = "LeftPane", .open = true },
 			{.panelName = "Archive Browser", .dockName = "LeftPane", .open = false },
 			{.panelName = "Bitmap Browser", .dockName = "LeftPane", .open = false },
 			{.panelName = "Console Log", .dockName = "BottomPane", .open = true },

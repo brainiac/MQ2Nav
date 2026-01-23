@@ -51,7 +51,7 @@
     <ClCompile Include="RenderManager.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="SceneHierarchyPanel.cpp" />
+    <ClCompile Include="SceneObjectsPanel.cpp" />
     <ClCompile Include="SelectionManager.cpp" />
     <ClCompile Include="SettingsDialog.cpp" />
     <ClCompile Include="ToolsPanel.cpp" />
@@ -112,7 +112,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="Scene.h" />
-    <ClInclude Include="SceneHierarchyPanel.h" />
+    <ClInclude Include="SceneObjectsPanel.h" />
     <ClInclude Include="SelectionManager.h" />
     <ClInclude Include="SettingsDialog.h" />
     <ClInclude Include="ToolsPanel.h" />
@@ -148,6 +148,7 @@
     <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\process.natvis" />
     <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\resource.natvis" />
     <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\signal.natvis" />
+    <Natvis Include="glm.natvis" />
     <Natvis Include="meshgen.natvis" />
   </ItemGroup>
   <ItemGroup>

@@ -170,7 +170,7 @@
     <ClCompile Include="SelectionManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SceneHierarchyPanel.cpp">
+    <ClCompile Include="SceneObjectsPanel.cpp">
       <Filter>Source Files\panels</Filter>
     </ClCompile>
     <ClCompile Include="Entity.cpp">
@@ -349,7 +349,7 @@
     <ClInclude Include="Components.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SceneHierarchyPanel.h">
+    <ClInclude Include="SceneObjectsPanel.h">
       <Filter>Header Files\panels</Filter>
     </ClInclude>
     <ClInclude Include="SelectionManager.h">
@@ -417,6 +417,7 @@
     <Natvis Include="$(VCPKG_InstalledRoot)$(VCPKG_Triplet)-static\share\entt\natvis\natvis\container.natvis">
       <Filter>Resource Files\natvis\entt</Filter>
     </Natvis>
+    <Natvis Include="glm.natvis" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="MeshGenerator.ico">
