@@ -232,7 +232,7 @@ public:
 		bool allSkinsActive = false,
 		Bone* pBone = nullptr);
 
-	virtual std::shared_ptr<Terrain> CreateTerrain();
+	virtual std::shared_ptr<Terrain> CreateTerrain() const;
 
 	virtual std::shared_ptr<PointLight> CreatePointLight(
 		std::string_view name,

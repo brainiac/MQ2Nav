@@ -1,6 +1,7 @@
 #pragma once
 
 #include "meshgen/AreaVolumeRenderSystem.h"
+#include "meshgen/StaticMeshRenderSystem.h"
 
 #include <bgfx/bgfx.h>
 #include <glm/glm.hpp>
@@ -23,6 +24,12 @@ class ZoneRenderDebugDraw;
 struct dtMeshTile;
 struct NavMeshConfig;
 
+// Geometry render mode - switch between model rendering and collision-only view
+enum class GeometryRenderMode
+{
+	Models,     // Render full static mesh geometry
+	Collision,  // Render collision mesh only (legacy view)
+};
 
 struct ZoneRenderShared
 {
@@ -198,6 +205,9 @@ public:
 	bool GetDrawBspPlanes() const { return m_drawBspPlanes; }
 	void SetDrawBspPlanes(bool draw) { m_drawBspPlanes = draw; }
 
+	GeometryRenderMode GetGeometryRenderMode() const { return m_geometryRenderMode; }
+	void SetGeometryRenderMode(GeometryRenderMode mode) { m_geometryRenderMode = mode; }
+
 private:
 	void DrawCollisionMesh();
 	void DrawGrid();
@@ -215,6 +225,8 @@ private:
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
 	AreaVolumeRenderSystem m_areaVolumeSystem;
+	StaticMeshRenderSystem m_staticMeshSystem;
+	GeometryRenderMode m_geometryRenderMode = GeometryRenderMode::Models;
 	float m_pointSize = 0.5f;
 
 	std::vector<PointInstanceVertex> m_points;

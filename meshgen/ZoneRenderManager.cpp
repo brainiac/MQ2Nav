@@ -313,6 +313,7 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 	m_navMeshRender = new ZoneNavMeshRender(this);
 
 	m_areaVolumeSystem.Init(this);
+	m_staticMeshSystem.Init(this);
 
 	// TEMP
 	g_zoneRenderManager = this;
@@ -323,6 +324,7 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 
 ZoneRenderManager::~ZoneRenderManager()
 {
+	m_staticMeshSystem.Shutdown();
 	m_areaVolumeSystem.Shutdown();
 
 	delete m_zoneInputGeometry;
@@ -348,6 +350,7 @@ void ZoneRenderManager::ShutdownShared()
 void ZoneRenderManager::SetRegistry(entt::registry* registry)
 {
 	m_areaVolumeSystem.SetRegistry(registry);
+	m_staticMeshSystem.SetRegistry(registry);
 }
 
 void ZoneRenderManager::DestroyObjects()
@@ -657,7 +660,18 @@ void ZoneRenderManager::Render()
 {
 	if (m_project && m_project->IsZoneLoaded())
 	{
-		DrawCollisionMesh();
+		// Render geometry based on current mode
+		if (m_geometryRenderMode == GeometryRenderMode::Collision)
+		{
+			DrawCollisionMesh();
+		}
+		else
+		{
+			// Render static meshes (Models mode)
+			m_staticMeshSystem.Update();
+			m_staticMeshSystem.Render();
+		}
+
 		DrawGrid();
 		DrawBspPlanes();
 

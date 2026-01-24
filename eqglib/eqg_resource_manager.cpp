@@ -215,7 +215,7 @@ std::shared_ptr<PointLight> ResourceManager::CreatePointLight(std::string_view n
 	return std::make_shared<PointLight>(this, name, lightDefinition, position, radius);
 }
 
-std::shared_ptr<Terrain> ResourceManager::CreateTerrain()
+std::shared_ptr<Terrain> ResourceManager::CreateTerrain() const
 {
 	return std::make_shared<Terrain>();
 }

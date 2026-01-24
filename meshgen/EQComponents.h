@@ -14,6 +14,9 @@
 #include <glm/glm.hpp>
 #include <vector>
 
+class MGSimpleModel;
+class MGTerrain;
+
 namespace eqg
 {
 	class Actor;
@@ -76,4 +79,16 @@ struct AreaVolumeComponent
 struct AreaVolumeRenderComponent
 {
 	uint32_t color = 0x33FFFFFF;    // ABGR, 20% alpha default
+};
+
+// Component for entities with renderable static mesh geometry (SimpleModel)
+struct StaticMeshRenderComponent
+{
+	MGSimpleModel* model = nullptr;
+};
+
+// Component for terrain geometry rendering
+struct TerrainRenderComponent
+{
+	MGTerrain* terrain = nullptr;
 };

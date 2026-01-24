@@ -7,6 +7,8 @@
 #include "meshgen/EQComponents.h"
 #include "meshgen/GeometryUtils.h"
 #include "meshgen/MGBitmap.h"
+#include "meshgen/MGSimpleModel.h"
+#include "meshgen/MGTerrain.h"
 #include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "common/NavMeshData.h"
@@ -46,6 +48,18 @@ public:
 	virtual std::shared_ptr<eqg::Bitmap> CreateBitmap() const override
 	{
 		return std::make_shared<MGBitmap>();
+	}
+
+	// Create our custom SimpleModel type that supports bgfx buffers
+	virtual std::shared_ptr<eqg::SimpleModel> CreateSimpleModel() const override
+	{
+		return std::make_shared<MGSimpleModel>();
+	}
+
+	// Create our custom Terrain type that supports bgfx buffers
+	virtual eqg::TerrainPtr CreateTerrain() const override
+	{
+		return std::make_shared<MGTerrain>();
 	}
 
 private:
@@ -160,6 +174,14 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 
 	if (terrain)
 	{
+		// Create terrain render entity
+		MGTerrain* mgTerrain = dynamic_cast<MGTerrain*>(terrain.get());
+		if (mgTerrain)
+		{
+			entt::handle terrainEntity = m_scene->CreateEntity("Terrain");
+			terrainEntity.emplace<TerrainRenderComponent>(mgTerrain);
+		}
+
 		// EQG zones use TerrainArea with bounding boxes
 		for (const eqg::TerrainAreaPtr& terrainArea : terrain->m_areas)
 		{
@@ -898,6 +920,16 @@ void ZoneResourceManager::AddActor(const eqg::ActorPtr& actor)
 
 		collisionComponent.collisionModel = actor->GetCollisionModel();
 		collisionComponent.boundingRadius = actor->GetBoundingRadius();
+	}
+
+	// Add render component if actor has a renderable SimpleModel
+	if (eqg::SimpleModelPtr simpleModel = actor->GetSimpleModel())
+	{
+		MGSimpleModel* mgModel = dynamic_cast<MGSimpleModel*>(simpleModel.get());
+		if (mgModel)
+		{
+			entity.emplace<StaticMeshRenderComponent>(mgModel);
+		}
 	}
 
 	// some objects have a really wild position, just disable them.

@@ -26,6 +26,8 @@
 #include "shaders/points/vs_points.bin.h"
 #include "shaders/areavolume/fs_areavolume.bin.h"
 #include "shaders/areavolume/vs_areavolume.bin.h"
+#include "shaders/staticmesh/fs_staticmesh.bin.h"
+#include "shaders/staticmesh/vs_staticmesh.bin.h"
 
 #define DBG_STRINGIZE(_x) DBG_STRINGIZE_(_x)
 #define DBG_STRINGIZE_(_x) #_x
@@ -59,6 +61,7 @@ static EmbeddedShaderInfo s_embeddedShaders[] = {
 	EMBEDDED_SHADER(lines),
 	EMBEDDED_SHADER(points),
 	EMBEDDED_SHADER(areavolume),
+	EMBEDDED_SHADER(staticmesh),
 };
 
 //============================================================================
