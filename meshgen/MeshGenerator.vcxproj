@@ -22,6 +22,7 @@
     <ClCompile Include="ApplicationConfig.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="GeometryUtils.cpp" />
+    <ClCompile Include="InvisibleWallRenderSystem.cpp" />
     <ClCompile Include="MGSimpleModel.cpp" />
     <ClCompile Include="MGTerrain.cpp" />
     <ClCompile Include="StaticMeshRenderSystem.cpp" />
@@ -79,6 +80,7 @@
     <ClInclude Include="ApplicationConfig.h" />
     <ClInclude Include="EQComponents.h" />
     <ClInclude Include="GeometryUtils.h" />
+    <ClInclude Include="InvisibleWallRenderSystem.h" />
     <ClInclude Include="MGSimpleModel.h" />
     <ClInclude Include="MGTerrain.h" />
     <ClInclude Include="StaticMeshRenderSystem.h" />

@@ -92,3 +92,18 @@ struct TerrainRenderComponent
 {
 	MGTerrain* terrain = nullptr;
 };
+
+// Invisible wall geometry - world-space vertices defining the base line, extruded by wallHeight
+struct InvisibleWallComponent
+{
+	std::vector<glm::vec3> vertices;  // World-space base vertices
+	float wallHeight = 100.0f;        // Height to extrude upward
+};
+
+// Render configuration for invisible walls
+struct InvisibleWallRenderComponent
+{
+	uint32_t fillColor = 0x40808080;     // ABGR: 25% alpha grey
+	uint32_t outlineColor = 0xFFFFFFFF;  // ABGR: white
+	float lineWidth = 2.0f;
+};

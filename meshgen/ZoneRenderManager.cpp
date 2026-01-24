@@ -313,6 +313,7 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 	m_navMeshRender = new ZoneNavMeshRender(this);
 
 	m_areaVolumeSystem.Init(this);
+	m_invisibleWallSystem.Init(this);
 	m_staticMeshSystem.Init(this);
 
 	// TEMP
@@ -325,6 +326,7 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 ZoneRenderManager::~ZoneRenderManager()
 {
 	m_staticMeshSystem.Shutdown();
+	m_invisibleWallSystem.Shutdown();
 	m_areaVolumeSystem.Shutdown();
 
 	delete m_zoneInputGeometry;
@@ -350,6 +352,7 @@ void ZoneRenderManager::ShutdownShared()
 void ZoneRenderManager::SetRegistry(entt::registry* registry)
 {
 	m_areaVolumeSystem.SetRegistry(registry);
+	m_invisibleWallSystem.SetRegistry(registry);
 	m_staticMeshSystem.SetRegistry(registry);
 }
 
@@ -679,6 +682,10 @@ void ZoneRenderManager::Render()
 		// Update and render area volumes via ECS system
 		m_areaVolumeSystem.Update();
 		m_areaVolumeSystem.Render();
+
+		// Update and render invisible walls
+		m_invisibleWallSystem.Update();
+		m_invisibleWallSystem.Render();
 	}
 
 	if (!m_points.empty())

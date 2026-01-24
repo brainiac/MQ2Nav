@@ -15,6 +15,7 @@
 #include "mq/base/String.h"
 
 #include "eqglib/eqg_global_data.h"
+#include "eqglib/eqg_terrain_loader.h"
 #include "entt/entity/handle.hpp"
 #include "glm/gtx/matrix_decompose.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -193,6 +194,20 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 		}
 	}
 
+	// Create invisible wall entities
+	if (auto terrainSystem = m_resourceMgr->GetTerrainSystem())
+	{
+		for (const auto& wall : terrainSystem->GetInvisWalls())
+		{
+			entt::handle wallEntity = m_scene->CreateEntity(wall->GetName());
+
+			auto& wallComp = wallEntity.emplace<InvisibleWallComponent>();
+			wallComp.vertices = wall->GetVertices();
+			wallComp.wallHeight = wall->GetWallHeight();
+
+			wallEntity.emplace<InvisibleWallRenderComponent>();
+		}
+	}
 
 	registry.sort<IdentityComponent>([](const IdentityComponent& lhs, const IdentityComponent& rhs) {
 		return mq::ci_string_compare(lhs.name, rhs.name) < 0;

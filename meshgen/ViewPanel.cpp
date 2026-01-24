@@ -43,6 +43,10 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		if (ImGui::Checkbox("Area Volumes", &drawAreaVolumes))
 			renderManager->SetDrawAreaVolumes(drawAreaVolumes);
 
+		bool drawInvisibleWalls = renderManager->GetDrawInvisibleWalls();
+		if (ImGui::Checkbox("Invisible Walls", &drawInvisibleWalls))
+			renderManager->SetDrawInvisibleWalls(drawInvisibleWalls);
+
 		bool drawGrid = renderManager->GetDrawGrid();
 		if (ImGui::Checkbox("Draw Grid", &drawGrid))
 			renderManager->SetDrawGrid(drawGrid);

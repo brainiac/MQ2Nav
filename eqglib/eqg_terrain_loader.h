@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <map>
+#include <unordered_set>
 
 namespace eqg {
 

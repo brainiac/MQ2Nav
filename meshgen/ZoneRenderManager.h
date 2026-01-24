@@ -1,6 +1,7 @@
 #pragma once
 
 #include "meshgen/AreaVolumeRenderSystem.h"
+#include "meshgen/InvisibleWallRenderSystem.h"
 #include "meshgen/StaticMeshRenderSystem.h"
 
 #include <bgfx/bgfx.h>
@@ -211,6 +212,9 @@ public:
 	bool GetDrawAreaVolumes() const { return m_areaVolumeSystem.GetVisible(); }
 	void SetDrawAreaVolumes(bool draw) { m_areaVolumeSystem.SetVisible(draw); }
 
+	bool GetDrawInvisibleWalls() const { return m_invisibleWallSystem.GetVisible(); }
+	void SetDrawInvisibleWalls(bool draw) { m_invisibleWallSystem.SetVisible(draw); }
+
 	bool GetUseVertexColors() const { return m_staticMeshSystem.GetUseVertexColors(); }
 	void SetUseVertexColors(bool use) { m_staticMeshSystem.SetUseVertexColors(use); }
 
@@ -231,6 +235,7 @@ private:
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
 	AreaVolumeRenderSystem m_areaVolumeSystem;
+	InvisibleWallRenderSystem m_invisibleWallSystem;
 	StaticMeshRenderSystem m_staticMeshSystem;
 	GeometryRenderMode m_geometryRenderMode = GeometryRenderMode::Models;
 	float m_pointSize = 0.5f;
