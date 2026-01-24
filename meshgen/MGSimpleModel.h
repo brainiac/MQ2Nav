@@ -11,6 +11,17 @@
 #include <bgfx/bgfx.h>
 #include <glm/glm.hpp>
 
+namespace eqg { class Material; }
+
+// Material batch for rendering - groups faces by material for texture binding
+struct MaterialBatch
+{
+	eqg::Material* material = nullptr;  // Material for this batch (may be null)
+	uint32_t startIndex = 0;            // Start index in index buffer
+	uint32_t indexCount = 0;            // Number of indices in this batch
+	bool isTransparent = false;         // Requires alpha blending
+};
+
 // Vertex format for static mesh rendering
 // Structured for future texture support
 struct StaticMeshVertex
@@ -88,11 +99,15 @@ public:
 	bgfx::IndexBufferHandle GetIndexBuffer() const { return m_indexBuffer; }
 	uint32_t GetIndexCount() const { return m_indexCount; }
 
+	// Get material batches for textured rendering
+	const std::vector<MaterialBatch>& GetMaterialBatches() const { return m_materialBatches; }
+
 private:
 	bgfx::VertexBufferHandle m_vertexBuffer = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_indexBuffer = BGFX_INVALID_HANDLE;
 	uint32_t m_indexCount = 0;
 	bool m_gpuBuffersBuilt = false;
+	std::vector<MaterialBatch> m_materialBatches;
 };
 
 using MGSimpleModelPtr = std::shared_ptr<MGSimpleModel>;

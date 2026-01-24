@@ -5,7 +5,11 @@
 #include "pch.h"
 #include "meshgen/MGTerrain.h"
 
+#include "eqglib/eqg_material.h"
+
 #include "spdlog/spdlog.h"
+
+#include <map>
 
 MGTerrain::MGTerrain()
 {
@@ -55,15 +59,39 @@ bool MGTerrain::BuildGPUBuffers()
 		vertices.push_back(v);
 	}
 
-	// Build index buffer from faces
-	std::vector<uint32_t> indices;
-	indices.reserve(m_faces.size() * 3);
-
+	// Group faces by material index for batched rendering
+	std::map<int16_t, std::vector<uint32_t>> facesByMaterial;
 	for (const auto& face : m_faces)
 	{
-		indices.push_back(face.indices.x);
-		indices.push_back(face.indices.y);
-		indices.push_back(face.indices.z);
+		facesByMaterial[face.materialIndex].push_back(face.indices.x);
+		facesByMaterial[face.materialIndex].push_back(face.indices.y);
+		facesByMaterial[face.materialIndex].push_back(face.indices.z);
+	}
+
+	// Build index buffer in material order and create batches
+	std::vector<uint32_t> indices;
+	indices.reserve(m_faces.size() * 3);
+	m_materialBatches.clear();
+
+	eqg::MaterialPalette* palette = m_materialPalette.get();
+
+	for (auto& [matIndex, matIndices] : facesByMaterial)
+	{
+		MaterialBatch batch;
+		batch.startIndex = static_cast<uint32_t>(indices.size());
+		batch.indexCount = static_cast<uint32_t>(matIndices.size());
+		
+		if (palette && matIndex >= 0 && matIndex < static_cast<int16_t>(palette->GetNumMaterials()))
+		{
+			batch.material = palette->GetMaterial(matIndex);
+			if (batch.material)
+			{
+				batch.isTransparent = batch.material->IsTransparent() || batch.material->m_alpha < 255;
+			}
+		}
+
+		indices.insert(indices.end(), matIndices.begin(), matIndices.end());
+		m_materialBatches.push_back(batch);
 	}
 
 	if (vertices.empty() || indices.empty())
@@ -84,8 +112,8 @@ bool MGTerrain::BuildGPUBuffers()
 	m_indexCount = static_cast<uint32_t>(indices.size());
 	m_gpuBuffersBuilt = true;
 
-	SPDLOG_INFO("MGTerrain::BuildGPUBuffers: Built buffers ({} verts, {} indices)",
-		vertices.size(), indices.size());
+	SPDLOG_INFO("MGTerrain::BuildGPUBuffers: Built buffers ({} verts, {} indices, {} batches)",
+		vertices.size(), indices.size(), m_materialBatches.size());
 
 	return true;
 }

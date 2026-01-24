@@ -56,6 +56,9 @@ private:
 
 	bgfx::ProgramHandle m_program = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_texColorSampler = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uniformHasTexture = BGFX_INVALID_HANDLE;
+	bgfx::TextureHandle m_whiteTexture = BGFX_INVALID_HANDLE;  // 1x1 white fallback
 
 	// Per-definition render batches (for instancing in the future)
 	struct RenderBatch

@@ -5,7 +5,11 @@
 #include "pch.h"
 #include "meshgen/MGSimpleModel.h"
 
+#include "eqglib/eqg_material.h"
+
 #include "spdlog/spdlog.h"
+
+#include <map>
 
 MGSimpleModel::MGSimpleModel()
 {
@@ -63,15 +67,39 @@ bool MGSimpleModel::BuildGPUBuffers()
 		vertices.push_back(v);
 	}
 
-	// Build index buffer from faces
-	std::vector<uint32_t> indices;
-	indices.reserve(def->m_faces.size() * 3);
-
+	// Group faces by material index for batched rendering
+	std::map<int16_t, std::vector<uint32_t>> facesByMaterial;
 	for (const auto& face : def->m_faces)
 	{
-		indices.push_back(face.indices.x);
-		indices.push_back(face.indices.y);
-		indices.push_back(face.indices.z);
+		facesByMaterial[face.materialIndex].push_back(face.indices.x);
+		facesByMaterial[face.materialIndex].push_back(face.indices.y);
+		facesByMaterial[face.materialIndex].push_back(face.indices.z);
+	}
+
+	// Build index buffer in material order and create batches
+	std::vector<uint32_t> indices;
+	indices.reserve(def->m_faces.size() * 3);
+	m_materialBatches.clear();
+
+	eqg::MaterialPalette* palette = def->m_materialPalette.get();
+
+	for (auto& [matIndex, matIndices] : facesByMaterial)
+	{
+		MaterialBatch batch;
+		batch.startIndex = static_cast<uint32_t>(indices.size());
+		batch.indexCount = static_cast<uint32_t>(matIndices.size());
+		
+		if (palette && matIndex >= 0 && matIndex < static_cast<int16_t>(palette->GetNumMaterials()))
+		{
+			batch.material = palette->GetMaterial(matIndex);
+			if (batch.material)
+			{
+				batch.isTransparent = batch.material->IsTransparent() || batch.material->m_alpha < 255;
+			}
+		}
+
+		indices.insert(indices.end(), matIndices.begin(), matIndices.end());
+		m_materialBatches.push_back(batch);
 	}
 
 	if (vertices.empty() || indices.empty())
@@ -92,8 +120,8 @@ bool MGSimpleModel::BuildGPUBuffers()
 	m_indexCount = static_cast<uint32_t>(indices.size());
 	m_gpuBuffersBuilt = true;
 
-	SPDLOG_DEBUG("MGSimpleModel::BuildGPUBuffers: Built buffers for '{}' ({} verts, {} indices)",
-		def->m_tag, vertices.size(), indices.size());
+	SPDLOG_DEBUG("MGSimpleModel::BuildGPUBuffers: Built buffers for '{}' ({} verts, {} indices, {} batches)",
+		def->m_tag, vertices.size(), indices.size(), m_materialBatches.size());
 
 	return true;
 }

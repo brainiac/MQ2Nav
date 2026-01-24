@@ -2,15 +2,18 @@ $input v_color0, v_texcoord0
 
 #include "../common.sh"
 
-// Placeholder for future texture sampling
-// SAMPLER2D(textureSampler, 0);
+SAMPLER2D(s_texColor, 0);
+uniform vec4 u_hasTexture; // x = 1.0 if texture bound, 0.0 otherwise
 
 void main()
 {
-	// Output vertex color directly
-	// Future: multiply by texture sample
-	// vec4 textureColor = texture2D(textureSampler, v_texcoord0);
-	// gl_FragColor = textureColor * v_color0;
+	vec4 baseColor = v_color0;
 	
-	gl_FragColor = v_color0;
+	if (u_hasTexture.x > 0.5)
+	{
+		vec4 texColor = texture2D(s_texColor, v_texcoord0);
+		baseColor = texColor * v_color0;
+	}
+	
+	gl_FragColor = baseColor;
 }

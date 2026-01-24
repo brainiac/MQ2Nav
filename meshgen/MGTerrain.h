@@ -33,11 +33,15 @@ public:
 	bgfx::IndexBufferHandle GetIndexBuffer() const { return m_indexBuffer; }
 	uint32_t GetIndexCount() const { return m_indexCount; }
 
+	// Get material batches for textured rendering
+	const std::vector<MaterialBatch>& GetMaterialBatches() const { return m_materialBatches; }
+
 private:
 	bgfx::VertexBufferHandle m_vertexBuffer = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_indexBuffer = BGFX_INVALID_HANDLE;
 	uint32_t m_indexCount = 0;
 	bool m_gpuBuffersBuilt = false;
+	std::vector<MaterialBatch> m_materialBatches;
 };
 
 using MGTerrainPtr = std::shared_ptr<MGTerrain>;

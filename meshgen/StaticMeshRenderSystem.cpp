@@ -10,12 +10,14 @@
 #include "meshgen/Components.h"
 #include "meshgen/EQComponents.h"
 #include "meshgen/Entity.h"
+#include "meshgen/MGBitmap.h"
 #include "meshgen/MGSimpleModel.h"
 #include "meshgen/MGTerrain.h"
 #include "meshgen/ResourceManager.h"
 #include "meshgen/ZoneRenderManager.h"
 
 #include "eqglib/eqg_geometry.h"
+#include "eqglib/eqg_material.h"
 
 #include "spdlog/spdlog.h"
 #include "glm/gtc/type_ptr.hpp"
@@ -40,6 +42,13 @@ void StaticMeshRenderSystem::Init(ZoneRenderManager* renderManager)
 
 	// Create uniforms
 	m_uniformUseVertexColors = bgfx::createUniform("u_useVertexColors", bgfx::UniformType::Vec4);
+	m_texColorSampler = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
+	m_uniformHasTexture = bgfx::createUniform("u_hasTexture", bgfx::UniformType::Vec4);
+
+	// Create 1x1 white fallback texture
+	uint32_t whitePixel = 0xFFFFFFFF;
+	m_whiteTexture = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::RGBA8,
+		BGFX_TEXTURE_NONE, bgfx::copy(&whitePixel, 4));
 
 	// Initialize vertex layouts
 	StaticMeshVertex::Init();
@@ -61,6 +70,24 @@ void StaticMeshRenderSystem::Shutdown()
 	{
 		bgfx::destroy(m_uniformUseVertexColors);
 		m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_texColorSampler))
+	{
+		bgfx::destroy(m_texColorSampler);
+		m_texColorSampler = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_uniformHasTexture))
+	{
+		bgfx::destroy(m_uniformHasTexture);
+		m_uniformHasTexture = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_whiteTexture))
+	{
+		bgfx::destroy(m_whiteTexture);
+		m_whiteTexture = BGFX_INVALID_HANDLE;
 	}
 
 	m_batches.clear();
@@ -221,6 +248,20 @@ void StaticMeshRenderSystem::Update()
 	}
 }
 
+// Helper to get diffuse texture from material
+static bgfx::TextureHandle GetDiffuseTexture(eqg::Material* material)
+{
+	if (!material || !material->m_textureSet || material->m_textureSet->textures.empty())
+		return BGFX_INVALID_HANDLE;
+	
+	const auto& tex = material->m_textureSet->textures[0];
+	if (auto* bitmap = dynamic_cast<MGBitmap*>(tex.textures[0].get()))
+	{
+		return bitmap->GetTextureHandle();
+	}
+	return BGFX_INVALID_HANDLE;
+}
+
 void StaticMeshRenderSystem::Render()
 {
 	if (!m_registry)
@@ -229,9 +270,8 @@ void StaticMeshRenderSystem::Render()
 	if (!bgfx::isValid(m_program))
 		return;
 
-	// Set the vertex colors uniform once for all draw calls
+	// Set the vertex colors uniform value
 	glm::vec4 useVertexColors(m_useVertexColors ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
-	bgfx::setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
 
 	// Render terrain first
 	if (m_terrain)
@@ -244,21 +284,41 @@ void StaticMeshRenderSystem::Render()
 
 		if (m_terrain->HasGPUBuffers())
 		{
-			bgfx::Encoder* encoder = bgfx::begin();
-
 			// Set identity transform for terrain (it's already in world space)
 			glm::mat4 identity(1.0f);
-			encoder->setTransform(glm::value_ptr(identity));
 
-			encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
-			encoder->setVertexBuffer(0, m_terrain->GetVertexBuffer());
-			encoder->setIndexBuffer(m_terrain->GetIndexBuffer(), 0, m_terrain->GetIndexCount());
-			encoder->setState(
-				BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
-				BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS |
-				BGFX_STATE_CULL_CW);
+			// Render each material batch
+			for (const auto& matBatch : m_terrain->GetMaterialBatches())
+			{
+				if (matBatch.indexCount == 0)
+					continue;
 
-			encoder->submit(0, m_program);
+				bgfx::Encoder* encoder = bgfx::begin();
+				encoder->setTransform(glm::value_ptr(identity));
+
+				// Bind texture
+				bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
+				bool hasTexture = bgfx::isValid(texHandle);
+				
+				glm::vec4 hasTextureUniform(hasTexture ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
+				encoder->setUniform(m_uniformHasTexture, glm::value_ptr(hasTextureUniform));
+				encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
+
+				encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
+				encoder->setVertexBuffer(0, m_terrain->GetVertexBuffer());
+				encoder->setIndexBuffer(m_terrain->GetIndexBuffer(), matBatch.startIndex, matBatch.indexCount);
+
+				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
+					BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+				
+				if (matBatch.isTransparent)
+				{
+					state |= BGFX_STATE_BLEND_ALPHA;
+				}
+
+				encoder->setState(state);
+				encoder->submit(0, m_program);
+			}
 		}
 	}
 
@@ -281,19 +341,38 @@ void StaticMeshRenderSystem::Render()
 			if (!model->HasGPUBuffers())
 				continue;
 
-			bgfx::Encoder* encoder = bgfx::begin();
+			// Render each material batch
+			for (const auto& matBatch : model->GetMaterialBatches())
+			{
+				if (matBatch.indexCount == 0)
+					continue;
 
-			encoder->setTransform(glm::value_ptr(transform));
+				bgfx::Encoder* encoder = bgfx::begin();
+				encoder->setTransform(glm::value_ptr(transform));
 
-			encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
-			encoder->setVertexBuffer(0, model->GetVertexBuffer());
-			encoder->setIndexBuffer(model->GetIndexBuffer(), 0, model->GetIndexCount());
-			encoder->setState(
-				BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
-				BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS |
-				BGFX_STATE_CULL_CW);
+				// Bind texture
+				bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
+				bool hasTexture = bgfx::isValid(texHandle);
+				
+				glm::vec4 hasTextureUniform(hasTexture ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
+				encoder->setUniform(m_uniformHasTexture, glm::value_ptr(hasTextureUniform));
+				encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
 
-			encoder->submit(0, m_program);
+				encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
+				encoder->setVertexBuffer(0, model->GetVertexBuffer());
+				encoder->setIndexBuffer(model->GetIndexBuffer(), matBatch.startIndex, matBatch.indexCount);
+
+				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
+					BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+				
+				if (matBatch.isTransparent)
+				{
+					state |= BGFX_STATE_BLEND_ALPHA;
+				}
+
+				encoder->setState(state);
+				encoder->submit(0, m_program);
+			}
 		}
 	}
 }
