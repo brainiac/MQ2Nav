@@ -366,7 +366,7 @@ void AreaVolumeRenderSystem::Update()
 
 void AreaVolumeRenderSystem::Render()
 {
-	if (!m_registry)
+	if (!m_registry || !m_visible)
 		return;
 
 	if (!bgfx::isValid(m_volumeVB) || !bgfx::isValid(m_volumeIB))

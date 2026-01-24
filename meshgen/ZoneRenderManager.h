@@ -208,6 +208,12 @@ public:
 	GeometryRenderMode GetGeometryRenderMode() const { return m_geometryRenderMode; }
 	void SetGeometryRenderMode(GeometryRenderMode mode) { m_geometryRenderMode = mode; }
 
+	bool GetDrawAreaVolumes() const { return m_areaVolumeSystem.GetVisible(); }
+	void SetDrawAreaVolumes(bool draw) { m_areaVolumeSystem.SetVisible(draw); }
+
+	bool GetUseVertexColors() const { return m_staticMeshSystem.GetUseVertexColors(); }
+	void SetUseVertexColors(bool use) { m_staticMeshSystem.SetUseVertexColors(use); }
+
 private:
 	void DrawCollisionMesh();
 	void DrawGrid();
@@ -218,7 +224,7 @@ private:
 	ZoneProject* m_project;
 	std::shared_ptr<NavMeshProject> m_navMeshProj;
 
-	bool m_drawCollisionMesh = true;
+	bool m_drawCollisionMesh = false;
 	bool m_drawGrid = true;
 	bool m_drawBspPlanes = false;
 

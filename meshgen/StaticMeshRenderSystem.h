@@ -33,6 +33,9 @@ public:
 	void SetRegistry(entt::registry* registry);
 	void SetDirty() { m_dirty = true; }
 
+	bool GetUseVertexColors() const { return m_useVertexColors; }
+	void SetUseVertexColors(bool use) { m_useVertexColors = use; }
+
 	void Update();
 	void Render();
 
@@ -49,8 +52,10 @@ private:
 private:
 	entt::registry* m_registry = nullptr;
 	ZoneRenderManager* m_renderManager = nullptr;
+	bool m_useVertexColors = true;
 
 	bgfx::ProgramHandle m_program = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
 
 	// Per-definition render batches (for instancing in the future)
 	struct RenderBatch

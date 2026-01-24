@@ -3,6 +3,8 @@ $output v_color0, v_texcoord0
 
 #include "../common.sh"
 
+uniform vec4 u_useVertexColors; // x component: 1.0 = use vertex colors, 0.0 = white
+
 void main()
 {
 	// Transform position by model-view-projection matrix
@@ -17,7 +19,10 @@ void main()
 	float ambient = 0.3;
 	float lighting = ambient + (1.0 - ambient) * ndotl;
 
-	// Apply lighting to vertex color
-	v_color0 = vec4(a_color0.rgb * lighting, a_color0.a);
+	// Choose base color: vertex color or white based on uniform
+	vec3 baseColor = mix(vec3_splat(1.0), a_color0.rgb, u_useVertexColors.x);
+
+	// Apply lighting to base color
+	v_color0 = vec4(baseColor * lighting, a_color0.a);
 	v_texcoord0 = a_texcoord0;
 }

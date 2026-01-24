@@ -400,10 +400,7 @@ void ZoneRenderManager::Rebuild()
 
 void ZoneRenderManager::DrawCollisionMesh()
 {
-	if (m_drawCollisionMesh)
-	{
-		m_zoneInputGeometry->Render();
-	}
+	m_zoneInputGeometry->Render();
 }
 
 void ZoneRenderManager::DrawGrid()

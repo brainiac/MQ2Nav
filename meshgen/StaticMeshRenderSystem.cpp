@@ -38,6 +38,9 @@ void StaticMeshRenderSystem::Init(ZoneRenderManager* renderManager)
 	// Load shader program
 	m_program = g_resourceMgr->GetProgramHandle("staticmesh");
 
+	// Create uniforms
+	m_uniformUseVertexColors = bgfx::createUniform("u_useVertexColors", bgfx::UniformType::Vec4);
+
 	// Initialize vertex layouts
 	StaticMeshVertex::Init();
 }
@@ -52,6 +55,12 @@ void StaticMeshRenderSystem::Shutdown()
 		m_terrainDestroyConnection.release();
 		m_hiddenConstructConnection.release();
 		m_hiddenDestroyConnection.release();
+	}
+
+	if (bgfx::isValid(m_uniformUseVertexColors))
+	{
+		bgfx::destroy(m_uniformUseVertexColors);
+		m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
 	}
 
 	m_batches.clear();
@@ -216,6 +225,10 @@ void StaticMeshRenderSystem::Render()
 	if (!bgfx::isValid(m_program))
 		return;
 
+	// Set the vertex colors uniform once for all draw calls
+	glm::vec4 useVertexColors(m_useVertexColors ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
+	bgfx::setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
+
 	// Render terrain first
 	if (m_terrain)
 	{
@@ -233,6 +246,7 @@ void StaticMeshRenderSystem::Render()
 			glm::mat4 identity(1.0f);
 			encoder->setTransform(glm::value_ptr(identity));
 
+			encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
 			encoder->setVertexBuffer(0, m_terrain->GetVertexBuffer());
 			encoder->setIndexBuffer(m_terrain->GetIndexBuffer(), 0, m_terrain->GetIndexCount());
 			encoder->setState(
@@ -267,6 +281,7 @@ void StaticMeshRenderSystem::Render()
 
 			encoder->setTransform(glm::value_ptr(transform));
 
+			encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
 			encoder->setVertexBuffer(0, model->GetVertexBuffer());
 			encoder->setIndexBuffer(model->GetIndexBuffer(), 0, model->GetIndexCount());
 			encoder->setState(

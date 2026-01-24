@@ -22,9 +22,26 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 	{
 		auto renderManager = m_project->GetRenderManager();
 
-		bool drawCollisionMesh = renderManager->GetDrawCollisionMesh();
-		if (ImGui::Checkbox("Draw Collision Mesh", &drawCollisionMesh))
-			renderManager->SetDrawCollisionMesh(drawCollisionMesh);
+		ImGui::SeparatorText("Geometry");
+
+		// Geometry render mode - collision mesh vs static meshes
+		bool drawCollisionMesh = renderManager->GetGeometryRenderMode() == GeometryRenderMode::Collision;
+		if (ImGui::Checkbox("Collision Mesh", &drawCollisionMesh))
+		{
+			renderManager->SetGeometryRenderMode(drawCollisionMesh ? GeometryRenderMode::Collision : GeometryRenderMode::Models);
+		}
+
+		// Only show vertex colors option when rendering static meshes
+		if (!drawCollisionMesh)
+		{
+			bool useVertexColors = renderManager->GetUseVertexColors();
+			if (ImGui::Checkbox("Baked Lighting Colors", &useVertexColors))
+				renderManager->SetUseVertexColors(useVertexColors);
+		}
+
+		bool drawAreaVolumes = renderManager->GetDrawAreaVolumes();
+		if (ImGui::Checkbox("Area Volumes", &drawAreaVolumes))
+			renderManager->SetDrawAreaVolumes(drawAreaVolumes);
 
 		bool drawGrid = renderManager->GetDrawGrid();
 		if (ImGui::Checkbox("Draw Grid", &drawGrid))

@@ -38,6 +38,9 @@ public:
 	void Update();
 	void Render();
 
+	bool GetVisible() const { return m_visible; }
+	void SetVisible(bool visible) { m_visible = visible; }
+
 	float GetLineWidth() const { return m_lineWidth; }
 	void SetLineWidth(float width) { m_lineWidth = width; }
 
@@ -56,6 +59,7 @@ private:
 private:
 	entt::registry* m_registry = nullptr;
 	ZoneRenderManager* m_renderManager = nullptr;
+	bool m_visible = true;
 
 	// area volumes
 	bgfx::VertexBufferHandle m_volumeVB = BGFX_INVALID_HANDLE;
