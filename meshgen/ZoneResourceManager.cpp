@@ -175,12 +175,10 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 	if (terrain)
 	{
 		// Create terrain render entity
-		MGTerrain* mgTerrain = dynamic_cast<MGTerrain*>(terrain.get());
-		if (mgTerrain)
-		{
-			entt::handle terrainEntity = m_scene->CreateEntity("Terrain");
-			terrainEntity.emplace<TerrainRenderComponent>(mgTerrain);
-		}
+		MGTerrain* mgTerrain = static_cast<MGTerrain*>(terrain.get());
+
+		entt::handle terrainEntity = m_scene->CreateEntity("Terrain");
+		terrainEntity.emplace<TerrainRenderComponent>(mgTerrain);
 
 		// EQG zones use TerrainArea with bounding boxes
 		for (const eqg::TerrainAreaPtr& terrainArea : terrain->m_areas)
@@ -925,11 +923,9 @@ void ZoneResourceManager::AddActor(const eqg::ActorPtr& actor)
 	// Add render component if actor has a renderable SimpleModel
 	if (eqg::SimpleModelPtr simpleModel = actor->GetSimpleModel())
 	{
-		MGSimpleModel* mgModel = dynamic_cast<MGSimpleModel*>(simpleModel.get());
-		if (mgModel)
-		{
-			entity.emplace<StaticMeshRenderComponent>(mgModel);
-		}
+		MGSimpleModel* mgModel = static_cast<MGSimpleModel*>(simpleModel.get());
+		
+		entity.emplace<StaticMeshRenderComponent>(mgModel);
 	}
 
 	// some objects have a really wild position, just disable them.

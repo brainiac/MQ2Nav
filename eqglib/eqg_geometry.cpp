@@ -1840,7 +1840,7 @@ void SimpleActor::InitLOD()
 	}
 	else
 	{
-		m_model = std::make_shared<SimpleModel>();
+		m_model = m_resourceMgr->CreateSimpleModel();
 
 		m_model->Init(m_definition->GetSimpleModelDefinition());
 		m_model->SetActor(this);

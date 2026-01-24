@@ -171,6 +171,7 @@ void StaticMeshRenderSystem::RebuildRenderData()
 			{
 				m_terrain = terrainComp.terrain;
 				m_terrainEntity = entity;
+				SPDLOG_DEBUG("StaticMeshRenderSystem: Found terrain entity");
 				break;  // Only one terrain per zone
 			}
 		}
@@ -179,6 +180,7 @@ void StaticMeshRenderSystem::RebuildRenderData()
 	// Collect static meshes grouped by definition
 	{
 		auto view = m_registry->view<StaticMeshRenderComponent, TransformComponent>();
+		int meshCount = 0;
 		for (auto entity : view)
 		{
 			if (m_registry->any_of<HiddenComponent>(entity))
@@ -200,7 +202,9 @@ void StaticMeshRenderSystem::RebuildRenderData()
 			batch.definition = def;
 			batch.transforms.push_back(worldMatrix);
 			batch.models.push_back(meshComp.model);
+			++meshCount;
 		}
+		SPDLOG_DEBUG("StaticMeshRenderSystem: Collected {} static mesh entities in {} batches", meshCount, m_batches.size());
 	}
 
 	m_dirty = false;
