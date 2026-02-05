@@ -1153,7 +1153,7 @@ void ZoneResourceManager::CreateWldAreaEntities2(const eqg::Terrain& terrain)
 	std::unordered_map<uint32_t, entt::handle> handles;
 
 	auto& areas = terrain.m_wldAreas;
-	auto& environments = terrain.m_wldAreaEnvironments;
+	auto& environments = terrain.m_wldAreaEnvironmentsPerArea;
 
 	for (auto& brep : breps)
 	{

@@ -260,7 +260,7 @@ std::unordered_map<uint32_t, AreaBSPTree> BuildAreaBSPTrees(const eqg::Terrain& 
 	{
 		if (areaNum < terrain.m_wldAreaIndices.size())
 		{
-			const eqg::AreaEnvironment& env = terrain.m_wldAreaEnvironments[areaNum];
+			const eqg::AreaEnvironment& env = terrain.m_wldAreaEnvironmentsPerArea[areaNum];
 			// Skip regions with no special environment
 			if (env.type != eqg::AreaEnvironment::Type_None || env.flags != eqg::AreaEnvironment::Flags_None)
 				for (uint32_t regionNum : areas[areaNum].regionNumbers)
