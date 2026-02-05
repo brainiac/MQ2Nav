@@ -461,6 +461,7 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 	if (!m_wldAreas.empty())
 	{
 		m_wldAreaEnvironments.resize(m_numWLDRegions);
+		m_wldAreaEnvironmentsPerArea.resize(m_wldAreas.size());
 
 		for (const SArea& area : m_wldAreas)
 		{
@@ -511,11 +512,11 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 				}
 			}
 
-			// for (uint32_t regionNum : area.regionNumbers)
-			// {
-			// 	m_wldAreaEnvironments[regionNum] = env;
-			// }
-			m_wldAreaEnvironments[area.areaNum] = env;
+			m_wldAreaEnvironmentsPerArea[area.areaNum] = env;
+			for (uint32_t regionNum : area.regionNumbers)
+			{
+				m_wldAreaEnvironments[regionNum] = env;
+			}
 		}
 	}
 
