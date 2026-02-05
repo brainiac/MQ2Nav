@@ -191,7 +191,7 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 		// WLD zones use BSP trees for area bounds
 		if (terrain->m_wldBspTree && !terrain->m_wldAreas.empty())
 		{
-			CreateWldAreaEntities(*terrain);
+			CreateWldAreaEntities2(*terrain);
 		}
 	}
 
@@ -1261,7 +1261,7 @@ void ZoneResourceManager::CreateWldAreaEntities(const eqg::Terrain& terrain)
 		// Combine vertices & face indices into AreaVolumeComponent
 		areaVolumeComponent->vertices.reserve(areaVolumeComponent->vertices.size() + hull.vertices.size());
 		areaVolumeComponent->vertices.insert(areaVolumeComponent->vertices.end(), hull.vertices.begin(), hull.vertices.end());
-		
+
 		areaVolumeComponent->faces.reserve(areaVolumeComponent->faces.size() + hull.faces.size());
 		for (const auto& face : hull.faces)
 		{
@@ -1285,6 +1285,125 @@ void ZoneResourceManager::CreateWldAreaEntities(const eqg::Terrain& terrain)
 				convexHull->indices.push_back(face[0]);
 				convexHull->indices.push_back(face[i]);
 				convexHull->indices.push_back(face[i + 1]);
+			}
+		}
+	}
+
+	// Now that we have all the convex hulls consolidated, process each area
+	for (const auto& [areaIndex, areaVolume] : areaVolumeComponents)
+	{
+		// Create a transform to give this object local space coordinates.
+		glm::vec3 center{ 0.0f, 0.0f, 0.0f };
+
+		// Calculate the center
+		for (const glm::vec3& vertex : areaVolume->vertices)
+		{
+			center += vertex;
+		}
+		center /= static_cast<float>(areaVolume->vertices.size());
+
+		// Center the volume on the new center point
+		for (glm::vec3& vertex : areaVolume->vertices)
+		{
+			vertex -= center;
+		}
+
+		TransformComponent& transform = handles[areaIndex].get<TransformComponent>();
+		transform.position = center;
+
+		// Add render component with fill color from WldAreaComponent
+		WldAreaComponent& wldArea = handles[areaIndex].get<WldAreaComponent>();
+		AreaVolumeRenderComponent& renderComp = handles[areaIndex].emplace<AreaVolumeRenderComponent>();
+
+		mq::MQColor fillColor = wldArea.color;
+		fillColor.Alpha = 51; // 20% opacity
+		renderComp.color = fillColor.ToABGR();
+	}
+
+	SPDLOG_INFO("Created {} WLD area entities from BSP tree", areaVolumeComponents.size());
+}
+
+void ZoneResourceManager::CreateWldAreaEntities2(const eqg::Terrain& terrain)
+{
+	if (!terrain.m_wldBspTree)
+	{
+		return;
+	}
+
+	SPDLOG_INFO("Generating area volumes from BSP Tree");
+
+	auto breps = BuildBRepsFromAreas(terrain);
+
+	std::unordered_map<uint32_t, AreaVolumeComponent*> areaVolumeComponents;
+	std::unordered_map<uint32_t, entt::handle> handles;
+
+	auto& areas = terrain.m_wldAreas;
+	auto& environments = terrain.m_wldAreaEnvironments;
+
+	for (auto& brep : breps)
+	{
+		if (!brep.vertexes.empty() && !brep.faces.empty())
+		{
+			uint32_t areaIndex = brep.areaIndex;
+			AreaVolumeComponent* areaVolumeComponent;
+			ConvexHullComponent* convexHull = nullptr; // TODO: this isn't necessarily convex, but reuse the struct
+
+			auto iter = areaVolumeComponents.find(areaIndex);
+			if (iter == areaVolumeComponents.end())
+			{
+				const eqg::SArea* area = &areas[areaIndex];
+				entt::handle entity = m_scene->CreateEntity(area->tag);
+				handles.emplace(areaIndex, entity);
+
+				WldAreaComponent* wldComponent = &entity.emplace<WldAreaComponent>();
+				wldComponent->environment = environments[areaIndex];
+				wldComponent->area = area;
+				if (wldComponent->environment.hasTeleportEntry)
+					wldComponent->teleport = terrain.m_teleports[wldComponent->environment.teleportIndex];
+				wldComponent->color = AreaEnvironmentToColor(wldComponent->environment);
+				wldComponent->areaIndex = areaIndex;
+
+				areaVolumeComponent = &entity.emplace<AreaVolumeComponent>();
+
+				areaVolumeComponents.emplace(areaIndex, areaVolumeComponent);
+				convexHull = &wldComponent->hulls.emplace_back();
+			}
+			else
+			{
+				areaVolumeComponent = iter->second;
+				convexHull = &handles[areaIndex].get<WldAreaComponent>().hulls.emplace_back();
+			}
+
+			uint16_t baseIndex = static_cast<uint16_t>(areaVolumeComponent->vertices.size());
+
+			// Combine vertices & face indices into AreaVolumeComponent
+			areaVolumeComponent->vertices.reserve(areaVolumeComponent->vertices.size() + brep.vertexes.size());
+			areaVolumeComponent->vertices.insert(areaVolumeComponent->vertices.end(), brep.vertexes.begin(), brep.vertexes.end());
+
+			areaVolumeComponent->faces.reserve(areaVolumeComponent->faces.size() + brep.faces.size());
+			for (const auto& face : brep.faces)
+			{
+				std::vector<uint16_t> adjustedFace;
+				adjustedFace.reserve(face.size());
+				for (uint16_t idx : face)
+				{
+					adjustedFace.push_back(baseIndex + idx);
+				}
+				areaVolumeComponent->faces.push_back(std::move(adjustedFace));
+			}
+
+			// Store triangulated hull for navmesh use
+			convexHull->vertices = brep.vertexes;
+
+			for (const auto& face : brep.faces)
+			{
+				// Fan triangulation from first vertex
+				for (size_t i = 1; i + 1 < face.size(); ++i)
+				{
+					convexHull->indices.push_back(face[0]);
+					convexHull->indices.push_back(face[i]);
+					convexHull->indices.push_back(face[i + 1]);
+				}
 			}
 		}
 	}

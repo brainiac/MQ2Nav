@@ -85,6 +85,7 @@ struct SArea
 {
 	std::string tag;
 	std::string userData;
+	uint32_t areaNum;
 	std::vector<uint32_t> regionNumbers;
 	std::vector<glm::vec3> centers;
 };
