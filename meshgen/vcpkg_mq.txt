@@ -13,3 +13,5 @@ entt
 taskflow
 meshoptimizer
 yaml-cpp
+clipper2
+cdt
