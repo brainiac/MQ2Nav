@@ -1332,7 +1332,7 @@ void ZoneResourceManager::CreateWldAreaEntities2(const eqg::Terrain& terrain)
 
 	SPDLOG_INFO("Generating area volumes from BSP Tree");
 
-	auto breps = BuildBRepsFromAreas(terrain);
+	auto breps = convertBSPToBRepPolyhedraUnion(terrain);
 
 	std::unordered_map<uint32_t, AreaVolumeComponent*> areaVolumeComponents;
 	std::unordered_map<uint32_t, entt::handle> handles;
