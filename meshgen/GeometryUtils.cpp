@@ -858,7 +858,6 @@ std::vector<BRepResult> BuildBRepsFromConvexHulls(const std::vector<ConvexHullRe
 	{
 		auto result = Convert(convexHulls);
 		result.areaIndex = static_cast<int>(area);
-		saveOBJ(result, fmt::format("test_{}.obj", area));
 
 		results.push_back(std::move(result));
 	}
