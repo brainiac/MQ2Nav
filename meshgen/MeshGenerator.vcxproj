@@ -16,7 +16,6 @@
     <ClCompile Include="AreaVolumeRenderSystem.cpp" />
     <ClCompile Include="BitmapBrowserPanel.cpp" />
     <ClCompile Include="BackgroundTaskManager.cpp" />
-    <ClCompile Include="BRepConverter.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />

@@ -197,9 +197,6 @@
     <ClCompile Include="GeometryUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BRepConverter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="MGTerrain.cpp">
       <Filter>Source Files\engine</Filter>
     </ClCompile>
