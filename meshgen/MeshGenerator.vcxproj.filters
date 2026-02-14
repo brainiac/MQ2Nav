@@ -200,9 +200,6 @@
     <ClCompile Include="GeometryUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BRepConverter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ZoneResourceManager.h">

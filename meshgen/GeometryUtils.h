@@ -30,17 +30,15 @@ struct ConvexHullResult
 // Simple plane representation
 struct Plane
 {
-	using Distance = float;
-
-	glm::vec<3, Distance> normal;
-	Distance distance;
+	glm::vec3 normal;
+	float distance;
 
 	Plane()
 		: distance(0.0)
 	{
 	}
 
-	Plane(const glm::vec<3, Distance>& normal, Distance distance)
+	Plane(const glm::vec3& normal, float distance)
 		: normal(normal), distance(distance)
 	{
 	}
