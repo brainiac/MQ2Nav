@@ -69,7 +69,8 @@ struct WldAreaComponent
 struct AreaVolumeComponent
 {
 	std::vector<glm::vec3> vertices;
-	std::vector<std::vector<uint16_t>> faces;         // Polygon faces (not triangulated)
+	std::vector<std::array<uint16_t, 3>> faces; // explicitly triangulated faces
+	std::vector<std::array<uint16_t, 2>> outerEdges;
 };
 
 // Render configuration for AreaVolumeComponent.

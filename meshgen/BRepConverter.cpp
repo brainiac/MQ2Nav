@@ -86,7 +86,6 @@ struct AreaBSPTree
 struct Vertex
 {
 	Vec3 position;
-	int halfEdge = -1; // one of the outgoing half edges for traversal
 	int id = -1;
 
 	Vertex() = default;
@@ -94,17 +93,23 @@ struct Vertex
 		: position(position), id(id) {}
 };
 
+struct Edge
+{
+	int start = -1;
+	int end = -1;
+
+	Edge() = default;
+	explicit Edge(int start, int end)
+		: start(start), end(end) {}
+};
+
 struct Face
 {
-	std::vector<Vec3> vertexes;
 	std::vector<int> vertexIds;
 	Plane plane;
 	int id = -1;
 
 	Face() = default;
-	explicit Face(std::vector<Vec3> vertexes, const Plane& plane, int id)
-		: vertexes(std::move(vertexes)), plane(plane), id(id) {}
-
 	explicit Face(const Plane& plane, int id)
 		: plane(plane), id(id) {}
 };
@@ -114,6 +119,7 @@ struct BRep
 
 	std::vector<Vertex> vertexes;
 	std::vector<Face> faces;
+	std::vector<Edge> outerEdges;
 
     int addVertex(const Vec3& position)
 	{
@@ -388,6 +394,7 @@ Clipper2Lib::PathsD triangulate(const Clipper2Lib::PathsD& paths)
 {
 	Clipper2Lib::PathsD faces;
 
+	// TODO: try to use these edges to eliminate the extra edges in the result
 	if (!paths.empty())
 	{
 		CDT::Triangulation<Distance> cdt(
@@ -435,6 +442,20 @@ Clipper2Lib::PathsD triangulate(const Clipper2Lib::PathsD& paths)
 
 BRep groupFaces(const std::vector<MergeFace>& allFaces)
 {
+	BRep result;
+	constexpr Distance VERTEX_MERGE_TOL = 1e-2f;
+	std::vector<Vec3> vertexPositions;
+
+	auto findOrAddVertex = [&result, &vertexPositions](const Vec3& pos) -> int
+	{
+		for (size_t i = 0; i < vertexPositions.size(); ++i)
+			if (glm::length(vertexPositions[i] - pos) < VERTEX_MERGE_TOL)
+				return static_cast<int>(i);
+		vertexPositions.push_back(pos);
+		result.addVertex(pos);
+		return static_cast<int>(vertexPositions.size() - 1);
+	};
+
 	// Group faces by coplanar plane (rounded normal + distance)
 	auto planeKey = [](const Plane& p) {
 		return std::make_tuple(
@@ -469,7 +490,6 @@ BRep groupFaces(const std::vector<MergeFace>& allFaces)
 		}
 	}
 
-	std::map<std::tuple<int, int, int, int>, std::vector<MergeFace>> xoredFaces;
 	for (const auto& [key, faces] : groups)
 	{
 		PlaneBasis basis = PlaneBasis::fromPlane(faces[0].plane);
@@ -513,27 +533,32 @@ BRep groupFaces(const std::vector<MergeFace>& allFaces)
 
 			auto diffed = Clipper2Lib::Difference(paths, inversePaths, Clipper2Lib::FillRule::NonZero);
 			diffed = Clipper2Lib::Union(diffed, Clipper2Lib::FillRule::NonZero);
-			diffed = Clipper2Lib::SimplifyPaths(diffed, 1);
-
 			Clipper2Lib::PathsD solution = triangulate(diffed);
-			//Clipper2Lib::Triangulate(diffed, 0, solution);
-			solution = Clipper2Lib::SimplifyPaths(solution, 1);
 
-			if (!solution.empty())
+			for (const auto& path : solution)
 			{
-				xoredFaces[key].reserve(solution.size());
-				for (const auto& path : solution)
+				if (!path.empty())
 				{
-					if (!path.empty())
-					{
-						MergeFace newFace;
-						newFace.plane = faces[0].plane;
-						newFace.vertexes.reserve(path.size());
-						for (const auto& point : path)
-							newFace.vertexes.push_back(basis.unproject({point.x, point.y}));
+					std::vector<int> vertexIds;
+					vertexIds.reserve(path.size());
+					for (const auto& point : path)
+						vertexIds.push_back(findOrAddVertex(basis.unproject({point.x, point.y})));
 
-						xoredFaces[key].push_back(newFace);
-					}
+					result.faces[result.addFace(faces[0].plane)].vertexIds = std::move(vertexIds);
+				}
+			}
+
+			for (const auto& path : diffed)
+			{
+				if (!path.empty())
+				{
+					std::vector<int> vertexIds;
+					vertexIds.reserve(path.size());
+					for (const auto& point : path)
+						vertexIds.push_back(findOrAddVertex(basis.unproject({point.x, point.y})));
+
+					for (size_t i = 0; i < vertexIds.size(); ++i)
+						result.outerEdges.emplace_back(vertexIds[i], vertexIds[(i + 1) % vertexIds.size()]);
 				}
 			}
 		}
@@ -556,56 +581,33 @@ BRep groupFaces(const std::vector<MergeFace>& allFaces)
 			}
 
 			auto unioned = Clipper2Lib::Union(paths, Clipper2Lib::FillRule::NonZero);
-			unioned = Clipper2Lib::SimplifyPaths(unioned, 1);
-
 			Clipper2Lib::PathsD solution = triangulate(unioned);
-			// Clipper2Lib::Triangulate(unioned, 0, solution);
-			solution = Clipper2Lib::SimplifyPaths(solution, 1);
 
-			if (!solution.empty())
+			for (const auto& path : solution)
 			{
-				xoredFaces[key].reserve(solution.size());
-				for (const auto& path : solution)
+				if (!path.empty())
 				{
-					if (!path.empty())
-					{
-						MergeFace newFace;
-						newFace.plane = faces[0].plane;
-						newFace.vertexes.reserve(path.size());
-						for (const auto& point : path)
-							newFace.vertexes.push_back(basis.unproject({point.x, point.y}));
+					std::vector<int> vertexIds;
+					for (const auto& point : path)
+						vertexIds.push_back(findOrAddVertex(basis.unproject({point.x, point.y})));
 
-						xoredFaces[key].push_back(newFace);
-					}
+					result.faces[result.addFace(faces[0].plane)].vertexIds = std::move(vertexIds);
 				}
 			}
-		}
-	}
 
-	BRep result;
-	constexpr Distance VERTEX_MERGE_TOL = 1e-2f;
-	std::vector<Vec3> vertexPositions;
+			for (const auto& path : unioned)
+			{
+				if (!path.empty())
+				{
+					std::vector<int> vertexIds;
+					vertexIds.reserve(path.size());
+					for (const auto& point : path)
+						vertexIds.push_back(findOrAddVertex(basis.unproject({point.x, point.y})));
 
-	auto findOrAddVertex = [&result, &vertexPositions](const Vec3& pos) -> int
-	{
-		for (size_t i = 0; i < vertexPositions.size(); ++i)
-			if (glm::length(vertexPositions[i] - pos) < VERTEX_MERGE_TOL)
-				return static_cast<int>(i);
-		vertexPositions.push_back(pos);
-		result.addVertex(pos);
-		return static_cast<int>(vertexPositions.size() - 1);
-	};
-
-	for (const auto& [key, faces] : xoredFaces)
-	{
-		for (const auto& face : faces)
-		{
-			std::vector<int> vertexIds;
-			for (const auto& vertex : face.vertexes)
-				vertexIds.push_back(findOrAddVertex(vertex));
-
-			int faceId = result.addFace(face.plane);
-			result.faces[faceId].vertexIds = std::move(vertexIds);
+					for (size_t i = 0; i < vertexIds.size(); ++i)
+						result.outerEdges.emplace_back(vertexIds[i], vertexIds[(i + 1) % vertexIds.size()]);
+				}
+			}
 		}
 	}
 
@@ -617,15 +619,10 @@ BRep groupFaces(const std::vector<MergeFace>& allFaces)
 
 #pragma region Polyhedra Union
 
-class PolyhedraUnionConverter
-{
-public:
-	static BRepResult convert(const std::vector<ConvexHullResult>& hulls);
-};
 
 // --- Main conversion ---
 
-BRepResult PolyhedraUnionConverter::convert(const std::vector<ConvexHullResult>& hulls)
+BRepResult convert(const std::vector<ConvexHullResult>& hulls)
 {
 	BRepResult result;
 
@@ -684,8 +681,17 @@ BRepResult PolyhedraUnionConverter::convert(const std::vector<ConvexHullResult>&
 			[](const Vertex& vert) { return vert.position; });
 
 		for (const auto& face : volume.faces)
-			if (face.vertexIds.size() >= 3)
-				result.faces.emplace_back(face.vertexIds.begin(), face.vertexIds.end());
+			if (face.vertexIds.size() >= 3) // discard any vertexes above 3, triangulation failed? anything less isn't a face
+				result.faces.emplace_back(std::array{
+					static_cast<uint16_t>(face.vertexIds[0]),
+					static_cast<uint16_t>(face.vertexIds[1]),
+					static_cast<uint16_t>(face.vertexIds[2])});
+
+		for (const auto& edge : volume.outerEdges)
+			result.outerEdges.emplace_back(std::array{
+				static_cast<uint16_t>(edge.start),
+				static_cast<uint16_t>(edge.end),
+			});
 	}
 	catch (CDT::Error& e)
 	{
@@ -716,8 +722,8 @@ std::vector<BRepResult> convertBSPToBRepPolyhedraUnion(const eqg::Terrain& terra
 
 	for (const auto& [area, convexHulls] : convexHulls)
 	{
-		auto result = PolyhedraUnionConverter::convert(convexHulls);
-		result.areaIndex = area;
+		auto result = convert(convexHulls);
+		result.areaIndex = static_cast<int>(area);
 		saveOBJ(result, fmt::format("test_{}.obj", area));
 
 		results.push_back(std::move(result));
