@@ -91,4 +91,4 @@ struct BRepResult
 	std::vector<std::array<uint16_t, 2>> outerEdges;
 };
 
-std::vector<BRepResult> convertBSPToBRepPolyhedraUnion(const eqg::Terrain& terrain);
+std::vector<BRepResult> BuildBRepsFromConvexHulls(const std::vector<ConvexHullResult>& hulls, const eqg::Terrain& terrain);

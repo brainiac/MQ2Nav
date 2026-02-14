@@ -132,6 +132,22 @@ struct BRep
 	}
 };
 
+struct MergeFace
+{
+	std::vector<glm::vec3> vertexes;  // CCW order when viewed from normal direction
+	Plane plane;
+
+	MergeFace() = default;
+	MergeFace(std::vector<glm::vec3> verts, const Plane& p)
+		: vertexes(std::move(verts)), plane(p) {}
+};
+
+struct Segment
+{
+	glm::vec3 start;
+	glm::vec3 end;
+};
+
 
 #pragma region Polygon Clipping
 
@@ -596,24 +612,7 @@ std::vector<AreaBSPTree> BuildAreaBSPTrees(const eqg::Terrain& terrain)
 // Polygon Simplification for Convex Hulls -> Triangulated BRep
 //============================================================================================================
 
-struct MergeFace
-{
-	std::vector<glm::vec3> vertexes;  // CCW order when viewed from normal direction
-	Plane plane;
-	bool valid = true;
-
-	MergeFace() = default;
-	MergeFace(std::vector<glm::vec3> verts, const Plane& p)
-		: vertexes(std::move(verts)), plane(p) {}
-};
-
-struct Segment
-{
-	glm::vec3 start;
-	glm::vec3 end;
-};
-
-Clipper2Lib::PathsD triangulate(const Clipper2Lib::PathsD& paths)
+Clipper2Lib::PathsD Triangulate(const Clipper2Lib::PathsD& paths)
 {
 	Clipper2Lib::PathsD faces;
 
@@ -662,7 +661,7 @@ Clipper2Lib::PathsD triangulate(const Clipper2Lib::PathsD& paths)
 	return faces;
 }
 
-Clipper2Lib::PathsD extractPaths(const std::vector<MergeFace>& faces, const PlaneBasis& basis)
+Clipper2Lib::PathsD ExtractPaths(const std::vector<MergeFace>& faces, const PlaneBasis& basis)
 {
 	Clipper2Lib::PathsD paths;
 	paths.reserve(faces.size());
@@ -683,7 +682,7 @@ Clipper2Lib::PathsD extractPaths(const std::vector<MergeFace>& faces, const Plan
 	return paths;
 }
 
-int findOrAddVertex(BRep& result, std::vector<glm::vec3>& vertexPositions, const glm::vec3& pos)
+int FindOrAddVertex(BRep& result, std::vector<glm::vec3>& vertexPositions, const glm::vec3& pos)
 {
 	constexpr float VERTEX_MERGE_TOL = 1e-2f;
 
@@ -695,12 +694,12 @@ int findOrAddVertex(BRep& result, std::vector<glm::vec3>& vertexPositions, const
 	return static_cast<int>(vertexPositions.size() - 1);
 }
 
-void addFacesAndEdges(BRep& result, std::vector<glm::vec3>& vertexPositions, const Clipper2Lib::PathsD& paths, const Plane& plane, const PlaneBasis& basis)
+void AddFacesAndEdges(BRep& result, std::vector<glm::vec3>& vertexPositions, const Clipper2Lib::PathsD& paths, const Plane& plane, const PlaneBasis& basis)
 {
 	if (!paths.empty())
 	{
 		auto simplified = Clipper2Lib::SimplifyPaths(paths, 1);
-		auto triangulated = triangulate(simplified);
+		auto triangulated = Triangulate(simplified);
 
 		for (const auto& path : triangulated)
 		{
@@ -709,7 +708,7 @@ void addFacesAndEdges(BRep& result, std::vector<glm::vec3>& vertexPositions, con
 				std::vector<int> vertexIds;
 				vertexIds.reserve(path.size());
 				for (const auto& point : path)
-					vertexIds.push_back(findOrAddVertex(result, vertexPositions, basis.unproject({point.x, point.y})));
+					vertexIds.push_back(FindOrAddVertex(result, vertexPositions, basis.unproject({point.x, point.y})));
 
 				result.faces[result.addFace(plane)].vertexIds = std::move(vertexIds);
 			}
@@ -723,7 +722,7 @@ void addFacesAndEdges(BRep& result, std::vector<glm::vec3>& vertexPositions, con
 				std::vector<int> vertexIds;
 				vertexIds.reserve(trimmedPath.size());
 				for (const auto& point : trimmedPath)
-					vertexIds.push_back(findOrAddVertex(result, vertexPositions, basis.unproject({point.x, point.y})));
+					vertexIds.push_back(FindOrAddVertex(result, vertexPositions, basis.unproject({point.x, point.y})));
 
 				for (size_t i = 0; i < vertexIds.size(); ++i)
 					result.outerEdges.emplace_back(vertexIds[i], vertexIds[(i + 1) % vertexIds.size()]);
@@ -732,7 +731,7 @@ void addFacesAndEdges(BRep& result, std::vector<glm::vec3>& vertexPositions, con
 	}
 }
 
-BRep groupFaces(const std::vector<MergeFace>& allFaces)
+BRep ConvertFacesByPlane(const std::vector<MergeFace>& allFaces)
 {
 	BRep result;
 	std::vector<glm::vec3> vertexPositions;
@@ -748,8 +747,7 @@ BRep groupFaces(const std::vector<MergeFace>& allFaces)
 
 	std::map<std::tuple<int, int, int, int>, std::vector<MergeFace>> groups;
 	for (auto& face : allFaces)
-		if (face.valid)
-			groups[planeKey(face.plane)].push_back(face);
+		groups[planeKey(face.plane)].push_back(face);
 
 	for (const auto& [key, faces] : groups)
 	{
@@ -759,19 +757,19 @@ BRep groupFaces(const std::vector<MergeFace>& allFaces)
 		if (groups.contains(inverse) && !faces.empty() && !groups[inverse].empty())
 		{
 			// the orientation of the face does not appear to matter to the Clipper2 boolean operations
-			Clipper2Lib::PathsD inversePaths = extractPaths(groups[inverse], basis);
-			Clipper2Lib::PathsD paths = extractPaths(faces, basis);;
+			Clipper2Lib::PathsD inversePaths = ExtractPaths(groups[inverse], basis);
+			Clipper2Lib::PathsD paths = ExtractPaths(faces, basis);;
 
 			auto diffed = Clipper2Lib::Difference(paths, inversePaths, Clipper2Lib::FillRule::NonZero);
 			diffed = Clipper2Lib::Union(diffed, Clipper2Lib::FillRule::NonZero);
 
-			addFacesAndEdges(result, vertexPositions, diffed, faces[0].plane, basis);
+			AddFacesAndEdges(result, vertexPositions, diffed, faces[0].plane, basis);
 		}
 		else if (!faces.empty())
 		{
-			Clipper2Lib::PathsD paths = extractPaths(faces, basis);
+			Clipper2Lib::PathsD paths = ExtractPaths(faces, basis);
 			auto unioned = Clipper2Lib::Union(paths, Clipper2Lib::FillRule::NonZero);
-			addFacesAndEdges(result, vertexPositions, unioned, faces[0].plane, basis);
+			AddFacesAndEdges(result, vertexPositions, unioned, faces[0].plane, basis);
 		}
 	}
 
@@ -785,7 +783,7 @@ BRep groupFaces(const std::vector<MergeFace>& allFaces)
 //============================================================================================================
 
 template <typename T> Plane ComputeFacePlane(const std::vector<glm::vec3>& vertices, const T& face);
-BRepResult convert(const std::vector<ConvexHullResult>& hulls)
+BRepResult Convert(const std::vector<ConvexHullResult>& hulls)
 {
 	BRepResult result;
 
@@ -811,7 +809,7 @@ BRepResult convert(const std::vector<ConvexHullResult>& hulls)
 
 	try
 	{
-		BRep volume = groupFaces(allCellFaces);
+		BRep volume = ConvertFacesByPlane(allCellFaces);
 
 		// convert volume to result
 		std::transform(volume.vertexes.begin(), volume.vertexes.end(), std::back_inserter(result.vertexes),
@@ -838,28 +836,27 @@ BRepResult convert(const std::vector<ConvexHullResult>& hulls)
 	return result;
 }
 
-std::vector<BRepResult> convertBSPToBRepPolyhedraUnion(const eqg::Terrain& terrain)
+std::vector<BRepResult> BuildBRepsFromConvexHulls(const std::vector<ConvexHullResult>& hulls, const eqg::Terrain& terrain)
 {
 	std::vector<BRepResult> results;
+	std::map<uint32_t, std::vector<ConvexHullResult>> hullsPerEnv;
 
-	if (!terrain.m_wldBspTree || terrain.m_wldBspTree->nodes.empty())
-		return results;
-
-	auto hulls = BuildConvexHullsFromRegions(terrain);
-	std::map<uint32_t, std::vector<ConvexHullResult>> convexHulls;
+	// use a little trick here and select a single area for each individual env type
+	// this will make lookups later grab the correct env for coloring the area render
 	std::map<std::pair<eqg::AreaEnvironment::Type, eqg::AreaEnvironment::Flags>, uint32_t> areaTypes;
+
 	for (const auto& hull : hulls)
 	{
 		auto area = terrain.m_wldAreaIndices[hull.regionIndex];
 		auto env = terrain.m_wldAreaEnvironments[hull.regionIndex];
 
 		auto [it, inserted] = areaTypes.try_emplace({env.type, env.flags}, area);
-		convexHulls[it->second].emplace_back(hull);
+		hullsPerEnv[it->second].emplace_back(hull);
 	}
 
-	for (const auto& [area, convexHulls] : convexHulls)
+	for (const auto& [area, convexHulls] : hullsPerEnv)
 	{
-		auto result = convert(convexHulls);
+		auto result = Convert(convexHulls);
 		result.areaIndex = static_cast<int>(area);
 		saveOBJ(result, fmt::format("test_{}.obj", area));
 
