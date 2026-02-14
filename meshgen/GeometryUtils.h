@@ -13,8 +13,6 @@
 #include "eqglib/eqg_terrain.h"
 
 // Forward declarations
-struct AreaVolumeComponent;
-
 namespace eqg
 {
 	class Terrain;
@@ -80,7 +78,7 @@ inline glm::vec3 QuantizeVec3(const glm::vec3& v, float gridSize = 1e-4f)
 // Faces on the same plane (regardless of normal direction) get the same color.
 // This helps visualize which faces would be candidates for internal face removal.
 std::vector<uint32_t> DebugColorFacesByPlane(const std::vector<glm::vec3>& vertices,
-	const std::vector<std::vector<uint16_t>>& faces);
+	const std::vector<std::array<uint16_t, 3>>& faces);
 
 // Build all convex hulls for regions in areas
 std::vector<ConvexHullResult> BuildConvexHullsFromRegions(const eqg::Terrain& terrain);
@@ -91,7 +89,8 @@ struct BRepResult
 	int areaIndex = -1;
 
 	std::vector<glm::vec3> vertexes;
-	std::vector<std::vector<uint16_t>> faces;  // Polygon faces (not triangulated)
+	std::vector<std::array<uint16_t, 3>> faces;  // Polygon faces (triangulated)
+	std::vector<std::array<uint16_t, 2>> outerEdges;
 };
 
 std::vector<BRepResult> convertBSPToBRepPolyhedraUnion(const eqg::Terrain& terrain);

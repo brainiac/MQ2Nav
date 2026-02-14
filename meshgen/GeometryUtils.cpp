@@ -283,7 +283,7 @@ struct PlaneHasher
 };
 
 // Compute plane from a polygon face using Newell's method
-Plane ComputeFacePlane(const std::vector<glm::vec3>& vertices, const std::vector<uint16_t>& face)
+Plane ComputeFacePlane(const std::vector<glm::vec3>& vertices, const std::array<uint16_t, 3>& face)
 {
 	Plane plane{ glm::vec3(0.0f), 0.0f };
 
@@ -335,7 +335,7 @@ uint32_t GetRandomColor(size_t hashVal)
 }
 
 std::vector<uint32_t> DebugColorFacesByPlane(const std::vector<glm::vec3>& vertices,
-	const std::vector<std::vector<uint16_t>>& faces)
+	const std::vector<std::array<uint16_t, 3>>& faces)
 {
 	std::vector<uint32_t> faceColors(faces.size(), 0xFFFFFFFF);  // Default white
 
