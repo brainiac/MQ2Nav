@@ -265,9 +265,8 @@ void RenderManager::Im3D_DrawText()
 			const char* text = textDrawList.m_textBuffer + textData.m_textBufferOffset;
 
 			// Calculate the final text size in pixels to apply alignment flags correctly.
-			ImGuiContext* g = ImGui::GetCurrentContext();
 			ImFont* font = ImGui::GetFont();
-			float fontSize = font->FontSize * textData.m_positionSize.w;
+			float fontSize = ImGui::GetStyle().FontSizeBase * textData.m_positionSize.w;
 			ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, -1.0f, text, text + textData.m_textLength, nullptr);
 
 			textSize.x = static_cast<float>(static_cast<int>(textSize.x + 0.99999f));

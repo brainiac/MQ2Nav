@@ -209,8 +209,6 @@ void Application::InitImGui()
 		LCIconFontLarge = io.Fonts->AddFontFromMemoryCompressedTTF(GetLucideIconsCompressedData(), GetLucideIconsCompressedSize(), 20.0f, &fontConfig, icon_ranges);
 	}
 
-	io.Fonts->Build();
-
 	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
 	ImGuiStyle& style = ImGui::GetStyle();
 	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)

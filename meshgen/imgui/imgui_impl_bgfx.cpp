@@ -24,13 +24,14 @@
 
 // Data
 static uint8_t s_viewId = 255;
-static bgfx::TextureHandle s_texture = BGFX_INVALID_HANDLE;
 static bgfx::ProgramHandle s_program = BGFX_INVALID_HANDLE;
 static bgfx::ProgramHandle s_imageProgram = BGFX_INVALID_HANDLE;
 static bgfx::UniformHandle s_tex = BGFX_INVALID_HANDLE;
 static bgfx::UniformHandle s_imageLodEnabled = BGFX_INVALID_HANDLE;
 static bgfx::VertexLayout s_layout;
 
+#define IMGUI_FLAGS_NONE        UINT8_C(0x00)
+#define IMGUI_FLAGS_ALPHA_BLEND UINT8_C(0x01)
 
 inline bool checkAvailTransientBuffers(uint32_t numVertices, const bgfx::VertexLayout& layout, uint32_t numIndices)
 {
@@ -38,6 +39,61 @@ inline bool checkAvailTransientBuffers(uint32_t numVertices, const bgfx::VertexL
 		&& (0 == numIndices || numIndices == bgfx::getAvailTransientIndexBuffer(numIndices));
 }
 
+static void ImGui_ImplBgfx_DestroyTexture(ImTextureData* texData)
+{
+	ImGui::TextureBgfx tex = bx::bitCast<ImGui::TextureBgfx>(texData->GetTexID());
+	bgfx::destroy(tex.handle);
+	texData->SetTexID(ImTextureID_Invalid);
+	texData->SetStatus(ImTextureStatus_Destroyed);
+}
+
+static void ImGui_ImplBgfx_UpdateTexture(ImTextureData* texData)
+{
+	if (texData->Status == ImTextureStatus_WantCreate)
+	{
+		ImGui::TextureBgfx tex =
+		{
+			.handle = bgfx::createTexture2D(
+				  (uint16_t)texData->Width
+				, (uint16_t)texData->Height
+				, false
+				, 1
+				, bgfx::TextureFormat::BGRA8
+				, 0
+				),
+			.flags = IMGUI_FLAGS_ALPHA_BLEND,
+			.mip = 0,
+			.unused = 0,
+		};
+
+		bgfx::setName(tex.handle, "ImGui Font Atlas");
+		bgfx::updateTexture2D(tex.handle, 0, 0, 0, 0
+			, bx::narrowCast<uint16_t>(texData->Width)
+			, bx::narrowCast<uint16_t>(texData->Height)
+			, bgfx::copy(texData->GetPixels(), texData->GetSizeInBytes())
+		);
+
+		texData->SetTexID(bx::bitCast<ImTextureID>(tex));
+		texData->SetStatus(ImTextureStatus_OK);
+	}
+	else if (texData->Status == ImTextureStatus_WantUpdates)
+	{
+		ImGui::TextureBgfx tex = bx::bitCast<ImGui::TextureBgfx>(texData->GetTexID());
+
+		for (ImTextureRect& rect : texData->Updates)
+		{
+			const uint32_t bpp = texData->BytesPerPixel;
+			const bgfx::Memory* pix = bgfx::alloc(rect.h * rect.w * bpp);
+			bx::gather(pix->data, texData->GetPixelsAt(rect.x, rect.y), texData->GetPitch(), rect.w * bpp, rect.h);
+			bgfx::updateTexture2D(tex.handle, 0, 0, rect.x, rect.y, rect.w, rect.h, pix);
+		}
+	}
+
+	if (texData->Status == ImTextureStatus_WantDestroy && texData->UnusedFrames > 0)
+	{
+		ImGui_ImplBgfx_DestroyTexture(texData);
+	}
+}
 
 // This is the main rendering function that you have to implement and call after
 // ImGui::Render(). Pass ImGui::GetDrawData() to this function.
@@ -75,6 +131,17 @@ void ImGui_ImplBgfx_RenderDrawLists(ImDrawData* draw_data)
 
 	const ImVec2 clipPos = draw_data->DisplayPos;       // (0,0) unless using multi-viewports
 	const ImVec2 clipScale = draw_data->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
+
+	if (draw_data->Textures != nullptr)
+	{
+		for (ImTextureData* tex : *draw_data->Textures)
+		{
+			if (tex->Status != ImTextureStatus_OK)
+			{
+				ImGui_ImplBgfx_UpdateTexture(tex);
+			}
+		}
+	}
 
 	// Render command lists
 	for (int n = 0; n < draw_data->CmdListsCount; n++)
@@ -115,31 +182,24 @@ void ImGui_ImplBgfx_RenderDrawLists(ImDrawData* draw_data)
 				// no depth testing, scissor enabled
 				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_MSAA;
 
-				bgfx::TextureHandle th = s_texture;
+				bgfx::TextureHandle th = BGFX_INVALID_HANDLE;
 				bgfx::ProgramHandle program = s_program;
 
-				if (cmd->TextureId != nullptr)
-				{
-					union
-					{
-						ImTextureID ptr;
-						struct
-						{
-							bgfx::TextureHandle handle;
-							uint8_t flags;
-							uint8_t mip;
-						} s;
-					} texture = { cmd->TextureId };
+				const ImTextureID texId = cmd->GetTexID();
 
-					state |= (BGFX_IMGUI_FLAGS_ALPHA_BLEND & texture.s.flags) != 0
+				if (texId != ImTextureID_Invalid)
+				{
+					ImGui::TextureBgfx tex = bx::bitCast<ImGui::TextureBgfx>(texId);
+
+					state |= (BGFX_IMGUI_FLAGS_ALPHA_BLEND & tex.flags) != 0
 						? BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 						: BGFX_STATE_NONE;
 
-					th = texture.s.handle;
+					th = tex.handle;
 
-					if (texture.s.mip != 0)
+					if (tex.mip != 0)
 					{
-						const float lodEnabled[4] = { float(texture.s.mip), 1.0f, 0.0f, 0.0f };
+						const float lodEnabled[4] = { float(tex.mip), 1.0f, 0.0f, 0.0f };
 						bgfx::setUniform(s_imageLodEnabled, lodEnabled);
 						program = s_imageProgram;
 					}
@@ -176,55 +236,19 @@ void ImGui_ImplBgfx_RenderDrawLists(ImDrawData* draw_data)
 	}
 }
 
-bool ImGui_ImplBgfx_CreateFontsTexture()
-{
-	// Build texture atlas
-	ImGuiIO& io = ImGui::GetIO();
-
-	uint8_t* data;
-	int width, height;
-	io.Fonts->GetTexDataAsRGBA32(&data, &width, &height);
-
-	// Upload texture to graphics system
-	s_texture = bgfx::createTexture2D(
-		(uint16_t)width, (uint16_t)height, false, 1, bgfx::TextureFormat::BGRA8, 0,
-		bgfx::copy(data, width * height * 4));
-
-	// Store our identifier
-	io.Fonts->TexID = ImGui::toId(s_texture, BGFX_IMGUI_FLAGS_ALPHA_BLEND, 0);
-
-	return true;
-}
-
-bool ImGui_ImplBgfx_CreateDeviceObjects()
-{
-	s_program = g_resourceMgr->GetProgramHandle("imgui");
-	s_imageProgram = g_resourceMgr->GetProgramHandle("imgui_image");
-
-	s_imageLodEnabled = bgfx::createUniform("u_imageLodEnabled", bgfx::UniformType::Vec4);
-
-	s_layout
-		.begin()
-			.add(bgfx::Attrib::Position,  2, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true)
-		.end();
-
-	s_tex = bgfx::createUniform("s_tex", bgfx::UniformType::Sampler);
-
-	ImGui_ImplBgfx_CreateFontsTexture();
-
-	return true;
-}
-
 void ImGui_ImplBgfx_InvalidateDeviceObjects()
 {
 	bgfx::destroy(s_tex);
-	if (isValid(s_texture))
+
+	for (ImTextureData* texData : ImGui::GetPlatformIO().Textures)
 	{
-		bgfx::destroy(s_texture);
-		ImGui::GetIO().Fonts->TexID = 0;
-		s_texture.idx = bgfx::kInvalidHandle;
+		if (texData->RefCount == 1)
+		{
+			ImGui::TextureBgfx tex = bx::bitCast<ImGui::TextureBgfx>(texData->GetTexID());
+			bgfx::destroy(tex.handle);
+			texData->SetTexID(ImTextureID_Invalid);
+			texData->SetStatus(ImTextureStatus_Destroyed);
+		}
 	}
 
 	bgfx::destroy(s_imageLodEnabled);
@@ -233,7 +257,21 @@ void ImGui_ImplBgfx_InvalidateDeviceObjects()
 void ImGui_ImplBgfx_Init()
 {
 	ImGuiIO& io = ImGui::GetIO();
-	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;
+
+	s_program = g_resourceMgr->GetProgramHandle("imgui");
+	s_imageProgram = g_resourceMgr->GetProgramHandle("imgui_image");
+
+	s_imageLodEnabled = bgfx::createUniform("u_imageLodEnabled", bgfx::UniformType::Vec4);
+
+	s_layout
+		.begin()
+			.add(bgfx::Attrib::Position, 2, bgfx::AttribType::Float)
+			.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+			.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+		.end();
+
+	s_tex = bgfx::createUniform("s_tex", bgfx::UniformType::Sampler);
 }
 
 void ImGui_ImplBgfx_Shutdown()
@@ -243,8 +281,4 @@ void ImGui_ImplBgfx_Shutdown()
 
 void ImGui_ImplBgfx_NewFrame()
 {
-	if (!isValid(s_texture))
-	{
-		ImGui_ImplBgfx_CreateDeviceObjects();
-	}
 }

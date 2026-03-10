@@ -2,7 +2,7 @@
 //     https://gist.github.com/RichardGale/6e2b74bc42b3005e08397236e4be0fd0
 
 #include "imgui/imgui.h"
-
+#include <bx/bx.h>
 // ImGui BGFX binding
 
 // You can copy and use unmodified imgui_impl_* files in your project. See
@@ -19,21 +19,31 @@ void ImGui_ImplBgfx_RenderDrawLists(struct ImDrawData* draw_data);
 
 // Use if you want to reset your rendering device without losing ImGui state.
 void ImGui_ImplBgfx_InvalidateDeviceObjects();
-bool ImGui_ImplBgfx_CreateDeviceObjects();
 
 #define BGFX_IMGUI_FLAGS_NONE                0x00
 #define BGFX_IMGUI_FLAGS_ALPHA_BLEND         0x01
 
 namespace ImGui
 {
+	struct TextureBgfx
+	{
+		bgfx::TextureHandle handle;
+		uint8_t  flags;
+		uint8_t  mip;
+		uint32_t unused;
+	};
 
 	inline ImTextureID toId(bgfx::TextureHandle handle, uint8_t flags, uint8_t mip)
 	{
-		union { struct { bgfx::TextureHandle handle; uint8_t flags; uint8_t mip; } s; ImTextureID id; } tex;
-		tex.s.handle = handle;
-		tex.s.flags = flags;
-		tex.s.mip = mip;
-		return tex.id;
+		TextureBgfx tex
+		{
+			.handle = handle,
+			.flags = flags,
+			.mip = mip,
+			.unused = 0,
+		};
+
+		return bx::bitCast<ImTextureID>(tex);
 	}
 
 	// Helper function for passing bgfx::TextureHandle to ImGui::Image.
