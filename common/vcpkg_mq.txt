@@ -1,5 +1,5 @@
 fmt
 glm
-protobuf
 rapidjson
+protobuf
 spdlog

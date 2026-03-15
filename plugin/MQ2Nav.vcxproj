@@ -29,6 +29,7 @@
     <RootNamespace>MQ2Nav</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <VCToolsVersion>14.44.35207</VCToolsVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -154,6 +155,7 @@
     <ClCompile Include="NavMeshLoader.cpp" />
     <ClCompile Include="NavMeshRenderer.cpp" />
     <ClCompile Include="PluginMain.cpp" />
+    <ClCompile Include="DX11Renderer.cpp" />
     <ClCompile Include="RenderHandler.cpp" />
     <ClCompile Include="RenderList.cpp" />
     <ClCompile Include="UiController.cpp" />
@@ -161,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\PluginAPI.h" />
+    <ClInclude Include="DX11Renderer.h" />
     <ClInclude Include="DebugDrawDX.h" />
     <ClInclude Include="EmbedResources.h" />
     <ClInclude Include="imgui\imgui_impl_dx9.h" />

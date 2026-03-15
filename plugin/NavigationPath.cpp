@@ -608,6 +608,17 @@ bool NavigationLine::CreateDeviceObjects()
 		InvalidateDeviceObjects();
 		return false;
 	}
+#elif HAS_DIRECTX_11
+	// DX11: We don't need to create an effect -- shaders are in NavDX11Resources.
+	// Just get a pointer to the shared DX11 resources from the render handler.
+	if (g_renderHandler)
+	{
+		m_dx11 = g_renderHandler->GetDX11Resources();
+	}
+	if (!m_dx11)
+	{
+		return false;
+	}
 #endif
 
 	m_loaded = true;
@@ -630,6 +641,9 @@ void NavigationLine::InvalidateDeviceObjects()
 		m_vDeclaration->Release();
 		m_vDeclaration = nullptr;
 	}
+#elif HAS_DIRECTX_11
+	ReleasePath();
+	m_dx11 = nullptr;
 #endif
 
 	m_loaded = false;
@@ -643,6 +657,13 @@ void NavigationLine::ReleasePath()
 		m_vertexBuffer->Release();
 		m_vertexBuffer = nullptr;
 	}
+#elif HAS_DIRECTX_11
+	if (m_vertexBuffer11)
+	{
+		m_vertexBuffer11->Release();
+		m_vertexBuffer11 = nullptr;
+	}
+	m_vbCapacity11 = 0;
 #endif
 }
 
@@ -748,6 +769,137 @@ void NavigationLine::Render()
 
 	gpD3D9Device->SetRenderState(D3DRS_ZENABLE, depthTest);
 	gpD3D9Device->SetRenderState(D3DRS_ZFUNC, depthFunc);
+#elif HAS_DIRECTX_11
+	// Lazy-load DX11 resources if we don't have them yet
+	if (!m_dx11 && g_renderHandler)
+		m_dx11 = g_renderHandler->GetDX11Resources();
+	if (!m_dx11)
+		return;
+	if (m_needsUpdate && m_path)
+		GenerateBuffers();
+	if (!m_vertexBuffer11)
+		return;
+
+	ID3D11DeviceContext* ctx = m_dx11->context;
+	if (!ctx) return;
+
+	// Get view and projection matrices from the DX9 wrapper (still works)
+	D3DMATRIX d3dView, d3dProj;
+	gpD3D9Device->GetTransform(D3DTS_VIEW, &d3dView);
+	gpD3D9Device->GetTransform(D3DTS_PROJECTION, &d3dProj);
+
+	glm::mat4 view, proj;
+	memcpy(&view, &d3dView, sizeof(glm::mat4));
+	memcpy(&proj, &d3dProj, sizeof(glm::mat4));
+
+	glm::mat4 world = glm::identity<glm::mat4>();
+	glm::mat4 wv = view * world;
+	glm::mat4 wvp = proj * view * world;
+
+	// The DX9 matrices from GetTransform are row-major (D3D convention)
+	// and we're storing them in glm::mat4 which is column-major.
+	// The memcpy treats them as raw bytes, so they're actually row-major in memory.
+	// The original DX9 shader used mul(pos, mWVP) which is row-major convention.
+	// So we pass the matrices as-is (they're already row-major from D3D).
+
+	// Bind the volume line pipeline
+	m_dx11->BindVolumePipeline();
+
+	// Set vertex buffer
+	UINT stride = sizeof(TVertex);
+	UINT offset = 0;
+	ctx->IASetVertexBuffers(0, 1, &m_vertexBuffer11, &stride, &offset);
+	ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	// Clear stencil buffer
+	ID3D11DepthStencilView* dsv = nullptr;
+	ctx->OMGetRenderTargets(0, nullptr, &dsv);
+	if (dsv)
+	{
+		ctx->ClearDepthStencilView(dsv, D3D11_CLEAR_STENCIL, 1.0f, 0);
+		dsv->Release();
+	}
+
+	// 4-pass rendering
+	for (int iPass = 0; iPass < 4; iPass++)
+	{
+		VolumeLineCB cb;
+		memcpy(&cb.WVP, &wvp, sizeof(glm::mat4));
+		memcpy(&cb.WV, &wv, sizeof(glm::mat4));
+
+		switch (iPass)
+		{
+		case 0: // hidden line
+			if (gNavigationLineStyle.hiddenOpacity == 0)
+				continue;
+			cb.opacity = gNavigationLineStyle.hiddenOpacity;
+			cb.lineWidth = gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth);
+			cb.lineColor = glm::vec4(
+				gNavigationLineStyle.hiddenColor.Value.x,
+				gNavigationLineStyle.hiddenColor.Value.y,
+				gNavigationLineStyle.hiddenColor.Value.z,
+				gNavigationLineStyle.hiddenColor.Value.w);
+			cb.linkColor = cb.lineColor;
+			break;
+
+		case 1: // visible line
+			cb.opacity = gNavigationLineStyle.opacity;
+			cb.lineWidth = gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth);
+			cb.lineColor = glm::vec4(
+				gNavigationLineStyle.visibleColor.Value.x,
+				gNavigationLineStyle.visibleColor.Value.y,
+				gNavigationLineStyle.visibleColor.Value.z,
+				gNavigationLineStyle.visibleColor.Value.w);
+			cb.linkColor = glm::vec4(
+				gNavigationLineStyle.linkColor.Value.x,
+				gNavigationLineStyle.linkColor.Value.y,
+				gNavigationLineStyle.linkColor.Value.z,
+				gNavigationLineStyle.linkColor.Value.w);
+			break;
+
+		case 2: // border - hidden
+			if (gNavigationLineStyle.hiddenOpacity == 0)
+				continue;
+			cb.opacity = gNavigationLineStyle.hiddenOpacity;
+			cb.lineWidth = gNavigationLineStyle.lineWidth;
+			cb.lineColor = glm::vec4(
+				gNavigationLineStyle.borderColor.Value.x,
+				gNavigationLineStyle.borderColor.Value.y,
+				gNavigationLineStyle.borderColor.Value.z,
+				gNavigationLineStyle.borderColor.Value.w);
+			cb.linkColor = cb.lineColor;
+			break;
+
+		case 3: // border - visible
+			cb.opacity = gNavigationLineStyle.opacity;
+			cb.lineWidth = gNavigationLineStyle.lineWidth;
+			cb.lineColor = glm::vec4(
+				gNavigationLineStyle.borderColor.Value.x,
+				gNavigationLineStyle.borderColor.Value.y,
+				gNavigationLineStyle.borderColor.Value.z,
+				gNavigationLineStyle.borderColor.Value.w);
+			cb.linkColor = cb.lineColor;
+			break;
+		}
+
+		cb._pad[0] = 0;
+		cb._pad[1] = 0;
+		m_dx11->UpdateVolumeCB(cb);
+
+		// Set depth-stencil state for this pass
+		// Passes 0,1 use stencilRef=1; passes 2,3 use stencilRef=0
+		UINT stencilRef = (iPass < 2) ? 1 : 0;
+		ctx->OMSetDepthStencilState(m_dx11->dsVolumeLine[iPass].Get(), stencilRef);
+
+		// Draw all line segments
+		for (auto& cmd : m_commands)
+		{
+			ctx->Draw(cmd.PrimitiveCount + 2, cmd.StartVertex);
+		}
+	}
+
+	// Restore PS CB that ScopedStateBlock doesn't handle
+	m_dx11->RestoreState();
 #endif
 }
 
@@ -876,6 +1028,124 @@ void NavigationLine::GenerateBuffers()
 	}
 
 	m_vertexBuffer->Unlock();
+#elif HAS_DIRECTX_11
+	const std::vector<int>& renderPath = m_path->GetRenderPath();
+	int size = (int)renderPath.size();
+
+	if (size <= 0)
+		return;
+
+	int bufferLength = (size - 1) * 4;
+
+	if (!m_vertexBuffer11 || size > m_vbCapacity11)
+	{
+		if (m_vertexBuffer11)
+			m_vertexBuffer11->Release();
+		m_vertexBuffer11 = nullptr;
+
+		if (!m_dx11 || !m_dx11->device)
+			return;
+
+		D3D11_BUFFER_DESC vbDesc = {};
+		vbDesc.ByteWidth = bufferLength * sizeof(TVertex);
+		vbDesc.Usage = D3D11_USAGE_DYNAMIC;
+		vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		if (FAILED(m_dx11->device->CreateBuffer(&vbDesc, nullptr, &m_vertexBuffer11)))
+		{
+			m_vertexBuffer11 = nullptr;
+			return;
+		}
+		m_vbCapacity11 = size;
+	}
+
+	ID3D11DeviceContext* ctx = m_dx11->context;
+	D3D11_MAPPED_SUBRESOURCE mapped;
+	if (FAILED(ctx->Map(m_vertexBuffer11, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+		return;
+
+	TVertex* vertexDest = (TVertex*)mapped.pData;
+	glm::vec3* pt = &m_path->m_currentPath->verts[0];
+	uint8_t* flags = &m_path->m_currentPath->flags[0];
+
+	int index = 0;
+	m_commands.resize(size - 1);
+
+	for (int node = 0; node < size - 1; ++node, ++pt)
+	{
+		int i = renderPath[node];
+		float type = 0.f;
+
+		glm::vec3 v0;
+		if (i == -1)
+		{
+			v0.x = m_startPos.z;
+			v0.y = m_startPos.x;
+			v0.z = m_startPos.y + 1;
+			if (m_path->m_followingLink)
+				type = 1.0f;
+		}
+		else
+		{
+			v0.x = pt[0].z;
+			v0.y = pt[0].x;
+			v0.z = pt[0].y + 1;
+			if (flags[i] & DT_STRAIGHTPATH_OFFMESH_CONNECTION)
+				type = 1.0f;
+		}
+
+		glm::vec3 v1;
+		v1.x = pt[1].z;
+		v1.y = pt[1].x;
+		v1.z = pt[1].y + 1;
+
+		glm::vec3 nextPos;
+		int nextIdx = node < size - 2 ? 2 : 1;
+		nextPos.x = pt[nextIdx].z;
+		nextPos.y = pt[nextIdx].x;
+		nextPos.z = pt[nextIdx].y + 1;
+
+		glm::vec3 prevPos;
+		int prevIdx = node > 0 ? -1 : 0;
+		prevPos.x = pt[prevIdx].z;
+		prevPos.y = pt[prevIdx].x;
+		prevPos.z = pt[prevIdx].y + 1;
+
+		vertexDest[index + 0].pos = v0;
+		vertexDest[index + 0].otherPos = v1;
+		vertexDest[index + 0].thickness = -m_thickness;
+		vertexDest[index + 0].adjPos = prevPos;
+		vertexDest[index + 0].adjHint = prevIdx;
+		vertexDest[index + 0].type = type;
+
+		vertexDest[index + 1].pos = v1;
+		vertexDest[index + 1].otherPos = v0;
+		vertexDest[index + 1].thickness = m_thickness;
+		vertexDest[index + 1].adjPos = nextPos;
+		vertexDest[index + 1].adjHint = nextIdx - 1;
+		vertexDest[index + 1].type = type;
+
+		vertexDest[index + 2].pos = v0;
+		vertexDest[index + 2].otherPos = v1;
+		vertexDest[index + 2].thickness = m_thickness;
+		vertexDest[index + 2].adjPos = prevPos;
+		vertexDest[index + 2].adjHint = prevIdx;
+		vertexDest[index + 2].type = type;
+
+		vertexDest[index + 3].pos = v1;
+		vertexDest[index + 3].otherPos = v0;
+		vertexDest[index + 3].thickness = -m_thickness;
+		vertexDest[index + 3].adjPos = nextPos;
+		vertexDest[index + 3].adjHint = nextIdx - 1;
+		vertexDest[index + 3].type = type;
+
+		m_commands[node].StartVertex = index;
+		m_commands[node].PrimitiveCount = 2;
+		index += 4;
+	}
+
+	ctx->Unmap(m_vertexBuffer11, 0);
 #endif
 	m_needsUpdate = false;
 }

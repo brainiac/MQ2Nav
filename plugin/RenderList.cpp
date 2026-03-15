@@ -4,6 +4,11 @@
 
 #include "pch.h"
 #include "RenderList.h"
+#include "DX11Renderer.h"
+
+#if HAS_DIRECTX_11
+#include <mq/Plugin.h>
+#endif
 
 #include <imgui.h>
 
@@ -221,6 +226,51 @@ void RenderList::Render()
 			break;
 		}
 	}
+#elif HAS_DIRECTX_11
+	GenerateBuffers();
+
+	if (!m_pVB11 || !m_pIB11)
+		return;
+
+	ID3D11DeviceContext* ctx = nullptr;
+	gpD3D11Device->GetImmediateContext(&ctx);
+	if (!ctx) return;
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	ctx->IASetVertexBuffers(0, 1, &m_pVB11, &stride, &offset);
+	ctx->IASetIndexBuffer(m_pIB11, DXGI_FORMAT_R32_UINT, 0);
+
+	if (m_mtx)
+	{
+		// World transform is handled via constant buffer by the caller
+		m_mtx = nullptr;
+	}
+
+	for (auto& p : m_prims)
+	{
+		PrimitiveList* l = p.get();
+		if (l->indices.size() == 0)
+			continue;
+
+		switch (m_type)
+		{
+		case Prim_Points:
+			ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+			break;
+		case Prim_Lines:
+			ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+			break;
+		case Prim_Triangles:
+		case Prim_Quads:
+			ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			break;
+		}
+
+		ctx->DrawIndexed((UINT)l->indices.size(), l->startingIndex, 0);
+	}
+
+	ctx->Release();
 #endif
 }
 
@@ -292,6 +342,86 @@ void RenderList::GenerateBuffers()
 		m_pVB->Unlock();
 		m_pIB->Unlock();
 	}
+#elif HAS_DIRECTX_11
+	bool rebuildBuffers = false;
+	int vertexSize = 0, indexSize = 0;
+
+	if (!m_pVB11 && !m_vertices.empty())
+	{
+		vertexSize = (int)m_vertices.size();
+		m_vbSize11 = vertexSize;
+
+		D3D11_BUFFER_DESC vbDesc = {};
+		vbDesc.ByteWidth = vertexSize * sizeof(Vertex);
+		vbDesc.Usage = D3D11_USAGE_DYNAMIC;
+		vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		if (FAILED(gpD3D11Device->CreateBuffer(&vbDesc, nullptr, &m_pVB11)))
+			return;
+
+		rebuildBuffers = true;
+	}
+
+	if (!m_pIB11 && m_prims.size() > 0)
+	{
+		for (auto& p : m_prims)
+			indexSize += (int)p->indices.size();
+
+		m_ibSize11 = indexSize;
+
+		D3D11_BUFFER_DESC ibDesc = {};
+		ibDesc.ByteWidth = indexSize * sizeof(uint32_t);
+		ibDesc.Usage = D3D11_USAGE_DYNAMIC;
+		ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		ibDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		if (FAILED(gpD3D11Device->CreateBuffer(&ibDesc, nullptr, &m_pIB11)))
+			return;
+
+		rebuildBuffers = true;
+	}
+
+	if (rebuildBuffers)
+	{
+		ID3D11DeviceContext* ctx = nullptr;
+		gpD3D11Device->GetImmediateContext(&ctx);
+		if (!ctx) return;
+
+		D3D11_MAPPED_SUBRESOURCE mappedVB, mappedIB;
+
+		if (FAILED(ctx->Map(m_pVB11, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedVB)))
+		{
+			ctx->Release();
+			return;
+		}
+		memcpy(mappedVB.pData, m_vertices.data(), m_vbSize11 * sizeof(Vertex));
+		ctx->Unmap(m_pVB11, 0);
+
+		if (FAILED(ctx->Map(m_pIB11, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedIB)))
+		{
+			ctx->Release();
+			return;
+		}
+
+		int currentIndex = 0;
+		uint32_t* indexDest = (uint32_t*)mappedIB.pData;
+		for (auto& p : m_prims)
+		{
+			PrimitiveList* l = p.get();
+			if (l->indices.size() == 0)
+				continue;
+
+			size_t source_len = l->indices.size() * sizeof(uint32_t);
+			memcpy(indexDest + currentIndex, l->indices.data(), source_len);
+			l->startingIndex = currentIndex;
+			currentIndex += (int)l->indices.size();
+		}
+		ctx->Unmap(m_pIB11, 0);
+
+		m_lastRender = (int)m_prims.size();
+		ctx->Release();
+	}
 #endif
 }
 
@@ -309,6 +439,11 @@ void RenderList::InvalidateDeviceObjects()
 		m_pIB->Release();
 		m_pIB = nullptr;
 	}
+#elif HAS_DIRECTX_11
+	if (m_pVB11) { m_pVB11->Release(); m_pVB11 = nullptr; }
+	if (m_pIB11) { m_pIB11->Release(); m_pIB11 = nullptr; }
+	m_vbSize11 = 0;
+	m_ibSize11 = 0;
 #endif
 }
 

@@ -15,6 +15,10 @@
 
 #include <glm/glm.hpp>
 
+#if HAS_DIRECTX_11
+#include <d3d11.h>
+#endif
+
 #include <map>
 #include <memory>
 #include <vector>
@@ -120,6 +124,13 @@ private:
 	eqlib::Direct3DDevice9* m_pDevice = nullptr;
 	eqlib::Direct3DVertexBuffer9* m_pVB = nullptr;
 	eqlib::Direct3DIndexBuffer9* m_pIB = nullptr;
+
+#if HAS_DIRECTX_11
+	ID3D11Buffer* m_pVB11 = nullptr;
+	ID3D11Buffer* m_pIB11 = nullptr;
+	int m_vbSize11 = 0;
+	int m_ibSize11 = 0;
+#endif
 
 	std::vector<Vertex> m_vertices;
 

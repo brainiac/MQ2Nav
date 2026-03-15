@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include "RenderHandler.h"
+#include "DX11Renderer.h"
 
 #include "plugin/MQ2Navigation.h"
 
@@ -45,8 +46,24 @@ void RenderHandler::CreateDeviceObjects()
 {
 	if (m_deviceAcquired)
 		return;
+#if HAS_DIRECTX_11
+	if (!gpD3D11Device)
+		return;
+	if (!m_dx11)
+	{
+		m_dx11 = std::make_unique<NavDX11Resources>();
+		if (!m_dx11->Initialize(gpD3D11Device))
+		{
+			WriteChatf("\ar[MQ2Nav]\ax DX11 renderer init FAILED");
+			m_dx11.reset();
+			return;
+		}
+		WriteChatf("\ag[MQ2Nav]\ax DX11 renderer initialized OK");
+	}
+#else
 	if (!gpD3D9Device)
 		return;
+#endif
 
 	for (auto& p : m_renderables)
 	{
@@ -65,6 +82,14 @@ void RenderHandler::InvalidateDeviceObjects()
 	{
 		p->InvalidateDeviceObjects();
 	}
+
+#if HAS_DIRECTX_11
+	if (m_dx11)
+	{
+		m_dx11->Shutdown();
+		m_dx11.reset();
+	}
+#endif
 }
 
 void RenderHandler::AddRenderable(Renderable* renderable)
@@ -107,6 +132,23 @@ void RenderHandler::PerformRender()
 
 #if HAS_DIRECTX_9
 	D3DPERF_EndEvent();
+#elif HAS_DIRECTX_11
+	// Restore any state that ScopedStateBlock doesn't cover.
+	// ScopedStateBlock saves VS/PS/GS/blend/raster/depth/IA/RT but NOT:
+	//  - PS constant buffers
+	//  - HS/DS shaders
+	// We must ensure these are clean after rendering.
+	if (m_dx11)
+		m_dx11->RestoreState();
+#endif
+}
+
+NavDX11Resources* RenderHandler::GetDX11Resources() const
+{
+#if HAS_DIRECTX_11
+	return m_dx11.get();
+#else
+	return nullptr;
 #endif
 }
 
@@ -187,6 +229,11 @@ void ResetDeviceState()
 
 	glm::mat4 matrix = glm::identity<glm::mat4>();
 
+	gpD3D9Device->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&matrix);
+#elif HAS_DIRECTX_11
+	// DX11 state is set via state objects in the render calls themselves.
+	// We only need to set the identity world transform via the wrapper.
+	glm::mat4 matrix = glm::identity<glm::mat4>();
 	gpD3D9Device->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&matrix);
 #endif
 }

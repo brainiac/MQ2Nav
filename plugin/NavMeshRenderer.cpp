@@ -11,6 +11,7 @@
 #include "plugin/RenderHandler.h"
 #include "plugin/DebugDrawDX.h"
 #include "plugin/NavMeshLoader.h"
+#include "plugin/DX11Renderer.h"
 
 #include <cassert>
 #include <DetourDebugDraw.h>
@@ -130,8 +131,13 @@ void NavMeshRenderer::Render()
 		m_loaded = m_enabled;
 	}
 
+#if HAS_DIRECTX_11
+	if (!m_loaded || m_loading || !m_primGroup || !gpD3D11Device)
+		return;
+#else
 	if (!m_loaded || m_loading || !m_primGroup || !gpD3D9Device)
 		return;
+#endif
 
 #if HAS_DIRECTX_9
 	eqlib::Direct3DDevice9* pDevice = gpD3D9Device;
@@ -177,6 +183,63 @@ void NavMeshRenderer::Render()
 	}
 
 	m_primGroup->Render();
+#elif HAS_DIRECTX_11
+	// Under DX11, the render pipeline is bound by NavDX11Resources.
+	// Get the shared DX11 resources and bind the simple geometry pipeline.
+	if (g_renderHandler)
+	{
+		NavDX11Resources* dx11 = g_renderHandler->GetDX11Resources();
+		if (dx11)
+		{
+			// Get view/proj matrices from the DX9 wrapper
+			D3DMATRIX d3dView, d3dProj;
+			gpD3D9Device->GetTransform(D3DTS_VIEW, &d3dView);
+			gpD3D9Device->GetTransform(D3DTS_PROJECTION, &d3dProj);
+
+			glm::mat4 world = glm::identity<glm::mat4>();
+			glm::mat4 view, proj;
+			memcpy(&view, &d3dView, sizeof(glm::mat4));
+			memcpy(&proj, &d3dProj, sizeof(glm::mat4));
+
+			SimpleGeometryCB cb;
+			// Matrices from GetTransform are row-major (D3D convention)
+			// Our shader uses mul(vec, mat) so row-major is correct
+			memcpy(&cb.WorldViewProj, &d3dProj, sizeof(glm::mat4));
+			// Actually we need WVP = World * View * Proj
+			// Since these are row-major D3D matrices, multiply in row-major order
+			// D3D row-major: result = W * V * P (left to right)
+			// The raw bytes from GetTransform are in row-major layout
+
+			// Use D3D-style matrix multiply (row-major, row vectors)
+			// For identity world: WVP = V * P
+			// We just memcpy the raw D3D matrices and multiply
+			D3DMATRIX d3dWorld;
+			gpD3D9Device->GetTransform(D3DTS_WORLD, &d3dWorld);
+
+			// Simple approach: construct WVP by matrix multiply
+			// Since we're passing raw D3D matrices to HLSL which uses
+			// mul(vector, matrix) with row_major, the matrices are correct as-is
+			// WVP = World * View * Proj in row-major order
+			auto matMul = [](const D3DMATRIX& a, const D3DMATRIX& b) -> D3DMATRIX {
+				D3DMATRIX r = {};
+				for (int i = 0; i < 4; i++)
+					for (int j = 0; j < 4; j++)
+						for (int k = 0; k < 4; k++)
+							r.m[i][j] += a.m[i][k] * b.m[k][j];
+				return r;
+			};
+
+			D3DMATRIX wv = matMul(d3dWorld, d3dView);
+			D3DMATRIX wvp = matMul(wv, d3dProj);
+			memcpy(&cb.WorldViewProj, &wvp, sizeof(glm::mat4));
+			memcpy(&cb.World, &d3dWorld, sizeof(glm::mat4));
+
+			dx11->BindSimplePipeline();
+			dx11->UpdateSimpleCB(cb);
+		}
+	}
+
+	m_primGroup->Render();
 #endif
 }
 
@@ -197,8 +260,13 @@ void NavMeshRenderer::StartLoad()
 	m_loading = true;
 	int tilesToLoad = 0;
 
+#if HAS_DIRECTX_11
+	if (!m_navMesh->IsNavMeshLoaded() || !gpD3D11Device)
+		return;
+#else
 	if (!m_navMesh->IsNavMeshLoaded() || !gpD3D9Device)
 		return;
+#endif
 
 	std::shared_ptr<const dtNavMesh> navMesh =
 		std::static_pointer_cast<const dtNavMesh>(m_navMesh->GetNavMesh());

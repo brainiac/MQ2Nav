@@ -16,6 +16,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <mq/base/Signal.h>
 #include <d3d9.h>
+#if HAS_DIRECTX_11
+#include "DX11Renderer.h"
+#endif
 
 #include <imgui.h>
 #include <memory>
@@ -220,7 +223,9 @@ public:
 
 private:
 	NavigationPath* m_path = nullptr;
+#if HAS_DIRECTX_9
 	ID3DXEffect* m_effect = nullptr;
+#endif
 
 	// The vertex structure we'll be using for line drawing. Each line is defined as two vertices,
 	// and the vertex shader will create a quad from these two vertices. However, since the vertex
@@ -236,8 +241,14 @@ private:
 		float        type;
 	};
 
+#if HAS_DIRECTX_9
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;
 	IDirect3DVertexDeclaration9* m_vDeclaration = nullptr;
+#elif HAS_DIRECTX_11
+	ID3D11Buffer* m_vertexBuffer11 = nullptr;
+	NavDX11Resources* m_dx11 = nullptr;
+	int m_vbCapacity11 = 0;
+#endif
 
 	struct RenderCommand
 	{

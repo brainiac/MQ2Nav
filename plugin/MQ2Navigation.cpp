@@ -799,7 +799,6 @@ void MQ2NavigationPlugin::Command_Navigate(std::string_view line)
 	if (!_stricmp(buffer, "reload"))
 	{
 		Get<NavMeshLoader>()->LoadNavMesh();
-		nav::LoadWaypoints(m_zoneId);
 		return;
 	}
 
@@ -844,7 +843,6 @@ void MQ2NavigationPlugin::Command_Navigate(std::string_view line)
 	if (!_stricmp(buffer, "load"))
 	{
 		nav::LoadSettings(true);
-		nav::LoadWaypoints(m_zoneId);
 		return;
 	}
 

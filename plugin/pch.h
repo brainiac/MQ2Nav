@@ -46,3 +46,10 @@
 
 #include <DetourNavMesh.h>
 #include <DetourCommon.h>
+
+#if HAS_DIRECTX_11
+#include <d3d11.h>
+#include <d3dcompiler.h>
+#include <wrl/client.h>
+#pragma comment(lib, "d3dcompiler")
+#endif
