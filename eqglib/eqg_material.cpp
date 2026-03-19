@@ -60,7 +60,10 @@ static std::array<uint32_t, 42> s_customRenderMethods =
 
 uint32_t GetCustomRenderMethod(uint32_t customIndex)
 {
-	return 0; // return s_customRenderMethods[customIndex];
+	if (customIndex < s_customRenderMethods.size())
+		return s_customRenderMethods[customIndex];
+
+	return 0;
 }
 
 const char* MaterialTypeToString(EMaterialType type)
@@ -130,6 +133,77 @@ const char* MaterialTypeToString(EMaterialType type)
 	case MaterialType_AddAlphaCBS1: return "AddAlphaCBS1";
 	case MaterialType_AddAlphaCBSG1: return "AddAlphaCBSG1";
 	case MaterialType_AddAlphaCBSGE1: return "AddAlphaCBSGE1";
+	default: return "Unknown";
+	}
+}
+
+const char* RenderMaterialToString(ERenderMaterial type)
+{
+	switch (type)
+	{
+	case RenderMaterial_Opaque: return "Opaque";
+	case RenderMaterial_Chroma: return "Chroma";
+	case RenderMaterial_AlphaSingleDetail: return "AlphaSingleDetail";
+	case RenderMaterial_AlphaPaletteDetail: return "AlphaPaletteDetail";
+	case RenderMaterial_AlphaBatchAdditive: return "AlphaBatchAdditive";
+	case RenderMaterial_AlphaBatch: return "AlphaBatch";
+	case RenderMaterial_OpaqueC1: return "OpaqueC1";
+	case RenderMaterial_OpaqueCG1: return "OpaqueCG1";
+	case RenderMaterial_OpaqueCE1: return "OpaqueCE1";
+	case RenderMaterial_OpaqueCB1: return "OpaqueCB1";
+	case RenderMaterial_OpaqueCBS1: return "OpaqueCBS1";
+	case RenderMaterial_OpaqueCBS1_VSB: return "OpaqueCBS1_VSB";
+	case RenderMaterial_OpaqueCBS_2UV: return "OpaqueCBS_2UV";
+	case RenderMaterial_OpaqueCBSG1: return "OpaqueCBSG1";
+	case RenderMaterial_OpaqueCBSGE1: return "OpaqueCBSGE1";
+	case RenderMaterial_OpaqueC1_2UV: return "OpaqueC1_2UV";
+	case RenderMaterial_OpaqueCB1_2UV: return "OpaqueCB1_2UV";
+	case RenderMaterial_OpaqueCBSG1_2UV: return "OpaqueCBSG1_2UV";
+	case RenderMaterial_OpaqueCBST2_2UV: return "OpaqueCBST2_2UV";
+	case RenderMaterial_OpaqueTerrain: return "OpaqueTerrain";
+	case RenderMaterial_OpaqueLava: return "OpaqueLava";
+	case RenderMaterial_OpaqueLava2: return "OpaqueLava2";
+	case RenderMaterial_OpaqueBasic: return "OpaqueBasic";
+	case RenderMaterial_OpaqueBlend: return "OpaqueBlend";
+	case RenderMaterial_OpaqueBlendNoBump: return "OpaqueBlendNoBump";
+	case RenderMaterial_OpaqueFull: return "OpaqueFull";
+	case RenderMaterial_OpaqueFull_2UV: return "OpaqueFull_2UV";
+	case RenderMaterial_OpaqueBump: return "OpaqueBump";
+	case RenderMaterial_OpaqueBump_2UV: return "OpaqueBump_2UV";
+	case RenderMaterial_OpaqueSB: return "OpaqueSB";
+	case RenderMaterial_OpaqueSB_2UV: return "OpaqueSB_2UV";
+	case RenderMaterial_OpaqueGB: return "OpaqueGB";
+	case RenderMaterial_OpaqueGB_2UV: return "OpaqueGB_2UV";
+	case RenderMaterial_OpaqueRB: return "OpaqueRB";
+	case RenderMaterial_OpaqueRB_2UV: return "OpaqueRB_2UV";
+	case RenderMaterial_ChromaC1: return "ChromaC1";
+	case RenderMaterial_ChromaCG1: return "ChromaCG1";
+	case RenderMaterial_ChromaCE1: return "ChromaCE1";
+	case RenderMaterial_ChromaCB1: return "ChromaCB1";
+	case RenderMaterial_ChromaCBS1: return "ChromaCBS1";
+	case RenderMaterial_ChromaCBSG1: return "ChromaCBSG1";
+	case RenderMaterial_ChromaCBSGE1: return "ChromaCBSGE1";
+	case RenderMaterial_ChromaBasic: return "ChromaBasic";
+	case RenderMaterial_ChromaBump: return "ChromaBump";
+	case RenderMaterial_AlphaC1: return "AlphaC1";
+	case RenderMaterial_AlphaCG1: return "AlphaCG1";
+	case RenderMaterial_AlphaCE1: return "AlphaCE1";
+	case RenderMaterial_AlphaCB1: return "AlphaCB1";
+	case RenderMaterial_AlphaCBS1: return "AlphaCBS1";
+	case RenderMaterial_AlphaCBSG1: return "AlphaCBSG1";
+	case RenderMaterial_AlphaCBSGE1: return "AlphaCBSGE1";
+	case RenderMaterial_AlphaBasic: return "AlphaBasic";
+	case RenderMaterial_AlphaBump: return "AlphaBump";
+	case RenderMaterial_AlphaWater: return "AlphaWater";
+	case RenderMaterial_AlphaWaterFall: return "AlphaWaterFall";
+	case RenderMaterial_AlphaLavaH: return "AlphaLavaH";
+	case RenderMaterial_AddAlphaC1: return "AddAlphaC1";
+	case RenderMaterial_AddAlphaCG1: return "AddAlphaCG1";
+	case RenderMaterial_AddAlphaCE1: return "AddAlphaCE1";
+	case RenderMaterial_AddAlphaCB1: return "AddAlphaCB1";
+	case RenderMaterial_AddAlphaCBS1: return "AddAlphaCBS1";
+	case RenderMaterial_AddAlphaCBSG1: return "AddAlphaCBSG1";
+	case RenderMaterial_AddAlphaCBSGE1: return "AddAlphaCBSGE1";
 	default: return "Unknown";
 	}
 }

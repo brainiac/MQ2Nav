@@ -194,6 +194,9 @@
     <None Include="imgui\fs_imgui_image.sc" />
     <None Include="imgui\vs_imgui.sc" />
     <None Include="imgui\vs_imgui_image.sc" />
+    <None Include="shaders\staticmesh\fs_staticmesh.sc" />
+    <None Include="shaders\staticmesh\varying.def.sc" />
+    <None Include="shaders\staticmesh\vs_staticmesh.sc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0F4E974D-3E48-44F0-945E-90C97E1E254D}</ProjectGuid>

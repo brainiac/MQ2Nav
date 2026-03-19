@@ -241,8 +241,8 @@ void MaterialBrowserPanel::DrawMaterialProperties(eqg::Material* material)
 	{
 		if (ImGui::BeginTable("##MaterialProperties", 2, ImGuiTableFlags_Resizable))
 		{
-			ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+			ImGui::TableSetupColumn("Property");
+			ImGui::TableSetupColumn("Value");
 			ImGui::TableSetupScrollFreeze(0, 1);
 			ImGui::TableHeadersRow();
 
@@ -270,6 +270,21 @@ void MaterialBrowserPanel::DrawMaterialProperties(eqg::Material* material)
 			ImGui::TableNextColumn();
 			ImGui::Text("%s (%u)", eqg::MaterialTypeToString(material->m_type), (uint32_t)material->m_type);
 
+			// Render Material
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Render Material");
+			ImGui::TableNextColumn();
+			ImGui::Text("%s (%u)", RenderMaterialToString(static_cast<eqg::ERenderMaterial>(material->m_renderMaterial)),
+				material->m_renderMaterial);
+
+			// Render Method
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Render Method");
+			ImGui::TableNextColumn();
+			ImGui::Text("0x%08x", material->GetRenderMethod());
+
 			if (material->m_uvShift != glm::vec2(0.0f))
 			{
 				// UV Shift
@@ -279,20 +294,6 @@ void MaterialBrowserPanel::DrawMaterialProperties(eqg::Material* material)
 				ImGui::TableNextColumn();
 				ImGui::Text("%g, %g", material->m_uvShift.x, material->m_uvShift.y);
 			}
-
-			// Render Method
-			ImGui::TableNextRow();
-			ImGui::TableNextColumn();
-			ImGui::TextUnformatted("Render Method");
-			ImGui::TableNextColumn();
-			ImGui::Text("0x%08x", material->m_renderMethod);
-
-			// Render Material
-			ImGui::TableNextRow();
-			ImGui::TableNextColumn();
-			ImGui::TextUnformatted("Render Material");
-			ImGui::TableNextColumn();
-			ImGui::Text("%u", material->m_renderMaterial);
 
 			// Scaled Ambient
 			ImGui::TableNextRow();
@@ -394,7 +395,7 @@ void MaterialBrowserPanel::DrawMaterialEffectParameters(eqg::Material* material)
 
 	if (ImGui::CollapsingHeader(label))
 	{
-		if (ImGui::BeginTable("##MaterialProperties", 3, ImGuiTableFlags_Resizable))
+		if (ImGui::BeginTable("##EffectParameters", 3, ImGuiTableFlags_Resizable))
 		{
 			ImGui::TableSetupColumn("Property");
 			ImGui::TableSetupColumn("Value");

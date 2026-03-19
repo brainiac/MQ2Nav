@@ -65,7 +65,7 @@ bool MGTerrain::BuildGPUBuffers()
 	{
 		uint16_t materialIndex = face.materialIndex;
 		if (materialIndex == 0xffff)
-			materialIndex = static_cast<uint16_t>(m_materialPalette->GetNumMaterials() + 1);
+			materialIndex = static_cast<uint16_t>(m_materialPalette->GetNumMaterials());
 
 		facesByMaterial[materialIndex].faces.push_back(face.indices.x);
 		facesByMaterial[materialIndex].faces.push_back(face.indices.y);

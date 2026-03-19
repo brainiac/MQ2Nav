@@ -43,7 +43,7 @@ void StaticMeshRenderSystem::Init(ZoneRenderManager* renderManager)
 	// Create uniforms
 	m_uniformUseVertexColors = bgfx::createUniform("u_useVertexColors", bgfx::UniformType::Vec4);
 	m_texColorSampler = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
-	m_uniformHasTexture = bgfx::createUniform("u_hasTexture", bgfx::UniformType::Vec4);
+	m_uniformTextureFlags = bgfx::createUniform("u_textureFlags", bgfx::UniformType::Vec4);
 
 	// Create 1x1 white fallback texture
 	uint32_t whitePixel = 0xFFFFFFFF;
@@ -80,10 +80,10 @@ void StaticMeshRenderSystem::Shutdown()
 		m_texColorSampler = BGFX_INVALID_HANDLE;
 	}
 
-	if (bgfx::isValid(m_uniformHasTexture))
+	if (bgfx::isValid(m_uniformTextureFlags))
 	{
-		bgfx::destroy(m_uniformHasTexture);
-		m_uniformHasTexture = BGFX_INVALID_HANDLE;
+		bgfx::destroy(m_uniformTextureFlags);
+		m_uniformTextureFlags = BGFX_INVALID_HANDLE;
 	}
 
 	if (bgfx::isValid(m_whiteTexture))
@@ -303,6 +303,8 @@ void StaticMeshRenderSystem::Render()
 	if (!bgfx::isValid(m_program))
 		return;
 
+	bool showInvisible = m_renderManager->GetDrawInvisibleWalls();
+
 	// Set the vertex colors uniform value
 	glm::vec4 useVertexColors(m_useVertexColors ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -331,17 +333,39 @@ void StaticMeshRenderSystem::Render()
 				// Bind texture
 				bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
 				bool hasTexture = bgfx::isValid(texHandle);
-				
-				glm::vec4 hasTextureUniform(hasTexture ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
-				encoder->setUniform(m_uniformHasTexture, glm::value_ptr(hasTextureUniform));
-				encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
 
+				bool isTransparent;
+				bool isChroma = false;
+				if (matBatch.material)
+				{
+					isTransparent = matBatch.material->IsTransparent();
+					// TODO: This needs a lot more work...
+					isChroma = matBatch.material->m_renderMaterial == eqg::RenderMaterial_Chroma;
+				}
+				else
+				{
+					isTransparent = true;
+				}
+				
+				glm::vec4 uTextureFlags(
+					hasTexture ? 1.0f : 0.0f,
+					showInvisible ? 1.0f : 0.0f,
+					isTransparent ? 1.0f : 0.0f,
+					isChroma ? 0.75294117f : 0.0f
+				);
+				encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
+				encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
 				encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
 				encoder->setVertexBuffer(0, m_terrain->GetVertexBuffer());
 				encoder->setIndexBuffer(m_terrain->GetIndexBuffer(), matBatch.startIndex, matBatch.indexCount);
 
 				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
 					BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+
+				if (isChroma)
+				{
+					state |= BGFX_STATE_ALPHA_REF(0xc0);
+				}
 
 				encoder->setState(state);
 				encoder->submit(0, m_program);
@@ -375,9 +399,27 @@ void StaticMeshRenderSystem::Render()
 			// Bind texture
 			bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
 			bool hasTexture = bgfx::isValid(texHandle);
-			
-			glm::vec4 hasTextureUniform(hasTexture ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
-			encoder->setUniform(m_uniformHasTexture, glm::value_ptr(hasTextureUniform));
+
+			bool isTransparent;
+			bool isChroma = false;
+			if (matBatch.material)
+			{
+				isTransparent = matBatch.material->IsTransparent();
+				// TODO: This needs a lot more work...
+				isChroma = matBatch.material->m_renderMaterial == eqg::RenderMaterial_Chroma;
+			}
+			else
+			{
+				isTransparent = true;
+			}
+
+			glm::vec4 uTextureFlags(
+				hasTexture ? 1.0f : 0.0f,
+				showInvisible ? 1.0f : 0.0f,
+				isTransparent ? 1.0f : 0.0f,
+				isChroma ? 0.75294117f : 0.0f
+			);
+			encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
 			encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
 
 			encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
@@ -386,6 +428,10 @@ void StaticMeshRenderSystem::Render()
 
 			uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
 				BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+			if (isChroma)
+			{
+				state |= BGFX_STATE_ALPHA_REF(0xc0);
+			}
 
 			encoder->setState(state);
 			encoder->submit(0, m_program);
@@ -424,16 +470,37 @@ void StaticMeshRenderSystem::Render()
 				bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
 				bool hasTexture = bgfx::isValid(texHandle);
 				
-				glm::vec4 hasTextureUniform(hasTexture ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
-				encoder->setUniform(m_uniformHasTexture, glm::value_ptr(hasTextureUniform));
-				encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
+				bool isTransparent;
+				bool isChroma = false;
+				if (matBatch.material)
+				{
+					isTransparent = matBatch.material->IsTransparent();
+					// TODO: This needs a lot more work...
+					isChroma = matBatch.material->m_renderMaterial == eqg::RenderMaterial_Chroma;
+				}
+				else
+				{
+					isTransparent = true;
+				}
 
+				glm::vec4 uTextureFlags(
+					hasTexture ? 1.0f : 0.0f,
+					showInvisible ? 1.0f : 0.0f,
+					isTransparent ? 1.0f : 0.0f,
+					isChroma ? 0.75294117f : 0.0f
+				);
+				encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
+				encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
 				encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
 				encoder->setVertexBuffer(0, model->GetVertexBuffer());
 				encoder->setIndexBuffer(model->GetIndexBuffer(), matBatch.startIndex, matBatch.indexCount);
 
 				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
 					BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+				if (isChroma)
+				{
+					state |= BGFX_STATE_ALPHA_REF(0xc0);
+				}
 
 				encoder->setState(state);
 				encoder->submit(0, m_program);

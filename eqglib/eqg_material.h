@@ -337,6 +337,8 @@ enum ERenderMaterial
 	RenderMaterial_AddAlphaCBSGE1,
 };
 
+const char* RenderMaterialToString(ERenderMaterial type);
+
 enum EFXParameterType
 {
 	FXParameterType_Texture,
@@ -466,11 +468,12 @@ public:
 	bool IsTransparent() const { return m_transparent; }
 	bool HasBumpMap() const { return m_hasBumpMap; }
 
+	uint32_t GetRenderMethod() const;
+
 private:
 	void SetWLDRenderMaterial(uint32_t renderMethod, EMaterialType materialType);
 	void SetEQMRenderMaterial(uint32_t renderMethod, EMaterialType materialType);
 
-	uint32_t GetRenderMethod() const;
 	void SetTextureSlot(std::string_view tag);
 	bool UpdateMaterialFlags(bool eqm);
 

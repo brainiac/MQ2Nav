@@ -60,6 +60,9 @@
     <Filter Include="Resource Files\natvis\entt">
       <UniqueIdentifier>{f6a5ef07-89ce-4dca-90ea-1af93c2d9853}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\engine\staticmesh">
+      <UniqueIdentifier>{eec19608-5905-4164-8c34-e7480768c571}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -533,6 +536,15 @@
     </None>
     <None Include="imgui\vs_imgui.sc">
       <Filter>Resource Files\engine\imgui</Filter>
+    </None>
+    <None Include="shaders\staticmesh\fs_staticmesh.sc">
+      <Filter>Resource Files\engine\staticmesh</Filter>
+    </None>
+    <None Include="shaders\staticmesh\varying.def.sc">
+      <Filter>Resource Files\engine\staticmesh</Filter>
+    </None>
+    <None Include="shaders\staticmesh\vs_staticmesh.sc">
+      <Filter>Resource Files\engine\staticmesh</Filter>
     </None>
   </ItemGroup>
 </Project>
