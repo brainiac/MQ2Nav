@@ -382,7 +382,7 @@ tf::Taskflow ZoneProject::BuildLoadZoneTaskflow(bool loadNavMesh, ZoneContextCal
 	auto loadNavMeshTask = taskflow.emplace([sharedThis, resultState, loadNavMesh]()
 		{
 			if (!loadNavMesh)
-				return 0;
+				return 1;
 
 			auto phase = TaskPhase::LoadNavMesh;
 

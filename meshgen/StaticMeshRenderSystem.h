@@ -4,15 +4,16 @@
 
 #pragma once
 
-#include <bgfx/bgfx.h>
-#include <entt/entity/registry.hpp>
-#include <glm/glm.hpp>
+#include "bgfx/bgfx.h"
+#include "entt/entity/registry.hpp"
+#include "glm/glm.hpp"
 
 #include <unordered_map>
 #include <vector>
 
 class MGSimpleModel;
 class MGTerrain;
+class MGTerrainTile;
 class ZoneRenderManager;
 
 namespace eqg
@@ -46,6 +47,8 @@ private:
 	void OnStaticMeshDestroy(entt::registry& registry, entt::entity entity);
 	void OnTerrainConstruct(entt::registry& registry, entt::entity entity);
 	void OnTerrainDestroy(entt::registry& registry, entt::entity entity);
+	void OnTerrainTileConstruct(entt::registry& registry, entt::entity entity);
+	void OnTerrainTileDestroy(entt::registry& registry, entt::entity entity);
 	void OnHiddenConstruct(entt::registry& registry, entt::entity entity);
 	void OnHiddenDestroy(entt::registry& registry, entt::entity entity);
 
@@ -58,9 +61,8 @@ private:
 	bgfx::UniformHandle m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_texColorSampler = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uniformHasTexture = BGFX_INVALID_HANDLE;
-	bgfx::TextureHandle m_whiteTexture = BGFX_INVALID_HANDLE;  // 1x1 white fallback
+	bgfx::TextureHandle m_whiteTexture = BGFX_INVALID_HANDLE;
 
-	// Per-definition render batches (for instancing in the future)
 	struct RenderBatch
 	{
 		eqg::SimpleModelDefinition* definition = nullptr;
@@ -69,9 +71,10 @@ private:
 	};
 	std::unordered_map<eqg::SimpleModelDefinition*, RenderBatch> m_batches;
 
-	// Terrain entity (singleton per zone)
 	entt::entity m_terrainEntity = entt::null;
 	MGTerrain* m_terrain = nullptr;
+
+	std::vector<MGTerrainTile*> m_terrainTiles;
 
 	bool m_dirty = true;
 
@@ -79,6 +82,8 @@ private:
 	entt::connection m_staticMeshDestroyConnection;
 	entt::connection m_terrainConstructConnection;
 	entt::connection m_terrainDestroyConnection;
+	entt::connection m_terrainTileConstructConnection;
+	entt::connection m_terrainTileDestroyConnection;
 	entt::connection m_hiddenConstructConnection;
 	entt::connection m_hiddenDestroyConnection;
 };

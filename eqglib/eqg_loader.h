@@ -35,9 +35,6 @@ public:
 
 	Archive* GetArchive() const { return m_archive; }
 
-	std::map<std::string, MaterialPalettePtr> material_palettes;
-	std::map<std::string, MaterialPtr> materials;
-
 private:
 	bool ParseFile(const std::string& fileName);
 

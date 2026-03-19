@@ -303,19 +303,14 @@ bool EQGLoader::ParseMaterialsFacesAndVertices(BufferReader& reader, const char*
 		SEQMFXParameter* params = used_materials[cur_material].first_usage_material_params;
 
 		std::string mat_tag = fmt::format("{}{}", tag, string_pool + material->name_index);
-		std::shared_ptr<Material> material_instance;
-
-		auto iter = this->materials.find(mat_tag);
-		if (iter != this->materials.end())
-		{
-			material_instance = iter->second;
-		}
-		else
+		std::shared_ptr<Material> material_instance = m_resourceMgr->Get<eqg::Material>(mat_tag);
+		
+		if (!material_instance)
 		{
 			material_instance = std::make_shared<Material>();
 			material_instance->InitFromEQMData(material, params, m_archive, string_pool);
 
-			this->materials[mat_tag] = material_instance;
+			m_resourceMgr->Add(mat_tag, material_instance);
 		}
 
 		// This material index duplicates another material with the same index. Use this one and replace all instances of
@@ -339,13 +334,12 @@ bool EQGLoader::ParseMaterialsFacesAndVertices(BufferReader& reader, const char*
 	//	EQG_LOG_WARN("Material palette {} has {} materials, but only {} are used.", tag, num_materials, num_material_counts);
 	//}
 
-	if (material_palettes.contains(tag))
+	if (!m_resourceMgr->Add(tag, palette))
 	{
 		EQG_LOG_WARN("Material palette {} already exists.", tag);
 		return false;
 	}
 
-	material_palettes[tag] = palette;
 	out_data->material_palette = palette;
 	return true;
 }

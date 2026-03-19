@@ -90,7 +90,7 @@ std::shared_ptr<Bitmap> ResourceManager::CreateBitmap() const
 	return std::make_shared<Bitmap>();
 }
 
-std::shared_ptr<Bitmap> ResourceManager::CreateBitmap(std::string_view fileName, Archive* archive, bool cubeMap)
+std::shared_ptr<Bitmap> ResourceManager::CreateBitmap(std::string_view fileName, Archive* archive, bool cubeMap, bool rawData)
 {
 	if (auto pBitmap = Get<eqg::Bitmap>(fileName))
 	{
@@ -99,7 +99,7 @@ std::shared_ptr<Bitmap> ResourceManager::CreateBitmap(std::string_view fileName,
 
 	auto pBitmap = CreateBitmap();
 
-	if (!pBitmap->Init(fileName, archive, cubeMap))
+	if (!pBitmap->Init(fileName, archive, cubeMap, rawData))
 	{
 		return nullptr;
 	}

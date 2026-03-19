@@ -3,9 +3,7 @@
 //
 
 #include "pch.h"
-#include "meshgen/StaticMeshRenderSystem.h"
-
-#include <entt/entity/handle.hpp>
+#include "StaticMeshRenderSystem.h"
 
 #include "meshgen/Components.h"
 #include "meshgen/EQComponents.h"
@@ -13,12 +11,14 @@
 #include "meshgen/MGBitmap.h"
 #include "meshgen/MGSimpleModel.h"
 #include "meshgen/MGTerrain.h"
+#include "meshgen/MGTerrainTile.h"
 #include "meshgen/ResourceManager.h"
 #include "meshgen/ZoneRenderManager.h"
 
 #include "eqglib/eqg_geometry.h"
 #include "eqglib/eqg_material.h"
 
+#include "entt/entity/handle.hpp"
 #include "spdlog/spdlog.h"
 #include "glm/gtc/type_ptr.hpp"
 
@@ -62,6 +62,8 @@ void StaticMeshRenderSystem::Shutdown()
 		m_staticMeshDestroyConnection.release();
 		m_terrainConstructConnection.release();
 		m_terrainDestroyConnection.release();
+		m_terrainTileConstructConnection.release();
+		m_terrainTileDestroyConnection.release();
 		m_hiddenConstructConnection.release();
 		m_hiddenDestroyConnection.release();
 	}
@@ -93,30 +95,32 @@ void StaticMeshRenderSystem::Shutdown()
 	m_batches.clear();
 	m_terrain = nullptr;
 	m_terrainEntity = entt::null;
+	m_terrainTiles.clear();
 	m_registry = nullptr;
 	m_renderManager = nullptr;
 }
 
 void StaticMeshRenderSystem::SetRegistry(entt::registry* registry)
 {
-	// Disconnect from old registry if any
 	if (m_registry)
 	{
 		m_staticMeshConstructConnection.release();
 		m_staticMeshDestroyConnection.release();
 		m_terrainConstructConnection.release();
 		m_terrainDestroyConnection.release();
+		m_terrainTileConstructConnection.release();
+		m_terrainTileDestroyConnection.release();
 		m_hiddenConstructConnection.release();
 		m_hiddenDestroyConnection.release();
 
 		m_batches.clear();
 		m_terrain = nullptr;
 		m_terrainEntity = entt::null;
+		m_terrainTiles.clear();
 	}
 
 	m_registry = registry;
 
-	// Register component callbacks on new registry
 	if (m_registry)
 	{
 		m_staticMeshConstructConnection = m_registry->on_construct<StaticMeshRenderComponent>()
@@ -127,6 +131,10 @@ void StaticMeshRenderSystem::SetRegistry(entt::registry* registry)
 			.connect<&StaticMeshRenderSystem::OnTerrainConstruct>(this);
 		m_terrainDestroyConnection = m_registry->on_destroy<TerrainRenderComponent>()
 			.connect<&StaticMeshRenderSystem::OnTerrainDestroy>(this);
+		m_terrainTileConstructConnection = m_registry->on_construct<TerrainTileRenderComponent>()
+			.connect<&StaticMeshRenderSystem::OnTerrainTileConstruct>(this);
+		m_terrainTileDestroyConnection = m_registry->on_destroy<TerrainTileRenderComponent>()
+			.connect<&StaticMeshRenderSystem::OnTerrainTileDestroy>(this);
 		m_hiddenConstructConnection = m_registry->on_construct<HiddenComponent>()
 			.connect<&StaticMeshRenderSystem::OnHiddenConstruct>(this);
 		m_hiddenDestroyConnection = m_registry->on_destroy<HiddenComponent>()
@@ -158,10 +166,19 @@ void StaticMeshRenderSystem::OnTerrainDestroy(entt::registry& registry, entt::en
 	m_dirty = true;
 }
 
+void StaticMeshRenderSystem::OnTerrainTileConstruct(entt::registry& registry, entt::entity entity)
+{
+	m_dirty = true;
+}
+
+void StaticMeshRenderSystem::OnTerrainTileDestroy(entt::registry& registry, entt::entity entity)
+{
+	m_dirty = true;
+}
+
 void StaticMeshRenderSystem::OnHiddenConstruct(entt::registry& registry, entt::entity entity)
 {
-	// Only care about entities with render components
-	if (registry.any_of<StaticMeshRenderComponent, TerrainRenderComponent>(entity))
+	if (registry.any_of<StaticMeshRenderComponent, TerrainRenderComponent, TerrainTileRenderComponent>(entity))
 	{
 		m_dirty = true;
 	}
@@ -169,8 +186,7 @@ void StaticMeshRenderSystem::OnHiddenConstruct(entt::registry& registry, entt::e
 
 void StaticMeshRenderSystem::OnHiddenDestroy(entt::registry& registry, entt::entity entity)
 {
-	// Only care about entities with render components
-	if (registry.any_of<StaticMeshRenderComponent, TerrainRenderComponent>(entity))
+	if (registry.any_of<StaticMeshRenderComponent, TerrainRenderComponent, TerrainTileRenderComponent>(entity))
 	{
 		m_dirty = true;
 	}
@@ -181,11 +197,12 @@ void StaticMeshRenderSystem::RebuildRenderData()
 	m_batches.clear();
 	m_terrain = nullptr;
 	m_terrainEntity = entt::null;
+	m_terrainTiles.clear();
 
 	if (!m_registry)
 		return;
 
-	// Collect terrain
+	// Collect WLD terrain
 	{
 		auto view = m_registry->view<TerrainRenderComponent>();
 		for (auto entity : view)
@@ -201,6 +218,26 @@ void StaticMeshRenderSystem::RebuildRenderData()
 				SPDLOG_DEBUG("StaticMeshRenderSystem: Found terrain entity");
 				break;  // Only one terrain per zone
 			}
+		}
+	}
+
+	// Collect EQG terrain tiles
+	{
+		auto view = m_registry->view<TerrainTileRenderComponent>();
+		for (auto entity : view)
+		{
+			if (m_registry->any_of<HiddenComponent>(entity))
+				continue;
+
+			const auto& tileComp = view.get<TerrainTileRenderComponent>(entity);
+			if (tileComp.tile)
+			{
+				m_terrainTiles.push_back(tileComp.tile);
+			}
+		}
+		if (!m_terrainTiles.empty())
+		{
+			SPDLOG_DEBUG("StaticMeshRenderSystem: Found {} terrain tiles", m_terrainTiles.size());
 		}
 	}
 
@@ -248,18 +285,14 @@ void StaticMeshRenderSystem::Update()
 	}
 }
 
-// Helper to get diffuse texture from material
 static bgfx::TextureHandle GetDiffuseTexture(eqg::Material* material)
 {
 	if (!material || !material->m_textureSet || material->m_textureSet->textures.empty())
 		return BGFX_INVALID_HANDLE;
 	
-	const auto& tex = material->m_textureSet->textures[0];
-	if (auto* bitmap = dynamic_cast<MGBitmap*>(tex.textures[0].get()))
-	{
-		return bitmap->GetTextureHandle();
-	}
-	return BGFX_INVALID_HANDLE;
+	const eqg::STexture& tex = material->m_textureSet->textures[0];
+	MGBitmap* bitmap = static_cast<MGBitmap*>(tex.textures[0].get());
+	return bitmap->GetTextureHandle();
 }
 
 void StaticMeshRenderSystem::Render()
@@ -284,7 +317,6 @@ void StaticMeshRenderSystem::Render()
 
 		if (m_terrain->HasGPUBuffers())
 		{
-			// Set identity transform for terrain (it's already in world space)
 			glm::mat4 identity(1.0f);
 
 			// Render each material batch
@@ -310,15 +342,53 @@ void StaticMeshRenderSystem::Render()
 
 				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
 					BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
-				
-				if (matBatch.isTransparent)
-				{
-					state |= BGFX_STATE_BLEND_ALPHA;
-				}
 
 				encoder->setState(state);
 				encoder->submit(0, m_program);
 			}
+		}
+	}
+
+	// Render EQG terrain tiles
+	for (MGTerrainTile* tile : m_terrainTiles)
+	{
+		// Build GPU buffers if needed
+		if (!tile->HasGPUBuffers())
+		{
+			tile->BuildGPUBuffers();
+		}
+
+		if (!tile->HasGPUBuffers())
+			continue;
+
+		glm::mat4 identity(1.0f);
+
+		// Render each material batch
+		for (const auto& matBatch : tile->GetMaterialBatches())
+		{
+			if (matBatch.indexCount == 0)
+				continue;
+
+			bgfx::Encoder* encoder = bgfx::begin();
+			encoder->setTransform(glm::value_ptr(identity));
+
+			// Bind texture
+			bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
+			bool hasTexture = bgfx::isValid(texHandle);
+			
+			glm::vec4 hasTextureUniform(hasTexture ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
+			encoder->setUniform(m_uniformHasTexture, glm::value_ptr(hasTextureUniform));
+			encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
+
+			encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
+			encoder->setVertexBuffer(0, tile->GetVertexBuffer());
+			encoder->setIndexBuffer(tile->GetIndexBuffer(), matBatch.startIndex, matBatch.indexCount);
+
+			uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
+				BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+
+			encoder->setState(state);
+			encoder->submit(0, m_program);
 		}
 	}
 
@@ -364,11 +434,6 @@ void StaticMeshRenderSystem::Render()
 
 				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
 					BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
-				
-				if (matBatch.isTransparent)
-				{
-					state |= BGFX_STATE_BLEND_ALPHA;
-				}
 
 				encoder->setState(state);
 				encoder->submit(0, m_program);

@@ -59,4 +59,6 @@ using WaterSheetPtr = std::shared_ptr<WaterSheet>;
 class WaterSheetData;
 using WaterSheetDataPtr = std::shared_ptr<WaterSheetData>;
 
+struct STextureSet;
+
 } // namespace eqg

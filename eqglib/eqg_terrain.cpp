@@ -397,47 +397,58 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 				m_rgbTints[vertexOffset + vert] = 0xff808080;
 			}
 
-			// Initialize faces and materials
-			WLD_MATERIALGROUP* faceGroups = pDMSpriteDef2->faceMaterialGroups.data();
-			uint32_t numMaterials = pDMSpriteDef2->materialPalette->GetNumMaterials();
+			WLD_MATERIALGROUP* faceGroup = pDMSpriteDef2->faceMaterialGroups.data();
+			WLD_MATERIALGROUP* lastFaceGroup = faceGroup + pDMSpriteDef2->faceMaterialGroups.size() - 1;
 
-			uint32_t curGroup = 0;
-			uint32_t groupSize = faceGroups[curGroup].group_size;
-			int16_t materialIndex = faceGroups[curGroup].material_index;
-			if (materialIndex > (int)numMaterials)
-				materialIndex = -1;
+			uint32_t numMaterials = pDMSpriteDef2->materialPalette->GetNumMaterials();
+			uint32_t groupSize = faceGroup->group_size;
+			uint16_t materialIndex = faceGroup->material_index;
+
+			if (materialIndex > numMaterials)
+				materialIndex = 0xffff;
 
 			uint32_t groupStart = 0;
-			Material* pMaterial = materialIndex >= 0 && materialIndex < (int16_t)numMaterials
-				? pDMSpriteDef2->materialPalette->GetMaterial(materialIndex) : nullptr;
+			Material* material = nullptr;
+
+			if (materialIndex != 0xffff)
+				material = pDMSpriteDef2->materialPalette->GetMaterial(materialIndex);
 
 			for (uint32_t face = 0; face < static_cast<uint32_t>(pDMSpriteDef2->faces.size()); ++face)
 			{
-				if (face > groupStart + groupSize)
+				// Increment to the next group if the face reaches the end of this group
+				if (face >= groupStart + groupSize)
 				{
-					// Increment to next group
-					if (curGroup < pDMSpriteDef2->faceMaterialGroups.size() - 1)
-						++curGroup;
+					if (faceGroup + 1 <= lastFaceGroup)
+						++faceGroup;
+					else
+						break;
 
-					groupSize = faceGroups[curGroup].group_size;
-					materialIndex = faceGroups[curGroup].material_index;
-					if (materialIndex > (int)numMaterials)
-						materialIndex = -1;
+					groupSize = faceGroup->group_size;
+					materialIndex = faceGroup->material_index;
+
+					if (materialIndex > numMaterials)
+						materialIndex = 0xffff;
 
 					groupStart = face;
 
-					pMaterial = materialIndex >= 0 && materialIndex < (int16_t)numMaterials
-						? pDMSpriteDef2->materialPalette->GetMaterial(materialIndex) : nullptr;
+					if (materialIndex != 0xffff)
+						material = pDMSpriteDef2->materialPalette->GetMaterial(materialIndex);
+					else
+						material = nullptr;
 				}
 
 				SFace& outFace = m_faces[faceOffset + face];
-				WLD_DMFACE2& inFace = pDMSpriteDef2->faces[face];
-
-				outFace.indices = glm::uvec3{ inFace.indices[2], inFace.indices[1], inFace.indices[0] } + vertexOffset;
+				outFace.indices[0] = pDMSpriteDef2->faces[face].indices[2] + vertexOffset;
+				outFace.indices[1] = pDMSpriteDef2->faces[face].indices[1] + vertexOffset;
+				outFace.indices[2] = pDMSpriteDef2->faces[face].indices[0] + vertexOffset;
 				outFace.materialIndex = materialIndex;
-				outFace.flags = 0
-					| (inFace.flags & S3D_FACEFLAG_PASSABLE ? EQG_FACEFLAG_PASSABLE : 0)
-					| (!pMaterial || pMaterial->IsTransparent() ? EQG_FACEFLAG_TRANSPARENT : 0);
+				outFace.flags = 0;
+
+				// Calculate flags
+				if (pDMSpriteDef2->faces[face].flags & S3D_FACEFLAG_PASSABLE)
+					outFace.flags = EQG_FACEFLAG_PASSABLE;
+				if (material == nullptr || material->IsTransparent())
+					outFace.flags |= EQG_FACEFLAG_TRANSPARENT;
 			}
 
 			vertexOffset += static_cast<uint32_t>(pDMSpriteDef2->vertices.size());

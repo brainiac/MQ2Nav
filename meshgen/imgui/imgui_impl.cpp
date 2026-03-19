@@ -13,6 +13,7 @@ void ImGui_Impl_Shutdown()
 	ImGui_ImplSDL2_Shutdown();
 	ImGui_ImplBgfx_Shutdown();
 
+	ImGui::DestroyPlatformWindows();
 	ImGui::DestroyContext();
 }
 

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <bgfx/bgfx.h>
-#include <entt/entity/registry.hpp>
+#include "bgfx/bgfx.h"
+#include "entt/entity/registry.hpp"
 
 #include <unordered_map>
 #include <vector>

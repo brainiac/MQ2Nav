@@ -131,7 +131,7 @@ public:
 		if (iter == m_panels.end())
 			return nullptr;
 
-		return iter->second;
+		return std::static_pointer_cast<T>(iter->second);
 	}
 
 	void PrepareDockSpace();

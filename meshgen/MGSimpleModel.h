@@ -1,25 +1,22 @@
 //
 // MGSimpleModel.h
 //
-// GPU-aware SimpleModel subclass for MeshGenerator rendering
-//
 
 #pragma once
 
 #include "eqglib/eqg_geometry.h"
 
-#include <bgfx/bgfx.h>
-#include <glm/glm.hpp>
+#include "bgfx/bgfx.h"
+#include "glm/glm.hpp"
 
 namespace eqg { class Material; }
 
 // Material batch for rendering - groups faces by material for texture binding
 struct MaterialBatch
 {
-	eqg::Material* material = nullptr;  // Material for this batch (may be null)
+	eqg::Material* material = nullptr;  // Material for this batch
 	uint32_t startIndex = 0;            // Start index in index buffer
 	uint32_t indexCount = 0;            // Number of indices in this batch
-	bool isTransparent = false;         // Requires alpha blending
 };
 
 // Vertex format for static mesh rendering
@@ -29,7 +26,7 @@ struct StaticMeshVertex
 	glm::vec3 position;
 	glm::vec3 normal;
 	glm::vec2 uv;
-	uint32_t  color;  // ABGR
+	uint32_t  colorDiffuse;  // ABGR
 
 	static void Init()
 	{
@@ -84,14 +81,9 @@ public:
 	MGSimpleModel();
 	~MGSimpleModel() override;
 
-	// Build GPU buffers from definition data. Call before first render.
-	// Returns true if buffers are valid and ready for rendering.
 	bool BuildGPUBuffers();
-
-	// Release GPU buffers
 	void DestroyGPUBuffers();
 
-	// Check if GPU buffers are built and valid
 	bool HasGPUBuffers() const { return m_gpuBuffersBuilt; }
 
 	// Get buffer handles for rendering

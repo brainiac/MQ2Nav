@@ -191,26 +191,35 @@
     <ClCompile Include="BitmapBrowserPanel.cpp">
       <Filter>Source Files\panels</Filter>
     </ClCompile>
-    <ClCompile Include="MGBitmap.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="AreaVolumeRenderSystem.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GeometryUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="InvisibleWallRenderSystem.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="MGTerrain.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="MGBitmap.cpp">
+      <Filter>Source Files\engine</Filter>
     </ClCompile>
     <ClCompile Include="MGSimpleModel.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\engine</Filter>
     </ClCompile>
-    <ClCompile Include="MGTerrain.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="MGTerrainTile.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="PointLightRenderSystem.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="InvisibleWallRenderSystem.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="AreaVolumeRenderSystem.cpp">
+      <Filter>Source Files\engine</Filter>
     </ClCompile>
     <ClCompile Include="StaticMeshRenderSystem.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="MaterialBrowserPanel.cpp">
+      <Filter>Source Files\panels</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -367,9 +376,6 @@
     <ClInclude Include="SelectionManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NavMeshBuilder.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ZoneCollisionMesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -379,29 +385,41 @@
     <ClInclude Include="BitmapBrowserPanel.h">
       <Filter>Header Files\panels</Filter>
     </ClInclude>
-    <ClInclude Include="MGBitmap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="AreaVolumeRenderSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="EQComponents.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GeometryUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="InvisibleWallRenderSystem.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="MaterialBrowserPanel.h">
+      <Filter>Header Files\panels</Filter>
+    </ClInclude>
+    <ClInclude Include="MGBitmap.h">
+      <Filter>Header Files\engine</Filter>
     </ClInclude>
     <ClInclude Include="MGSimpleModel.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\engine</Filter>
     </ClInclude>
     <ClInclude Include="MGTerrain.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="MGTerrainTile.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMeshBuilder.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="AreaVolumeRenderSystem.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="InvisibleWallRenderSystem.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="PointLightRenderSystem.h">
+      <Filter>Header Files\engine</Filter>
     </ClInclude>
     <ClInclude Include="StaticMeshRenderSystem.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

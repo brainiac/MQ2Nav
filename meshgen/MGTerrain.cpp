@@ -33,71 +33,61 @@ bool MGTerrain::BuildGPUBuffers()
 
 	// Build vertex buffer
 	std::vector<StaticMeshVertex> vertices;
-	vertices.reserve(m_vertices.size());
-
-	bool hasUVs = !m_uvs.empty();
-	bool hasNormals = !m_normals.empty();
-	bool hasColors = !m_rgbColors.empty();
+	vertices.resize(m_vertices.size());
 
 	for (size_t i = 0; i < m_vertices.size(); ++i)
 	{
-		StaticMeshVertex v;
+		StaticMeshVertex& v = vertices[i];
 		v.position = m_vertices[i];
-		v.normal = hasNormals ? m_normals[i] : glm::vec3(0.0f, 1.0f, 0.0f);
-		v.uv = hasUVs ? m_uvs[i] : glm::vec2(0.0f, 0.0f);
-
-		// Convert color to ABGR format
-		if (hasColors)
-		{
-			v.color = m_rgbColors[i];
-		}
-		else
-		{
-			v.color = 0xFFFFFFFF;  // White, full alpha
-		}
+		v.normal = m_normals[i];
+		v.uv = m_uvs[i];
+		v.colorDiffuse = m_rgbColors[i];
 
 		vertices.push_back(v);
 	}
 
+	struct FacesByMaterial
+	{
+		eqg::Material* material;
+		std::vector<uint32_t> faces;
+	};
+
 	// Group faces by material index for batched rendering
-	std::map<int16_t, std::vector<uint32_t>> facesByMaterial;
+	std::vector<FacesByMaterial> facesByMaterial;
+	facesByMaterial.resize(m_materialPalette->GetNumMaterials() + 1);
+
+	for (uint32_t i = 0; i < m_materialPalette->GetNumMaterials(); ++i)
+	{
+		facesByMaterial[i].material = m_materialPalette->GetMaterial(i);
+	}
+
 	for (const auto& face : m_faces)
 	{
-		facesByMaterial[face.materialIndex].push_back(face.indices.x);
-		facesByMaterial[face.materialIndex].push_back(face.indices.y);
-		facesByMaterial[face.materialIndex].push_back(face.indices.z);
+		uint16_t materialIndex = face.materialIndex;
+		if (materialIndex == 0xffff)
+			materialIndex = static_cast<uint16_t>(m_materialPalette->GetNumMaterials() + 1);
+
+		facesByMaterial[materialIndex].faces.push_back(face.indices.x);
+		facesByMaterial[materialIndex].faces.push_back(face.indices.y);
+		facesByMaterial[materialIndex].faces.push_back(face.indices.z);
 	}
 
 	// Build index buffer in material order and create batches
 	std::vector<uint32_t> indices;
 	indices.reserve(m_faces.size() * 3);
-	m_materialBatches.clear();
 
-	eqg::MaterialPalette* palette = m_materialPalette.get();
+	std::vector<MaterialBatch> materialBatches;
+	materialBatches.reserve(facesByMaterial.size());
 
-	for (auto& [matIndex, matIndices] : facesByMaterial)
+	for (FacesByMaterial& materialFaces : facesByMaterial)
 	{
 		MaterialBatch batch;
 		batch.startIndex = static_cast<uint32_t>(indices.size());
-		batch.indexCount = static_cast<uint32_t>(matIndices.size());
-		
-		if (palette && matIndex >= 0 && matIndex < static_cast<int16_t>(palette->GetNumMaterials()))
-		{
-			batch.material = palette->GetMaterial(matIndex);
-			if (batch.material)
-			{
-				//batch.isTransparent = batch.material->IsTransparent()/* || batch.material->m_alpha < 255*/;
-			}
-		}
+		batch.indexCount = static_cast<uint32_t>(materialFaces.faces.size());
+		batch.material = materialFaces.material;
 
-		indices.insert(indices.end(), matIndices.begin(), matIndices.end());
-		m_materialBatches.push_back(batch);
-	}
-
-	if (vertices.empty() || indices.empty())
-	{
-		SPDLOG_DEBUG("MGTerrain::BuildGPUBuffers: No valid geometry");
-		return false;
+		indices.insert(indices.end(), materialFaces.faces.begin(), materialFaces.faces.end());
+		materialBatches.push_back(batch);
 	}
 
 	// Create bgfx buffers
@@ -109,6 +99,7 @@ bool MGTerrain::BuildGPUBuffers()
 		bgfx::copy(indices.data(), static_cast<uint32_t>(indices.size() * sizeof(uint32_t))),
 		BGFX_BUFFER_INDEX32);
 
+	m_materialBatches = std::move(materialBatches);
 	m_indexCount = static_cast<uint32_t>(indices.size());
 	m_gpuBuffersBuilt = true;
 

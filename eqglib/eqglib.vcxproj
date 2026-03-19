@@ -43,6 +43,7 @@
     <ClInclude Include="pfs_crc.h" />
     <ClInclude Include="eqg_resource.h" />
     <ClInclude Include="str_util.h" />
+    <ClInclude Include="world_clock.h" />
     <ClInclude Include="wld_loader.h" />
     <ClInclude Include="wld_types.h" />
   </ItemGroup>
@@ -136,7 +137,7 @@
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>

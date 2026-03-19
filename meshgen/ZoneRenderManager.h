@@ -2,6 +2,7 @@
 
 #include "meshgen/AreaVolumeRenderSystem.h"
 #include "meshgen/InvisibleWallRenderSystem.h"
+#include "meshgen/PointLightRenderSystem.h"
 #include "meshgen/StaticMeshRenderSystem.h"
 
 #include <bgfx/bgfx.h>
@@ -215,6 +216,9 @@ public:
 	bool GetDrawInvisibleWalls() const { return m_invisibleWallSystem.GetVisible(); }
 	void SetDrawInvisibleWalls(bool draw) { m_invisibleWallSystem.SetVisible(draw); }
 
+	bool GetDrawPointLights() const { return m_pointLightSystem.GetVisible(); }
+	void SetDrawPointLights(bool draw) { m_pointLightSystem.SetVisible(draw); }
+
 	bool GetUseVertexColors() const { return m_staticMeshSystem.GetUseVertexColors(); }
 	void SetUseVertexColors(bool use) { m_staticMeshSystem.SetUseVertexColors(use); }
 
@@ -236,6 +240,7 @@ private:
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
 	AreaVolumeRenderSystem m_areaVolumeSystem;
 	InvisibleWallRenderSystem m_invisibleWallSystem;
+	PointLightRenderSystem m_pointLightSystem;
 	StaticMeshRenderSystem m_staticMeshSystem;
 	GeometryRenderMode m_geometryRenderMode = GeometryRenderMode::Models;
 	float m_pointSize = 0.5f;
@@ -362,6 +367,9 @@ public:
 
 	void SetNavMeshQuery(const dtNavMeshQuery* query);
 
+	void SetVisible(bool visible) { m_visible = visible; }
+	bool IsVisible() const { return m_visible; }
+
 	void SetFlags(uint32_t flags);
 	uint32_t GetFlags() const { return m_flags; }
 
@@ -398,6 +406,7 @@ private:
 	const dtNavMeshQuery* m_query = nullptr;
 	uint32_t m_flags = DEFAULT_DRAW_FLAGS;
 	bool m_dirty = false;
+	bool m_visible = true;
 	float m_pointSize = 0.5f;
 	mq::Signal<>::ScopedConnection m_navMeshConn;
 

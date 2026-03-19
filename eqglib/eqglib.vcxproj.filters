@@ -93,6 +93,9 @@
     <ClInclude Include="eqg_math.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="world_clock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="eqg_loader.cpp">

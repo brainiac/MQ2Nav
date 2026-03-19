@@ -26,7 +26,6 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 	m_boundingRadius = pWldData->boundingRadius;
 	m_centerOffset = pWldData->centerOffset;
 	m_numVertices = static_cast<uint32_t>(pWldData->vertices.size());
-	m_numFaces = static_cast<uint32_t>(pWldData->faces.size());
 
 	if (pWldData->trackDefinition != nullptr)
 	{
@@ -169,46 +168,50 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 	}
 
 	// Initialize faces
-	WLD_MATERIALGROUP* faceGroups = pWldData->faceMaterialGroups.data();
+	WLD_MATERIALGROUP* faceGroup = pWldData->faceMaterialGroups.data();
+	WLD_MATERIALGROUP* lastFaceGroup = faceGroup + pWldData->faceMaterialGroups.size() - 1;
 
+	m_numFaces = static_cast<uint32_t>(pWldData->faces.size());
 	m_faces.resize(m_numFaces);
 	m_faceNormals.resize(m_numFaces);
 
-	uint32_t curGroup = 0;
-	uint32_t groupSize = faceGroups[curGroup].group_size;
-	int16_t materialIndex = faceGroups[curGroup].material_index;
-	if (materialIndex > (int)numMaterials)
-		materialIndex = -1;
+	uint32_t groupSize = faceGroup->group_size;
+	uint16_t materialIndex = faceGroup->material_index;
+
+	if (materialIndex > numMaterials)
+		materialIndex = 0xffff;
 
 	uint32_t groupStart = 0;
 
 	for (uint32_t face = 0; face < m_numFaces; ++face)
 	{
-		if (face > groupStart + groupSize)
+		// Increment to the next group if the face reaches the end of this group
+		if (face >= groupStart + groupSize)
 		{
-			// Increment to next group
-			if (curGroup < pWldData->faceMaterialGroups.size() - 1)
-				++curGroup;
+			if (faceGroup + 1 <= lastFaceGroup)
+				++faceGroup;
 
-			groupSize = faceGroups[curGroup].group_size;
-			materialIndex = faceGroups[curGroup].material_index;
-			if (materialIndex > (int)numMaterials)
-				materialIndex = -1;
+			groupSize = faceGroup->group_size;
+			materialIndex = faceGroup->material_index;
+
+			if (materialIndex > numMaterials)
+				materialIndex = 0xffff;
 
 			groupStart = face;
 		}
 
-		m_faces[face].indices = glm::u32vec3(pWldData->faces[face].indices).zyx;
-		m_faces[face].materialIndex = materialIndex;
-
-		EQG_FACEFLAGS flags = EQG_FACEFLAG_NONE;
+		SFace& outFace = m_faces[face];
+		outFace.indices[0] = pWldData->faces[face].indices[2];
+		outFace.indices[1] = pWldData->faces[face].indices[1];
+		outFace.indices[2] = pWldData->faces[face].indices[0];
+		outFace.materialIndex = materialIndex;
+		outFace.flags = 0;
+		
 		if (pWldData->faces[face].flags & S3D_FACEFLAG_PASSABLE)
-			flags = EQG_FACEFLAG_PASSABLE;
-
-		m_faces[face].flags = flags;
-
-		glm::vec3 e1 = m_vertices[m_faces[face].indices[1]] - m_vertices[m_faces[face].indices[2]];
-		glm::vec3 e2 = m_vertices[m_faces[face].indices[0]] - m_vertices[m_faces[face].indices[1]];
+			outFace.flags = EQG_FACEFLAG_PASSABLE;
+	
+		glm::vec3 e1 = m_vertices[outFace.indices[1]] - m_vertices[outFace.indices[2]];
+		glm::vec3 e2 = m_vertices[outFace.indices[0]] - m_vertices[outFace.indices[1]];
 		m_faceNormals[face] = glm::normalize(glm::cross(e1, e2));
 	}
 

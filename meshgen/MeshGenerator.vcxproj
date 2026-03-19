@@ -23,8 +23,11 @@
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="GeometryUtils.cpp" />
     <ClCompile Include="InvisibleWallRenderSystem.cpp" />
+    <ClCompile Include="MaterialBrowserPanel.cpp" />
+    <ClCompile Include="PointLightRenderSystem.cpp" />
     <ClCompile Include="MGSimpleModel.cpp" />
     <ClCompile Include="MGTerrain.cpp" />
+    <ClCompile Include="MGTerrainTile.cpp" />
     <ClCompile Include="StaticMeshRenderSystem.cpp" />
     <ClCompile Include="ViewPanel.cpp" />
     <ClCompile Include="Editor.cpp" />
@@ -81,8 +84,11 @@
     <ClInclude Include="EQComponents.h" />
     <ClInclude Include="GeometryUtils.h" />
     <ClInclude Include="InvisibleWallRenderSystem.h" />
+    <ClInclude Include="MaterialBrowserPanel.h" />
+    <ClInclude Include="PointLightRenderSystem.h" />
     <ClInclude Include="MGSimpleModel.h" />
     <ClInclude Include="MGTerrain.h" />
+    <ClInclude Include="MGTerrainTile.h" />
     <ClInclude Include="StaticMeshRenderSystem.h" />
     <ClInclude Include="ViewPanel.h" />
     <ClInclude Include="Editor.h" />
@@ -243,7 +249,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DisableSpecificWarnings>4091</DisableSpecificWarnings>
       <MinimalRebuild>false</MinimalRebuild>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <StringPooling>false</StringPooling>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>

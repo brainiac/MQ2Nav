@@ -5,8 +5,8 @@
 #include "pch.h"
 #include "MGBitmap.h"
 
-#include <bimg/decode.h>
-#include <spdlog/spdlog.h>
+#include "bimg/decode.h"
+#include "spdlog/spdlog.h"
 
 extern bx::AllocatorI* g_allocator;
 

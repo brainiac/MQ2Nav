@@ -172,7 +172,7 @@ public:
 
 	// Factory creation of resource objects
 	virtual std::shared_ptr<Bitmap> CreateBitmap() const;
-	virtual std::shared_ptr<Bitmap> CreateBitmap(std::string_view fileName, Archive* archive, bool cubeMap);
+	virtual std::shared_ptr<Bitmap> CreateBitmap(std::string_view fileName, Archive* archive, bool cubeMap = false, bool rawData = false);
 	virtual std::shared_ptr<SimpleModelDefinition> CreateSimpleModelDefinition() const;
 	virtual std::shared_ptr<SimpleModel> CreateSimpleModel() const;
 	virtual std::shared_ptr<HierarchicalModelDefinition> CreateHierarchicalModelDefinition() const;

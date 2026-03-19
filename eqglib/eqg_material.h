@@ -12,6 +12,8 @@
 
 #include <glm/glm.hpp>
 
+#include "world_clock.h"
+
 namespace eqg {
 
 struct ParsedBMInfo;
@@ -88,6 +90,7 @@ constexpr uint32_t RM_TEXTURE_5                  = 0x00000500;
 constexpr uint32_t RM_TEXTURE_BLIT               = 0x0000ff00;
 
 constexpr uint32_t RM_TRANSLUCENCY_LEVEL_MASK    = 0x000f0000;
+constexpr uint32_t RM_TRANSLUCENCY_LEVEL_SHIFT   = 16;
 constexpr uint32_t RM_TRANSLUCENCY_LEVEL_NONE    = 0x00000000;
 
 constexpr uint32_t RM_ADDITIVE_LIGHT_MASK        = 0x00100000;
@@ -150,10 +153,16 @@ public:
 	void SetSourceSize(uint32_t width, uint32_t height) { m_sourceWidth = width; m_sourceHeight = height; }
 
 	bool InitFromWLDData(SBitmapWLDData* wldData, Archive* archive);
-	bool Init(std::string_view fileName, Archive* archive, bool cubeMap);
+	bool Init(std::string_view fileName, Archive* archive, bool cubeMap, bool rawData);
 
 	virtual char* GetRawData() const { return nullptr; }
-	virtual void SetRawData(std::unique_ptr<char[]> rawData, size_t rawDatasize) { /*m_rawData = rawData; m_byteSize = (uint32_t)rawDatasize;*/ }
+	virtual void SetRawData(std::unique_ptr<char[]> rawData, size_t rawDatasize)
+	{
+		if (!m_storeRawData)
+			return;
+		m_rawData = std::move(rawData);
+		m_byteSize = (uint32_t)rawDatasize;
+	}
 
 private:
 	std::string              m_fileName;
@@ -166,9 +175,12 @@ private:
 	uint32_t                 m_height = 0;
 	uint32_t                 m_objectIndex = (uint32_t)-1;
 	bool                     m_hasTexture = false;
+	bool                     m_cubeMap = false;
+	bool                     m_storeRawData = false;
+	bool                     m_flip = false;
 
-	//std::unique_ptr<char[]>  m_rawData;
-	//uint32_t                 m_byteSize = 0;
+	std::unique_ptr<char[]>  m_rawData;
+	uint32_t                 m_byteSize = 0;
 };
 
 struct STexture
@@ -183,7 +195,7 @@ struct STexture
 struct STextureSet
 {
 	uint32_t                 updateInterval = 0;
-	steady_clock::time_point nextUpdate = steady_clock::now();
+	world_clock::time_point  nextUpdate = world_clock::now();
 	uint32_t                 currentFrame = 0;
 	std::vector<STexture>    textures;
 	bool                     skipFrames = false;
@@ -196,7 +208,6 @@ enum EMaterialType
 	MaterialType_PaletteDetail,
 	MaterialType_LuclinLayer,
 	MaterialType_LuclinLayerT1,
-
 	MaterialType_OpaqueC1,
 	MaterialType_OpaqueCG1,
 	MaterialType_OpaqueCE1,
@@ -256,6 +267,8 @@ enum EMaterialType
 	MaterialType_AddAlphaCBSG1,
 	MaterialType_AddAlphaCBSGE1,
 };
+
+const char* MaterialTypeToString(EMaterialType type);
 
 enum ERenderMaterial
 {
@@ -357,10 +370,11 @@ struct DetailInfo
 struct DetailPaletteInfo
 {
 	std::string paletteFileName;
-	int width;
-	int height;
-	char* paletteData;
-	std::vector<DetailInfo> detailInfo;
+	int width = 0;
+	int height = 0;
+	char* paletteData = nullptr;
+	DetailInfo detailInfo[16] = {};
+	uint32_t numDetails = 0;
 
 	Material* material; // owner
 };
@@ -431,7 +445,9 @@ public:
 
 	static ResourceType GetStaticResourceType() { return ResourceType::Material; }
 
-	std::string_view GetTag() const override { return m_tag; }
+	virtual std::string_view GetTag() const override { return m_tag; }
+	const std::string& GetTagStr() const { return m_tag; }
+
 	EMaterialType GetType() const { return m_type; }
 
 	bool RequiresUpdate() const
@@ -443,7 +459,7 @@ public:
 
 	void InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_fx_params, Archive* archive, const char* string_pool);
 	bool InitFromWLDData(std::string_view tag, WLD_OBJ_MATERIALDEFINITION* pWLDMaterialDef, WLD_OBJ_SIMPLESPRITEINSTANCE* pSimpleSpriteInst,
-		ParsedSimpleSpriteDef* pParsedSimpleSpriteDef, ParsedBMInfo* pParsedBMPalette);
+		ParsedSimpleSpriteDef* pParsedSimpleSpriteDef, ParsedBMInfo* pParsedBMPalette, const glm::vec2& uvShiftPerMs);
 	bool InitFromBitmap(const std::shared_ptr<Bitmap>& bitmap);
 	bool InitFromMaterialInfo(const SMaterialInfo& info);
 
@@ -451,13 +467,18 @@ public:
 	bool HasBumpMap() const { return m_hasBumpMap; }
 
 private:
+	void SetWLDRenderMaterial(uint32_t renderMethod, EMaterialType materialType);
+	void SetEQMRenderMaterial(uint32_t renderMethod, EMaterialType materialType);
+
+	uint32_t GetRenderMethod() const;
+	void SetTextureSlot(std::string_view tag);
 	bool UpdateMaterialFlags(bool eqm);
-	void SetTextureSlot();
 
 public:
 	std::string                 m_tag;
 	std::string                 m_effectName;
 	glm::vec2                   m_uvShift = glm::vec2(0.0f);
+	glm::vec2                   m_uvShiftPerMS = glm::vec2(0.0f);
 	uint32_t                    m_renderMethod = 0;
 	uint32_t                    m_renderMaterial = 0;
 	float                       m_scaledAmbient = 0.0f;
@@ -495,6 +516,7 @@ public:
 	static ResourceType GetStaticResourceType() { return ResourceType::MaterialPalette; }
 
 	std::string_view GetTag() const override { return m_tag; }
+	const std::string& GetTagStr() const { return m_tag; }
 
 	void SetMaterial(uint32_t index, const std::shared_ptr<Material>& material)
 	{
@@ -503,16 +525,34 @@ public:
 			m_materials[index].material = material;
 		}
 	}
-	Material* GetMaterial(uint32_t index) const { return m_materials[index].material.get(); }
+
+	Material* GetMaterial(uint32_t index) const
+	{
+		if (index < m_materials.size())
+			return m_materials[index].material.get();
+		return nullptr;
+	}
+	const uint32_t* GetMaterialTint(uint32_t index) const
+	{
+		if (index < m_materials.size())
+			return &m_materials[index].tint;
+		return nullptr;
+	}
+	const uint32_t* GetMaterialSecondaryTint(uint32_t index) const
+	{
+		if (index < m_materials.size())
+			return &m_materials[index].secondary_tint;
+		return nullptr;
+	}
+
 	uint32_t GetNumMaterials() const { return (uint32_t)m_materials.size(); }
 
 	bool InitFromWLDData(std::string_view tag, ParsedMaterialPalette* materialPalette);
-
 	std::shared_ptr<MaterialPalette> Clone(bool deep = false) const;
 
 private:
 	std::string              m_tag;
-	steady_clock::time_point m_lastUpdate = steady_clock::now();
+	world_clock::time_point  m_lastUpdate = world_clock::now();
 	bool                     m_requiresUpdate = false;
 	std::vector<PaletteData> m_materials;
 };

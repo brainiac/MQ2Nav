@@ -47,6 +47,10 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		if (ImGui::Checkbox("Invisible Walls", &drawInvisibleWalls))
 			renderManager->SetDrawInvisibleWalls(drawInvisibleWalls);
 
+		bool drawPointLights = renderManager->GetDrawPointLights();
+		if (ImGui::Checkbox("Point Lights", &drawPointLights))
+			renderManager->SetDrawPointLights(drawPointLights);
+
 		bool drawGrid = renderManager->GetDrawGrid();
 		if (ImGui::Checkbox("Draw Grid", &drawGrid))
 			renderManager->SetDrawGrid(drawGrid);
@@ -61,30 +65,53 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		auto navMeshRender = renderManager->GetNavMeshRender();
 
 		uint32_t flags = navMeshRender->GetFlags();
-		if (ImGui::CheckboxFlags("Draw Tiles", &flags, ZoneNavMeshRender::DRAW_TILES))
-			navMeshRender->SetFlags(flags);
+		bool isVisible = navMeshRender->IsVisible();
+
+		if (ImGui::Checkbox("Draw Navigation Mesh", &isVisible))
+			navMeshRender->SetVisible(isVisible);
+
+		{
+			ImGui::BeginDisabled(!isVisible);
+			ImGui::Indent();
+
+			if (ImGui::CheckboxFlags("Draw Tiles", &flags, ZoneNavMeshRender::DRAW_TILES))
+				navMeshRender->SetFlags(flags);
+
+			{
+				ImGui::Indent();
+
+				if (ImGui::CheckboxFlags("Draw Tile Boundaries", &flags, ZoneNavMeshRender::DRAW_TILE_BOUNDARIES))
+					navMeshRender->SetFlags(flags);
+				if (ImGui::CheckboxFlags("Draw Polygon Boundaries", &flags, ZoneNavMeshRender::DRAW_POLY_BOUNDARIES))
+					navMeshRender->SetFlags(flags);
+				if (ImGui::CheckboxFlags("Draw Polygon Vertices", &flags, ZoneNavMeshRender::DRAW_POLY_VERTICES))
+					navMeshRender->SetFlags(flags);
+
+				ImGui::Unindent();
+			}
+
+			ImGui::SeparatorText("Navigation Mesh Render - Details");
+
+			if (ImGui::CheckboxFlags("Draw Closed List (NYI)", &flags, ZoneNavMeshRender::DRAW_CLOSED_LIST))
+				navMeshRender->SetFlags(flags);
+			if (ImGui::CheckboxFlags("Draw BV Tree", &flags, ZoneNavMeshRender::DRAW_BV_TREE))
+				navMeshRender->SetFlags(flags);
+			if (ImGui::CheckboxFlags("Draw Nodes (NYI)", &flags, ZoneNavMeshRender::DRAW_NODES))
+				navMeshRender->SetFlags(flags);
+			if (ImGui::CheckboxFlags("Draw Portals", &flags, ZoneNavMeshRender::DRAW_PORTALS))
+				navMeshRender->SetFlags(flags);
+
+			ImGui::Unindent();
+			ImGui::EndDisabled();
+		}
+
+		ImGui::SeparatorText("Navigation Mesh Render - Components");
+
 		if (ImGui::CheckboxFlags("Draw Volumes", &flags, ZoneNavMeshRender::DRAW_VOLUMES))
 			navMeshRender->SetFlags(flags);
 		if (ImGui::CheckboxFlags("Draw Offmesh Connections", &flags, ZoneNavMeshRender::DRAW_OFFMESH_CONNS))
 			navMeshRender->SetFlags(flags);
 
-		ImGui::SeparatorText("Navigation Mesh Render - Details");
-
-		if (ImGui::CheckboxFlags("Draw Tile Boundaries", &flags, ZoneNavMeshRender::DRAW_TILE_BOUNDARIES))
-			navMeshRender->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw Polygon Boundaries", &flags, ZoneNavMeshRender::DRAW_POLY_BOUNDARIES))
-			navMeshRender->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw Polygon Vertices", &flags, ZoneNavMeshRender::DRAW_POLY_VERTICES))
-			navMeshRender->SetFlags(flags);
-
-		if (ImGui::CheckboxFlags("Draw Closed List (NYI)", &flags, ZoneNavMeshRender::DRAW_CLOSED_LIST))
-			navMeshRender->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw BV Tree", &flags, ZoneNavMeshRender::DRAW_BV_TREE))
-			navMeshRender->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw Nodes (NYI)", &flags, ZoneNavMeshRender::DRAW_NODES))
-			navMeshRender->SetFlags(flags);
-		if (ImGui::CheckboxFlags("Draw Portals", &flags, ZoneNavMeshRender::DRAW_PORTALS))
-			navMeshRender->SetFlags(flags);
 
 		ImGui::SeparatorText("Renderer Debugging");
 

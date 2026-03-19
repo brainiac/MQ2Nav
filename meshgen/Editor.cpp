@@ -11,6 +11,7 @@
 #include "meshgen/BackgroundTaskManager.h"
 #include "meshgen/BitmapBrowserPanel.h"
 #include "meshgen/ConsolePanel.h"
+#include "meshgen/MaterialBrowserPanel.h"
 #include "meshgen/NavMeshTool.h"
 #include "meshgen/PanelManager.h"
 #include "meshgen/PropertiesPanel.h"
@@ -56,6 +57,7 @@ void Editor::OnInit()
 	m_panelManager->AddPanel<ToolsPanel>(this);
 	m_panelManager->AddPanel<ArchiveBrowserPanel>(this);
 	m_panelManager->AddPanel<BitmapBrowserPanel>(this);
+	m_panelManager->AddPanel<MaterialBrowserPanel>(this);
 	m_panelManager->AddPanel<SceneObjectsPanel>(this);
 
 	m_panelManager->AddDockingLayout({
@@ -68,6 +70,7 @@ void Editor::OnInit()
 		.assignments = {
 			{.panelName = "Scene Objects", .dockName = "LeftPane", .open = true },
 			{.panelName = "Archive Browser", .dockName = "LeftPane", .open = false },
+			{.panelName = "Material Browser", .dockName = "LeftPane", .open = false },
 			{.panelName = "Bitmap Browser", .dockName = "LeftPane", .open = false },
 			{.panelName = "Console Log", .dockName = "BottomPane", .open = true },
 			{.panelName = "Properties", .dockName = "RightPane", .open = true },
@@ -1194,4 +1197,9 @@ std::tuple<glm::vec3, glm::vec3> Editor::CastRay(float mx, float my)
 	glm::vec3 rayEnd = glm::unProject(glm::vec3(mx, my, 1.0f), viewMtx, projMtx, m_viewport);
 
 	return { rayStart, rayEnd };
+}
+
+void Editor::ShowBitmap(MGBitmap* bitmap)
+{
+	m_panelManager->GetPanel<BitmapBrowserPanel>("Bitmap Browser")->ShowBitmap(bitmap);
 }

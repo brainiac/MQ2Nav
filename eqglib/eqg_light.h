@@ -16,15 +16,22 @@ public:
 
 	uint32_t GetNumFrames() const { return (uint32_t)m_framesIntensity.size(); }
 
-	float GetIntensity(uint32_t frame) const { return m_framesIntensity[frame]; }
+	float GetIntensity(uint32_t frame) const
+	{
+		if (frame <m_framesIntensity.size())
+			return m_framesIntensity[frame];
+		return 1.0f;
+	}
 
 	bool HasColors() const { return !m_framesColor.empty(); }
+
 	const glm::vec3& GetColor(uint32_t frame) const
 	{
 		if (frame < (uint32_t)m_framesColor.size())
 			return m_framesColor[frame];
 
-		return glm::vec3(1.0f);
+		static glm::vec3 s_defaultColor(1.0f);
+		return s_defaultColor;
 	}
 
 	int GetCurrentFrame() const { return m_currentFrame; }

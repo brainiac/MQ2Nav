@@ -6,6 +6,7 @@
 
 #include "eqglib/eqglib.h"
 #include "meshgen/Entity.h"
+#include "meshgen/MGTerrainTile.h"
 
 #include "glm/glm.hpp"
 #include <cstdint>
@@ -61,8 +62,9 @@ public:
 private:
 	void Clear();
 
-	bool LoadZone();
+	bool LoadZone(bool loadNPCModels = false);
 	bool LoadGlobalData();
+	std::vector<std::pair<std::string, std::string>> LoadChrFile(const std::string& inputFile);
 
 	eqg::Archive* LoadArchive(const std::string& path);
 	eqg::EQGLoader* LoadEQG(std::string_view fileName, int loadFlags = 0);
@@ -146,4 +148,7 @@ private:
 
 	// List of all currently known terrain areas
 	std::unordered_map<eqg::TerrainArea*, entt::entity> m_areas;
+
+	// List of terrain tiles (for EQG zones with TerrainSystem)
+	std::vector<MGTerrainTilePtr> m_terrainTiles;
 };

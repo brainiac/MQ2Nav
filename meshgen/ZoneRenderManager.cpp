@@ -314,6 +314,7 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 
 	m_areaVolumeSystem.Init(this);
 	m_invisibleWallSystem.Init(this);
+	m_pointLightSystem.Init(this);
 	m_staticMeshSystem.Init(this);
 
 	// TEMP
@@ -326,6 +327,7 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 ZoneRenderManager::~ZoneRenderManager()
 {
 	m_staticMeshSystem.Shutdown();
+	m_pointLightSystem.Shutdown();
 	m_invisibleWallSystem.Shutdown();
 	m_areaVolumeSystem.Shutdown();
 
@@ -353,6 +355,7 @@ void ZoneRenderManager::SetRegistry(entt::registry* registry)
 {
 	m_areaVolumeSystem.SetRegistry(registry);
 	m_invisibleWallSystem.SetRegistry(registry);
+	m_pointLightSystem.SetRegistry(registry);
 	m_staticMeshSystem.SetRegistry(registry);
 }
 
@@ -686,6 +689,10 @@ void ZoneRenderManager::Render()
 		// Update and render invisible walls
 		m_invisibleWallSystem.Update();
 		m_invisibleWallSystem.Render();
+
+		// Update and render point lights
+		m_pointLightSystem.Update();
+		m_pointLightSystem.Render();
 	}
 
 	if (!m_points.empty())
@@ -965,6 +972,9 @@ void ZoneNavMeshRender::SetFlags(uint32_t flags)
 void ZoneNavMeshRender::Render()
 {
 	if (!m_navMeshProject || !m_navMeshProject->IsLoaded())
+		return;
+
+	if (!m_visible)
 		return;
 
 	if (m_dirty)

@@ -16,6 +16,7 @@
 
 class MGSimpleModel;
 class MGTerrain;
+class MGTerrainTile;
 
 namespace eqg
 {
@@ -87,10 +88,16 @@ struct StaticMeshRenderComponent
 	MGSimpleModel* model = nullptr;
 };
 
-// Component for terrain geometry rendering
+// Component for terrain geometry rendering (WLD zones)
 struct TerrainRenderComponent
 {
 	MGTerrain* terrain = nullptr;
+};
+
+// Component for terrain tile geometry rendering (EQG zones with TerrainSystem)
+struct TerrainTileRenderComponent
+{
+	MGTerrainTile* tile = nullptr;
 };
 
 // Invisible wall geometry - world-space vertices defining the base line, extruded by wallHeight

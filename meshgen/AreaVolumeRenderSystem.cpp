@@ -3,7 +3,7 @@
 //
 
 #include "pch.h"
-#include "meshgen/AreaVolumeRenderSystem.h"
+#include "AreaVolumeRenderSystem.h"
 
 #include "meshgen/Components.h"
 #include "meshgen/EQComponents.h"

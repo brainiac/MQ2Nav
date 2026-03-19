@@ -6,11 +6,11 @@
 
 #include "eqglib/eqg_material.h"
 
-#include <bgfx/bgfx.h>
+#include "bgfx/bgfx.h"
+
 #include <memory>
 
 // Engine-specific bitmap subclass that stores bgfx texture data.
-// Created by MGResourceManager::CreateBitmap() and populated via LoadTexture().
 class MGBitmap : public eqg::Bitmap
 {
 public:

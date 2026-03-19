@@ -12,6 +12,7 @@
 #include "meshgen/ZoneResourceManager.h"
 
 #include "imgui/fonts/IconsFontAwesome.h"
+#include "imgui/imgui_internal.h"
 #include "imgui/imgui_impl_bgfx.h"
 #include "mq/base/Config.h"
 
@@ -19,7 +20,7 @@
 #include <ranges>
 
 BitmapBrowserPanel::BitmapBrowserPanel(Editor* editor)
-	: PanelWindow("Bitmap Browser", "BitmapPane")
+	: PanelWindow("Bitmap Browser", "BitmapPanel")
 	, m_editor(editor)
 {
 }
@@ -65,15 +66,10 @@ bool BitmapBrowserPanel::MatchesFilter(std::string_view name) const
 	return eqg::ci_find_substr(name, m_filterBuffer) != -1;
 }
 
-void BitmapBrowserPanel::DrawBitmapList(ZoneResourceManager* resourceMgr)
+void BitmapBrowserPanel::DrawBitmapList()
 {
-	auto* eqgResourceMgr = resourceMgr->GetResourceManager();
-
-	if (!resourceMgr->IsLoaded())
-	{
-		ImGui::Text("No zone loaded");
-		return;
-	}
+	ZoneResourceManager* resourceMgr = m_project->GetResourceManager();
+	eqg::ResourceManager* eqgResourceMgr = resourceMgr->GetResourceManager();
 
 	const auto& bitmaps = eqgResourceMgr->GetResourcesByType(eqg::ResourceType::Bitmap);
 
@@ -130,6 +126,11 @@ void BitmapBrowserPanel::DrawBitmapList(ZoneResourceManager* resourceMgr)
 					m_selectedBitmap = bitmap;
 				}
 
+				if (m_selectedBitmap == bitmap && m_scrollToSelection)
+				{
+					ImGui::ScrollToItem();
+				}
+
 				// Size column
 				ImGui::TableNextColumn();
 				ImGui::Text("%ux%u", bitmap->GetWidth(), bitmap->GetHeight());
@@ -140,13 +141,13 @@ void BitmapBrowserPanel::DrawBitmapList(ZoneResourceManager* resourceMgr)
 	}
 	ImGui::EndChild();
 
-	// Draw preview below the list
-	DrawBitmapPreview();
+	m_scrollToSelection = false;
 }
 
-void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
+void BitmapBrowserPanel::DrawBitmapGrid()
 {
-	auto* eqgResourceMgr = resourceMgr->GetResourceManager();
+	ZoneResourceManager* resourceMgr = m_project->GetResourceManager();
+	eqg::ResourceManager* eqgResourceMgr = resourceMgr->GetResourceManager();
 
 	if (!resourceMgr->IsLoaded())
 	{
@@ -235,6 +236,12 @@ void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
 			{
 				m_selectedBitmap = bitmap;
 			}
+
+			if (m_selectedBitmap == bitmap && m_scrollToSelection)
+			{
+				ImGui::ScrollToItem();
+			}
+
 			bool hovered = ImGui::IsItemHovered();
 
 			// Draw the texture centered within the cell
@@ -333,9 +340,67 @@ void BitmapBrowserPanel::DrawBitmapGrid(ZoneResourceManager* resourceMgr)
 
 		drawList->PopClipRect();
 	}
-	ImGui::EndChild();
 
-	DrawBitmapPreview();
+	m_scrollToSelection = false;
+
+	ImGui::Dummy(ImVec2(1, 1));
+	ImGui::EndChild();
+}
+
+void DrawBitmapPreview(MGBitmap* bitmap, ImVec2 size)
+{
+	if (!bitmap)
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Invalid Bitmap");
+	}
+	else if (bitmap->HasValidTexture())
+	{
+		ImGui::Separator();
+
+		// Calculate preview size maintaining aspect ratio
+		if (size.x == 0 || size.y == 0)
+		{
+			ImVec2 availSize = ImGui::GetContentRegionAvail();
+			if (size.x == 0)
+				size.x = availSize.x;
+			if (size.y == 0)
+				size.y = availSize.y;
+		}
+
+		float bitmapWidth = static_cast<float>(bitmap->GetWidth());
+		float bitmapHeight = static_cast<float>(bitmap->GetHeight());
+
+		if (bitmapWidth > 0 && bitmapHeight > 0 && size.y > 0)
+		{
+			float aspectRatio = bitmapWidth / bitmapHeight;
+
+			float previewWidth = size.x;
+			float previewHeight = previewWidth / aspectRatio;
+
+			if (previewHeight > size.y)
+			{
+				previewHeight = size.y;
+				previewWidth = previewHeight * aspectRatio;
+			}
+
+			// Clamp to reasonable size
+			previewWidth = std::min(previewWidth, bitmapWidth);
+			previewHeight = std::min(previewHeight, bitmapHeight);
+
+			if (previewWidth > 0 && previewHeight > 0)
+			{
+				ImGui::Image(
+					bitmap->GetTextureHandle(),
+					BGFX_IMGUI_FLAGS_ALPHA_BLEND,
+					0, // mip level
+					ImVec2(previewWidth, previewHeight));
+			}
+		}
+	}
+	else
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Texture not loaded on GPU");
+	}
 }
 
 void BitmapBrowserPanel::DrawBitmapPreview()
@@ -384,48 +449,7 @@ void BitmapBrowserPanel::DrawBitmapPreview()
 			ImGui::Text("| Raw Size: %zu bytes", m_selectedBitmap->GetRawDataSize());
 		}
 
-		if (m_selectedBitmap->HasValidTexture())
-		{
-			ImGui::Separator();
-
-			// Calculate preview size maintaining aspect ratio
-			float maxPreviewWidth = ImGui::GetContentRegionAvail().x;
-			float maxPreviewHeight = ImGui::GetContentRegionAvail().y;
-
-			float bitmapWidth = static_cast<float>(m_selectedBitmap->GetWidth());
-			float bitmapHeight = static_cast<float>(m_selectedBitmap->GetHeight());
-
-			if (bitmapWidth > 0 && bitmapHeight > 0 && maxPreviewHeight > 0)
-			{
-				float aspectRatio = bitmapWidth / bitmapHeight;
-
-				float previewWidth = maxPreviewWidth;
-				float previewHeight = previewWidth / aspectRatio;
-
-				if (previewHeight > maxPreviewHeight)
-				{
-					previewHeight = maxPreviewHeight;
-					previewWidth = previewHeight * aspectRatio;
-				}
-
-				// Clamp to reasonable size
-				previewWidth = std::min(previewWidth, bitmapWidth);
-				previewHeight = std::min(previewHeight, bitmapHeight);
-
-				if (previewWidth > 0 && previewHeight > 0)
-				{
-					ImGui::Image(
-						m_selectedBitmap->GetTextureHandle(),
-						BGFX_IMGUI_FLAGS_ALPHA_BLEND,
-						0, // mip level
-						ImVec2(previewWidth, previewHeight));
-				}
-			}
-		}
-		else
-		{
-			ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Texture not loaded on GPU");
-		}
+		::DrawBitmapPreview(m_selectedBitmap);
 	}
 	ImGui::EndChild();
 }
@@ -442,17 +466,20 @@ void BitmapBrowserPanel::OnImGuiRender(bool* p_open)
 		{
 			DrawToolbar();
 
-			auto* resourceMgr = m_project->GetResourceManager();
 			if (m_viewMode == ViewMode::List)
 			{
-				DrawBitmapList(resourceMgr);
+				DrawBitmapList();
 			}
 			else
 			{
-				DrawBitmapGrid(resourceMgr);
+				DrawBitmapGrid();
 			}
+
+			// Draw preview below the list
+			DrawBitmapPreview();
 		}
 	}
+
 	ImGui::End();
 }
 
@@ -538,4 +565,11 @@ void BitmapBrowserPanel::OnProjectChanged(const std::shared_ptr<ZoneProject>& zo
 {
 	m_project = zoneProject;
 	m_selectedBitmap = nullptr; // Clear selection when project changes
+}
+
+void BitmapBrowserPanel::ShowBitmap(MGBitmap* bitmap)
+{
+	m_selectedBitmap = bitmap;
+	m_scrollToSelection = true;
+	m_showPreview = true;
 }

@@ -831,10 +831,17 @@ bool WLDLoader::ParseMaterial(uint32_t objectIndex)
 		}
 	}
 
+	glm::vec2 shiftPerMs{ 0, 0 };
+	if (pWLDMaterialDef->flags & WLD_OBJ_MATOPT_HASUVSHIFTPERMS)
+	{
+		shiftPerMs.x = reader.read<float>();
+		shiftPerMs.y = reader.read<float>();
+	}
+
 	// create the material
 	auto newMaterial = std::make_shared<Material>();
 	if (!newMaterial->InitFromWLDData(wldObj.tag, pWLDMaterialDef, pWLDSimpleSpriteInst, pParsedSpriteDef,
-		pParsedBMInfoForPalette.get()))
+		pParsedBMInfoForPalette.get(), shiftPerMs))
 	{
 		EQG_LOG_ERROR("Failed to create material {}!", wldObj.tag);
 		return false;

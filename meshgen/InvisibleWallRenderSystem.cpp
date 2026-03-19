@@ -3,7 +3,7 @@
 //
 
 #include "pch.h"
-#include "meshgen/InvisibleWallRenderSystem.h"
+#include "InvisibleWallRenderSystem.h"
 
 #include "meshgen/Components.h"
 #include "meshgen/EQComponents.h"
@@ -28,14 +28,12 @@ void InvisibleWallRenderSystem::Init(ZoneRenderManager* renderManager)
 {
 	m_renderManager = renderManager;
 
-	// Load shader programs
 	m_volumeProgram = g_resourceMgr->GetProgramHandle("areavolume");
 	m_linesProgram = g_resourceMgr->GetProgramHandle("lines");
 }
 
 void InvisibleWallRenderSystem::SetRegistry(entt::registry* registry)
 {
-	// Disconnect from old registry if any
 	if (m_registry)
 	{
 		m_invisibleWallConstructConnection.release();
@@ -46,7 +44,6 @@ void InvisibleWallRenderSystem::SetRegistry(entt::registry* registry)
 
 	m_registry = registry;
 
-	// Register component callbacks on new registry
 	if (m_registry)
 	{
 		m_invisibleWallConstructConnection = m_registry->on_construct<InvisibleWallComponent>()
@@ -74,7 +71,6 @@ void InvisibleWallRenderSystem::OnInvisibleWallDestroy(entt::registry& registry,
 
 void InvisibleWallRenderSystem::OnHiddenConstruct(entt::registry& registry, entt::entity entity)
 {
-	// Only care about entities with InvisibleWallComponent
 	if (registry.any_of<InvisibleWallComponent>(entity))
 	{
 		m_dirty = true;
@@ -83,7 +79,6 @@ void InvisibleWallRenderSystem::OnHiddenConstruct(entt::registry& registry, entt
 
 void InvisibleWallRenderSystem::OnHiddenDestroy(entt::registry& registry, entt::entity entity)
 {
-	// Only care about entities with InvisibleWallComponent
 	if (registry.any_of<InvisibleWallComponent>(entity))
 	{
 		m_dirty = true;

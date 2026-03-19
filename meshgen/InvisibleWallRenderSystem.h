@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include <bgfx/bgfx.h>
-#include <entt/entity/registry.hpp>
-#include <glm/vec3.hpp>
+#include "bgfx/bgfx.h"
+#include "entt/entity/registry.hpp"
+#include "glm/vec3.hpp"
+
 #include <vector>
 
 class ZoneRenderManager;
@@ -44,7 +45,7 @@ private:
 private:
 	ZoneRenderManager* m_renderManager = nullptr;
 	entt::registry* m_registry = nullptr;
-	bool m_visible = false;  // Off by default
+	bool m_visible = false;
 	bool m_dirty = true;
 
 	// Invisible wall buffers

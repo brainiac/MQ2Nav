@@ -12,6 +12,7 @@
 #include <memory>
 
 
+class MGBitmap;
 class BackgroundTaskManager;
 class ImportExportSettingsDialog;
 class NavMeshProject;
@@ -55,6 +56,7 @@ public:
 	std::shared_ptr<ZoneProject> GetProject() const { return m_project; }
 
 	void ShowNotificationDialog(const std::string& title, const std::string& message, bool modal = true);
+	void ShowBitmap(MGBitmap* bitmap);
 
 private:
 	void UI_UpdateViewport();

@@ -28,6 +28,8 @@
 #include "shaders/areavolume/vs_areavolume.bin.h"
 #include "shaders/staticmesh/fs_staticmesh.bin.h"
 #include "shaders/staticmesh/vs_staticmesh.bin.h"
+#include "shaders/billboard/fs_billboard.bin.h"
+#include "shaders/billboard/vs_billboard.bin.h"
 
 #define DBG_STRINGIZE(_x) DBG_STRINGIZE_(_x)
 #define DBG_STRINGIZE_(_x) #_x
@@ -62,6 +64,7 @@ static EmbeddedShaderInfo s_embeddedShaders[] = {
 	EMBEDDED_SHADER(points),
 	EMBEDDED_SHADER(areavolume),
 	EMBEDDED_SHADER(staticmesh),
+	EMBEDDED_SHADER(billboard),
 };
 
 //============================================================================

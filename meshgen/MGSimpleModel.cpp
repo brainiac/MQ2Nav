@@ -3,7 +3,7 @@
 //
 
 #include "pch.h"
-#include "meshgen/MGSimpleModel.h"
+#include "MGSimpleModel.h"
 
 #include "eqglib/eqg_material.h"
 
@@ -57,11 +57,11 @@ bool MGSimpleModel::BuildGPUBuffers()
 		// Convert color to ABGR format
 		if (hasColors)
 		{
-			v.color = def->m_colors[i];
+			v.colorDiffuse = def->m_colors[i];
 		}
 		else
 		{
-			v.color = 0xFFFFFFFF;  // White, full alpha
+			v.colorDiffuse = 0xFFFFFFFF;  // White, full alpha
 		}
 
 		vertices.push_back(v);

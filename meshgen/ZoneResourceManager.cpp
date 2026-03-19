@@ -9,6 +9,7 @@
 #include "meshgen/MGBitmap.h"
 #include "meshgen/MGSimpleModel.h"
 #include "meshgen/MGTerrain.h"
+#include "meshgen/MGTerrainTile.h"
 #include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "common/NavMeshData.h"
@@ -175,7 +176,7 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 
 	if (terrain)
 	{
-		// Create terrain render entity
+		// Create terrain render entity (WLD zones)
 		MGTerrain* mgTerrain = static_cast<MGTerrain*>(terrain.get());
 
 		entt::handle terrainEntity = m_scene->CreateEntity("Terrain");
@@ -194,9 +195,22 @@ bool ZoneResourceManager::BuildScene(Scene& scene)
 		}
 	}
 
-	// Create invisible wall entities
+	// Create terrain tile entities (EQG zones with TerrainSystem)
 	if (auto terrainSystem = m_resourceMgr->GetTerrainSystem())
 	{
+		m_terrainTiles.clear();
+		for (const auto& tile : terrainSystem->GetTiles())
+		{
+			auto mgTile = std::make_shared<MGTerrainTile>(terrainSystem.get(), tile.get());
+			m_terrainTiles.push_back(mgTile);
+
+			std::string tileName = fmt::format("Tile ({}, {})", tile->m_tileLoc.x, tile->m_tileLoc.y);
+			entt::handle tileEntity = m_scene->CreateEntity(tileName);
+			tileEntity.emplace<TerrainTileRenderComponent>(mgTile.get());
+		}
+		SPDLOG_DEBUG("Created {} terrain tile entities", m_terrainTiles.size());
+
+		// Create invisible wall entities
 		for (const auto& wall : terrainSystem->GetInvisWalls())
 		{
 			entt::handle wallEntity = m_scene->CreateEntity(wall->GetName());
@@ -575,7 +589,94 @@ bool ZoneResourceManager::LoadGlobalData()
 	return true;
 }
 
-bool ZoneResourceManager::LoadZone()
+std::vector<std::pair<std::string, std::string>> ZoneResourceManager::LoadChrFile(const std::string& inputFile)
+{
+	std::vector<std::pair<std::string, std::string>> assets;
+
+	fs::path assets_file = fs::path(m_eqPath) / inputFile;
+
+	std::error_code ec;
+	if (fs::exists(assets_file, ec))
+	{
+		SPDLOG_DEBUG("Loading Chr file: {}", inputFile);
+
+		std::ifstream assets_stream(assets_file);
+		std::vector<std::string> lines;
+
+		if (assets_stream.is_open())
+		{
+			std::copy(std::istream_iterator<std::string>(assets_stream),
+				std::istream_iterator<std::string>(),
+				std::back_inserter(lines));
+		}
+
+		int numEntries = 0;
+		int entryCount = 0;
+
+		bool error = false;
+
+		for (size_t lineNum = 0; lineNum < lines.size(); ++lineNum) // Skip first line
+		{
+			const std::string& line = lines[lineNum];
+
+			try
+			{
+				if (lineNum == 0)
+				{
+					numEntries = atoi(line.c_str());
+
+					if (numEntries < 0 || numEntries >= 1000)
+					{
+						SPDLOG_ERROR("Bad file: {} - {} entries", inputFile, numEntries);
+						break;
+					}
+
+					continue;
+				}
+
+				if (line.empty())
+				{
+					break;
+				}
+
+				std::vector<std::string> tokens = mq::split(line, ',');
+
+				if (tokens.size() == 2)
+				{
+					if (tokens[0].empty())
+					{
+						numEntries--;
+						SPDLOG_WARN("Bad file: {} - invalid line: {}", inputFile, line);
+						continue;
+					}
+
+					if (entryCount < numEntries)
+					{
+						assets.emplace_back(tokens[0], tokens[1]);
+						entryCount++;
+					}
+					else
+					{
+						SPDLOG_WARN("Bad file: {} - too many entries: {}", inputFile, entryCount);
+						break;
+					}
+				}
+				else
+				{
+					SPDLOG_WARN("Bad file: {} - invalid line: {}", inputFile, line);
+				}
+			}
+			catch (const std::exception& exc)
+			{
+				SPDLOG_ERROR("Failed to parse line in {}: {} - {}", inputFile, line, exc.what());
+			}
+		}
+	}
+
+	return assets;
+}
+
+bool ZoneResourceManager::LoadZone(bool loadNPCModels)
 {
 	m_defaultLoadFlags = eqg::LoadFlag_None;
 
@@ -605,24 +706,65 @@ bool ZoneResourceManager::LoadZone()
 		LoadS3D("obequip_lexit", eqg::LoadFlag_ItemAnims);
 	}
 
-	// TODO: Load <zonename>_chr.txt
-
-	// Load <zonename>_assets.txt
-	//LoadAssetsFile();
-
-
 	if (!loadedEQG)
 	{
-		// If this is poknowledge, load poknowledge_obj3.eqg
+		// If this is poknowledge, load extra poknowledge_obj3.eqg
 		if (m_zoneName == "poknowledge")
 		{
 			LoadEQG("poknowledge_obj3");
 		}
 
+
 		LoadS3D(m_zoneName + "_obj2", eqg::LoadFlag_ItemAnims);
 		LoadS3D(m_zoneName + "_obj", eqg::LoadFlag_ItemAnims);
 		LoadS3D(m_zoneName + "_2_obj", eqg::LoadFlag_ItemAnims);
+
+#if 0
+		// Load extra s3d obj files
+		std::string file = fmt::format("{}_obj2.s3d", m_zoneName);
+		if (fs::is_regular_file(file, ec))
+			LoadS3D(file, eqg::LoadFlag_ItemAnims);
+
+		file = fmt::format("{}_obj.s3d", m_zoneName);
+		if (fs::is_regular_file(file, ec))
+			LoadS3D(file, eqg::LoadFlag_ItemAnims);
+
+		file = fmt::format("{}_2_obj.s3d", m_zoneName);
+		if (fs::is_regular_file(file, ec))
+			LoadS3D(file, eqg::LoadFlag_ItemAnims);
+#endif
 	}
+
+#if 0
+	if (loadNPCModels)
+	{
+		// Load {zone}_chr.txt
+		auto zoneChrData = LoadChrFile(fmt::format("{}_chr.txt", m_zoneName));
+		for (auto& [npcCode, fileName] : zoneChrData)
+		{
+			if (!npcCode.empty() && !fileName.empty())
+			{
+				// TODO: These are normally loaded to the persistent memory pool
+
+				if (std::string_view{ npcCode }.substr(0, 3) == std::string_view{ fileName }.substr(0, 3))
+				{
+					if (!LoadEQG(fmt::format("{}.EQG", fileName)))
+					{
+						LoadS3D(fileName);
+					}
+				}
+				else
+				{
+					LoadS3D(fileName);
+				}
+			}
+		}
+	}
+#endif
+
+	// Load <zonename>_assets.txt
+	//LoadAssetsFile();
+
 
 	if (!loadedEQG)
 	{
@@ -969,7 +1111,7 @@ void ZoneResourceManager::AddPointLight(const eqg::PointLightPtr& light)
 	entt::handle entity = m_scene->CreateEntity(light->GetDefinition()->GetTag());
 
 	TransformComponent& transform = entity.get<TransformComponent>();
-	transform.position = light->GetPosition();
+	transform.position = light->GetPosition().yzx;
 
 	PointLightComponent& lightComponent = entity.emplace<PointLightComponent>();
 	lightComponent.definition = light->GetDefinition();
