@@ -10,6 +10,7 @@
 #include "meshgen/RenderManager.h"
 #include "meshgen/ResourceManager.h"
 #include "meshgen/ZonePicker.h"
+#include "eqglib/world_clock.h"
 #include "mq/base/Color.h"
 
 #include "imgui/fonts/IconsLucide.h"
@@ -20,12 +21,12 @@
 #include "imgui/imgui_internal.h"
 #include "imgui/ImGuiUtils.h"
 
-#include <bx/math.h>
-#include <fmt/format.h>
-#include <glm/gtc/type_ptr.hpp>
-#include <SDL2/SDL.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/spdlog.h>
+#include "bx/math.h"
+#include "fmt/format.h"
+#include "glm/gtc/type_ptr.hpp"
+#include "SDL2/SDL.h"
+#include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/spdlog.h"
 
 #include <filesystem>
 #include <sstream>
@@ -247,9 +248,12 @@ bool Application::Update()
 
 	// Update our timestep
 	uint64_t time = SDL_GetTicks64();
-	m_timeStep = (time - m_lastTime) / 1000.0f;
+	uint64_t deltaTime = time - m_lastTime;
+	m_timeStep = deltaTime / 1000.0f;
 	m_lastTime = time;
 	m_time += m_timeStep;
+
+	eqg::world_clock::update(std::chrono::milliseconds(deltaTime));
 
 	m_backgroundTaskManager->Process();
 	if (m_done)

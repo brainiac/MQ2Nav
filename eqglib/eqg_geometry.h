@@ -7,6 +7,7 @@
 #include "eqg_structs.h"
 #include "eqg_types_fwd.h"
 #include "wld_types.h"
+#include "world_clock.h"
 
 #include "common/math/aabb.h"
 #include "glm/glm.hpp"
@@ -570,6 +571,8 @@ public:
 	bool SetRGBs(SDMRGBTrackWLDData* pDMRGBTrackWLDData);
 	bool SetRGBs(const std::span<uint32_t>& RGBs);
 
+	void Update(world_clock::time_point time);
+
 	SimpleModelDefinitionPtr      m_definition;
 	Actor*                        m_actor = nullptr; // owning actor
 	glm::mat4x4                   m_worldTransform;  // object to world transform matrix
@@ -626,6 +629,8 @@ public:
 	void UpdateBoneToWorldMatrices(Bone* bone, glm::mat4x4* parentMatrix);
 
 	void SetRGBs(const std::span<uint32_t>& RGBs);
+
+	void Update(world_clock::time_point time);
 
 private:
 	DefinitionPtrType             m_definition;
@@ -720,6 +725,8 @@ public:
 	void SetScale(float scale);
 	float GetScale() const { return m_scale; }
 
+	virtual void Update(world_clock::time_point time);
+
 protected:
 	ResourceManager*               m_resourceMgr;
 
@@ -782,6 +789,8 @@ public:
 
 	virtual bool IsCollidable() const override;
 
+	virtual void Update(world_clock::time_point time) override;
+
 private:
 	void InitLOD();
 
@@ -835,6 +844,7 @@ public:
 	virtual SimpleModelPtr GetCollisionModel() const override { return m_collisionModel; }
 
 	virtual bool IsCollidable() const override;
+	virtual void Update(world_clock::time_point time) override;
 
 private:
 	bool InitLOD();

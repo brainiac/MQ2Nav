@@ -434,149 +434,6 @@ void ZoneRenderManager::DrawGrid()
 	}
 }
 
-void ZoneRenderManager::DrawBspPlanes()
-{
-	if (!m_drawBspPlanes || !m_project)
-		return;
-
-	auto* resourceMgr = m_project->GetResourceManager();
-	if (!resourceMgr)
-		return;
-
-	auto* eqgResourceMgr = resourceMgr->GetResourceManager();
-	if (!eqgResourceMgr)
-		return;
-
-	auto terrain = eqgResourceMgr->GetTerrain();
-	if (!terrain || !terrain->m_wldBspTree)
-		return;
-
-	const auto& bspTree = *terrain->m_wldBspTree;
-	const aabb& worldBounds = terrain->m_aabb;
-
-	// Generate a color for each BSP node based on its index
-	auto getNodeColor = [](uint32_t nodeIndex) -> mq::MQColor {
-		uint32_t hash = nodeIndex * 2654435761u;
-		uint8_t r = (hash >> 16) & 0xFF;
-		uint8_t g = (hash >> 8) & 0xFF;
-		uint8_t b = hash & 0xFF;
-		r = std::max<uint8_t>(r, 64);
-		g = std::max<uint8_t>(g, 64);
-		b = std::max<uint8_t>(b, 64);
-		return mq::MQColor(r, g, b, 128);
-	};
-
-	// Helper to clip a convex polygon against a half-space (keeps points where n·p + d >= 0)
-	auto clipPolygon = [](const std::vector<glm::vec3>& poly, const glm::vec3& n, float d) -> std::vector<glm::vec3> {
-		if (poly.size() < 3) return {};
-		
-		std::vector<glm::vec3> result;
-		for (size_t i = 0; i < poly.size(); ++i)
-		{
-			const glm::vec3& curr = poly[i];
-			const glm::vec3& next = poly[(i + 1) % poly.size()];
-			
-			float currDist = glm::dot(n, curr) + d;
-			float nextDist = glm::dot(n, next) + d;
-			
-			if (currDist >= 0) result.push_back(curr);
-			
-			// Edge crosses plane?
-			if ((currDist >= 0) != (nextDist >= 0))
-			{
-				float t = currDist / (currDist - nextDist);
-				result.push_back(curr + t * (next - curr));
-			}
-		}
-		return result;
-	};
-
-	// Render each BSP plane by clipping it against the world AABB
-	for (uint32_t i = 0; i < bspTree.nodes.size(); ++i)
-	{
-		const auto& node = bspTree.nodes[i];
-		const glm::vec3& normal = node.plane.normal;
-		float d = node.plane.dist;
-
-		// Skip degenerate planes
-		float lenSq = glm::dot(normal, normal);
-		if (lenSq < 0.001f)
-			continue;
-
-		// Build tangent vectors for the plane
-		glm::vec3 tangent, bitangent;
-		if (std::abs(normal.y) < 0.99f)
-			tangent = glm::normalize(glm::cross(glm::vec3(0, 1, 0), normal));
-		else
-			tangent = glm::normalize(glm::cross(glm::vec3(1, 0, 0), normal));
-		bitangent = glm::cross(normal, tangent);
-
-		// Find a point on the plane: solve n·p + d = 0
-		// Use projection of origin: p = -d * n (works for normalized normals)
-		glm::vec3 planePoint = -d * normal;
-
-		// Create a large quad on the plane (will be clipped to AABB)
-		float largeSize = glm::length(worldBounds.max - worldBounds.min) * 2.0f;
-		std::vector<glm::vec3> poly = {
-			planePoint - tangent * largeSize - bitangent * largeSize,
-			planePoint + tangent * largeSize - bitangent * largeSize,
-			planePoint + tangent * largeSize + bitangent * largeSize,
-			planePoint - tangent * largeSize + bitangent * largeSize,
-		};
-
-		// Clip against each face of the AABB (6 half-spaces)
-		// +X face: x <= max.x  =>  -x + max.x >= 0  =>  n=(-1,0,0), d=max.x
-		poly = clipPolygon(poly, glm::vec3(-1, 0, 0), worldBounds.max.x);
-		poly = clipPolygon(poly, glm::vec3(1, 0, 0), -worldBounds.min.x);   // -X
-		poly = clipPolygon(poly, glm::vec3(0, -1, 0), worldBounds.max.y);   // +Y
-		poly = clipPolygon(poly, glm::vec3(0, 1, 0), -worldBounds.min.y);   // -Y
-		poly = clipPolygon(poly, glm::vec3(0, 0, -1), worldBounds.max.z);   // +Z
-		poly = clipPolygon(poly, glm::vec3(0, 0, 1), -worldBounds.min.z);   // -Z
-
-		if (poly.size() < 3)
-			continue;
-
-		mq::MQColor color = getNodeColor(i);
-		mq::MQColor fillColor = color;
-		fillColor.Alpha = 51; // 20% opacity
-		uint32_t fillColorABGR = fillColor.ToABGR();
-
-		// Add vertices
-		uint16_t baseIndex = static_cast<uint16_t>(m_tris.size());
-		for (const auto& v : poly)
-			m_tris.emplace_back(v, fillColorABGR);
-
-		// Triangulate the convex polygon (fan triangulation, both sides)
-		for (size_t j = 1; j + 1 < poly.size(); ++j)
-		{
-			// Front face
-			m_triIndices.push_back(baseIndex);
-			m_triIndices.push_back(baseIndex + static_cast<uint16_t>(j));
-			m_triIndices.push_back(baseIndex + static_cast<uint16_t>(j + 1));
-			// Back face
-			m_triIndices.push_back(baseIndex);
-			m_triIndices.push_back(baseIndex + static_cast<uint16_t>(j + 1));
-			m_triIndices.push_back(baseIndex + static_cast<uint16_t>(j));
-		}
-
-		// Add wireframe edges
-		ImColor wireImColor = color.ToImColor();
-		for (size_t j = 0; j < poly.size(); ++j)
-		{
-			const glm::vec3& v0 = poly[j];
-			const glm::vec3& v1 = poly[(j + 1) % poly.size()];
-			m_lines.emplace_back(v0, 2.0f, wireImColor, v1, 2.0f, wireImColor);
-		}
-
-		// Draw normal indicator from polygon center
-		glm::vec3 center(0);
-		for (const auto& v : poly) center += v;
-		center /= static_cast<float>(poly.size());
-		glm::vec3 normalEnd = center + normal * 20.0f;
-		m_lines.emplace_back(center, 3.0f, ImColor(255, 255, 0), normalEnd, 3.0f, ImColor(255, 255, 0));
-	}
-}
-
 void ZoneRenderManager::RenderEntities()
 {
 	if (!m_project || !m_project->GetScene())
@@ -670,31 +527,34 @@ void ZoneRenderManager::Render()
 		}
 		else
 		{
-			// Render static meshes (Models mode)
+			// Render static meshes
 			m_staticMeshSystem.Update();
 			m_staticMeshSystem.Render();
+
+			// Update and render invisible walls
+			m_invisibleWallSystem.Update();
+			m_invisibleWallSystem.Render();
 		}
-
-		DrawGrid();
-		DrawBspPlanes();
-
-		m_navMeshRender->Render();
-
-		RenderEntities();
 
 		// Update and render area volumes via ECS system
 		m_areaVolumeSystem.Update();
 		m_areaVolumeSystem.Render();
 
-		// Update and render invisible walls
-		m_invisibleWallSystem.Update();
-		m_invisibleWallSystem.Render();
-
 		// Update and render point lights
 		m_pointLightSystem.Update();
 		m_pointLightSystem.Render();
+
+		RenderEntities();
+		DrawGrid();
+
+		m_navMeshRender->Render();
 	}
 
+	RenderDebugDraw();
+}
+
+void ZoneRenderManager::RenderDebugDraw()
+{
 	if (!m_points.empty())
 	{
 		if (isValid(m_ddPointsVB) && m_points.size() == m_lastPointsSize)

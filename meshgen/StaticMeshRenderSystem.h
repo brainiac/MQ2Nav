@@ -16,6 +16,8 @@ class MGTerrain;
 class MGTerrainTile;
 class ZoneRenderManager;
 
+struct MaterialBatch;
+
 namespace eqg
 {
 	class SimpleModelDefinition;
@@ -42,6 +44,8 @@ public:
 
 private:
 	void RebuildRenderData();
+	void RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch,
+		bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer);
 
 	void OnStaticMeshConstruct(entt::registry& registry, entt::entity entity);
 	void OnStaticMeshDestroy(entt::registry& registry, entt::entity entity);

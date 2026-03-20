@@ -204,9 +204,6 @@ public:
 	bool GetDrawGrid() const { return m_drawGrid; }
 	void SetDrawGrid(bool draw) { m_drawGrid = draw; }
 
-	bool GetDrawBspPlanes() const { return m_drawBspPlanes; }
-	void SetDrawBspPlanes(bool draw) { m_drawBspPlanes = draw; }
-
 	GeometryRenderMode GetGeometryRenderMode() const { return m_geometryRenderMode; }
 	void SetGeometryRenderMode(GeometryRenderMode mode) { m_geometryRenderMode = mode; }
 
@@ -225,8 +222,9 @@ public:
 private:
 	void DrawCollisionMesh();
 	void DrawGrid();
-	void DrawBspPlanes();
 	void RenderEntities();
+
+	void RenderDebugDraw();
 
 private:
 	ZoneProject* m_project;
@@ -234,7 +232,6 @@ private:
 
 	bool m_drawCollisionMesh = false;
 	bool m_drawGrid = true;
-	bool m_drawBspPlanes = false;
 
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;

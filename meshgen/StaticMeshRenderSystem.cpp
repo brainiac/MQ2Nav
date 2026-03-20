@@ -251,7 +251,6 @@ void StaticMeshRenderSystem::RebuildRenderData()
 				continue;
 
 			const auto& meshComp = view.get<StaticMeshRenderComponent>(entity);
-			const auto& transformComp = view.get<TransformComponent>(entity);
 
 			if (!meshComp.model || !meshComp.model->GetDefinition())
 				continue;
@@ -283,16 +282,108 @@ void StaticMeshRenderSystem::Update()
 	{
 		RebuildRenderData();
 	}
+
+	// Update materials
+	auto now = eqg::world_clock::now();
+
+	if (m_terrain)
+	{
+		if (eqg::MaterialPalettePtr palette = m_terrain->GetMaterialPalette())
+		{
+			palette->Update(now);
+		}
+	}
+
+	auto view = m_registry->view<StaticMeshRenderComponent>();
+	for (auto entity : view)
+	{
+		if (m_registry->any_of<HiddenComponent>(entity))
+			continue;
+
+		const auto& meshComp = view.get<StaticMeshRenderComponent>(entity);
+		MGSimpleModel* model = meshComp.model;
+		model->GetActor()->Update(now);
+	}
 }
 
-static bgfx::TextureHandle GetDiffuseTexture(eqg::Material* material)
+void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch,
+	bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer)
 {
-	if (!material || !material->m_textureSet || material->m_textureSet->textures.empty())
-		return BGFX_INVALID_HANDLE;
-	
-	const eqg::STexture& tex = material->m_textureSet->textures[0];
-	MGBitmap* bitmap = static_cast<MGBitmap*>(tex.textures[0].get());
-	return bitmap->GetTextureHandle();
+	if (batch.indexCount == 0)
+		return;
+
+	bgfx::Encoder* encoder = bgfx::begin();
+	encoder->setTransform(glm::value_ptr(worldMtx));
+
+	// Bind textures
+	bgfx::TextureHandle texHandle = BGFX_INVALID_HANDLE;
+	bool hasTexture = false;
+
+	// Note: we need special handling for single detail using alt texture...
+	if (batch.material)
+	{
+		if (eqg::STextureSet* textureSet = batch.material->GetTextureSet())
+		{
+			// This would be where we want to "lazy load" textures...
+
+			eqg::STexture* texture = &textureSet->textures[textureSet->currentFrame];
+
+			// Currently only supporting the default texture, but this is where we'd have
+			// other textures (bump map, etc) handled as well.
+			MGBitmap* bitmap = static_cast<MGBitmap*>(texture->textures[0].get());
+
+			texHandle = bitmap->GetTextureHandle();
+			hasTexture = bgfx::isValid(texHandle);
+		}
+	}
+
+	encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
+
+	bool showInvisible = m_renderManager->GetDrawInvisibleWalls();
+	bool isTransparent;
+	bool isChroma = false;
+	if (batch.material)
+	{
+		isTransparent = batch.material->IsTransparent();
+		// TODO: This needs a lot more work...
+		isChroma = batch.material->m_renderMaterial == eqg::RenderMaterial_Chroma;
+	}
+	else
+	{
+		isTransparent = true;
+	}
+
+	glm::vec4 uTextureFlags(
+		hasTexture ? 1.0f : 0.0f,
+		showInvisible ? 1.0f : 0.0f,
+		isTransparent ? 1.0f : 0.0f,
+		isChroma ? 0.75294117f : 0.0f
+	);
+
+	// Set the vertex colors uniform value
+	glm::vec4 useVertexColors(
+		m_useVertexColors ? 1.0f : 0.0f,
+		0.0f,
+		0.0f,
+		0.0f
+	);
+
+	encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
+	encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
+
+	encoder->setVertexBuffer(0, vertexBuffer);
+	encoder->setIndexBuffer(indexBuffer, batch.startIndex, batch.indexCount);
+
+	uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
+		BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+
+	if (isChroma)
+	{
+		state |= BGFX_STATE_ALPHA_REF(0xc0);
+	}
+
+	encoder->setState(state);
+	encoder->submit(0, m_program);
 }
 
 void StaticMeshRenderSystem::Render()
@@ -302,11 +393,6 @@ void StaticMeshRenderSystem::Render()
 
 	if (!bgfx::isValid(m_program))
 		return;
-
-	bool showInvisible = m_renderManager->GetDrawInvisibleWalls();
-
-	// Set the vertex colors uniform value
-	glm::vec4 useVertexColors(m_useVertexColors ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
 
 	// Render terrain first
 	if (m_terrain)
@@ -322,53 +408,13 @@ void StaticMeshRenderSystem::Render()
 			glm::mat4 identity(1.0f);
 
 			// Render each material batch
-			for (const auto& matBatch : m_terrain->GetMaterialBatches())
+			for (const MaterialBatch& matBatch : m_terrain->GetMaterialBatches())
 			{
 				if (matBatch.indexCount == 0)
 					continue;
 
-				bgfx::Encoder* encoder = bgfx::begin();
-				encoder->setTransform(glm::value_ptr(identity));
-
-				// Bind texture
-				bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
-				bool hasTexture = bgfx::isValid(texHandle);
-
-				bool isTransparent;
-				bool isChroma = false;
-				if (matBatch.material)
-				{
-					isTransparent = matBatch.material->IsTransparent();
-					// TODO: This needs a lot more work...
-					isChroma = matBatch.material->m_renderMaterial == eqg::RenderMaterial_Chroma;
-				}
-				else
-				{
-					isTransparent = true;
-				}
-				
-				glm::vec4 uTextureFlags(
-					hasTexture ? 1.0f : 0.0f,
-					showInvisible ? 1.0f : 0.0f,
-					isTransparent ? 1.0f : 0.0f,
-					isChroma ? 0.75294117f : 0.0f
-				);
-				encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
-				encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
-				encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
-				encoder->setVertexBuffer(0, m_terrain->GetVertexBuffer());
-				encoder->setIndexBuffer(m_terrain->GetIndexBuffer(), matBatch.startIndex, matBatch.indexCount);
-
-				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
-					BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
-
-				if (isChroma)
-				{
-					state |= BGFX_STATE_ALPHA_REF(0xc0);
-				}
-
-				encoder->setState(state);
-				encoder->submit(0, m_program);
+				RenderMaterialBatch(identity, matBatch,
+					m_terrain->GetVertexBuffer(), m_terrain->GetIndexBuffer());
 			}
 		}
 	}
@@ -388,53 +434,13 @@ void StaticMeshRenderSystem::Render()
 		glm::mat4 identity(1.0f);
 
 		// Render each material batch
-		for (const auto& matBatch : tile->GetMaterialBatches())
+		for (const MaterialBatch& matBatch : tile->GetMaterialBatches())
 		{
 			if (matBatch.indexCount == 0)
 				continue;
 
-			bgfx::Encoder* encoder = bgfx::begin();
-			encoder->setTransform(glm::value_ptr(identity));
-
-			// Bind texture
-			bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
-			bool hasTexture = bgfx::isValid(texHandle);
-
-			bool isTransparent;
-			bool isChroma = false;
-			if (matBatch.material)
-			{
-				isTransparent = matBatch.material->IsTransparent();
-				// TODO: This needs a lot more work...
-				isChroma = matBatch.material->m_renderMaterial == eqg::RenderMaterial_Chroma;
-			}
-			else
-			{
-				isTransparent = true;
-			}
-
-			glm::vec4 uTextureFlags(
-				hasTexture ? 1.0f : 0.0f,
-				showInvisible ? 1.0f : 0.0f,
-				isTransparent ? 1.0f : 0.0f,
-				isChroma ? 0.75294117f : 0.0f
-			);
-			encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
-			encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
-
-			encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
-			encoder->setVertexBuffer(0, tile->GetVertexBuffer());
-			encoder->setIndexBuffer(tile->GetIndexBuffer(), matBatch.startIndex, matBatch.indexCount);
-
-			uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
-				BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
-			if (isChroma)
-			{
-				state |= BGFX_STATE_ALPHA_REF(0xc0);
-			}
-
-			encoder->setState(state);
-			encoder->submit(0, m_program);
+			RenderMaterialBatch(identity, matBatch,
+				tile->GetVertexBuffer(), tile->GetIndexBuffer());
 		}
 	}
 
@@ -463,47 +469,8 @@ void StaticMeshRenderSystem::Render()
 				if (matBatch.indexCount == 0)
 					continue;
 
-				bgfx::Encoder* encoder = bgfx::begin();
-				encoder->setTransform(glm::value_ptr(transform));
-
-				// Bind texture
-				bgfx::TextureHandle texHandle = GetDiffuseTexture(matBatch.material);
-				bool hasTexture = bgfx::isValid(texHandle);
-				
-				bool isTransparent;
-				bool isChroma = false;
-				if (matBatch.material)
-				{
-					isTransparent = matBatch.material->IsTransparent();
-					// TODO: This needs a lot more work...
-					isChroma = matBatch.material->m_renderMaterial == eqg::RenderMaterial_Chroma;
-				}
-				else
-				{
-					isTransparent = true;
-				}
-
-				glm::vec4 uTextureFlags(
-					hasTexture ? 1.0f : 0.0f,
-					showInvisible ? 1.0f : 0.0f,
-					isTransparent ? 1.0f : 0.0f,
-					isChroma ? 0.75294117f : 0.0f
-				);
-				encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
-				encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
-				encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
-				encoder->setVertexBuffer(0, model->GetVertexBuffer());
-				encoder->setIndexBuffer(model->GetIndexBuffer(), matBatch.startIndex, matBatch.indexCount);
-
-				uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
-					BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
-				if (isChroma)
-				{
-					state |= BGFX_STATE_ALPHA_REF(0xc0);
-				}
-
-				encoder->setState(state);
-				encoder->submit(0, m_program);
+				RenderMaterialBatch(transform, matBatch,
+					model->GetVertexBuffer(), model->GetIndexBuffer());
 			}
 		}
 	}

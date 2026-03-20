@@ -1640,6 +1640,70 @@ void Material::SetTextureSlot(std::string_view tag)
 	}
 }
 
+void STextureSet::Update(world_clock::time_point time)
+{
+	if (textures.size() <= 1 || nextUpdate >= time)
+		return;
+
+	if (skipFrames)
+	{
+		// Interpolate frames based on how much time has passed
+		uint32_t difference = std::chrono::milliseconds(time - nextUpdate).count();
+		uint32_t frameAdvance = (difference / updateInterval) + 1;
+		currentFrame = (currentFrame + frameAdvance) % textures.size();
+		uint32_t timeAdvance = frameAdvance * updateInterval;
+		nextUpdate = time + std::chrono::milliseconds(timeAdvance);
+	}
+	else
+	{
+		currentFrame = (currentFrame + 1) % textures.size();
+		nextUpdate = time + std::chrono::milliseconds(updateInterval);
+	}
+}
+
+void Material::Update(world_clock::time_point time, std::chrono::milliseconds elapsed)
+{
+	uint32_t renderMethod = GetRenderMethod();
+
+	if ((renderMethod & RM_TEXTURE_MASK) != RM_TEXTURE_SOLID)
+	{
+		if (m_textureSet)
+		{
+			m_textureSet->Update(time);
+		}
+	}
+
+	if (m_uvShiftPerMS.x != 0)
+	{
+		m_uvShift.x += static_cast<float>(elapsed.count()) * m_uvShiftPerMS.x;
+
+		while (m_uvShift.x > 1.0f)
+		{
+			m_uvShift.x -= 1.0f;
+		}
+
+		while (m_uvShift.x < 0.0f)
+		{
+			m_uvShift.x += 1.0f;
+		}
+	}
+
+	if (m_uvShiftPerMS.y != 0)
+	{
+		m_uvShift.y += static_cast<float>(elapsed.count()) * m_uvShiftPerMS.y;
+
+		while (m_uvShift.y > 1.0f)
+		{
+			m_uvShift.y -= 1.0f;
+		}
+
+		while (m_uvShift.y < 0.0f)
+		{
+			m_uvShift.y += 1.0f;
+		}
+	}
+}
+
 std::shared_ptr<Material> Material::Clone() const
 {
 	auto copy = std::make_shared<Material>();
@@ -1692,6 +1756,22 @@ MaterialPalette::MaterialPalette(std::string_view tag_, uint32_t num_materials_)
 
 MaterialPalette::~MaterialPalette()
 {
+}
+
+void MaterialPalette::Update(world_clock::time_point time)
+{
+	if (m_requiresUpdate && m_lastUpdate != time)
+	{
+		std::chrono::milliseconds ms = time - m_lastUpdate;
+
+		for (PaletteData& data : m_materials)
+		{
+			if (data.material)
+				data.material->Update(time, ms);
+		}
+
+		m_lastUpdate = time;
+	}
 }
 
 bool MaterialPalette::InitFromWLDData(std::string_view tag, ParsedMaterialPalette* materialPalette)

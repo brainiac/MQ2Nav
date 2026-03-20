@@ -199,6 +199,8 @@ struct STextureSet
 	uint32_t                 currentFrame = 0;
 	std::vector<STexture>    textures;
 	bool                     skipFrames = false;
+
+	void Update(world_clock::time_point time);
 };
 
 enum EMaterialType
@@ -457,6 +459,8 @@ public:
 		return m_textureSet != nullptr && (m_textureSet->textures.size() > 1 || m_uvShift != glm::vec2(0.0f));
 	}
 
+	void Update(world_clock::time_point time, std::chrono::milliseconds elapsed);
+
 	std::shared_ptr<Material> Clone() const;
 
 	void InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_fx_params, Archive* archive, const char* string_pool);
@@ -469,6 +473,9 @@ public:
 	bool HasBumpMap() const { return m_hasBumpMap; }
 
 	uint32_t GetRenderMethod() const;
+
+	STextureSet* GetTextureSet() const { return m_textureSet.get(); }
+	STextureSet* GetTextureSetAlt() const { return m_textureSetAlt.get(); }
 
 private:
 	void SetWLDRenderMaterial(uint32_t renderMethod, EMaterialType materialType);
@@ -549,6 +556,8 @@ public:
 	}
 
 	uint32_t GetNumMaterials() const { return (uint32_t)m_materials.size(); }
+
+	void Update(world_clock::time_point time);
 
 	bool InitFromWLDData(std::string_view tag, ParsedMaterialPalette* materialPalette);
 	std::shared_ptr<MaterialPalette> Clone(bool deep = false) const;

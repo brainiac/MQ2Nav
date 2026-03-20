@@ -506,6 +506,16 @@ bool SimpleModel::SetRGBs(const std::span<uint32_t>& RGBs)
 	return true;
 }
 
+void SimpleModel::Update(world_clock::time_point time)
+{
+	if (m_materialPalette != nullptr)
+	{
+		m_materialPalette->Update(time);
+	}
+
+	// TODO: Mesh animation
+}
+
 //-------------------------------------------------------------------------------------------------
 
 BoneDefinition::BoneDefinition(const SDagWLDData& wldData)
@@ -620,6 +630,10 @@ Actor* Actor::GetTopLevelActor()
 	}
 
 	return topActor;
+}
+
+void Actor::Update(world_clock::time_point time)
+{
 }
 
 void Bone::SetAttachedActor(const ActorPtr& actor)
@@ -1598,6 +1612,14 @@ void HierarchicalModel::SetRGBs(const std::span<uint32_t>& RGBs)
 	}
 }
 
+void HierarchicalModel::Update(world_clock::time_point time)
+{
+	if (m_materialPalette != nullptr)
+	{
+		m_materialPalette->Update(time);
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 
 Actor::Actor(ResourceManager* resourceMgr)
@@ -1856,6 +1878,13 @@ bool SimpleActor::IsCollidable() const
 	return m_collisionModel && m_collisionModel->GetDefinition()->m_hasCollision;
 }
 
+void SimpleActor::Update(world_clock::time_point time)
+{
+	m_model->Update(time);
+
+	Actor::Update(time);
+}
+
 //-------------------------------------------------------------------------------------------------
 
 HierarchicalActor::HierarchicalActor(
@@ -2110,6 +2139,13 @@ void HierarchicalActor::SetupAttachmentBones()
 
 void HierarchicalActor::Detach()
 {
+}
+
+void HierarchicalActor::Update(world_clock::time_point time)
+{
+	m_model->Update(time);
+
+	Actor::Update(time);
 }
 
 //-------------------------------------------------------------------------------------------------

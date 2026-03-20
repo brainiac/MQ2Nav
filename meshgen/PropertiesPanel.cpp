@@ -44,6 +44,19 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 		{
 			ImGui::Text("No zone loaded");
 		}
+		else
+		{
+			float time_scale = eqg::world_clock::time_scale();
+			if (time_scale == 0)
+				time_scale = 1.0f;
+
+			ImGui::Text("Global Time Scale");
+			ImGui::SetNextItemWidth(-1.0f);
+			if (ImGui::SliderFloat("##Global Time Scale", &time_scale, 0.001f, 10.0f, "%.3f"))
+			{
+				eqg::world_clock::set_time_scale(time_scale);
+			}
+		}
 	}
 
 	ImGui::End();

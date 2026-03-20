@@ -126,7 +126,7 @@ public:
 
 	void AddArea(const TerrainAreaPtr& area) { m_areas.push_back(area); }
 
-private:
+	MaterialPalettePtr GetMaterialPalette() const { return m_materialPalette; }
 
 public:
 	std::vector<glm::vec3> m_vertices;
