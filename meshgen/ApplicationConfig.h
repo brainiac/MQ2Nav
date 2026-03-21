@@ -53,6 +53,9 @@ public:
 	bool GetUseMaxExtents() const { return m_useMaxExtents; }
 	void SetUseMaxExtents(bool use);
 
+	int GetTargetFPS() const { return m_targetFPS; }
+	void SetTargetFPS(int fps);
+
 	// loaded maps, keyed by their expansion group. Data is loaded from Zones.ini
 	using ZoneNamePair = std::pair<std::string /*shortName*/, std::string /*longName*/>;
 	using ZoneList = std::set<ZoneNamePair>;
@@ -84,6 +87,7 @@ private:
 
 	glm::ivec4 m_savedDimensions;
 	bool m_useMaxExtents = true;
+	int m_targetFPS = 60;
 
 	MapList m_loadedMaps;
 	std::map<std::string, std::string> m_mapNames;

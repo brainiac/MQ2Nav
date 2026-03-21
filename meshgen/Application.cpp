@@ -117,7 +117,7 @@ bool Application::Initialize(int32_t argc, const char* const* argv)
 
 bool Application::InitSystem()
 {
-	SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS | SDL_INIT_TIMER);
+	SDL_Init(SDL_INIT_EVENTS | SDL_INIT_TIMER);
 
 	if (!g_config.GetSavedWindowDimensions(m_windowRect))
 	{
@@ -269,6 +269,17 @@ bool Application::Update()
 	RenderImGui();
 
 	g_render->EndFrame();
+
+	// sleep for the remainder of the frame budget if we finished early.
+	int targetFPS = g_config.GetTargetFPS();
+	if (targetFPS > 0)
+	{
+		uint64_t targetFrameMs = 1000 / static_cast<uint64_t>(targetFPS);
+		uint64_t elapsed = SDL_GetTicks64() - m_lastTime;
+		if (elapsed < targetFrameMs)
+			SDL_Delay(static_cast<uint32_t>(targetFrameMs - elapsed));
+	}
+
 	return true;
 }
 

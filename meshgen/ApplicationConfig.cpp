@@ -397,6 +397,8 @@ void ApplicationConfig::Initialize()
 	}
 	
 	m_useMaxExtents = mq::GetPrivateProfileBool("General", "ZoneMaxExtents", m_useMaxExtents, fullPath);
+	m_targetFPS = mq::GetPrivateProfileInt("General", "TargetFPS", 60, fullPath);
+	m_targetFPS = std::clamp(m_targetFPS, 0, 240);
 
 	int x = mq::GetPrivateProfileInt("Window", "PosX", 0, m_settingsFile);
 	int y = mq::GetPrivateProfileInt("Window", "PosY", 0, m_settingsFile);
@@ -483,6 +485,13 @@ void ApplicationConfig::SetUseMaxExtents(bool use)
 	m_useMaxExtents = use;
 
 	mq::WritePrivateProfileBool("General", "ZoneMaxExtents", m_useMaxExtents, m_settingsFile);
+}
+
+void ApplicationConfig::SetTargetFPS(int fps)
+{
+	m_targetFPS = std::clamp(fps, 0, 240);
+
+	mq::WritePrivateProfileInt("General", "TargetFPS", m_targetFPS, m_settingsFile);
 }
 
 std::string ApplicationConfig::GetExpansionForZone(std::string_view zoneName) const

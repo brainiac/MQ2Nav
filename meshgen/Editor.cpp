@@ -816,6 +816,19 @@ void Editor::UI_DrawSettingsDialog()
 				"The zone will need to be reloaded to apply this change");
 			ImGui::EndTooltip();
 		}
+
+		ImGui::Separator();
+
+		int targetFPS = g_config.GetTargetFPS();
+		if (ImGui::SliderInt("Target FPS (0 = unlimited)", &targetFPS, 0, 240))
+			g_config.SetTargetFPS(targetFPS);
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::Text("Limit the editor to this many frames per second.\nSet to 0 to run uncapped.");
+			ImGui::EndTooltip();
+		}
+
 		ImGui::Separator();
 
 		if (ImGui::Button("Close", ImVec2(120, 0)))
