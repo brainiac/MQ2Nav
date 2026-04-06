@@ -76,10 +76,11 @@ void MaterialBrowserPanel::DrawMaterialList()
 
 	if (ImGui::BeginChild("MaterialList", ImVec2(0, listHeight), ImGuiChildFlags_Borders))
 	{
-		if (ImGui::BeginTable("##MaterialPalettes", 2, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
+		if (ImGui::BeginTable("##MaterialPalettes", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable))
 		{
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-			ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+			ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthFixed, 60.0f);
 			ImGui::TableSetupScrollFreeze(0, 1);
 			ImGui::TableHeadersRow();
 
@@ -104,6 +105,9 @@ void MaterialBrowserPanel::DrawMaterialList()
 					m_selectedMaterialIndex = -1;
 				}
 
+				// Type Column
+				ImGui::TableNextColumn();
+
 				// Count column
 				ImGui::TableNextColumn();
 				ImGui::Text("%u", palettePtr->GetNumMaterials());
@@ -117,18 +121,22 @@ void MaterialBrowserPanel::DrawMaterialList()
 						// Material Rows
 						ImGui::TableNextRow();
 
-						// Name column
-						ImGui::TableNextColumn();
-
 						bool matIsSelected = m_selectedMaterialPalette == palettePtr && m_selectedMaterialIndex == (int)index;
 						eqg::Material* material = palettePtr->GetMaterial(index);
 
+						// Name column
+						ImGui::TableNextColumn();
+	
 						if (ImGui::Selectable(material->GetTagStr().c_str(), matIsSelected,
 							ImGuiSelectableFlags_SpanAllColumns))
 						{
 							m_selectedMaterialPalette = palettePtr;
 							m_selectedMaterialIndex = (int)index;
 						}
+
+						// Type Column
+						ImGui::TableNextColumn();
+						ImGui::Text("%s", eqg::MaterialTypeToString(material->GetType()));
 
 						// Detail column
 						ImGui::TableNextColumn();
