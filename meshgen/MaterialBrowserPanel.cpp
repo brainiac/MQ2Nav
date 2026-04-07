@@ -293,6 +293,13 @@ void MaterialBrowserPanel::DrawMaterialProperties(eqg::Material* material)
 			ImGui::TableNextColumn();
 			ImGui::Text("0x%08x", material->GetRenderMethod());
 
+			// Alpha
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Alpha");
+			ImGui::TableNextColumn();
+			ImGui::Text("%d", material->m_alpha);
+
 			if (material->m_uvShift != glm::vec2(0.0f))
 			{
 				// UV Shift

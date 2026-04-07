@@ -87,10 +87,20 @@ bool MGTerrain::BuildGPUBuffers()
 		batch.startIndex = static_cast<uint32_t>(indices.size());
 		batch.indexCount = static_cast<uint32_t>(materialFaces.faces.size());
 		batch.material = materialFaces.material;
+		if (batch.material)
+		{
+			batch.isAlphaBlend = materialFaces.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatch
+				|| materialFaces.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatchAdditive;
+		}
+
 
 		indices.insert(indices.end(), materialFaces.faces.begin(), materialFaces.faces.end());
 		materialBatches.push_back(batch);
 	}
+
+	// draw alpha blended batches after everything else.
+	std::sort(materialBatches.begin(), materialBatches.end(),
+		[&](const auto& a, const auto& b) { return a.isAlphaBlend < b.isAlphaBlend; });
 
 	// Create bgfx buffers
 	m_vertexBuffer = bgfx::createVertexBuffer(

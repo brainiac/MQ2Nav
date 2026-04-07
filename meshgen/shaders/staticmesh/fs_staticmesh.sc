@@ -23,15 +23,24 @@ void main()
 		}
 
 		vec4 texColor = texture2D(s_texColor, v_texcoord0);
-		baseColor = texColor * v_color0;
+
+		if (u_textureFlags.w > 0 && texColor.a < u_textureFlags.w)
+		{
+			discard;
+		}
+
+		baseColor = vec4(texColor.xyz * v_color0.xyz, v_color0.w);
+
+
 	}
 	else if (u_textureFlags.y < 1.0)
 	{
 		discard;
 	}
-
-	if (u_textureFlags.w > 0 && baseColor.a < u_textureFlags.w)
+	else if (u_textureFlags.w > 0 && baseColor.a < u_textureFlags.w)
+	{
 		discard;
+	}
 	
 	gl_FragColor = baseColor;
 }

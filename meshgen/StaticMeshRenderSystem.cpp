@@ -342,11 +342,14 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 	bool showInvisible = m_renderManager->GetDrawInvisibleWalls();
 	bool isTransparent;
 	bool isChroma = false;
+	uint32_t renderMaterial = eqg::RenderMaterial_Opaque;
+
 	if (batch.material)
 	{
 		isTransparent = batch.material->IsTransparent();
+		renderMaterial = batch.material->m_renderMaterial;
 		// TODO: This needs a lot more work...
-		isChroma = batch.material->m_renderMaterial == eqg::RenderMaterial_Chroma;
+		isChroma = renderMaterial == eqg::RenderMaterial_Chroma;
 	}
 	else
 	{
@@ -362,8 +365,8 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 
 	// Set the vertex colors uniform value
 	glm::vec4 useVertexColors(
-		m_useVertexColors ? 1.0f : 0.0f,
-		0.0f,
+		m_useVertexColors ? 1.0f : 0.0f,  // 1.0 = modulate by vertex color, 0.0 = modulate by 1.0f
+		batch.material ? static_cast<float>(batch.material->m_alpha) / 255.0f : 1.0f, // use material alpha
 		0.0f,
 		0.0f
 	);
@@ -376,6 +379,17 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 
 	uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
 		BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+
+	if (renderMaterial == eqg::RenderMaterial_AlphaBatch)
+	{
+		state |= BGFX_STATE_BLEND_ALPHA;
+		state &= ~BGFX_STATE_WRITE_Z;
+	}
+	if (renderMaterial == eqg::RenderMaterial_AlphaBatchAdditive)
+	{
+		state |= BGFX_STATE_BLEND_ADD;
+		state &= ~BGFX_STATE_WRITE_Z;
+	}
 
 	if (isChroma)
 	{

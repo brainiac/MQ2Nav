@@ -24,13 +24,14 @@ namespace eqg
 	class SimpleModelDefinition;
 }
 
-
 // Material batch for rendering - groups faces by material for texture binding
 struct MaterialBatch
 {
 	eqg::Material* material = nullptr;  // Material for this batch
 	uint32_t startIndex = 0;            // Start index in index buffer
 	uint32_t indexCount = 0;            // Number of indices in this batch
+
+	bool isAlphaBlend = false;
 };
 
 // Vertex format for static mesh rendering

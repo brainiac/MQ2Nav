@@ -23,6 +23,6 @@ void main()
 	vec3 baseColor = mix(vec3_splat(1.0), a_color0.rgb, u_useVertexColors.x);
 
 	// Apply lighting to base color
-	v_color0 = vec4(baseColor * lighting, a_color0.a);
+	v_color0 = vec4(baseColor * lighting, u_useVertexColors.y);
 	v_texcoord0 = a_texcoord0;
 }
