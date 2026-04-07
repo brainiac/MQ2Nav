@@ -6,6 +6,7 @@
 #include "meshgen/MGTerrain.h"
 
 #include "eqglib/eqg_material.h"
+#include "mq/base/Color.h"
 
 #include "spdlog/spdlog.h"
 
@@ -41,8 +42,9 @@ bool MGTerrain::BuildGPUBuffers()
 		v.position = m_vertices[i];
 		v.normal = m_normals[i];
 		v.uv = m_uvs[i];
-		v.colorDiffuse = m_rgbColors[i];
 
+		// This needs to be updated with inputs from material and global ambient
+		v.colorDiffuse = mq::MQColor(m_rgbColors[i]).ToABGR();
 		vertices.push_back(v);
 	}
 

@@ -141,7 +141,7 @@ void PointLightRenderSystem::RebuildBuffers()
 		// Get light color from definition (frame 0)
 		glm::vec3 lightColor = lightComp.definition->GetColor(0);
 		float intensity = lightComp.definition->GetIntensity(0);
-		glm::vec4 color = glm::vec4(lightColor.zyx * intensity, 1.0f);
+		glm::vec4 color = glm::vec4(lightColor.xyz * intensity, 1.0f);
 
 		instances.emplace_back(transformComp.position, color, m_iconSize, lightComp.radius, m_cachedGlyphUV);
 	}
