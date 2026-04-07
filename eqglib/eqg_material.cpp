@@ -480,7 +480,7 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 	EMaterialType materialType = ParseEffectNameToMaterialType(m_effectName, archive->GetFileName());
 
 	m_textureSet = std::make_unique<STextureSet>();
-	m_textureSet->updateInterval = 0;
+	m_textureSet->updateInterval = std::chrono::milliseconds(0);
 	uint32_t renderMethod = 0x80000002;
 
 	SetTextureSlot(m_tag);
@@ -507,7 +507,7 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 					int num_frames = str_to_int(lines[0], 0);
 					max_frames = std::max(num_frames, max_frames);
 					if (lines.size() > 1)
-						m_textureSet->updateInterval = str_to_int(lines[1], 0);
+						m_textureSet->updateInterval = std::chrono::milliseconds(str_to_int(lines[1], 0));
 
 					// Save this off for later use.
 					extraTextureInfo.emplace_back(std::string(filename), std::move(lines));
@@ -1086,7 +1086,9 @@ bool Material::InitFromWLDData(
 		}
 		if (pSimpleSpriteDef->flags & WLD_OBJ_SPROPT_HAVESLEEP)
 		{
-			spriteDefReader.read(m_textureSet->updateInterval);
+			uint32_t interval = 0;
+			spriteDefReader.read(interval);
+			m_textureSet->updateInterval = std::chrono::milliseconds(interval);
 		}
 		if (pSimpleSpriteDef->flags & WLD_OBJ_SPROPT_SKIPFRAMES)
 		{
@@ -1648,11 +1650,13 @@ void STextureSet::Update(world_clock::time_point time)
 	if (skipFrames)
 	{
 		// Interpolate frames based on how much time has passed
-		uint32_t difference = std::chrono::milliseconds(time - nextUpdate).count();
-		uint32_t frameAdvance = (difference / updateInterval) + 1;
-		currentFrame = (currentFrame + frameAdvance) % textures.size();
-		uint32_t timeAdvance = frameAdvance * updateInterval;
-		nextUpdate = time + std::chrono::milliseconds(timeAdvance);
+		std::chrono::milliseconds elapsedTime = time - nextUpdate;
+		uint32_t missedFrames = static_cast<uint32_t>(elapsedTime.count() / updateInterval.count());
+
+		currentFrame = (currentFrame + missedFrames + 1) % textures.size();
+		std::chrono::milliseconds missedFrameTime = missedFrames * updateInterval;
+
+		nextUpdate = time + updateInterval - (elapsedTime - missedFrameTime);
 	}
 	else
 	{

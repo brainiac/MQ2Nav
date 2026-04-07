@@ -194,7 +194,7 @@ struct STexture
 
 struct STextureSet
 {
-	uint32_t                 updateInterval = 0;
+	std::chrono::milliseconds updateInterval{ 0 };
 	world_clock::time_point  nextUpdate = world_clock::now();
 	uint32_t                 currentFrame = 0;
 	std::vector<STexture>    textures;
