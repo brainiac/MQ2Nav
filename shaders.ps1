@@ -8,7 +8,7 @@ Set-Location -Path $shadersDirectory
 # Get a list of subdirectories in the current directory
 $subdirectories = Get-ChildItem -Path $shadersDirectory -Directory
 
-$VcPkgDir = "d:/source/mqnext/contrib/vcpkg/installed/x64-windows"
+$VcPkgDir = "$PSScriptRoot/../../contrib/vcpkg/installed/x64-windows"
 $BgfxShaderC = "$VcPkgDir/tools/bgfx/shaderc.exe"
 $BgfxIncludeDir = "$VcPkgDir/include/bgfx"
 $ExtraShaderArgs = "-i $BgfxIncludeDir --platform windows -p s_5_0 -O 3"

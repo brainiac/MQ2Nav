@@ -3,7 +3,11 @@ $output v_color0, v_texcoord0
 
 #include "../common.sh"
 
+// x: 1.0 = use vertex colors, 0.0 = white
+// y: material alpha
 uniform vec4 u_useVertexColors; // x component: 1.0 = use vertex colors, 0.0 = white
+
+uniform vec4 u_globalAmbient;
 
 void main()
 {
@@ -20,7 +24,7 @@ void main()
 	float lighting = ambient + (1.0 - ambient) * ndotl;
 
 	// Choose base color: vertex color or white based on uniform
-	vec3 baseColor = mix(vec3_splat(1.0), a_color0.rgb, u_useVertexColors.x);
+	vec3 baseColor = mix(vec3_splat(1.0), a_color0.rgb + u_globalAmbient.rgb, u_useVertexColors.x);
 
 	// Apply lighting to base color
 	v_color0 = vec4(baseColor * lighting, u_useVertexColors.y);

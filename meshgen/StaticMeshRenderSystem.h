@@ -131,6 +131,7 @@ private:
 	bgfx::UniformHandle m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_texColorSampler = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uniformTextureFlags = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uniformGlobalAmbient = BGFX_INVALID_HANDLE;
 	bgfx::TextureHandle m_whiteTexture = BGFX_INVALID_HANDLE;
 
 	struct RenderBatch

@@ -44,6 +44,7 @@ void StaticMeshRenderSystem::Init(ZoneRenderManager* renderManager)
 	m_uniformUseVertexColors = bgfx::createUniform("u_useVertexColors", bgfx::UniformType::Vec4);
 	m_texColorSampler = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
 	m_uniformTextureFlags = bgfx::createUniform("u_textureFlags", bgfx::UniformType::Vec4);
+	m_uniformGlobalAmbient = bgfx::createUniform("u_globalAmbient", bgfx::UniformType::Vec4);
 
 	// Create 1x1 white fallback texture
 	uint32_t whitePixel = 0xFFFFFFFF;
@@ -84,6 +85,13 @@ void StaticMeshRenderSystem::Shutdown()
 	{
 		bgfx::destroy(m_uniformTextureFlags);
 		m_uniformTextureFlags = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_uniformGlobalAmbient))
+	{
+		bgfx::destroy(m_uniformGlobalAmbient);
+		m_uniformGlobalAmbient = BGFX_INVALID_HANDLE;
+
 	}
 
 	if (bgfx::isValid(m_whiteTexture))
@@ -356,6 +364,9 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 		isTransparent = true;
 	}
 
+	// todo: make this configurable
+	glm::vec4 globalAmbient = { 0.5f, 0.5f, 0.5f, 1.0f };
+
 	glm::vec4 uTextureFlags(
 		hasTexture ? 1.0f : 0.0f,
 		showInvisible ? 1.0f : 0.0f,
@@ -371,6 +382,7 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 		0.0f
 	);
 
+	encoder->setUniform(m_uniformGlobalAmbient, glm::value_ptr(globalAmbient));
 	encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
 	encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
 
