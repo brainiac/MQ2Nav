@@ -177,7 +177,8 @@ void AreaVolumeRenderSystem::RebuildBuffers()
 	{
 		// Combine volumes in this color group
 		std::vector<glm::vec3> vertices;
-		std::vector<std::vector<uint16_t>> faces;
+		std::vector<std::array<uint16_t, 3>> faces;
+		std::vector<std::array<uint16_t, 2>> edges;
 		std::vector<uint32_t> debugFaceColors;  // Per-face colors for debug mode
 
 		for (entt::entity entity : group)
@@ -200,13 +201,19 @@ void AreaVolumeRenderSystem::RebuildBuffers()
 
 			for (const auto& face : volumeComp.faces)
 			{
-				std::vector<uint16_t> adjustedFace;
-				adjustedFace.reserve(face.size());
-				for (uint16_t idx : face)
-				{
-					adjustedFace.push_back(baseIndex + idx);
-				}
-				faces.push_back(std::move(adjustedFace));
+				std::array<uint16_t, 3> adjustedFace{};
+				adjustedFace[0] = face[0] + baseIndex;
+				adjustedFace[1] = face[1] + baseIndex;
+				adjustedFace[2] = face[2] + baseIndex;
+				faces.push_back(adjustedFace);
+			}
+
+			for (const auto& edge : volumeComp.outerEdges)
+			{
+				std::array<uint16_t, 2> adjustedEdge{};
+				adjustedEdge[0] =  edge[0] + baseIndex;
+				adjustedEdge[1] =  edge[1] + baseIndex;
+				edges.push_back(adjustedEdge);
 			}
 		}
 
@@ -251,14 +258,10 @@ void AreaVolumeRenderSystem::RebuildBuffers()
 					allVertices.push_back(v);
 				}
 
-				// Fan triangulate this face
-				for (uint16_t i = 1; i + 1 < static_cast<uint16_t>(face.size()); ++i)
-				{
-					// Front
-					allIndices.push_back(faceBaseVertex + 0);
-					allIndices.push_back(faceBaseVertex + i);
-					allIndices.push_back(faceBaseVertex + i + 1);
-				}
+				// Faces are triangulated
+				allIndices.push_back(faceBaseVertex + 0);
+				allIndices.push_back(faceBaseVertex + 1);
+				allIndices.push_back(faceBaseVertex + 2);
 			}
 		}
 		else
@@ -279,30 +282,27 @@ void AreaVolumeRenderSystem::RebuildBuffers()
 
 			for (const auto& face : faces)
 			{
-				for (size_t i = 0; i + 2 < face.size(); ++i)
-				{
-					// Front
-					allIndices.push_back(vertexOffset + face[0]);
-					allIndices.push_back(vertexOffset + face[i + 1]);
-					allIndices.push_back(vertexOffset + face[i + 2]);
-					// Back
-					//allIndices.push_back(vertexOffset + face[0]);
-					//allIndices.push_back(vertexOffset + face[i + 2]);
-					//allIndices.push_back(vertexOffset + face[i + 1]);
-				}
+				// Front
+				allIndices.push_back(vertexOffset + face[0]);
+				allIndices.push_back(vertexOffset + face[1]);
+				allIndices.push_back(vertexOffset + face[2]);
+				// Back
+				// allIndices.push_back(vertexOffset + face[0]);
+				// allIndices.push_back(vertexOffset + face[2]);
+				// allIndices.push_back(vertexOffset + face[1]);
+			}
 
-				for (size_t i = 0; i < face.size(); ++i)
-				{
-					uint16_t v0 = face[i];
-					uint16_t v1 = face[(i + 1) % face.size()];
-					if (v0 > v1)
-						std::swap(v0, v1);
+			for (const auto& edge : edges)
+			{
+				uint16_t a = edge[0];
+				uint16_t b = edge[1];
+				if (a > b)
+					std::swap(a, b);
 
-					const glm::vec3& vert0 = vertices[v0];
-					const glm::vec3& vert1 = vertices[v1];
+				const glm::vec3& vert0 = vertices[a];
+				const glm::vec3& vert1 = vertices[b];
 
-					allLineInstances.emplace_back(vert0, m_lineWidth, outlineCol, vert1, m_lineWidth, outlineCol);
-				}
+				allLineInstances.emplace_back(vert0, m_lineWidth, outlineCol, vert1, m_lineWidth, outlineCol);
 			}
 		}
 

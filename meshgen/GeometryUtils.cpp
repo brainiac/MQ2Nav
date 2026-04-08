@@ -7,20 +7,153 @@
 #include "meshgen/EQComponents.h"
 #include "eqglib/eqg_terrain.h"
 
+#include "CDT.h"
+#include "clipper2/clipper.h"
 #include "glm/gtx/norm.hpp"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
+#include <functional>
 #include <random>
 #include <ranges>
 #include <unordered_map>
 #include <unordered_set>
 
+
+constexpr float EPSILON = glm::epsilon<float>();
+
+// Orthonormal basis for projecting 3D points onto a plane
+struct PlaneBasis
+{
+	glm::vec3 origin;    // A point on the plane
+	glm::vec3 u;         // First basis vector (tangent)
+	glm::vec3 v;         // Second basis vector (bitangent)
+
+	// Create basis from a plane
+	static PlaneBasis fromPlane(const Plane& plane)
+	{
+		PlaneBasis basis;
+		// Compute origin: closest point to world origin on the plane
+		basis.origin = plane.distance * plane.normal;
+
+		// Compute orthonormal basis vectors on the plane
+		glm::vec3 up = glm::abs(plane.normal.y) < 0.9 ? glm::vec3(0, 1, 0) : glm::vec3(1, 0, 0);
+		basis.u = glm::normalize(glm::cross(plane.normal, up));
+		basis.v = glm::cross(plane.normal, basis.u);
+		return basis;
+	}
+
+	// Project 3D point to 2D coordinates in this basis
+	[[nodiscard]] glm::vec2 project(const glm::vec3& point) const
+	{
+		glm::vec3 relative = point - origin;
+		return {glm::dot(relative, u), glm::dot(relative, v)};
+	}
+
+	// Unproject 2D coordinates back to 3D point on the plane
+	[[nodiscard]] glm::vec3 unproject(const glm::vec2& point) const
+	{
+		return origin + point.x * u + point.y * v;
+	}
+};
+
+// BSP node for area-specific trees
+struct Node
+{
+	glm::vec3 normal;
+	float dist = 0.;
+	uint32_t region = 0;      // Non-zero for leaf nodes (1-based region index)
+	uint32_t front = 0;       // Front child index (0 = none, 1-based otherwise)
+	uint32_t back = 0;        // Back child index (0 = none, 1-based otherwise)
+
+	[[nodiscard]] Plane plane() const { return {normal, dist}; }
+};
+
+// Result structure for a single area's BSP tree
+struct AreaBSPTree
+{
+	eqg::AreaEnvironment::Type      type;
+	eqg::AreaEnvironment::Flags     flags;
+	uint32_t areaNum;
+	uint32_t rootNum;
+	std::unordered_map<uint32_t, Node> nodes;
+};
+
+struct Vertex
+{
+	glm::vec3 position;
+	int id = -1;
+
+	Vertex() = default;
+	explicit Vertex(const glm::vec3& position, int id)
+		: position(position), id(id) {}
+};
+
+struct Edge
+{
+	int start = -1;
+	int end = -1;
+
+	Edge() = default;
+	explicit Edge(int start, int end)
+		: start(start), end(end) {}
+};
+
+struct Face
+{
+	std::vector<int> vertexIds;
+	Plane plane;
+	int id = -1;
+
+	Face() = default;
+	explicit Face(const Plane& plane, int id)
+		: plane(plane), id(id) {}
+};
+
+struct BRep
+{
+
+	std::vector<Vertex> vertexes;
+	std::vector<Face> faces;
+	std::vector<Edge> outerEdges;
+
+    int addVertex(const glm::vec3& position)
+	{
+		const int id = static_cast<int>(vertexes.size());
+		vertexes.emplace_back(position, id);
+		return id;
+	}
+
+	int addFace(const Plane& plane)
+	{
+		const int id = static_cast<int>(faces.size());
+		faces.emplace_back(plane, id);
+		return id;
+	}
+};
+
+struct MergeFace
+{
+	std::vector<glm::vec3> vertexes;  // CCW order when viewed from normal direction
+	Plane plane;
+
+	MergeFace() = default;
+	MergeFace(std::vector<glm::vec3> verts, const Plane& p)
+		: vertexes(std::move(verts)), plane(p) {}
+};
+
+struct Segment
+{
+	glm::vec3 start;
+	glm::vec3 end;
+};
+
+
+#pragma region Polygon Clipping
+
 //============================================================================================================
 // Polygon Clipping for wld terrain regions (BSP Tree -> Convex Hull)
 //============================================================================================================
-
-#pragma region Polygon Clipping
 
 // This is pretty intensive stuff, keep it optimized, even in debug
 #pragma optimize("t", on)
@@ -235,6 +368,507 @@ std::vector<ConvexHullResult> BuildConvexHullsFromRegions(const eqg::Terrain& te
 //============================================================================================================
 //============================================================================================================
 
+#pragma region BSP Debugging Functions
+
+//============================================================================================================
+// Writes out BSP trees and OBJ files for debugging
+//============================================================================================================
+
+// Write a single node and recurse (pre-order: node, front, back)
+static void writeNode(std::ostream& out, const Node& node, const AreaBSPTree& tree)
+{
+	if (node.region != 0)
+	{
+		out << "IN " << tree.areaNum << "\n";
+		return;
+	}
+
+	// Internal node
+	out << "PLANE "
+		<< std::setprecision(9) << node.normal.x << " "
+		<< std::setprecision(9) << node.normal.y << " "
+		<< std::setprecision(9) << node.normal.z << " "
+		<< std::setprecision(9) << node.dist << " "
+		<< tree.areaNum << "\n";
+
+	if (node.front != 0 && tree.nodes.find(node.front) != tree.nodes.end())
+		writeNode(out, tree.nodes.at(node.front), tree);
+	else
+		out << "NULL\n";
+
+	if (node.back != 0 && tree.nodes.find(node.back) != tree.nodes.end())
+		writeNode(out, tree.nodes.at(node.back), tree);
+	else
+		out << "NULL\n";
+}
+
+bool saveBSP(const AreaBSPTree& tree, const std::string& filename)
+{
+	std::ofstream out(filename);
+	if (!out)
+		return false;
+
+	out << "# BSP tree file\n";
+	out << "BSP 1\n";
+
+	if (tree.nodes.find(tree.rootNum + 1) == tree.nodes.end())
+	{
+		out << "NULL\n";
+		return true;
+	}
+
+	writeNode(out, tree.nodes.at(tree.rootNum + 1), tree);
+	return out.good();
+}
+
+bool saveOBJ(const BRepResult& brep, const std::string& filename)
+{
+	std::ofstream out(filename);
+	if (!out)
+		return false;
+
+	out << std::fixed << std::setprecision(6);
+
+	out << "# BRep exported to OBJ\n"
+		<< "# Vertexes: " << brep.vertexes.size() << "\n"
+		<< "# Faces: " << brep.faces.size() << "\n\n";
+
+	for (const auto& v : brep.vertexes)
+		out << "v " << v.x << " " << v.y << " " << v.z << "\n";
+
+	out << "\n";
+
+	for (const auto& verts : brep.faces)
+	{
+			if (verts.size() >= 3)
+		{
+			out << "f";
+			for (const int v : verts)
+				out << " " << (v + 1); // OBJ uses 1-based indexing
+			out << "\n";
+		}
+	}
+
+	return out.good();
+}
+
+// Extracts BSP trees for individual areas from the full zone BSP tree.
+// Each area gets its own subtree containing only the nodes that can reach
+// regions belonging to that area.
+std::vector<AreaBSPTree> BuildAreaBSPTrees(const eqg::Terrain& terrain)
+{
+	std::vector<AreaBSPTree> areaTrees;
+
+	if (!terrain.m_wldBspTree || terrain.m_wldBspTree->nodes.empty())
+		return areaTrees;
+
+	const auto& fullTree = terrain.m_wldBspTree->nodes;
+	const auto& areas = terrain.m_wldAreas;
+
+	if (areas.empty())
+		return areaTrees;
+
+	std::set<uint32_t> unusedRegions;
+	for (uint32_t areaNum = 0; areaNum < areas.size(); ++areaNum)
+	{
+		if (areaNum < terrain.m_wldAreaIndices.size())
+			for (uint32_t regionNum : areas[areaNum].regionNumbers)
+				unusedRegions.insert(regionNum);
+	}
+
+	// For each area of contiguous environment type, extract a subtree
+	std::vector<AreaBSPTree> areaBSPTrees;
+	struct ExtractInfo
+	{
+		AreaBSPTree tree;
+		eqg::AreaEnvironment::Type envType = eqg::AreaEnvironment::Type_None;
+		eqg::AreaEnvironment::Flags envFlags = eqg::AreaEnvironment::Flags_None;
+
+		explicit operator bool() const
+		{
+			return envType != eqg::AreaEnvironment::Type_None || envFlags != eqg::AreaEnvironment::Flags_None;
+		}
+
+		bool operator!() const
+		{
+			return envType == eqg::AreaEnvironment::Type_None && envFlags == eqg::AreaEnvironment::Flags_None;
+		}
+	};
+
+	// Recursive function to determine if a subtree contains any regions
+	// belonging to this area, and if so, copy the relevant nodes.
+	std::function<ExtractInfo(uint32_t, ExtractInfo)> extractSubtree = [&](uint32_t nodeNum, ExtractInfo info) -> ExtractInfo
+	{
+		if (nodeNum > 0 && nodeNum <= fullTree.size())
+		{
+			const auto& [plane, region, front, back] = fullTree[nodeNum - 1];
+
+			// check if this is a leaf node (region != 0)
+			if (region != 0)
+			{
+				if (unusedRegions.contains(region - 1))
+				{
+					const eqg::AreaEnvironment& env = terrain.m_wldAreaEnvironments[region - 1];
+
+					// skip any region that has no environment info
+					if (env.type == eqg::AreaEnvironment::Type_None && env.flags == eqg::AreaEnvironment::Flags_None)
+					{
+						unusedRegions.erase(region - 1);
+						// return an empty struct so that we know this wasn't a valid branch
+						return {};
+					}
+
+					if (!info)
+					{
+						// not currently in an environment, create a new one and recurse up with the new env set
+						unusedRegions.erase(region - 1);
+						Node newNode {{}, 0., region, 0, 0 };
+						info.tree.nodes[nodeNum] = newNode;
+
+						// set the env in the return
+						info.tree.areaNum = terrain.m_wldAreaIndices[region - 1];
+						info.envType = env.type;
+						info.envFlags = env.flags;
+
+						return info;
+					}
+
+					if (info.envType == env.type && info.envFlags == env.flags)
+					{
+						// we have environment info that matches this region's info, so add this node
+						unusedRegions.erase(region - 1);
+						Node newNode { {}, 0., region, 0, 0 };
+						info.tree.nodes[nodeNum] = newNode;
+
+						return info;
+					}
+
+					// otherwise, this region doesn't match, so it needs to be saved for later
+				}
+
+				return {};
+			}
+
+			// need to check front first, then pass that result into back if it's non-empty
+			ExtractInfo frontResult = extractSubtree(front, info);
+			ExtractInfo backResult = extractSubtree(back, frontResult ? frontResult : info);
+
+			// if neither child has relevant regions, skip this node
+			if (!frontResult && !backResult)
+				return {};
+
+			// at least one child has relevant regions - copy this node
+			Node newNode { plane.normal, plane.dist, 0, 0, 0 };
+			if (frontResult) newNode.front = front;
+			if (backResult) newNode.back = back;
+
+			// if we have a back result, that means that either there was a front result
+			// and it was passed into it, or there wasn't and the front result was empty
+			if (backResult)
+			{
+				backResult.tree.nodes[nodeNum] = newNode;
+				return backResult;
+			}
+
+			// we must have a front result at this point, so it was the only one that
+			// returned anything
+			if (frontResult)
+			{
+				frontResult.tree.nodes[nodeNum] = newNode;
+				return frontResult;
+			}
+		}
+
+		return {};
+	};
+
+	while (!unusedRegions.empty())
+	{
+		if (ExtractInfo info = extractSubtree(1, {}))
+		{
+			if (!info.tree.nodes.empty())
+			{
+				SPDLOG_DEBUG("Built BSP for env {}:{} with {} nodes",
+					static_cast<int>(info.envType), static_cast<int>(info.envFlags), info.tree.nodes.size());
+				areaTrees.push_back(std::move(info.tree));
+			}
+			else
+				SPDLOG_WARN("Traversed BSP with no new areas");
+		}
+	}
+
+	SPDLOG_INFO("Built {} area BSP trees from zone BSP tree", areaTrees.size());
+	return areaTrees;
+}
+
+#pragma endregion
+
+//============================================================================================================
+//============================================================================================================
+
+#pragma region Polygon Simplification and Triangulation
+
+//============================================================================================================
+// Polygon Simplification for Convex Hulls -> Triangulated BRep
+//============================================================================================================
+
+Clipper2Lib::PathsD Triangulate(const Clipper2Lib::PathsD& paths)
+{
+	Clipper2Lib::PathsD faces;
+
+	if (!paths.empty())
+	{
+		CDT::Triangulation<float> cdt(
+			CDT::VertexInsertionOrder::Auto,
+			CDT::IntersectingConstraintEdges::TryResolve,
+			1);
+
+		// build edges because we need to account for holes and concavity
+		std::vector<CDT::V2d<float>> vertexes;
+		std::vector<CDT::Edge> edges;
+		for (const auto& path : paths)
+		{
+			vertexes.reserve(vertexes.size() + path.size());
+			for (const auto& point : path)
+				vertexes.emplace_back(static_cast<float>(point.x), static_cast<float>(point.y));
+
+			auto edgesOffset = static_cast<CDT::VertInd>(edges.size());
+			edges.reserve(edgesOffset + path.size());
+			for (CDT::VertInd i = 0; i < static_cast<CDT::VertInd>(path.size()); ++i)
+				edges.emplace_back(edgesOffset + i, edgesOffset + (i + 1) % static_cast<CDT::VertInd>(path.size()));
+		}
+
+		CDT::RemoveDuplicatesAndRemapEdges(vertexes, edges);
+		cdt.insertVertices(vertexes);
+		cdt.insertEdges(edges);
+
+		cdt.eraseOuterTrianglesAndHoles();
+
+		for (const auto& triangle : cdt.triangles)
+		{
+			std::vector<float> points;
+			points.reserve(triangle.vertices.size() * 2);
+			for (const auto& vertex : triangle.vertices)
+			{
+				points.emplace_back(cdt.vertices[vertex].x);
+				points.emplace_back(cdt.vertices[vertex].y);
+			}
+
+			faces.push_back(Clipper2Lib::MakePathD(points));
+		}
+	}
+
+	return faces;
+}
+
+Clipper2Lib::PathsD ExtractPaths(const std::vector<MergeFace>& faces, const PlaneBasis& basis)
+{
+	Clipper2Lib::PathsD paths;
+	paths.reserve(faces.size());
+	for (const auto& face : faces)
+	{
+		std::vector<float> points;
+		points.reserve(face.vertexes.size() * 2);
+		for (const auto& vertex : face.vertexes)
+		{
+			auto projected = basis.project(vertex);
+			points.emplace_back(projected.x);
+			points.emplace_back(projected.y);
+		}
+
+		paths.emplace_back(Clipper2Lib::MakePathD(points));
+	}
+
+	return paths;
+}
+
+int FindOrAddVertex(BRep& result, std::vector<glm::vec3>& vertexPositions, const glm::vec3& pos)
+{
+	constexpr float VERTEX_MERGE_TOL = 1e-2f;
+
+	for (size_t i = 0; i < vertexPositions.size(); ++i)
+		if (glm::length(vertexPositions[i] - pos) < VERTEX_MERGE_TOL)
+			return static_cast<int>(i);
+	vertexPositions.push_back(pos);
+	result.addVertex(pos);
+	return static_cast<int>(vertexPositions.size() - 1);
+}
+
+void AddFacesAndEdges(BRep& result, std::vector<glm::vec3>& vertexPositions, const Clipper2Lib::PathsD& paths, const Plane& plane, const PlaneBasis& basis)
+{
+	if (!paths.empty())
+	{
+		auto simplified = Clipper2Lib::SimplifyPaths(paths, 1);
+		auto triangulated = Triangulate(simplified);
+
+		for (const auto& path : triangulated)
+		{
+			if (!path.empty())
+			{
+				std::vector<int> vertexIds;
+				vertexIds.reserve(path.size());
+				for (const auto& point : path)
+					vertexIds.push_back(FindOrAddVertex(result, vertexPositions, basis.unproject({point.x, point.y})));
+
+				result.faces[result.addFace(plane)].vertexIds = std::move(vertexIds);
+			}
+		}
+
+		for (const auto& path : simplified)
+		{
+			if (!path.empty())
+			{
+				auto trimmedPath = Clipper2Lib::TrimCollinear(path, 1);
+				std::vector<int> vertexIds;
+				vertexIds.reserve(trimmedPath.size());
+				for (const auto& point : trimmedPath)
+					vertexIds.push_back(FindOrAddVertex(result, vertexPositions, basis.unproject({point.x, point.y})));
+
+				for (size_t i = 0; i < vertexIds.size(); ++i)
+					result.outerEdges.emplace_back(vertexIds[i], vertexIds[(i + 1) % vertexIds.size()]);
+			}
+		}
+	}
+}
+
+BRep ConvertFacesByPlane(const std::vector<MergeFace>& allFaces)
+{
+	BRep result;
+	std::vector<glm::vec3> vertexPositions;
+
+	// Group faces by coplanar plane (rounded normal + distance)
+	auto planeKey = [](const Plane& p) {
+		return std::make_tuple(
+			static_cast<int>(std::round(p.normal.x * 10)),
+			static_cast<int>(std::round(p.normal.y * 10)),
+			static_cast<int>(std::round(p.normal.z * 10)),
+			static_cast<int>(std::round(p.distance * 1)));
+	};
+
+	std::map<std::tuple<int, int, int, int>, std::vector<MergeFace>> groups;
+	for (auto& face : allFaces)
+		groups[planeKey(face.plane)].push_back(face);
+
+	for (const auto& [key, faces] : groups)
+	{
+		PlaneBasis basis = PlaneBasis::fromPlane(faces[0].plane);
+		auto [x, y, z, d] = key;
+		std::tuple<int, int, int, int> inverse = {-x, -y, -z, -d};
+		if (groups.contains(inverse) && !faces.empty() && !groups[inverse].empty())
+		{
+			// the orientation of the face does not appear to matter to the Clipper2 boolean operations
+			Clipper2Lib::PathsD inversePaths = ExtractPaths(groups[inverse], basis);
+			Clipper2Lib::PathsD paths = ExtractPaths(faces, basis);;
+
+			auto diffed = Clipper2Lib::Difference(paths, inversePaths, Clipper2Lib::FillRule::NonZero);
+			diffed = Clipper2Lib::Union(diffed, Clipper2Lib::FillRule::NonZero);
+
+			AddFacesAndEdges(result, vertexPositions, diffed, faces[0].plane, basis);
+		}
+		else if (!faces.empty())
+		{
+			Clipper2Lib::PathsD paths = ExtractPaths(faces, basis);
+			auto unioned = Clipper2Lib::Union(paths, Clipper2Lib::FillRule::NonZero);
+			AddFacesAndEdges(result, vertexPositions, unioned, faces[0].plane, basis);
+		}
+	}
+
+	return result;
+}
+
+#pragma endregion
+
+
+//============================================================================================================
+//============================================================================================================
+
+template <typename T> Plane ComputeFacePlane(const std::vector<glm::vec3>& vertices, const T& face);
+BRepResult Convert(const std::vector<ConvexHullResult>& hulls)
+{
+	BRepResult result;
+
+	std::vector<MergeFace> allCellFaces;
+	for (const auto& hull : hulls)
+	{
+		for (const auto& face : hull.faces)
+		{
+			auto plane = ComputeFacePlane(hull.vertices, face);
+			if (glm::abs(plane.normal.x) > EPSILON ||
+				glm::abs(plane.normal.y) > EPSILON ||
+				glm::abs(plane.normal.z) > EPSILON)
+			{
+				std::vector<glm::vec3> vertexes;
+				vertexes.reserve(face.size());
+				for (const auto& vertexIdx : face)
+					vertexes.push_back(hull.vertices[vertexIdx]);
+
+				allCellFaces.emplace_back(std::move(vertexes), plane);
+			}
+		}
+	}
+
+	try
+	{
+		BRep volume = ConvertFacesByPlane(allCellFaces);
+
+		// convert volume to result
+		std::transform(volume.vertexes.begin(), volume.vertexes.end(), std::back_inserter(result.vertexes),
+			[](const Vertex& vert) { return vert.position; });
+
+		for (const auto& face : volume.faces)
+			if (face.vertexIds.size() >= 3) // discard any vertexes above 3, triangulation failed? anything less isn't a face
+				result.faces.emplace_back(std::array{
+					static_cast<uint16_t>(face.vertexIds[0]),
+					static_cast<uint16_t>(face.vertexIds[1]),
+					static_cast<uint16_t>(face.vertexIds[2])});
+
+		for (const auto& edge : volume.outerEdges)
+			result.outerEdges.emplace_back(std::array{
+				static_cast<uint16_t>(edge.start),
+				static_cast<uint16_t>(edge.end),
+			});
+	}
+	catch (CDT::Error& e)
+	{
+		SPDLOG_ERROR("Error parsing area volume: {}", e.what());
+	}
+
+	return result;
+}
+
+std::vector<BRepResult> BuildBRepsFromConvexHulls(const std::vector<ConvexHullResult>& hulls, const eqg::Terrain& terrain)
+{
+	std::vector<BRepResult> results;
+	std::map<uint32_t, std::vector<ConvexHullResult>> hullsPerEnv;
+
+	// use a little trick here and select a single area for each individual env type
+	// this will make lookups later grab the correct env for coloring the area render
+	std::map<std::pair<eqg::AreaEnvironment::Type, eqg::AreaEnvironment::Flags>, uint32_t> areaTypes;
+
+	for (const auto& hull : hulls)
+	{
+		auto area = terrain.m_wldAreaIndices[hull.regionIndex];
+		auto env = terrain.m_wldAreaEnvironments[hull.regionIndex];
+
+		auto [it, inserted] = areaTypes.try_emplace({env.type, env.flags}, area);
+		hullsPerEnv[it->second].emplace_back(hull);
+	}
+
+	for (const auto& [area, convexHulls] : hullsPerEnv)
+	{
+		auto result = Convert(convexHulls);
+		result.areaIndex = static_cast<int>(area);
+
+		results.push_back(std::move(result));
+	}
+
+	SPDLOG_INFO("Built {} BReps from WLD BSP tree", results.size());
+	return results;
+}
+
+//============================================================================================================
+//============================================================================================================
+
 template <>
 struct std::hash<glm::vec3>
 {
@@ -250,7 +884,7 @@ struct std::hash<glm::vec3>
 
 Plane QuantizePlane(const Plane& p)
 {
-	return { QuantizeVec3(p.normal, 0.01f), QuantizeFloat(p.distance, 0.01f) };
+	return { QuantizeVec3(p.normal, 0.01f), QuantizeFloat(static_cast<float>(p.distance), 0.01f) };
 }
 
 // Create a Plane suitable for use as a key in an unordered map, both quantized and
@@ -282,7 +916,8 @@ struct PlaneHasher
 };
 
 // Compute plane from a polygon face using Newell's method
-Plane ComputeFacePlane(const std::vector<glm::vec3>& vertices, const std::vector<uint16_t>& face)
+template <typename T>
+Plane ComputeFacePlane(const std::vector<glm::vec3>& vertices, const T& face)
 {
 	Plane plane{ glm::vec3(0.0f), 0.0f };
 
@@ -310,7 +945,7 @@ Plane ComputeFacePlane(const std::vector<glm::vec3>& vertices, const std::vector
 	{
 		plane.normal = normal / len;
 		centroid /= static_cast<float>(face.size());
-		plane.distance = glm::dot(plane.normal, centroid);
+		plane.distance = glm::dot(VA::get_triple(plane.normal), centroid);
 	}
 
 	return plane;
@@ -334,7 +969,7 @@ uint32_t GetRandomColor(size_t hashVal)
 }
 
 std::vector<uint32_t> DebugColorFacesByPlane(const std::vector<glm::vec3>& vertices,
-	const std::vector<std::vector<uint16_t>>& faces)
+	const std::vector<std::array<uint16_t, 3>>& faces)
 {
 	std::vector<uint32_t> faceColors(faces.size(), 0xFFFFFFFF);  // Default white
 

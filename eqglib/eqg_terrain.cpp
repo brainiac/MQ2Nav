@@ -284,6 +284,7 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 
 		area.tag = wldArea.tag;
 		area.userData = wldArea.userData;
+		area.areaNum = areaNum;
 		area.regionNumbers.resize(wldArea.numRegions);
 		memcpy(area.regionNumbers.data(), wldArea.regions, sizeof(uint32_t) * wldArea.numRegions);
 
@@ -460,6 +461,7 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 	if (!m_wldAreas.empty())
 	{
 		m_wldAreaEnvironments.resize(m_numWLDRegions);
+		m_wldAreaEnvironmentsPerArea.resize(m_wldAreas.size());
 
 		for (const SArea& area : m_wldAreas)
 		{
@@ -510,6 +512,7 @@ bool Terrain::InitFromWLDData(const STerrainWLDData& wldData)
 				}
 			}
 
+			m_wldAreaEnvironmentsPerArea[area.areaNum] = env;
 			for (uint32_t regionNum : area.regionNumbers)
 			{
 				m_wldAreaEnvironments[regionNum] = env;

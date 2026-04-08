@@ -85,6 +85,7 @@ struct SArea
 {
 	std::string tag;
 	std::string userData;
+	uint32_t areaNum;
 	std::vector<uint32_t> regionNumbers;
 	std::vector<glm::vec3> centers;
 };
@@ -148,6 +149,7 @@ public:
 	std::vector<SArea>     m_wldAreas;
 	std::vector<uint32_t>  m_wldAreaIndices;
 	std::vector<AreaEnvironment> m_wldAreaEnvironments;
+	std::vector<AreaEnvironment> m_wldAreaEnvironmentsPerArea;
 	std::shared_ptr<SWorldTreeWLDData> m_wldBspTree;
 
 	// EQG areas
