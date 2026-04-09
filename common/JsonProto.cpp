@@ -265,10 +265,10 @@ static rapidjson::Value ParseMessage(const google::protobuf::Message* msg,
 	{
 		const google::protobuf::FieldDescriptor* field = descriptor->field(index);
 
-		if (!field->is_optional() || reflection->HasField(*msg, field))
+		if (field->is_required() || field->is_repeated() || reflection->HasField(*msg, field))
 		{
 			rapidjson::Value jsonField = FieldToJson(msg, field, allocator);
-			root.AddMember(rapidjson::Value{ field->name().c_str(),
+			root.AddMember(rapidjson::Value{ field->name().data(),
 				static_cast<rapidjson::SizeType>(field->name().size()) },
 				jsonField, allocator);
 		}
