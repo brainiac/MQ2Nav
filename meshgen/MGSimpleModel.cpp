@@ -97,7 +97,8 @@ bool MGSimpleModel::BuildGPUBuffers()
 			batch.material = palette->GetMaterial(matIndex);
 			if (batch.material)
 			{
-				//batch.isTransparent = batch.material->IsTransparent() /*|| batch.material->m_alpha < 255*/;
+				batch.isAlphaBlend = batch.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatch
+					|| batch.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatchAdditive;
 			}
 		}
 

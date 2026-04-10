@@ -477,6 +477,12 @@ public:
 	STextureSet* GetTextureSet() const { return m_textureSet.get(); }
 	STextureSet* GetTextureSetAlt() const { return m_textureSetAlt.get(); }
 
+	bool IsChroma() const;
+	bool IsAdditiveAlpha() const;
+	bool IsAlphaBlend() const;
+	bool IsChromaHigh() const;
+	bool IsDepthWrite() const;
+
 private:
 	void SetWLDRenderMaterial(uint32_t renderMethod, EMaterialType materialType);
 	void SetEQMRenderMaterial(uint32_t renderMethod, EMaterialType materialType);

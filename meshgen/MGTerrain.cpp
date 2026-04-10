@@ -91,8 +91,8 @@ bool MGTerrain::BuildGPUBuffers()
 		batch.material = materialFaces.material;
 		if (batch.material)
 		{
-			batch.isAlphaBlend = materialFaces.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatch
-				|| materialFaces.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatchAdditive;
+			batch.isAlphaBlend = materialFaces.material->IsAlphaBlend()
+				|| materialFaces.material->IsAdditiveAlpha();
 		}
 
 		indices.insert(indices.end(), materialFaces.faces.begin(), materialFaces.faces.end());

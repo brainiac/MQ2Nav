@@ -348,20 +348,21 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 	encoder->setTexture(0, m_texColorSampler, hasTexture ? texHandle : m_whiteTexture);
 
 	bool showInvisible = m_renderManager->GetDrawInvisibleWalls();
-	bool isTransparent;
+	bool isTransparent = true;
 	bool isChroma = false;
-	uint32_t renderMaterial = eqg::RenderMaterial_Opaque;
+	bool isAlpha = false;
+	bool isAlphaAdditive = false;
+	bool isDepthWrite = true;
+	bool isChromaHigh = false;
 
 	if (batch.material)
 	{
 		isTransparent = batch.material->IsTransparent();
-		renderMaterial = batch.material->m_renderMaterial;
-		// TODO: This needs a lot more work...
-		isChroma = renderMaterial == eqg::RenderMaterial_Chroma;
-	}
-	else
-	{
-		isTransparent = true;
+		isChroma = batch.material->IsChroma();
+		isAlpha = batch.material->IsAlphaBlend();
+		isAlphaAdditive = batch.material->IsAdditiveAlpha();
+		isDepthWrite = batch.material->IsDepthWrite();
+		isChromaHigh = batch.material->IsChromaHigh();
 	}
 
 	// todo: make this configurable
@@ -371,7 +372,7 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 		hasTexture ? 1.0f : 0.0f,
 		showInvisible ? 1.0f : 0.0f,
 		isTransparent ? 1.0f : 0.0f,
-		isChroma ? 0.75294117f : 0.0f
+		isChromaHigh ? 0.75294117f : isChroma ? 0.0627450980392157 : 0.0f
 	);
 
 	// Set the vertex colors uniform value
@@ -386,26 +387,35 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 	encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
 	encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
 
-	encoder->setVertexBuffer(0, vertexBuffer);
-	encoder->setIndexBuffer(indexBuffer, batch.startIndex, batch.indexCount);
+	if (bgfx::isValid(vertexBuffer))
+		encoder->setVertexBuffer(0, vertexBuffer);
+	if (bgfx::isValid(indexBuffer))
+		encoder->setIndexBuffer(indexBuffer, batch.startIndex, batch.indexCount);
 
 	uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
-		BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
+		BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
 
-	if (renderMaterial == eqg::RenderMaterial_AlphaBatch)
+	if (isAlpha)
 	{
 		state |= BGFX_STATE_BLEND_ALPHA;
-		state &= ~BGFX_STATE_WRITE_Z;
 	}
-	if (renderMaterial == eqg::RenderMaterial_AlphaBatchAdditive)
+
+	if (isAlphaAdditive)
 	{
 		state |= BGFX_STATE_BLEND_ADD;
-		state &= ~BGFX_STATE_WRITE_Z;
+	}
+
+	if (isDepthWrite)
+	{
+		state |= BGFX_STATE_WRITE_Z;
 	}
 
 	if (isChroma)
 	{
-		state |= BGFX_STATE_ALPHA_REF(0xc0);
+		if (isChromaHigh)
+			state |= BGFX_STATE_ALPHA_REF(0xc0);
+		else
+			state |= BGFX_STATE_ALPHA_REF(0x10);
 	}
 
 	encoder->setState(state);

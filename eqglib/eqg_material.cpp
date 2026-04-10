@@ -1744,6 +1744,116 @@ std::shared_ptr<Material> Material::Clone() const
 	return copy;
 }
 
+
+bool Material::IsChromaHigh() const
+{
+	switch (m_renderMaterial)
+	{
+	case RenderMaterial_Chroma:
+	case RenderMaterial_ChromaC1:
+	case RenderMaterial_ChromaCG1:
+	case RenderMaterial_ChromaCE1:
+	case RenderMaterial_ChromaCB1:
+	case RenderMaterial_ChromaCBS1:
+	case RenderMaterial_ChromaCBSG1:
+	case RenderMaterial_ChromaCBSGE1:
+	case RenderMaterial_ChromaBasic:
+	case RenderMaterial_ChromaBump:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+bool Material::IsChroma() const
+{
+	return IsChromaHigh() || IsAlphaBlend() || IsAdditiveAlpha();
+}
+
+bool Material::IsAlphaBlend() const
+{
+	switch (m_renderMaterial)
+	{
+	case RenderMaterial_AlphaSingleDetail:
+	case RenderMaterial_AlphaPaletteDetail:
+	case RenderMaterial_AlphaBatch:
+
+	case RenderMaterial_AlphaC1:
+	case RenderMaterial_AlphaCG1:
+	case RenderMaterial_AlphaCE1:
+	case RenderMaterial_AlphaCB1:
+	case RenderMaterial_AlphaCBS1:
+	case RenderMaterial_AlphaCBSG1:
+	case RenderMaterial_AlphaCBSGE1:
+	case RenderMaterial_AlphaBasic:
+	case RenderMaterial_AlphaBump:
+	case RenderMaterial_AlphaWater:
+	case RenderMaterial_AlphaWaterFall:
+	case RenderMaterial_AlphaLavaH:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+bool Material::IsAdditiveAlpha() const
+{
+	switch (m_renderMaterial)
+	{
+	case RenderMaterial_AddAlphaC1:
+	case RenderMaterial_AddAlphaCG1:
+	case RenderMaterial_AddAlphaCE1:
+	case RenderMaterial_AddAlphaCB1:
+	case RenderMaterial_AddAlphaCBS1:
+	case RenderMaterial_AddAlphaCBSG1:
+	case RenderMaterial_AddAlphaCBSGE1:
+
+	case RenderMaterial_AlphaWaterFall:
+	case RenderMaterial_AlphaBatchAdditive:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+bool Material::IsDepthWrite() const
+{
+	switch (m_renderMaterial)
+	{
+	case RenderMaterial_AlphaSingleDetail:
+	case RenderMaterial_AlphaPaletteDetail:
+	case RenderMaterial_AlphaBatchAdditive:
+	case RenderMaterial_AlphaBatch:
+
+	case RenderMaterial_AlphaC1:
+	case RenderMaterial_AlphaCG1:
+	case RenderMaterial_AlphaCE1:
+	case RenderMaterial_AlphaCB1:
+	case RenderMaterial_AlphaCBS1:
+	case RenderMaterial_AlphaCBSG1:
+	case RenderMaterial_AlphaCBSGE1:
+	case RenderMaterial_AlphaBasic:
+	case RenderMaterial_AlphaBump:
+	case RenderMaterial_AlphaWater:
+	case RenderMaterial_AlphaWaterFall:
+	case RenderMaterial_AlphaLavaH:
+	case RenderMaterial_AddAlphaC1:
+	case RenderMaterial_AddAlphaCG1:
+	case RenderMaterial_AddAlphaCE1:
+	case RenderMaterial_AddAlphaCB1:
+	case RenderMaterial_AddAlphaCBS1:
+	case RenderMaterial_AddAlphaCBSG1:
+	case RenderMaterial_AddAlphaCBSGE1:
+		return false;
+		
+	default:
+		return true;
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 
 MaterialPalette::MaterialPalette()
@@ -1814,6 +1924,5 @@ std::shared_ptr<MaterialPalette> MaterialPalette::Clone(bool deep) const
 	}
 	return copy;
 }
-
 
 } // namespace eqg
