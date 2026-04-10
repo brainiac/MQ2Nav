@@ -6,6 +6,7 @@
 #include "MGSimpleModel.h"
 
 #include "eqglib/eqg_material.h"
+#include "mq/base/Color.h"
 
 #include "spdlog/spdlog.h"
 
@@ -25,6 +26,8 @@ bool MGSimpleModel::BuildGPUBuffers()
 	if (m_gpuBuffersBuilt)
 		return true;
 
+	m_gpuBuffersBuilt = true;
+
 	if (!m_definition)
 	{
 		SPDLOG_WARN("MGSimpleModel::BuildGPUBuffers: No definition set");
@@ -35,7 +38,7 @@ bool MGSimpleModel::BuildGPUBuffers()
 
 	if (def->m_vertices.empty() || def->m_faces.empty())
 	{
-		SPDLOG_DEBUG("MGSimpleModel::BuildGPUBuffers: Empty geometry for '{}'", def->m_tag);
+		//SPDLOG_DEBUG("MGSimpleModel::BuildGPUBuffers: Empty geometry for '{}'", def->m_tag);
 		return false;
 	}
 
@@ -57,7 +60,7 @@ bool MGSimpleModel::BuildGPUBuffers()
 		// Convert color to ABGR format
 		if (hasColors)
 		{
-			v.colorDiffuse = def->m_colors[i];
+			v.colorDiffuse = mq::MQColor(def->m_colors[i]).ToABGR();
 		}
 		else
 		{
@@ -120,7 +123,7 @@ bool MGSimpleModel::BuildGPUBuffers()
 	m_indexCount = static_cast<uint32_t>(indices.size());
 	m_gpuBuffersBuilt = true;
 
-	SPDLOG_DEBUG("MGSimpleModel::BuildGPUBuffers: Built buffers for '{}' ({} verts, {} indices, {} batches)",
+	SPDLOG_TRACE("MGSimpleModel::BuildGPUBuffers: Built buffers for '{}' ({} verts, {} indices, {} batches)",
 		def->m_tag, vertices.size(), indices.size(), m_materialBatches.size());
 
 	return true;

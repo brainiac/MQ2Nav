@@ -26,9 +26,11 @@ bool MGTerrain::BuildGPUBuffers()
 	if (m_gpuBuffersBuilt)
 		return true;
 
+	m_gpuBuffersBuilt = true;
+
 	if (m_vertices.empty() || m_faces.empty())
 	{
-		SPDLOG_DEBUG("MGTerrain::BuildGPUBuffers: Empty geometry");
+		//SPDLOG_DEBUG("MGTerrain::BuildGPUBuffers: Empty geometry");
 		return false;
 	}
 
@@ -92,7 +94,6 @@ bool MGTerrain::BuildGPUBuffers()
 			batch.isAlphaBlend = materialFaces.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatch
 				|| materialFaces.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatchAdditive;
 		}
-
 
 		indices.insert(indices.end(), materialFaces.faces.begin(), materialFaces.faces.end());
 		materialBatches.push_back(batch);
