@@ -467,6 +467,7 @@ struct TextureExtraInfo
 {
 	std::string fileName;
 	std::vector<std::string> lines;
+	int numFrames = 0;
 };
 
 void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_fx_params, Archive* archive, const char* string_pool)
@@ -510,7 +511,7 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 						m_textureSet->updateInterval = std::chrono::milliseconds(str_to_int(lines[1], 0));
 
 					// Save this off for later use.
-					extraTextureInfo.emplace_back(std::string(filename), std::move(lines));
+					extraTextureInfo.emplace_back(std::string(filename), std::move(lines), num_frames);
 				}
 			}
 		}
@@ -670,7 +671,7 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 					if (currentBitmap == 0)
 					{
 						m_textureSet->textures[index].flags = 0;
-						m_textureSet->textures[index].filename = eqm_material->effect_name_index;
+						m_textureSet->textures[index].filename = string_pool + eqm_material->effect_name_index;
 					}
 
 					if (bitmap)
@@ -689,10 +690,10 @@ void Material::InitFromEQMData(SEQMMaterial* eqm_material, SEQMFXParameter* eqm_
 					{
 						if (extraInfo.fileName == filename)
 						{
-							for (size_t line = 3; line < extraInfo.lines.size(); ++line)
+							for (size_t line = 3; line < extraInfo.numFrames; ++line)
 							{
 								int frame = static_cast<int>(line) - 2;
-								std::string_view bitmapName = extraInfo.lines[frame];
+								std::string_view bitmapName = extraInfo.lines[line];
 
 								m_textureSet->textures[frame].textures[currentBitmap] = resourceMgr->CreateBitmap(trim(bitmapName), archive, false);
 							}
