@@ -882,7 +882,8 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 		lightDef->Init(lightTag, 1, nullptr, &light->color, 0, 1, false);
 
 		std::shared_ptr<PointLight> pLight = m_resourceMgr->CreatePointLight(
-			string_pool + light->name, lightDef, light->pos.yxz, light->radius);
+			string_pool + light->name, lightDef,
+			glm::vec3(light->pos.y, -light->pos.x, light->pos.z), light->radius);
 		m_resourceMgr->AddLight(std::move(pLight));
 	}
 
