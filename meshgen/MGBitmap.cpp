@@ -63,7 +63,8 @@ bool MGBitmap::LoadTexture()
 		ImageReleaseCallback,
 		imageContainer);
 
-	uint64_t flags = BGFX_TEXTURE_NONE | BGFX_SAMPLER_NONE;
+	uint64_t flags = BGFX_TEXTURE_NONE | BGFX_SAMPLER_NONE | BGFX_SAMPLER_MAG_ANISOTROPIC
+		| BGFX_SAMPLER_MIN_ANISOTROPIC;
 
 	if (imageContainer->m_cubeMap)
 	{
