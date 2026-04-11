@@ -206,6 +206,9 @@
     <ClCompile Include="MGSimpleModel.cpp">
       <Filter>Source Files\engine</Filter>
     </ClCompile>
+    <ClCompile Include="MGHierarchicalModel.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
     <ClCompile Include="MGTerrainTile.cpp">
       <Filter>Source Files\engine</Filter>
     </ClCompile>
@@ -219,6 +222,12 @@
       <Filter>Source Files\engine</Filter>
     </ClCompile>
     <ClCompile Include="StaticMeshRenderSystem.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="SkeletalMeshRenderSystem.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="MaterialBatchRenderer.cpp">
       <Filter>Source Files\engine</Filter>
     </ClCompile>
     <ClCompile Include="MaterialBrowserPanel.cpp">
@@ -403,6 +412,9 @@
     <ClInclude Include="MGSimpleModel.h">
       <Filter>Header Files\engine</Filter>
     </ClInclude>
+    <ClInclude Include="MGHierarchicalModel.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
     <ClInclude Include="MGTerrain.h">
       <Filter>Header Files\engine</Filter>
     </ClInclude>
@@ -422,6 +434,12 @@
       <Filter>Header Files\engine</Filter>
     </ClInclude>
     <ClInclude Include="StaticMeshRenderSystem.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="SkeletalMeshRenderSystem.h">
+      <Filter>Header Files\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="MaterialBatchRenderer.h">
       <Filter>Header Files\engine</Filter>
     </ClInclude>
   </ItemGroup>

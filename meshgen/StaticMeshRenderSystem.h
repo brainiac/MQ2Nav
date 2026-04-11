@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "meshgen/MaterialBatchRenderer.h"
+
 #include "bgfx/bgfx.h"
 #include "entt/entity/registry.hpp"
 #include "glm/glm.hpp"
@@ -105,19 +107,11 @@ public:
 	void SetRegistry(entt::registry* registry);
 	void SetDirty() { m_dirty = true; }
 
-	bool GetUseVertexColors() const { return m_useVertexColors; }
-	void SetUseVertexColors(bool use) { m_useVertexColors = use; }
-
-	bool GetUseVertexTints() const { return m_useVertexTints; }
-	void SetUseVertexTints(bool use) { m_useVertexTints = use; }
-
 	void Update();
 	void Render();
 
 private:
 	void RebuildRenderData();
-	void RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch,
-		bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer);
 
 	void OnStaticMeshConstruct(entt::registry& registry, entt::entity entity);
 	void OnStaticMeshDestroy(entt::registry& registry, entt::entity entity);
@@ -131,16 +125,9 @@ private:
 private:
 	entt::registry* m_registry = nullptr;
 	ZoneRenderManager* m_renderManager = nullptr;
-	bool m_useVertexColors = true;
-	bool m_useVertexTints = true;
 	bool m_dirty = true;
 
-	bgfx::ProgramHandle m_program = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_texColorSampler = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_uniformTextureFlags = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_uniformGlobalAmbient = BGFX_INVALID_HANDLE;
-	bgfx::TextureHandle m_whiteTexture = BGFX_INVALID_HANDLE;
+	MaterialBatchRenderer m_batchRenderer;
 
 	struct RenderBatch
 	{

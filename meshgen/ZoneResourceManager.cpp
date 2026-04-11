@@ -7,6 +7,7 @@
 #include "meshgen/EQComponents.h"
 #include "meshgen/GeometryUtils.h"
 #include "meshgen/MGBitmap.h"
+#include "meshgen/MGHierarchicalModel.h"
 #include "meshgen/MGSimpleModel.h"
 #include "meshgen/MGTerrain.h"
 #include "meshgen/MGTerrainTile.h"
@@ -62,6 +63,12 @@ public:
 	virtual eqg::TerrainPtr CreateTerrain() const override
 	{
 		return std::make_shared<MGTerrain>();
+	}
+
+	// Create our custom HierarchicalModel type that supports bgfx buffers
+	virtual std::shared_ptr<eqg::HierarchicalModel> CreateHierarchicalModel() const override
+	{
+		return std::make_shared<MGHierarchicalModel>();
 	}
 
 private:
@@ -1083,6 +1090,12 @@ void ZoneResourceManager::AddActor(const eqg::ActorPtr& actor)
 		MGSimpleModel* mgModel = static_cast<MGSimpleModel*>(simpleModel.get());
 		
 		entity.emplace<StaticMeshRenderComponent>(mgModel);
+	}
+	else if (eqg::HierarchicalModelPtr hierModel = actor->GetHierarchicalModel())
+	{
+		MGHierarchicalModel* mgModel = static_cast<MGHierarchicalModel*>(hierModel.get());
+
+		entity.emplace<SkeletalMeshRenderComponent>(mgModel);
 	}
 
 	// some objects have a really wild position, just disable them.

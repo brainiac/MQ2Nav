@@ -15,6 +15,7 @@
 #include <vector>
 
 class MGSimpleModel;
+class MGHierarchicalModel;
 class MGTerrain;
 class MGTerrainTile;
 
@@ -86,6 +87,12 @@ struct AreaVolumeRenderComponent
 struct StaticMeshRenderComponent
 {
 	MGSimpleModel* model = nullptr;
+};
+
+// Component for entities with renderable skeletal mesh geometry (HierarchicalModel)
+struct SkeletalMeshRenderComponent
+{
+	MGHierarchicalModel* model = nullptr;
 };
 
 // Component for terrain geometry rendering (WLD zones)

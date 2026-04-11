@@ -316,6 +316,7 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 	m_invisibleWallSystem.Init(this);
 	m_pointLightSystem.Init(this);
 	m_staticMeshSystem.Init(this);
+	m_skeletalMeshSystem.Init(this);
 
 	// TEMP
 	g_zoneRenderManager = this;
@@ -326,6 +327,7 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 
 ZoneRenderManager::~ZoneRenderManager()
 {
+	m_skeletalMeshSystem.Shutdown();
 	m_staticMeshSystem.Shutdown();
 	m_pointLightSystem.Shutdown();
 	m_invisibleWallSystem.Shutdown();
@@ -357,6 +359,7 @@ void ZoneRenderManager::SetRegistry(entt::registry* registry)
 	m_invisibleWallSystem.SetRegistry(registry);
 	m_pointLightSystem.SetRegistry(registry);
 	m_staticMeshSystem.SetRegistry(registry);
+	m_skeletalMeshSystem.SetRegistry(registry);
 }
 
 void ZoneRenderManager::DestroyObjects()
@@ -534,6 +537,10 @@ void ZoneRenderManager::Render()
 			// Render static meshes
 			m_staticMeshSystem.Update();
 			m_staticMeshSystem.Render();
+
+			// Render skeletal meshes
+			m_skeletalMeshSystem.Update();
+			m_skeletalMeshSystem.Render();
 
 			// Update and render invisible walls
 			m_invisibleWallSystem.Update();

@@ -26,9 +26,12 @@
     <ClCompile Include="MaterialBrowserPanel.cpp" />
     <ClCompile Include="PointLightRenderSystem.cpp" />
     <ClCompile Include="MGSimpleModel.cpp" />
+    <ClCompile Include="MGHierarchicalModel.cpp" />
     <ClCompile Include="MGTerrain.cpp" />
     <ClCompile Include="MGTerrainTile.cpp" />
+    <ClCompile Include="MaterialBatchRenderer.cpp" />
     <ClCompile Include="StaticMeshRenderSystem.cpp" />
+    <ClCompile Include="SkeletalMeshRenderSystem.cpp" />
     <ClCompile Include="ViewPanel.cpp" />
     <ClCompile Include="Editor.cpp" />
     <ClCompile Include="Entity.cpp" />
@@ -87,9 +90,12 @@
     <ClInclude Include="MaterialBrowserPanel.h" />
     <ClInclude Include="PointLightRenderSystem.h" />
     <ClInclude Include="MGSimpleModel.h" />
+    <ClInclude Include="MGHierarchicalModel.h" />
     <ClInclude Include="MGTerrain.h" />
     <ClInclude Include="MGTerrainTile.h" />
+    <ClInclude Include="MaterialBatchRenderer.h" />
     <ClInclude Include="StaticMeshRenderSystem.h" />
+    <ClInclude Include="SkeletalMeshRenderSystem.h" />
     <ClInclude Include="ViewPanel.h" />
     <ClInclude Include="Editor.h" />
     <ClInclude Include="Entity.h" />

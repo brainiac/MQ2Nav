@@ -3,6 +3,7 @@
 #include "meshgen/AreaVolumeRenderSystem.h"
 #include "meshgen/InvisibleWallRenderSystem.h"
 #include "meshgen/PointLightRenderSystem.h"
+#include "meshgen/SkeletalMeshRenderSystem.h"
 #include "meshgen/StaticMeshRenderSystem.h"
 
 #include <bgfx/bgfx.h>
@@ -216,11 +217,11 @@ public:
 	bool GetDrawPointLights() const { return m_pointLightSystem.GetVisible(); }
 	void SetDrawPointLights(bool draw) { m_pointLightSystem.SetVisible(draw); }
 
-	bool GetUseVertexColors() const { return m_staticMeshSystem.GetUseVertexColors(); }
-	void SetUseVertexColors(bool use) { m_staticMeshSystem.SetUseVertexColors(use); }
+	bool GetUseVertexColors() const { return m_useVertexColors; }
+	void SetUseVertexColors(bool use) { m_useVertexColors = use; }
 
-	bool GetUseVertexTints() const { return m_staticMeshSystem.GetUseVertexTints(); }
-	void SetUseVertexTints(bool use) { m_staticMeshSystem.SetUseVertexTints(use); }
+	bool GetUseVertexTints() const { return m_useVertexTints; }
+	void SetUseVertexTints(bool use) { m_useVertexTints = use; }
 
 private:
 	void DrawCollisionMesh();
@@ -235,6 +236,8 @@ private:
 
 	bool m_drawCollisionMesh = false;
 	bool m_drawGrid = true;
+	bool m_useVertexColors = true;
+	bool m_useVertexTints = false;
 
 	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
 	ZoneNavMeshRender* m_navMeshRender = nullptr;
@@ -242,6 +245,7 @@ private:
 	InvisibleWallRenderSystem m_invisibleWallSystem;
 	PointLightRenderSystem m_pointLightSystem;
 	StaticMeshRenderSystem m_staticMeshSystem;
+	SkeletalMeshRenderSystem m_skeletalMeshSystem;
 	GeometryRenderMode m_geometryRenderMode = GeometryRenderMode::Models;
 	float m_pointSize = 0.5f;
 
