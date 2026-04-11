@@ -32,6 +32,7 @@ struct MaterialBatch
 	uint32_t indexCount = 0;            // Number of indices in this batch
 
 	bool isAlphaBlend = false;
+	bool isTint = false;
 };
 
 // Vertex format for static mesh rendering
@@ -42,15 +43,17 @@ struct StaticMeshVertex
 	glm::vec3 normal;
 	glm::vec2 uv;
 	uint32_t  colorDiffuse;  // ABGR
+	uint32_t  colorTint;
 
 	static void Init()
 	{
 		ms_layout
 			.begin()
-			.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::Normal, 3, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Normal, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+				.add(bgfx::Attrib::Color1, 4, bgfx::AttribType::Uint8, true)
 			.end();
 	}
 
@@ -105,6 +108,9 @@ public:
 	bool GetUseVertexColors() const { return m_useVertexColors; }
 	void SetUseVertexColors(bool use) { m_useVertexColors = use; }
 
+	bool GetUseVertexTints() const { return m_useVertexTints; }
+	void SetUseVertexTints(bool use) { m_useVertexTints = use; }
+
 	void Update();
 	void Render();
 
@@ -126,6 +132,8 @@ private:
 	entt::registry* m_registry = nullptr;
 	ZoneRenderManager* m_renderManager = nullptr;
 	bool m_useVertexColors = true;
+	bool m_useVertexTints = true;
+	bool m_dirty = true;
 
 	bgfx::ProgramHandle m_program = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
@@ -146,8 +154,6 @@ private:
 	MGTerrain* m_terrain = nullptr;
 
 	std::vector<MGTerrainTile*> m_terrainTiles;
-
-	bool m_dirty = true;
 
 	entt::connection m_staticMeshConstructConnection;
 	entt::connection m_staticMeshDestroyConnection;

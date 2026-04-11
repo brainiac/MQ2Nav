@@ -405,8 +405,8 @@ void MaterialBrowserPanel::DrawMaterialEffectParameters(eqg::Material* material)
 	if (material->m_effectParams.empty())
 		return;
 
-	char label[32];
-	sprintf_s(label, "Effect Parameters (%zu)", material->m_effectParams.size());
+	char label[64];
+	sprintf_s(label, "Effect Parameters (%zu)###EffectParamsSection", material->m_effectParams.size());
 
 	if (ImGui::CollapsingHeader(label))
 	{
@@ -482,7 +482,7 @@ void MaterialBrowserPanel::DrawMaterialPreview()
 	if (ImGui::IsItemActive())
 	{
 		float delta = ImGui::GetIO().MouseDelta.y;
-		m_previewHeight = std::clamp(m_previewHeight - delta, 50.0f - ImGui::GetTextLineHeightWithSpacing(), 600.0f);
+		m_previewHeight = std::clamp(m_previewHeight - delta, 50.0f - ImGui::GetTextLineHeightWithSpacing(), 1600.0f);
 	}
 	if (ImGui::IsItemHovered())
 	{

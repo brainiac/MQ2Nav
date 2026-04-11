@@ -219,6 +219,9 @@ public:
 	bool GetUseVertexColors() const { return m_staticMeshSystem.GetUseVertexColors(); }
 	void SetUseVertexColors(bool use) { m_staticMeshSystem.SetUseVertexColors(use); }
 
+	bool GetUseVertexTints() const { return m_staticMeshSystem.GetUseVertexTints(); }
+	void SetUseVertexTints(bool use) { m_staticMeshSystem.SetUseVertexTints(use); }
+
 private:
 	void DrawCollisionMesh();
 	void DrawGrid();

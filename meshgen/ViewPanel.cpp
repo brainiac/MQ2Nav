@@ -6,6 +6,10 @@
 #include "meshgen/Editor.h"
 #include "meshgen/NavMeshTool.h"
 
+#include "glm/gtc/type_ptr.hpp"
+
+extern glm::vec4 g_globalAmbient;
+
 ViewPanel::ViewPanel(Editor* editor)
 	: PanelWindow("View", "ViewPanel")
 	, m_editor(editor)
@@ -25,23 +29,22 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		ImGui::SeparatorText("Geometry");
 
 		// Geometry render mode - collision mesh vs static meshes
-		bool drawCollisionMesh = renderManager->GetGeometryRenderMode() == GeometryRenderMode::Collision;
-		if (ImGui::Checkbox("Collision Mesh", &drawCollisionMesh))
+		bool drawTextured = renderManager->GetGeometryRenderMode() != GeometryRenderMode::Collision;
+		if (ImGui::Checkbox("Draw Textured", &drawTextured))
 		{
-			renderManager->SetGeometryRenderMode(drawCollisionMesh ? GeometryRenderMode::Collision : GeometryRenderMode::Models);
+			renderManager->SetGeometryRenderMode(drawTextured ? GeometryRenderMode::Models : GeometryRenderMode::Collision);
 		}
 
-		// Only show vertex colors option when rendering static meshes
-		if (!drawCollisionMesh)
-		{
-			bool useVertexColors = renderManager->GetUseVertexColors();
-			if (ImGui::Checkbox("Baked Lighting Colors", &useVertexColors))
-				renderManager->SetUseVertexColors(useVertexColors);
-		}
+		ImGui::Indent();
+		ImGui::BeginDisabled(!drawTextured);
 
-		bool drawAreaVolumes = renderManager->GetDrawAreaVolumes();
-		if (ImGui::Checkbox("Area Volumes", &drawAreaVolumes))
-			renderManager->SetDrawAreaVolumes(drawAreaVolumes);
+		bool useVertexColors = renderManager->GetUseVertexColors();
+		if (ImGui::Checkbox("Diffuse Vertex Lighting", &useVertexColors))
+			renderManager->SetUseVertexColors(useVertexColors);
+
+		bool useVertexTints = renderManager->GetUseVertexTints();
+		if (ImGui::Checkbox("Vertex Tints", &useVertexTints))
+			renderManager->SetUseVertexTints(useVertexTints);
 
 		bool drawInvisibleWalls = renderManager->GetDrawInvisibleWalls();
 		if (ImGui::Checkbox("Invisible Walls", &drawInvisibleWalls))
@@ -50,6 +53,13 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		bool drawPointLights = renderManager->GetDrawPointLights();
 		if (ImGui::Checkbox("Point Lights", &drawPointLights))
 			renderManager->SetDrawPointLights(drawPointLights);
+
+		ImGui::EndDisabled();
+		ImGui::Unindent();
+
+		bool drawAreaVolumes = renderManager->GetDrawAreaVolumes();
+		if (ImGui::Checkbox("Area Volumes", &drawAreaVolumes))
+			renderManager->SetDrawAreaVolumes(drawAreaVolumes);
 
 		bool drawGrid = renderManager->GetDrawGrid();
 		if (ImGui::Checkbox("Draw Grid", &drawGrid))
@@ -99,6 +109,10 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 
 			ImGui::Unindent();
 			ImGui::EndDisabled();
+
+			ImGui::SeparatorText("Environment");
+
+			ImGui::ColorEdit3("Global Ambient", glm::value_ptr(g_globalAmbient));
 		}
 
 		ImGui::SeparatorText("Navigation Mesh Render - Components");

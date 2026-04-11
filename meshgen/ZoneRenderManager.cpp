@@ -520,6 +520,10 @@ void ZoneRenderManager::Render()
 {
 	if (m_project && m_project->IsZoneLoaded())
 	{
+		// Update and render point lights
+		m_pointLightSystem.Update();
+		m_areaVolumeSystem.Update();
+
 		// Render geometry based on current mode
 		if (m_geometryRenderMode == GeometryRenderMode::Collision)
 		{
@@ -536,12 +540,8 @@ void ZoneRenderManager::Render()
 			m_invisibleWallSystem.Render();
 		}
 
-		// Update and render area volumes via ECS system
-		m_areaVolumeSystem.Update();
 		m_areaVolumeSystem.Render();
 
-		// Update and render point lights
-		m_pointLightSystem.Update();
 		m_pointLightSystem.Render();
 
 		RenderEntities();
@@ -606,13 +606,19 @@ void ZoneRenderManager::RenderDebugDraw()
 
 		m_lastLinesSize = m_lines.size();
 
-		bgfx::Encoder* encoder = bgfx::begin();
-		encoder->setMarker("DebugDraw: Lines");
-		encoder->setVertexBuffer(0, s_shared.m_quad1VB);
-		encoder->setIndexBuffer(s_shared.m_quadIB);
-		encoder->setInstanceDataBuffer(m_ddLinesVB, 0, static_cast<uint32_t>(m_lines.size()));
-		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_BLEND_ALPHA);
-		encoder->submit(0, s_shared.m_linesProgram);
+		if (bgfx::isValid(m_ddLinesVB))
+		{
+			bgfx::Encoder* encoder = bgfx::begin();
+			encoder->setMarker("DebugDraw: Lines");
+			if (bgfx::isValid(s_shared.m_quad1VB))
+				encoder->setVertexBuffer(0, s_shared.m_quad1VB);
+			if (bgfx::isValid(s_shared.m_quadIB))
+				encoder->setIndexBuffer(s_shared.m_quadIB);
+			
+			encoder->setInstanceDataBuffer(m_ddLinesVB, 0, static_cast<uint32_t>(m_lines.size()));
+			encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_BLEND_ALPHA);
+			encoder->submit(0, s_shared.m_linesProgram);
+		}
 
 		m_lines.clear();
 	}
@@ -648,8 +654,10 @@ void ZoneRenderManager::RenderDebugDraw()
 
 		bgfx::Encoder* encoder = bgfx::begin();
 		encoder->setMarker("DebugDraw: Triangles");
-		encoder->setVertexBuffer(0, m_ddTrisVB);
-		encoder->setIndexBuffer(m_ddIndexBuffer, 0, static_cast<uint32_t>(m_triIndices.size()));
+		if (bgfx::isValid(m_ddTrisVB))
+			encoder->setVertexBuffer(0, m_ddTrisVB);
+		if (bgfx::isValid(m_ddIndexBuffer))
+			encoder->setIndexBuffer(m_ddIndexBuffer, 0, static_cast<uint32_t>(m_triIndices.size()));
 		encoder->setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW | BGFX_STATE_WRITE_A | BGFX_STATE_BLEND_ALPHA);
 		encoder->submit(0, s_shared.m_meshTileProgram);
 

@@ -49,6 +49,7 @@ bool MGSimpleModel::BuildGPUBuffers()
 	bool hasUVs = !def->m_uvs.empty();
 	bool hasNormals = !def->m_normals.empty();
 	bool hasColors = !def->m_colors.empty();
+	bool hasTint = !def->m_colorTint.empty();
 
 	for (size_t i = 0; i < def->m_vertices.size(); ++i)
 	{
@@ -65,6 +66,15 @@ bool MGSimpleModel::BuildGPUBuffers()
 		else
 		{
 			v.colorDiffuse = 0xFFFFFFFF;  // White, full alpha
+		}
+
+		if (hasTint)
+		{
+			v.colorTint = mq::MQColor(def->m_colorTint[i]).ToABGR();
+		}
+		else
+		{
+			v.colorTint = 0xFFFFFFFF;	
 		}
 
 		vertices.push_back(v);
@@ -97,8 +107,9 @@ bool MGSimpleModel::BuildGPUBuffers()
 			batch.material = palette->GetMaterial(matIndex);
 			if (batch.material)
 			{
-				batch.isAlphaBlend = batch.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatch
-					|| batch.material->m_renderMaterial == eqg::RenderMaterial_AlphaBatchAdditive;
+				batch.isAlphaBlend = batch.material->IsAlphaBlend()
+					|| batch.material->IsAdditiveAlpha();
+				batch.isTint = batch.material->m_hasVertexTint;
 			}
 		}
 

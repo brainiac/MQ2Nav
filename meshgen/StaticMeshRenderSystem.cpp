@@ -24,6 +24,8 @@
 
 //============================================================================
 
+glm::vec4 g_globalAmbient = { 0.5f, 0.5f, 0.5f, 1.0f };
+
 StaticMeshRenderSystem::StaticMeshRenderSystem()
 {
 }
@@ -338,9 +340,15 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 
 			// Currently only supporting the default texture, but this is where we'd have
 			// other textures (bump map, etc) handled as well.
-			MGBitmap* bitmap = static_cast<MGBitmap*>(texture->textures[0].get());
+			if (MGBitmap* bitmap = static_cast<MGBitmap*>(texture->textures[0].get()))
+			{
+				texHandle = bitmap->GetTextureHandle();
+			}
+			else
+			{
+				texHandle = m_whiteTexture;
+			}
 
-			texHandle = bitmap->GetTextureHandle();
 			hasTexture = bgfx::isValid(texHandle);
 		}
 	}
@@ -365,9 +373,6 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 		isChromaHigh = batch.material->IsChromaHigh();
 	}
 
-	// todo: make this configurable
-	glm::vec4 globalAmbient = { 0.5f, 0.5f, 0.5f, 1.0f };
-
 	glm::vec4 uTextureFlags(
 		hasTexture ? 1.0f : 0.0f,
 		showInvisible ? 1.0f : 0.0f,
@@ -379,11 +384,11 @@ void StaticMeshRenderSystem::RenderMaterialBatch(const glm::mat4& worldMtx, cons
 	glm::vec4 useVertexColors(
 		m_useVertexColors ? 1.0f : 0.0f,  // 1.0 = modulate by vertex color, 0.0 = modulate by 1.0f
 		batch.material ? static_cast<float>(batch.material->m_alpha) / 255.0f : 1.0f, // use material alpha
-		0.0f,
+		m_useVertexTints && batch.isTint ? 1.0f : 0.0f,
 		0.0f
 	);
 
-	encoder->setUniform(m_uniformGlobalAmbient, glm::value_ptr(globalAmbient));
+	encoder->setUniform(m_uniformGlobalAmbient, glm::value_ptr(g_globalAmbient));
 	encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
 	encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(useVertexColors));
 

@@ -1,11 +1,12 @@
-$input a_position, a_normal, a_color0, a_texcoord0
+$input a_position, a_normal, a_color0, a_color1, a_texcoord0
 $output v_color0, v_texcoord0
 
 #include "../common.sh"
 
 // x: 1.0 = use vertex colors, 0.0 = white
 // y: material alpha
-uniform vec4 u_useVertexColors; // x component: 1.0 = use vertex colors, 0.0 = white
+// z: has vertex tint
+uniform vec4 u_useVertexColors; 
 
 uniform vec4 u_globalAmbient;
 
@@ -25,6 +26,11 @@ void main()
 
 	// Choose base color: vertex color or white based on uniform
 	vec3 baseColor = mix(vec3_splat(1.0), a_color0.rgb + u_globalAmbient.rgb, u_useVertexColors.x);
+
+	if (u_useVertexColors.z > 0.5f)
+	{
+		baseColor = baseColor * a_color1;
+	}
 
 	// Apply lighting to base color
 	v_color0 = vec4(baseColor * lighting, u_useVertexColors.y);
