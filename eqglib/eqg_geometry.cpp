@@ -548,7 +548,7 @@ BoneDefinition::BoneDefinition(const SDagWLDData& wldData)
 		m_mtx = glm::identity<glm::mat4x4>();
 	}
 
-	m_defaultPoseMtx = glm::identity<glm::mat4x4>();
+	m_defaultPoseMtx = glm::inverse(m_mtx);
 }
 
 BoneDefinition::BoneDefinition(const SEQMBone* boneData)
@@ -559,9 +559,9 @@ BoneDefinition::BoneDefinition(const SEQMBone* boneData)
 		m_subBones.resize(boneData->num_children);
 	}
 
-	// TODO: Double check matrix math
-	m_mtx = glm::scale(glm::translate(glm::identity<glm::mat4x4>(), boneData->pivot), boneData->scale) *
-		glm::mat4_cast(boneData->quat);
+	m_mtx = glm::translate(glm::identity<glm::mat4x4>(), boneData->pivot) *
+		glm::mat4_cast(boneData->quat) *
+		glm::scale(glm::identity<glm::mat4x4>(), boneData->scale);
 	m_defaultPoseMtx = glm::inverse(m_mtx);
 
 	if (m_tag == "ROOT_BONE")
@@ -848,7 +848,7 @@ bool HierarchicalModelDefinition::InitBonesFromWLDData(SHSpriteDefWLDData* pWldD
 			++numPoints;
 		}
 
-		if (HasBoneNamed("CH_TRACK"))
+		else if (HasBoneNamed("CH_TRACK"))
 		{
 			points[numPoints].attachment = fmt::format("{}{}", prefix, "CH_TRACK");
 			points[numPoints].name = "SPELLPOINT_CHEST";
@@ -974,7 +974,7 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 			mesh.vertices.resize(pDMSpriteDef2->vertices.size());
 			for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 			{
-				mesh.vertices[vert] = centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor;
+				mesh.vertices[vert] = (centerOffset + glm::vec3(pDMSpriteDef2->vertices[vert]) * scaleFactor).yzx;
 			}
 
 			if (pDMSpriteDef2->uvs.index() == 0)
@@ -1019,7 +1019,7 @@ bool HierarchicalModelDefinition::InitSkinsFromWLDData(SHSpriteDefWLDData* pWldD
 
 				for (size_t vert = 0; vert < pDMSpriteDef2->vertices.size(); ++vert)
 				{
-					mesh.normals[vert] = glm::vec3(pDMSpriteDef2->vertexNormals[vert]) * S3D_NORM_TO_FLOAT;
+					mesh.normals[vert] = (glm::vec3(pDMSpriteDef2->vertexNormals[vert]) * S3D_NORM_TO_FLOAT).yzx;
 				}
 			}
 
@@ -1135,8 +1135,15 @@ void HierarchicalModelDefinition::InitSkinFromEQMData(
 	m_numDefaultActiveSkins = 1;
 	m_fromEQM = true;
 
-	bool bakedLighting = m_materialPalette->GetMaterial(0)->GetType() == MaterialType_OpaqueCBS1_VSB
-		|| m_materialPalette->GetMaterial(0)->GetType() == MaterialType_ChromaCBS1_VSB;
+	bool bakedLighting = false;
+	if (m_materialPalette->GetNumMaterials() > 0)
+	{
+		if (Material* mat = m_materialPalette->GetMaterial(0))
+		{
+			bakedLighting = mat->GetType() == MaterialType_OpaqueCBS1_VSB
+				|| mat->GetType() == MaterialType_ChromaCBS1_VSB;
+		}
+	}
 
 	m_attachedSkins.reserve(m_numAttachedSkins);
 	for (uint32_t skinIndex = 0; skinIndex < m_numAttachedSkins; ++skinIndex)
@@ -1306,7 +1313,7 @@ void HierarchicalModelDefinition::InitCollisionData()
 {
 	if (m_collisionIndices.empty() || m_collisionVertices.empty())
 	{
-		m_hasCollision = true;
+		m_hasCollision = false;
 		m_colliSpherePos = glm::vec3(0.0f);
 		m_colliSphereRadius = m_boundingRadius;
 		m_colliBox = { -m_boundingRadius, m_boundingRadius };
@@ -1541,15 +1548,15 @@ int HierarchicalModel::GetNumParticlePoints() const
 
 bool HierarchicalModel::SetSkinMeshActiveState(uint32_t index, bool active)
 {
-	if (index < m_definition->GetNumAttachedSkins())
+	if (index < m_definition->GetNumAttachedSkins() && index < 32)
 	{
 		if (active)
 		{
-			m_activeMeshes |= (1 << index);
+			m_activeMeshes |= (1u << index);
 		}
 		else
 		{
-			m_activeMeshes &= ~(1 << index);
+			m_activeMeshes &= ~(1u << index);
 		}
 
 		return true;
@@ -1560,9 +1567,9 @@ bool HierarchicalModel::SetSkinMeshActiveState(uint32_t index, bool active)
 
 Bone* HierarchicalModel::GetBone(std::string_view tag) const
 {
-	if (tag.ends_with("DAG"))
+	if (tag.ends_with("_DAG"))
 	{
-		tag = tag.substr(0, tag.size() - 4); // TODO: Check me
+		tag = tag.substr(0, tag.size() - 4);
 	}
 
 	for (uint32_t i = 0; i < m_bones.size(); ++i)
@@ -1596,12 +1603,68 @@ void HierarchicalModel::SetBoneParent(Actor* actor)
 
 void HierarchicalModel::UpdateBoneToWorldMatrices(glm::mat4x4* parentMatrix)
 {
-	// TODO
+	if (m_bones.empty())
+		return;
+
+	if (parentMatrix == nullptr)
+		parentMatrix = &m_worldTransform;
+
+	UpdateBoneToWorldMatrices(m_bones[0].get(), parentMatrix);
+
+	// Update attached actors
+	for (uint32_t i = 0; i < m_bones.size(); ++i)
+	{
+		Bone* pBone = m_bones[i].get();
+		if (Actor* pActor = pBone->GetAttachedActor())
+		{
+			if (auto pHModel = pActor->GetHierarchicalModel())
+			{
+				pHModel->SetObjectToWorldMatrix(pBone->GetAttachmentMatrix());
+				pHModel->UpdateBoneToWorldMatrices();
+			}
+			else if (auto pSModel = pActor->GetSimpleModel())
+			{
+				pSModel->m_worldTransform = pBone->GetAttachmentMatrix();
+			}
+		}
+
+		if (auto pSimple = pBone->m_simpleAttachment)
+		{
+			pSimple->m_worldTransform = pBone->GetAttachmentMatrix();
+		}
+	}
 }
 
 void HierarchicalModel::UpdateBoneToWorldMatrices(Bone* bone, glm::mat4x4* parentMatrix)
 {
-	// TODO
+	if (!bone)
+		return;
+
+	Bone* pAttachBone = bone->m_boneAttachedTo;
+
+	if (pAttachBone != nullptr)
+	{
+		// Attached bones use the parent bone's matrices directly
+		bone->m_attachmentMtx = pAttachBone->m_attachmentMtx;
+		bone->m_boneToWorldMtx = pAttachBone->m_boneToWorldMtx;
+	}
+	else
+	{
+		// attachmentMtx = boneMatrix * parentMatrix
+		bone->m_attachmentMtx = bone->GetMatrix() * *parentMatrix;
+
+		// boneToWorldMtx = defaultPoseMatrix * attachmentMtx
+		bone->m_boneToWorldMtx = bone->m_definition->GetDefaultPoseMatrix() * bone->m_attachmentMtx;
+	}
+
+	// Recurse into sub-bones
+	for (Bone* subBone : bone->m_subBones)
+	{
+		if (subBone != nullptr)
+		{
+			UpdateBoneToWorldMatrices(subBone, &bone->m_attachmentMtx);
+		}
+	}
 }
 
 void HierarchicalModel::SetRGBs(const std::span<uint32_t>& RGBs)
@@ -1893,8 +1956,8 @@ HierarchicalActor::HierarchicalActor(
 	const ActorDefinitionPtr& actorDef,
 	const glm::vec3& position,
 	const glm::vec3& orientation,
-	float boundingRadius,
 	float scaleFactor,
+	float boundingRadius,
 	ECollisionVolumeType collisionVolumeType,
 	int actorIndex,
 	SDMRGBTrackWLDData* DMRGBTrackWLDData,
@@ -2110,6 +2173,36 @@ void HierarchicalActor::SetAllSkinsActive()
 
 void HierarchicalActor::SetDefaultSkinsActive()
 {
+	HierarchicalModelDefinitionPtr pDefinition = m_model->GetDefinition();
+	uint32_t numSkins = pDefinition->GetNumAttachedSkins();
+
+	if (numSkins == 0)
+		return;
+
+	uint32_t firstActive = pDefinition->GetFirstDefaultActiveSkin();
+	uint32_t numActive = pDefinition->GetNumDefaultActiveSkins();
+
+	for (uint32_t index = 0; index < numActive; ++index)
+	{
+		m_model->SetSkinMeshActiveState(firstActive + index, true);
+	}
+
+	bool newStyle = pDefinition->IsNewStyleModel();
+
+	for (uint32_t index = 0; index < numSkins; ++index)
+	{
+		SSkinMesh* skin = pDefinition->GetAttachedSkin(index);
+		if (!skin || skin->tag.size() < 5)
+			continue;
+
+		std::string_view skinTag = skin->tag;
+
+		if (skinTag[3] == 'H' && skinTag[4] == 'E')
+			m_headSkins |= (1u << index);
+
+		if (newStyle && (skinTag[3] == '_' || (isdigit(skinTag[3]) && isdigit(skinTag[4]))))
+			m_bodySkins |= (1u << index);
+	}
 }
 
 void HierarchicalActor::PutAllBonesInBoneGroup(int groupIndex, int maxNumAnims, bool newBoneNames)
@@ -2135,10 +2228,34 @@ bool HierarchicalActor::IsCollidable() const
 
 void HierarchicalActor::SetupAttachmentBones()
 {
+	bool isNewStyle = m_model->GetDefinition()->IsNewStyleModel();
+	int offset = isNewStyle ? 0 : 3;
+
+	uint32_t numBones = m_model->GetDefinition()->GetNumBones();
+	for (uint32_t i = 0; i < numBones; ++i)
+	{
+		Bone* bone = m_model->GetBone(i);
+		if (!bone)
+			continue;
+
+		std::string_view tag = bone->GetTag();
+		if ((int)tag.size() > offset)
+		{
+			m_boneHashTable[std::string(tag.substr(offset))] = bone;
+		}
+	}
 }
 
 void HierarchicalActor::Detach()
 {
+}
+
+Bone* HierarchicalActor::GetAttachmentBoneByName(std::string_view name) const
+{
+	auto it = m_boneHashTable.find(std::string(name));
+	if (it != m_boneHashTable.end())
+		return it->second;
+	return nullptr;
 }
 
 void HierarchicalActor::Update(world_clock::time_point time)

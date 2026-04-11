@@ -13,6 +13,7 @@
 #include "glm/glm.hpp"
 #include <chrono>
 #include <span>
+#include <unordered_map>
 #include <vector>
 
 namespace eqg {
@@ -613,6 +614,7 @@ public:
 	DefinitionPtrType GetDefinition() const { return m_definition; }
 
 	const glm::mat4x4& GetObjectToWorldMatrix() const { return m_worldTransform; }
+	void SetObjectToWorldMatrix(const glm::mat4x4& mtx) { m_worldTransform = mtx; }
 
 	ParticlePointManager* GetPointManager() const { return m_pointManager.get(); }
 	ParticlePoint* GetParticlePoint(int index) const;
@@ -855,6 +857,8 @@ private:
 	void SetupAttachmentBones();
 	void Detach();
 
+	Bone* GetAttachmentBoneByName(std::string_view name) const;
+
 	HierarchicalModelPtr     m_model;
 	SimpleModelPtr           m_collisionModel;
 
@@ -870,6 +874,8 @@ private:
 
 	uint32_t                 m_headSkins = 0;
 	uint32_t                 m_bodySkins = 0;
+
+	std::unordered_map<std::string, Bone*> m_boneHashTable;
 };
 
 //-------------------------------------------------------------------------------------------------
