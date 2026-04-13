@@ -690,7 +690,7 @@ public:
 	Actor* GetParentActor() const { return m_parentActor; }
 
 	void SetBoundingRadius(float radius, bool adjustScale = false);
-	float GetBoundingRadius() const { return m_boundingRadius * m_scale; }
+	float GetBoundingRadius() const { return m_boundingRadius * GetScale(); }
 
 	void SetCollisionVolumeType(ECollisionVolumeType collisionVolume) { m_collisionVolumeType = collisionVolume; }
 	ECollisionVolumeType GetCollisionVolumeType() const { return m_collisionVolumeType; }
@@ -711,6 +711,9 @@ public:
 	void SetInvisible(bool invisible) { m_invisible = invisible; }
 
 	virtual bool IsCollidable() const { return false; }
+
+	bool IsDirty() const { return m_dirty; }
+	void SetDirty(bool dirty) { m_dirty = dirty; }
 
 	// Used when in first person camera mode to see your own particles
 	bool ShouldShowParticlesWhenInvisible() const { return m_showParticlesWhenInvisible; }
@@ -741,6 +744,7 @@ protected:
 	glm::vec3                      m_position = glm::vec3(0.0f);
 	glm::vec3                      m_orientation = glm::vec3(0.0f);
 	float                          m_scale = 1.0f;
+	glm::mat4                      m_worldTransform;
 
 	int                            m_actorIndex = 0;
 	ECollisionVolumeType           m_collisionVolumeType = eCollisionVolumeNone;
@@ -752,6 +756,7 @@ protected:
 	bool                           m_disabled = false;
 	bool                           m_invisible = false;
 	bool                           m_showParticlesWhenInvisible = false;
+	bool                           m_dirty = false;
 
 protected:
 	void DoInitCallback();
@@ -846,6 +851,7 @@ public:
 	virtual SimpleModelPtr GetCollisionModel() const override { return m_collisionModel; }
 
 	virtual bool IsCollidable() const override;
+
 	virtual void Update(world_clock::time_point time) override;
 
 private:

@@ -539,16 +539,17 @@ BoneDefinition::BoneDefinition(const SDagWLDData& wldData)
 
 	if (m_tag != "IT36_TRACK")
 	{
-		m_mtx = glm::toMat4(pTransform->rotation);
-		m_mtx[3] = glm::vec4(pTransform->pivot, 1.0f);
-		m_mtx = glm::scale(m_mtx, glm::vec3(pTransform->scale));
+		glm::quat q0(pTransform->rotation.w, pTransform->rotation.y, pTransform->rotation.z, pTransform->rotation.x);
+		m_mtx = glm::translate(glm::identity<glm::mat4x4>(), glm::vec3(pTransform->pivot.yzx))
+			* glm::mat4_cast(q0)
+			* glm::scale(glm::identity<glm::mat4x4>(), glm::vec3(pTransform->scale));
 	}
 	else
 	{
 		m_mtx = glm::identity<glm::mat4x4>();
 	}
 
-	m_defaultPoseMtx = glm::inverse(m_mtx);
+	m_defaultPoseMtx = glm::identity<glm::mat4x4>();
 }
 
 BoneDefinition::BoneDefinition(const SEQMBone* boneData)
@@ -559,14 +560,16 @@ BoneDefinition::BoneDefinition(const SEQMBone* boneData)
 		m_subBones.resize(boneData->num_children);
 	}
 
-	m_mtx = glm::translate(glm::identity<glm::mat4x4>(), boneData->pivot) *
-		glm::mat4_cast(boneData->quat) *
-		glm::scale(glm::identity<glm::mat4x4>(), boneData->scale);
+	glm::quat q0(boneData->quat.w, boneData->quat.y, boneData->quat.z, boneData->quat.x);
+	m_mtx = glm::translate(glm::identity<glm::mat4x4>(), glm::vec3(boneData->pivot.yzx))
+		* glm::mat4_cast(q0)
+		* glm::scale(glm::identity<glm::mat4x4>(), boneData->scale);
+
 	m_defaultPoseMtx = glm::inverse(m_mtx);
 
 	if (m_tag == "ROOT_BONE")
 	{
-		m_mtx = glm::rotate(glm::mat4(1.0f), glm::radians(-90.f), glm::vec3(0, 0, 1.0f)) * m_mtx;
+		m_mtx = glm::rotate(m_mtx, glm::radians(-90.f), glm::vec3(0, 1.0, 0.0f));
 	}
 }
 
@@ -615,24 +618,6 @@ Bone::Bone(const BoneDefinition* boneDef)
 }
 
 Bone::~Bone()
-{
-}
-
-Actor* Actor::GetTopLevelActor()
-{
-	Actor* topActor = nullptr;
-	Actor* actor = this;
-
-	while (actor)
-	{
-		topActor = actor;
-		actor = actor->GetParentActor();
-	}
-
-	return topActor;
-}
-
-void Actor::Update(world_clock::time_point time)
 {
 }
 
@@ -1694,6 +1679,24 @@ Actor::~Actor()
 {
 }
 
+Actor* Actor::GetTopLevelActor()
+{
+	Actor* topActor = nullptr;
+	Actor* actor = this;
+
+	while (actor)
+	{
+		topActor = actor;
+		actor = actor->GetParentActor();
+	}
+
+	return topActor;
+}
+
+void Actor::Update(world_clock::time_point time)
+{
+}
+
 static float SetActorBoundingRadius(Actor* actor, float multiplier, float radius)
 {
 	float boundingRadius = actor->GetDefinition()->CalculateBoundingRadius();
@@ -1772,7 +1775,11 @@ void Actor::SetBoundingRadius(float radius, bool adjustScale)
 {
 	if (adjustScale)
 	{
-		m_scale = m_boundingRadius == 0 ? radius : m_scale * (radius / m_boundingRadius);
+		float scale = GetScale();
+
+		scale = m_boundingRadius == 0 ? radius : scale * (radius / m_boundingRadius);
+
+		SetScale(scale);
 	}
 
 	m_boundingRadius = radius;
@@ -1781,16 +1788,29 @@ void Actor::SetBoundingRadius(float radius, bool adjustScale)
 void Actor::SetPosition(const glm::vec3& pos)
 {
 	m_position = pos;
+
+	m_worldTransform[3] = glm::vec4(pos, 1.0f);
+	m_dirty = true;
 }
 
 void Actor::SetOrientation(const glm::vec3& orientation)
 {
 	m_orientation = orientation;
+
+	m_worldTransform = glm::translate(glm::mat4(1.0f), m_position)
+		* glm::toMat4(glm::quat(m_orientation))
+		* glm::scale(glm::mat4(1.0f), glm::vec3(m_scale));
+	m_dirty = true;
 }
 
 void Actor::SetScale(float scale)
 {
 	m_scale = scale;
+
+	m_worldTransform = glm::translate(glm::mat4(1.0f), m_position)
+		* glm::toMat4(glm::quat(m_orientation))
+		* glm::scale(glm::mat4(1.0f), glm::vec3(m_scale));
+	m_dirty = true;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1972,7 +1992,7 @@ HierarchicalActor::HierarchicalActor(
 
 	if (!InitLOD())
 	{
-		m_model = std::make_shared<HierarchicalModel>();
+		m_model = resourceMgr->CreateHierarchicalModel();
 
 		m_model->Init(m_definition->GetHierarchicalModelDefinition());
 		m_model->SetRGBs(RGBs);
@@ -1989,6 +2009,8 @@ HierarchicalActor::HierarchicalActor(
 	SetScale(scaleFactor);
 	SetBoundingRadius(boundingRadius);
 	SetCollisionVolumeType(collisionVolumeType);
+
+	m_model->SetObjectToWorldMatrix(m_worldTransform);
 
 	SetupAttachmentBones();
 	DoInitCallback();
@@ -2015,7 +2037,7 @@ HierarchicalActor::HierarchicalActor(ResourceManager* resourceMgr,
 
 	if (!InitLOD())
 	{
-		m_model = std::make_shared<HierarchicalModel>();
+		m_model = resourceMgr->CreateHierarchicalModel();
 
 		m_model->Init(m_definition->GetHierarchicalModelDefinition());
 		m_model->SetActor(this);
@@ -2040,6 +2062,8 @@ HierarchicalActor::HierarchicalActor(ResourceManager* resourceMgr,
 
 	SetCollisionVolumeType(actorDef->GetCollisionVolumeType());
 	SetHasParentBone(pBone != nullptr);
+
+	m_model->SetObjectToWorldMatrix(m_worldTransform);
 
 	SetupAttachmentBones();
 }
@@ -2228,10 +2252,10 @@ bool HierarchicalActor::IsCollidable() const
 
 void HierarchicalActor::SetupAttachmentBones()
 {
-	bool isNewStyle = m_model->GetDefinition()->IsNewStyleModel();
-	int offset = isNewStyle ? 0 : 3;
+	const bool isNewStyle = m_model->GetDefinition()->IsNewStyleModel();
+	const uint32_t offset = isNewStyle ? 0 : 3;
+	const uint32_t numBones = m_model->GetDefinition()->GetNumBones();
 
-	uint32_t numBones = m_model->GetDefinition()->GetNumBones();
 	for (uint32_t i = 0; i < numBones; ++i)
 	{
 		Bone* bone = m_model->GetBone(i);
@@ -2239,7 +2263,7 @@ void HierarchicalActor::SetupAttachmentBones()
 			continue;
 
 		std::string_view tag = bone->GetTag();
-		if ((int)tag.size() > offset)
+		if (offset < static_cast<uint32_t>(tag.size()))
 		{
 			m_boneHashTable[std::string(tag.substr(offset))] = bone;
 		}
@@ -2261,6 +2285,8 @@ Bone* HierarchicalActor::GetAttachmentBoneByName(std::string_view name) const
 void HierarchicalActor::Update(world_clock::time_point time)
 {
 	m_model->Update(time);
+
+	// TODO: Handle matrix change
 
 	Actor::Update(time);
 }

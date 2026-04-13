@@ -1362,10 +1362,10 @@ bool WLDLoader::ParseTrack(uint32_t objectIndex)
 		SFrameTransform& transform = track->frameTransforms[i];
 
 		transform.rotation = glm::quat(
-			-static_cast<float>(packedTransform->rot_q3) * ORIENTATION_SCALE,
-			static_cast<float>(packedTransform->rot_q0) * ORIENTATION_SCALE,
+			-static_cast<float>(packedTransform->rot_q0) * ORIENTATION_SCALE,
 			static_cast<float>(packedTransform->rot_q1) * ORIENTATION_SCALE,
-			static_cast<float>(packedTransform->rot_q2) * ORIENTATION_SCALE
+			static_cast<float>(packedTransform->rot_q2) * ORIENTATION_SCALE,
+			static_cast<float>(packedTransform->rot_q3) * ORIENTATION_SCALE
 		);
 		transform.pivot = glm::vec3(
 			static_cast<float>(packedTransform->pivot_x) * PIVOT_SCALE,

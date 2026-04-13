@@ -53,7 +53,6 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 	if (firstSkin + numActiveSkins > numSkins)
 		numActiveSkins = numSkins - firstSkin;
 
-	const auto& bones = definition->GetBones();
 	uint32_t numBones = definition->GetNumBones();
 
 	// Accumulate all skin meshes into a single vertex/index buffer
@@ -91,7 +90,7 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 			// The skinning transform: defaultPoseMtx * offsetMatrix
 			// defaultPoseMtx: accumulated world-space default pose for this bone
 			// offsetMatrix: inverse bind-pose (transforms from model space to bone-local space)
-			const glm::mat4x4& defaultPoseMtx = bones[boneIdx].GetDefaultPoseMatrix();
+			const glm::mat4x4& defaultPoseMtx = definition->GetBoneDefinition(boneIdx)->GetDefaultPoseMatrix();
 			glm::mat4x4 skinTransform = defaultPoseMtx * info.offsetMatrix;
 			glm::mat3 normalTransform = glm::mat3(skinTransform);
 
@@ -150,9 +149,10 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 				matIdx = skin->attributes[triIdx];
 
 			// Offset indices by the accumulated vertex count
-			facesByMaterial[matIdx].push_back(static_cast<uint32_t>(skin->indices[i + 0]) + vertexOffset);
-			facesByMaterial[matIdx].push_back(static_cast<uint32_t>(skin->indices[i + 1]) + vertexOffset);
-			facesByMaterial[matIdx].push_back(static_cast<uint32_t>(skin->indices[i + 2]) + vertexOffset);
+			auto [iter, inserted] = facesByMaterial.try_emplace(matIdx);
+			iter->second.push_back(static_cast<uint32_t>(skin->indices[i + 0]) + vertexOffset);
+			iter->second.push_back(static_cast<uint32_t>(skin->indices[i + 1]) + vertexOffset);
+			iter->second.push_back(static_cast<uint32_t>(skin->indices[i + 2]) + vertexOffset);
 		}
 
 		// Create material batches
@@ -165,6 +165,70 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 			if (palette && matIndex < palette->GetNumMaterials())
 			{
 				batch.material = palette->GetMaterial(matIndex);
+			}
+
+			allIndices.insert(allIndices.end(), matIndices.begin(), matIndices.end());
+			m_materialBatches.push_back(std::move(batch));
+		}
+	}
+
+	UpdateBoneToWorldMatrices();
+
+	// Collect geometry from SimpleModels attached to bones.
+	// This handles hierarchical models that have no skins but carry geometry
+	// on bone-attached sub-models (e.g., old-style zone objects like trees, buildings).
+	for (uint32_t boneIdx = 0; boneIdx < numBones; ++boneIdx)
+	{
+		eqg::Bone* bone = GetBone(boneIdx);
+		if (!bone || !bone->m_simpleAttachment)
+			continue;
+
+		auto simpleDef = bone->m_simpleAttachment->GetDefinition();
+		if (!simpleDef || simpleDef->m_vertices.empty() || simpleDef->m_faces.empty())
+			continue;
+
+		// Use the bone definition's default pose matrix (accumulated world-space transform,
+		// computed during InitFromWLDData/InitFromEQMData).
+
+		glm::mat4x4 boneMatrix = GetBone(boneIdx)->GetMatrix();
+
+		uint32_t vertexOffset = static_cast<uint32_t>(allVertices.size());
+
+		bool hasUVs = !simpleDef->m_uvs.empty();
+		bool hasNormals = !simpleDef->m_normals.empty();
+		bool hasColors = !simpleDef->m_colors.empty();
+
+		for (size_t i = 0; i < simpleDef->m_vertices.size(); ++i)
+		{
+			StaticMeshVertex v;
+			v.position = glm::vec3(boneMatrix * glm::vec4(simpleDef->m_vertices[i], 1.0f));
+			v.normal = hasNormals ? glm::normalize(glm::vec3(boneMatrix * glm::vec4(simpleDef->m_normals[i], 1.0f))) : glm::vec3(0.0f, 1.0f, 0.0f);
+			v.uv = hasUVs ? simpleDef->m_uvs[i] : glm::vec2(0.0f, 0.0f);
+			v.colorDiffuse = hasColors ? mq::MQColor(simpleDef->m_colors[i]).ToABGR() : 0xFFFFFFFF;
+
+			allVertices.push_back(std::move(v));
+		}
+
+		// Group faces by material and add to batches
+		eqg::MaterialPalette* attachPalette = simpleDef->m_materialPalette.get();
+		std::map<int16_t, std::vector<uint32_t>> facesByMaterial;
+
+		for (const auto& face : simpleDef->m_faces)
+		{
+			facesByMaterial[face.materialIndex].push_back(face.indices.x + vertexOffset);
+			facesByMaterial[face.materialIndex].push_back(face.indices.y + vertexOffset);
+			facesByMaterial[face.materialIndex].push_back(face.indices.z + vertexOffset);
+		}
+
+		for (auto& [matIndex, matIndices] : facesByMaterial)
+		{
+			MaterialBatch batch;
+			batch.startIndex = static_cast<uint32_t>(allIndices.size());
+			batch.indexCount = static_cast<uint32_t>(matIndices.size());
+
+			if (attachPalette && matIndex >= 0 && matIndex < static_cast<int16_t>(attachPalette->GetNumMaterials()))
+			{
+				batch.material = attachPalette->GetMaterial(matIndex);
 			}
 
 			allIndices.insert(allIndices.end(), matIndices.begin(), matIndices.end());
