@@ -29,7 +29,8 @@
     <ClCompile Include="MGHierarchicalModel.cpp" />
     <ClCompile Include="MGTerrain.cpp" />
     <ClCompile Include="MGTerrainTile.cpp" />
-    <ClCompile Include="MaterialBatchRenderer.cpp" />
+    <ClCompile Include="RenderBatch.cpp" />
+    <ClCompile Include="RenderBatchManager.cpp" />
     <ClCompile Include="StaticMeshRenderSystem.cpp" />
     <ClCompile Include="SkeletalMeshRenderSystem.cpp" />
     <ClCompile Include="ViewPanel.cpp" />
@@ -93,7 +94,8 @@
     <ClInclude Include="MGHierarchicalModel.h" />
     <ClInclude Include="MGTerrain.h" />
     <ClInclude Include="MGTerrainTile.h" />
-    <ClInclude Include="MaterialBatchRenderer.h" />
+    <ClInclude Include="RenderBatch.h" />
+    <ClInclude Include="RenderBatchManager.h" />
     <ClInclude Include="StaticMeshRenderSystem.h" />
     <ClInclude Include="SkeletalMeshRenderSystem.h" />
     <ClInclude Include="ViewPanel.h" />

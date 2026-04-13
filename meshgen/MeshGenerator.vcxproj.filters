@@ -227,11 +227,14 @@
     <ClCompile Include="SkeletalMeshRenderSystem.cpp">
       <Filter>Source Files\engine</Filter>
     </ClCompile>
-    <ClCompile Include="MaterialBatchRenderer.cpp">
-      <Filter>Source Files\engine</Filter>
-    </ClCompile>
     <ClCompile Include="MaterialBrowserPanel.cpp">
       <Filter>Source Files\panels</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderBatch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderBatchManager.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -439,8 +442,11 @@
     <ClInclude Include="SkeletalMeshRenderSystem.h">
       <Filter>Header Files\engine</Filter>
     </ClInclude>
-    <ClInclude Include="MaterialBatchRenderer.h">
-      <Filter>Header Files\engine</Filter>
+    <ClInclude Include="RenderBatch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderBatchManager.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

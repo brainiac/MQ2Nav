@@ -1,18 +1,15 @@
 #pragma once
 
-#include "meshgen/AreaVolumeRenderSystem.h"
-#include "meshgen/InvisibleWallRenderSystem.h"
-#include "meshgen/PointLightRenderSystem.h"
-#include "meshgen/SkeletalMeshRenderSystem.h"
-#include "meshgen/StaticMeshRenderSystem.h"
+#include "mq/base/Signal.h"
 
-#include <bgfx/bgfx.h>
-#include <glm/glm.hpp>
-#include <imgui/imgui.h>
-#include <recast/DebugUtils/Include/DebugDraw.h>
-#include <recast/Detour/Include/DetourNavMesh.h>
+#include "bgfx/bgfx.h"
+#include "entt/entity/fwd.hpp"
+#include "glm/glm.hpp"
+#include "imgui/imgui.h"
+#include "recast/DebugUtils/Include/DebugDraw.h"
+#include "recast/Detour/Include/DetourNavMesh.h"
+
 #include <unordered_map>
-#include <mq/base/Signal.h>
 
 namespace eqg { struct SWorldTreeWLDData; }
 
@@ -20,12 +17,19 @@ class dtNavMesh;
 class dtNavMeshQuery;
 class NavMesh;
 class NavMeshProject;
+class RenderBatchManager;
 class ZoneInputGeometryRender;
 class ZoneNavMeshRender;
 class ZoneProject;
 class ZoneRenderDebugDraw;
 struct dtMeshTile;
 struct NavMeshConfig;
+
+class AreaVolumeRenderSystem;
+class InvisibleWallRenderSystem;
+class PointLightRenderSystem;
+class StaticMeshRenderSystem;
+class SkeletalMeshRenderSystem;
 
 // Geometry render mode - switch between model rendering and collision-only view
 enum class GeometryRenderMode
@@ -188,16 +192,14 @@ public:
 
 	std::shared_ptr<NavMeshProject> GetNavMesh() const { return m_navMeshProj; }
 
-	ZoneNavMeshRender* GetNavMeshRender() { return m_navMeshRender; }
-	ZoneInputGeometryRender* GetInputGeoRender() { return m_zoneInputGeometry; }
+	ZoneNavMeshRender* GetNavMeshRender() { return m_navMeshRender.get(); }
+	ZoneInputGeometryRender* GetInputGeoRender() { return m_zoneInputGeometry.get(); }
 	ZoneProject* GetZone() const { return m_project; }
 
-	float GetPointSize() const {
-		return m_pointSize;
-	}
-	void SetPointSize(float pointSize) {
-		m_pointSize = pointSize;
-	}
+	RenderBatchManager* GetRenderBatchManager() const { return m_renderBatchManager.get(); }
+
+	float GetPointSize() const { return m_pointSize; }
+	void SetPointSize(float pointSize) { m_pointSize = pointSize; }
 
 	bool GetDrawCollisionMesh() const { return m_drawCollisionMesh; }
 	void SetDrawCollisionMesh(bool draw) { m_drawCollisionMesh = draw; }
@@ -208,20 +210,20 @@ public:
 	GeometryRenderMode GetGeometryRenderMode() const { return m_geometryRenderMode; }
 	void SetGeometryRenderMode(GeometryRenderMode mode) { m_geometryRenderMode = mode; }
 
-	bool GetDrawAreaVolumes() const { return m_areaVolumeSystem.GetVisible(); }
-	void SetDrawAreaVolumes(bool draw) { m_areaVolumeSystem.SetVisible(draw); }
+	bool GetDrawAreaVolumes() const;
+	void SetDrawAreaVolumes(bool draw);
 
-	bool GetDrawInvisibleWalls() const { return m_invisibleWallSystem.GetVisible(); }
-	void SetDrawInvisibleWalls(bool draw) { m_invisibleWallSystem.SetVisible(draw); }
+	bool GetDrawInvisibleWalls() const;
+	void SetDrawInvisibleWalls(bool draw);
 
-	bool GetDrawPointLights() const { return m_pointLightSystem.GetVisible(); }
-	void SetDrawPointLights(bool draw) { m_pointLightSystem.SetVisible(draw); }
+	bool GetDrawPointLights() const;
+	void SetDrawPointLights(bool draw);
 
-	bool GetUseVertexColors() const { return m_useVertexColors; }
-	void SetUseVertexColors(bool use) { m_useVertexColors = use; }
+	bool GetUseVertexColors() const;
+	void SetUseVertexColors(bool use);
 
-	bool GetUseVertexTints() const { return m_useVertexTints; }
-	void SetUseVertexTints(bool use) { m_useVertexTints = use; }
+	bool GetUseVertexTints() const;
+	void SetUseVertexTints(bool use);
 
 private:
 	void DrawCollisionMesh();
@@ -239,13 +241,14 @@ private:
 	bool m_useVertexColors = true;
 	bool m_useVertexTints = false;
 
-	ZoneInputGeometryRender* m_zoneInputGeometry = nullptr;
-	ZoneNavMeshRender* m_navMeshRender = nullptr;
-	AreaVolumeRenderSystem m_areaVolumeSystem;
-	InvisibleWallRenderSystem m_invisibleWallSystem;
-	PointLightRenderSystem m_pointLightSystem;
-	StaticMeshRenderSystem m_staticMeshSystem;
-	SkeletalMeshRenderSystem m_skeletalMeshSystem;
+	std::unique_ptr<ZoneInputGeometryRender> m_zoneInputGeometry;
+	std::unique_ptr<ZoneNavMeshRender> m_navMeshRender;
+	std::unique_ptr<AreaVolumeRenderSystem> m_areaVolumeSystem;
+	std::unique_ptr<InvisibleWallRenderSystem> m_invisibleWallSystem;
+	std::unique_ptr<PointLightRenderSystem> m_pointLightSystem;
+	std::unique_ptr<StaticMeshRenderSystem> m_staticMeshSystem;
+	std::unique_ptr<SkeletalMeshRenderSystem> m_skeletalMeshSystem;
+	std::unique_ptr<RenderBatchManager> m_renderBatchManager;
 	GeometryRenderMode m_geometryRenderMode = GeometryRenderMode::Models;
 	float m_pointSize = 0.5f;
 

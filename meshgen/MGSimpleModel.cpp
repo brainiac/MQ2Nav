@@ -21,6 +21,11 @@ MGSimpleModel::~MGSimpleModel()
 	DestroyGPUBuffers();
 }
 
+bool MGSimpleModel::InitBatchInstances()
+{
+	return true;
+}
+
 bool MGSimpleModel::BuildGPUBuffers()
 {
 	if (m_gpuBuffersBuilt)
@@ -74,7 +79,7 @@ bool MGSimpleModel::BuildGPUBuffers()
 		}
 		else
 		{
-			v.colorTint = 0xFFFFFFFF;	
+			v.colorTint = 0xFFFFFFFF;
 		}
 
 		vertices.push_back(v);
@@ -126,7 +131,7 @@ bool MGSimpleModel::BuildGPUBuffers()
 	// Create bgfx buffers
 	m_vertexBuffer = bgfx::createVertexBuffer(
 		bgfx::copy(vertices.data(), static_cast<uint32_t>(vertices.size() * sizeof(StaticMeshVertex))),
-		StaticMeshVertex::ms_layout);
+		StaticMeshVertex::GetLayout());
 
 	m_indexBuffer = bgfx::createIndexBuffer(
 		bgfx::copy(indices.data(), static_cast<uint32_t>(indices.size() * sizeof(uint32_t))),

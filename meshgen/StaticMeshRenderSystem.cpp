@@ -12,6 +12,7 @@
 #include "meshgen/MGSimpleModel.h"
 #include "meshgen/MGTerrain.h"
 #include "meshgen/MGTerrainTile.h"
+#include "meshgen/RenderBatchManager.h"
 #include "meshgen/ResourceManager.h"
 #include "meshgen/ZoneRenderManager.h"
 
@@ -23,23 +24,12 @@
 
 //============================================================================
 
-StaticMeshRenderSystem::StaticMeshRenderSystem()
+StaticMeshRenderSystem::StaticMeshRenderSystem(ZoneRenderManager* renderManager)
 {
+	m_renderManager = renderManager;
 }
 
 StaticMeshRenderSystem::~StaticMeshRenderSystem()
-{
-	Shutdown();
-}
-
-void StaticMeshRenderSystem::Init(ZoneRenderManager* renderManager)
-{
-	m_renderManager = renderManager;
-
-	m_batchRenderer.Init(renderManager);
-}
-
-void StaticMeshRenderSystem::Shutdown()
 {
 	if (m_registry)
 	{
@@ -52,8 +42,6 @@ void StaticMeshRenderSystem::Shutdown()
 		m_hiddenConstructConnection.release();
 		m_hiddenDestroyConnection.release();
 	}
-
-	m_batchRenderer.Shutdown();
 
 	m_batches.clear();
 	m_terrain = nullptr;
@@ -274,8 +262,7 @@ void StaticMeshRenderSystem::Render()
 	if (!m_registry)
 		return;
 
-	if (!m_batchRenderer.IsValid())
-		return;
+	RenderBatchManager* batchMgr = m_renderManager->GetRenderBatchManager();
 
 	// Render terrain first
 	if (m_terrain)
@@ -296,7 +283,7 @@ void StaticMeshRenderSystem::Render()
 				if (matBatch.indexCount == 0)
 					continue;
 
-				m_batchRenderer.RenderMaterialBatch(identity, matBatch,
+				batchMgr->RenderMaterialBatch(identity, matBatch,
 					m_terrain->GetVertexBuffer(), m_terrain->GetIndexBuffer());
 			}
 		}
@@ -322,7 +309,7 @@ void StaticMeshRenderSystem::Render()
 			if (matBatch.indexCount == 0)
 				continue;
 
-			m_batchRenderer.RenderMaterialBatch(identity, matBatch,
+			batchMgr->RenderMaterialBatch(identity, matBatch,
 				tile->GetVertexBuffer(), tile->GetIndexBuffer());
 		}
 	}
@@ -352,7 +339,7 @@ void StaticMeshRenderSystem::Render()
 				if (matBatch.indexCount == 0)
 					continue;
 
-				m_batchRenderer.RenderMaterialBatch(transform, matBatch,
+				batchMgr->RenderMaterialBatch(transform, matBatch,
 					model->GetVertexBuffer(), model->GetIndexBuffer());
 			}
 		}

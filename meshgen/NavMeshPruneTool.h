@@ -6,7 +6,8 @@
 
 #include "meshgen/NavMeshTool.h"
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
+
 #include <memory>
 
 class NavmeshFlags;

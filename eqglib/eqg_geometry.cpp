@@ -231,7 +231,7 @@ bool SimpleModelDefinition::InitFromWLDData(std::string_view tag, SDMSpriteDef2W
 		InitCollisionData(false);
 	}
 
-	return true;
+	return InitStaticData();
 }
 
 bool SimpleModelDefinition::InitFromEQMData(std::string_view tag,
@@ -272,18 +272,18 @@ bool SimpleModelDefinition::InitFromEQMData(std::string_view tag,
 		}
 	}
 
-	return true;
+	return InitStaticData();
 }
 
 bool SimpleModelDefinition::InitStaticData()
 {
-	// TODO: Should create index/vertex buffers here
+	// Subclass should create index/vertex buffers here
 	return true;
 }
 
 bool SimpleModelDefinition::ReleaseStaticData()
 {
-	// TODO: Should destroy index/vertex buffers here
+	// Subclass should destroy index/vertex buffers here
 	return true;
 }
 

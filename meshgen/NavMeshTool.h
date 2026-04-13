@@ -4,16 +4,16 @@
 
 #pragma once
 
+#include "meshgen/NavMeshBuilder.h"
 #include "common/NavMesh.h"
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
-#include "meshgen/NavMeshBuilder.h"
 
-#include <DebugDraw.h>
-#include <DetourNavMesh.h>
-#include <Recast.h>
+#include "glm/glm.hpp"
+#include "recast/Detour/Include/DetourNavMesh.h"
+#include "recast/DebugUtils/Include/DebugDraw.h"
+#include "recast/Recast/Include/Recast.h"
 
-#include <glm/glm.hpp>
 #include <atomic>
 #include <map>
 #include <memory>

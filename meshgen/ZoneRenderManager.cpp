@@ -1,9 +1,15 @@
 #include "pch.h"
 #include "meshgen/ResourceManager.h"
 
+#include "meshgen/AreaVolumeRenderSystem.h"
 #include "meshgen/EQComponents.h"
 #include "meshgen/Entity.h"
+#include "meshgen/InvisibleWallRenderSystem.h"
+#include "meshgen/PointLightRenderSystem.h"
+#include "meshgen/RenderBatchManager.h"
 #include "meshgen/Scene.h"
+#include "meshgen/SkeletalMeshRenderSystem.h"
+#include "meshgen/StaticMeshRenderSystem.h"
 #include "meshgen/ZoneCollisionMesh.h"
 #include "meshgen/ZoneProject.h"
 #include "meshgen/ZoneRenderManager.h"
@@ -22,7 +28,6 @@
 #include "recast/Detour/Include/DetourNavMeshQuery.h"
 #include "recast/Recast/Include/Recast.h"
 #include <cmath>
-
 
 ZoneRenderManager* g_zoneRenderManager = nullptr;
 
@@ -309,14 +314,15 @@ static void Im3d_Draw(const Im3d::DrawList& drawList)
 ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 	: m_project(project)
 {
-	m_zoneInputGeometry = new ZoneInputGeometryRender(this);
-	m_navMeshRender = new ZoneNavMeshRender(this);
+	m_zoneInputGeometry = std::make_unique<ZoneInputGeometryRender>(this);
+	m_navMeshRender = std::make_unique<ZoneNavMeshRender>(this);
+	m_renderBatchManager = std::make_unique<RenderBatchManager>(this);
 
-	m_areaVolumeSystem.Init(this);
-	m_invisibleWallSystem.Init(this);
-	m_pointLightSystem.Init(this);
-	m_staticMeshSystem.Init(this);
-	m_skeletalMeshSystem.Init(this);
+	m_areaVolumeSystem = std::make_unique<AreaVolumeRenderSystem>(this);
+	m_invisibleWallSystem = std::make_unique<InvisibleWallRenderSystem>(this);
+	m_pointLightSystem = std::make_unique<PointLightRenderSystem>(this);
+	m_staticMeshSystem = std::make_unique<StaticMeshRenderSystem>(this);
+	m_skeletalMeshSystem = std::make_unique<SkeletalMeshRenderSystem>(this);
 
 	// TEMP
 	g_zoneRenderManager = this;
@@ -327,17 +333,16 @@ ZoneRenderManager::ZoneRenderManager(ZoneProject* project)
 
 ZoneRenderManager::~ZoneRenderManager()
 {
-	m_skeletalMeshSystem.Shutdown();
-	m_staticMeshSystem.Shutdown();
-	m_pointLightSystem.Shutdown();
-	m_invisibleWallSystem.Shutdown();
-	m_areaVolumeSystem.Shutdown();
+	m_skeletalMeshSystem.reset();
+	m_staticMeshSystem.reset();
+	m_pointLightSystem.reset();
+	m_invisibleWallSystem.reset();
+	m_areaVolumeSystem.reset();
 
-	delete m_zoneInputGeometry;
-	m_zoneInputGeometry = nullptr;
-
-	delete m_navMeshRender;
-	m_navMeshRender = nullptr;
+	m_staticMeshSystem.reset();
+	m_zoneInputGeometry.reset();
+	m_navMeshRender.reset();
+	m_renderBatchManager.reset();
 
 	// TEMP
 	g_zoneRenderManager = nullptr;
@@ -355,11 +360,11 @@ void ZoneRenderManager::ShutdownShared()
 
 void ZoneRenderManager::SetRegistry(entt::registry* registry)
 {
-	m_areaVolumeSystem.SetRegistry(registry);
-	m_invisibleWallSystem.SetRegistry(registry);
-	m_pointLightSystem.SetRegistry(registry);
-	m_staticMeshSystem.SetRegistry(registry);
-	m_skeletalMeshSystem.SetRegistry(registry);
+	m_areaVolumeSystem->SetRegistry(registry);
+	m_invisibleWallSystem->SetRegistry(registry);
+	m_pointLightSystem->SetRegistry(registry);
+	m_staticMeshSystem->SetRegistry(registry);
+	m_skeletalMeshSystem->SetRegistry(registry);
 }
 
 void ZoneRenderManager::DestroyObjects()
@@ -524,8 +529,8 @@ void ZoneRenderManager::Render()
 	if (m_project && m_project->IsZoneLoaded())
 	{
 		// Update and render point lights
-		m_pointLightSystem.Update();
-		m_areaVolumeSystem.Update();
+		m_pointLightSystem->Update();
+		m_areaVolumeSystem->Update();
 
 		// Render geometry based on current mode
 		if (m_geometryRenderMode == GeometryRenderMode::Collision)
@@ -535,26 +540,26 @@ void ZoneRenderManager::Render()
 		else
 		{
 			// Render static meshes
-			m_staticMeshSystem.Update();
-			m_staticMeshSystem.Render();
+			m_staticMeshSystem->Update();
+			m_staticMeshSystem->Render();
 
 			// Render skeletal meshes
-			m_skeletalMeshSystem.Update();
-			m_skeletalMeshSystem.Render();
+			m_skeletalMeshSystem->Update();
+			m_skeletalMeshSystem->Render();
 
 			// Update and render invisible walls
-			m_invisibleWallSystem.Update();
-			m_invisibleWallSystem.Render();
+			m_invisibleWallSystem->Update();
+			m_invisibleWallSystem->Render();
 		}
 
-		m_areaVolumeSystem.Render();
-
-		m_pointLightSystem.Render();
+		m_pointLightSystem->Render();
 
 		RenderEntities();
 		DrawGrid();
 
 		m_navMeshRender->Render();
+
+		m_areaVolumeSystem->Render();
 	}
 
 	RenderDebugDraw();
@@ -671,6 +676,52 @@ void ZoneRenderManager::RenderDebugDraw()
 		m_tris.clear();
 		m_triIndices.clear();
 	}
+}
+
+bool ZoneRenderManager::GetDrawAreaVolumes() const
+{
+	return m_areaVolumeSystem->GetVisible();
+}
+void ZoneRenderManager::SetDrawAreaVolumes(bool draw)
+{
+	m_areaVolumeSystem->SetVisible(draw);
+}
+
+bool ZoneRenderManager::GetDrawInvisibleWalls() const
+{
+	return m_invisibleWallSystem->GetVisible();
+}
+void ZoneRenderManager::SetDrawInvisibleWalls(bool draw)
+{
+	m_invisibleWallSystem->SetVisible(draw);
+}
+
+bool ZoneRenderManager::GetDrawPointLights() const
+{
+	return m_pointLightSystem->GetVisible();
+}
+
+void ZoneRenderManager::SetDrawPointLights(bool draw)
+{
+	m_pointLightSystem->SetVisible(draw);
+}
+
+bool ZoneRenderManager::GetUseVertexColors() const
+{
+	return m_useVertexColors;
+}
+void ZoneRenderManager::SetUseVertexColors(bool use)
+{
+	m_useVertexColors = use;
+}
+
+bool ZoneRenderManager::GetUseVertexTints() const
+{
+	return m_useVertexTints;
+}
+void ZoneRenderManager::SetUseVertexTints(bool use)
+{
+	m_useVertexTints = use;
 }
 
 //----------------------------------------------------------------------------

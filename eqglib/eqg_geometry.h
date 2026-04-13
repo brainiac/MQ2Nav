@@ -555,7 +555,7 @@ public:
 	virtual ~SimpleModel();
 
 	virtual bool Init(const SimpleModelDefinitionPtr& definition);
-	virtual bool InitBatchInstances() { return true; } // TODO: Implement me
+	virtual bool InitBatchInstances() { return true; }
 
 	virtual void SetActor(Actor* actor) { m_actor = actor; }
 	virtual Actor* GetActor() const { return m_actor; }
@@ -759,7 +759,7 @@ protected:
 
 //-------------------------------------------------------------------------------------------------
 
-class SimpleActor : public Actor
+class SimpleActor final : public Actor
 {
 public:
 	SimpleActor(
@@ -809,7 +809,7 @@ private:
 
 //-------------------------------------------------------------------------------------------------
 
-class HierarchicalActor : public Actor
+class HierarchicalActor final : public Actor
 {
 public:
 	HierarchicalActor(
@@ -882,7 +882,7 @@ private:
 
 class EmitterInterface;
 
-class ParticleActor : public Actor
+class ParticleActor final : public Actor
 {
 public:
 	ParticleActor(

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "StaticMeshRenderSystem.h"
+#include "meshgen/RenderBatch.h"
 #include "eqglib/eqg_geometry.h"
 
 #include "bgfx/bgfx.h"
@@ -12,12 +12,19 @@
 
 namespace eqg { class Material; }
 
+class MGSimpleModelDefinition : public eqg::SimpleModel
+{
+public:
+};
+
 // GPU-aware SimpleModel that manages bgfx vertex/index buffers
 class MGSimpleModel : public eqg::SimpleModel
 {
 public:
 	MGSimpleModel();
-	~MGSimpleModel() override;
+	virtual ~MGSimpleModel() override;
+
+	virtual bool InitBatchInstances() override;
 
 	bool BuildGPUBuffers();
 	void DestroyGPUBuffers();
@@ -33,8 +40,6 @@ public:
 	const std::vector<MaterialBatch>& GetMaterialBatches() const { return m_materialBatches; }
 
 private:
-	void CreateMaterialBatches();
-
 	bgfx::VertexBufferHandle m_vertexBuffer = BGFX_INVALID_HANDLE;
 	bgfx::IndexBufferHandle m_indexBuffer = BGFX_INVALID_HANDLE;
 	uint32_t m_indexCount = 0;

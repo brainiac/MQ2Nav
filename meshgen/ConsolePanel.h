@@ -4,8 +4,8 @@
 #include "meshgen/Logging.h"
 #include "meshgen/PanelManager.h"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/base_sink.h>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/base_sink.h"
 #include <deque>
 
 class Application;

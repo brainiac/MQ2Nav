@@ -15,11 +15,8 @@ class ZoneRenderManager;
 class InvisibleWallRenderSystem
 {
 public:
-	InvisibleWallRenderSystem();
+	InvisibleWallRenderSystem(ZoneRenderManager* renderManager);
 	~InvisibleWallRenderSystem();
-
-	void Init(ZoneRenderManager* renderManager);
-	void Shutdown();
 
 	void SetRegistry(entt::registry* registry);
 	void SetDirty() { m_dirty = true; }

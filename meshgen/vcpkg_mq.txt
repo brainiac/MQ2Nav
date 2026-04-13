@@ -13,3 +13,4 @@ entt
 taskflow
 meshoptimizer
 yaml-cpp
+boost-intrusive

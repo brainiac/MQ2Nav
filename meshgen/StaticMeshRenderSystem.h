@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "meshgen/MaterialBatchRenderer.h"
-
-#include "bgfx/bgfx.h"
 #include "entt/entity/registry.hpp"
 #include "glm/glm.hpp"
 
@@ -18,91 +15,18 @@ class MGTerrain;
 class MGTerrainTile;
 class ZoneRenderManager;
 
-struct MaterialBatch;
-
 namespace eqg
 {
 	class Material;
 	class SimpleModelDefinition;
 }
 
-// Material batch for rendering - groups faces by material for texture binding
-struct MaterialBatch
-{
-	eqg::Material* material = nullptr;  // Material for this batch
-	uint32_t startIndex = 0;            // Start index in index buffer
-	uint32_t indexCount = 0;            // Number of indices in this batch
-
-	bool isAlphaBlend = false;
-	bool isTint = false;
-};
-
-// Vertex format for static mesh rendering
-// Structured for future texture support
-struct StaticMeshVertex
-{
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec2 uv;
-	uint32_t  colorDiffuse;  // ABGR
-	uint32_t  colorTint;
-
-	static void Init()
-	{
-		ms_layout
-			.begin()
-				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::Normal, 3, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
-				.add(bgfx::Attrib::Color1, 4, bgfx::AttribType::Uint8, true)
-			.end();
-	}
-
-	inline static bgfx::VertexLayout ms_layout;
-};
-
-// Instance data for instanced rendering
-struct MeshInstanceData
-{
-	glm::vec4 row0;  // Transform matrix row 0
-	glm::vec4 row1;  // Transform matrix row 1
-	glm::vec4 row2;  // Transform matrix row 2
-	glm::vec4 row3;  // Transform matrix row 3
-
-	MeshInstanceData() = default;
-
-	explicit MeshInstanceData(const glm::mat4& transform)
-		: row0(transform[0])
-		, row1(transform[1])
-		, row2(transform[2])
-		, row3(transform[3])
-	{
-	}
-
-	static void Init()
-	{
-		ms_layout
-			.begin()
-			.add(bgfx::Attrib::TexCoord7, 4, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord6, 4, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord5, 4, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord4, 4, bgfx::AttribType::Float)
-			.end();
-	}
-
-	inline static bgfx::VertexLayout ms_layout;
-};
-
 // Render system for static mesh geometry (SimpleModel and Terrain)
 class StaticMeshRenderSystem
 {
 public:
-	StaticMeshRenderSystem();
+	StaticMeshRenderSystem(ZoneRenderManager* renderManager);
 	~StaticMeshRenderSystem();
-
-	void Init(ZoneRenderManager* renderManager);
-	void Shutdown();
 
 	void SetRegistry(entt::registry* registry);
 	void SetDirty() { m_dirty = true; }
@@ -126,8 +50,6 @@ private:
 	entt::registry* m_registry = nullptr;
 	ZoneRenderManager* m_renderManager = nullptr;
 	bool m_dirty = true;
-
-	MaterialBatchRenderer m_batchRenderer;
 
 	struct RenderBatch
 	{

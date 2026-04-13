@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "common/NavMeshData.h"
 #include "meshgen/NavMeshTool.h"
+#include "common/NavMeshData.h"
 
 #include <cstdint>
 

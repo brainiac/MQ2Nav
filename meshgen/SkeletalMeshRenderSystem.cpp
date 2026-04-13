@@ -9,6 +9,7 @@
 #include "meshgen/EQComponents.h"
 #include "meshgen/Entity.h"
 #include "meshgen/MGHierarchicalModel.h"
+#include "meshgen/RenderBatchManager.h"
 #include "meshgen/ZoneRenderManager.h"
 
 #include "eqglib/eqg_geometry.h"
@@ -19,23 +20,12 @@
 
 //============================================================================
 
-SkeletalMeshRenderSystem::SkeletalMeshRenderSystem()
+SkeletalMeshRenderSystem::SkeletalMeshRenderSystem(ZoneRenderManager* renderManager)
 {
+	m_renderManager = renderManager;
 }
 
 SkeletalMeshRenderSystem::~SkeletalMeshRenderSystem()
-{
-	Shutdown();
-}
-
-void SkeletalMeshRenderSystem::Init(ZoneRenderManager* renderManager)
-{
-	m_renderManager = renderManager;
-
-	m_batchRenderer.Init(renderManager);
-}
-
-void SkeletalMeshRenderSystem::Shutdown()
 {
 	if (m_registry)
 	{
@@ -44,8 +34,6 @@ void SkeletalMeshRenderSystem::Shutdown()
 		m_hiddenConstructConnection.release();
 		m_hiddenDestroyConnection.release();
 	}
-
-	m_batchRenderer.Shutdown();
 
 	m_batches.clear();
 	m_registry = nullptr;
@@ -175,8 +163,7 @@ void SkeletalMeshRenderSystem::Render()
 	if (!m_registry)
 		return;
 
-	if (!m_batchRenderer.IsValid())
-		return;
+	RenderBatchManager* batchMgr = m_renderManager->GetRenderBatchManager();
 
 	for (auto& [def, batch] : m_batches)
 	{
@@ -200,7 +187,7 @@ void SkeletalMeshRenderSystem::Render()
 				if (matBatch.indexCount == 0)
 					continue;
 
-				m_batchRenderer.RenderMaterialBatch(transform, matBatch,
+				batchMgr->RenderMaterialBatch(transform, matBatch,
 					model->GetVertexBuffer(), model->GetIndexBuffer());
 			}
 		}

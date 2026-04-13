@@ -14,43 +14,11 @@
 
 class ZoneRenderManager;
 
-// Vertex data for point light billboard instances
-struct PointLightInstanceVertex
-{
-	glm::vec4 pos;      // xyz position, w unused
-	glm::vec4 color;    // rgba color from light definition
-	glm::vec4 data;     // x=size, y=radius
-	glm::vec4 uv;       // atlas UV region (u0, v0, u1, v1)
-
-	PointLightInstanceVertex(const glm::vec3& position, const glm::vec4& col, float size, float radius, const glm::vec4& atlasUV)
-		: pos(position.x, position.y, position.z, 1.0f)
-		, color(col)
-		, data(size, radius, 0, 0)
-		, uv(atlasUV)
-	{}
-
-	static void Init()
-	{
-		ms_layout
-			.begin()
-				.add(bgfx::Attrib::TexCoord7, 4, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::TexCoord6, 4, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::TexCoord5, 4, bgfx::AttribType::Float)
-				.add(bgfx::Attrib::TexCoord4, 4, bgfx::AttribType::Float)
-			.end();
-	}
-
-	inline static bgfx::VertexLayout ms_layout;
-};
-
 class PointLightRenderSystem
 {
 public:
-	PointLightRenderSystem();
+	PointLightRenderSystem(ZoneRenderManager* renderManager);
 	~PointLightRenderSystem();
-
-	void Init(ZoneRenderManager* renderManager);
-	void Shutdown();
 
 	void SetRegistry(entt::registry* registry);
 	void SetDirty() { m_dirty = true; }

@@ -3004,7 +3004,7 @@ bool WLDLoader::ParseLight(uint32_t objectIndex)
 
 	m_resourceMgr->Add(tag, lightDef);
 
-	std::shared_ptr<PointLight> pointLight = m_resourceMgr->CreatePointLight(wldObj.tag, lightDef, pHeader->pos, pHeader->radius);
+	std::shared_ptr<PointLight> pointLight = m_resourceMgr->CreatePointLight(wldObj.tag, lightDef, pHeader->pos.yzx, pHeader->radius);
 	m_resourceMgr->AddLight(std::move(pointLight));
 
 	return true;

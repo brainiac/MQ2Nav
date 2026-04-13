@@ -1341,7 +1341,7 @@ void TerrainLight::UpdateLightInstance()
 	}
 	else
 	{
-		m_light = ResourceManager::Get()->CreatePointLight(m_name, m_definition->GetDefinition(), m_position, m_radius);
+		m_light = ResourceManager::Get()->CreatePointLight(m_name, m_definition->GetDefinition(), m_position.yzx, m_radius);
 		ResourceManager::Get()->AddLight(m_light);
 	}
 }
@@ -1615,9 +1615,6 @@ ActorDefinitionPtr WaterSheet::CreateActorDefinition()
 		EQG_LOG_ERROR("Failed to create Simple Model Definition from water sheet. tag={}", tag);
 		return nullptr;
 	}
-
-	// TODO: Defer to renderer
-	pModelDef->InitStaticData();
 
 	resourceMgr->Add(pModelDef);
 

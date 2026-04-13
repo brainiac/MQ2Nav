@@ -26,11 +26,8 @@ struct AreaVolumeDrawBatch
 class AreaVolumeRenderSystem
 {
 public:
-	AreaVolumeRenderSystem();
+	AreaVolumeRenderSystem(ZoneRenderManager* renderManager);
 	~AreaVolumeRenderSystem();
-
-	void Init(ZoneRenderManager* renderManager);
-	void Shutdown();
 
 	void SetRegistry(entt::registry* registry);
 	void SetDirty() { m_dirty = true; }

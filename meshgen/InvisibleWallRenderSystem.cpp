@@ -15,21 +15,27 @@
 
 //============================================================================
 
-InvisibleWallRenderSystem::InvisibleWallRenderSystem()
-{
-}
-
-InvisibleWallRenderSystem::~InvisibleWallRenderSystem()
-{
-	Shutdown();
-}
-
-void InvisibleWallRenderSystem::Init(ZoneRenderManager* renderManager)
+InvisibleWallRenderSystem::InvisibleWallRenderSystem(ZoneRenderManager* renderManager)
 {
 	m_renderManager = renderManager;
 
 	m_volumeProgram = g_resourceMgr->GetProgramHandle("areavolume");
 	m_linesProgram = g_resourceMgr->GetProgramHandle("lines");
+}
+
+InvisibleWallRenderSystem::~InvisibleWallRenderSystem()
+{
+	if (m_registry)
+	{
+		m_invisibleWallConstructConnection.release();
+		m_invisibleWallDestroyConnection.release();
+		m_hiddenConstructConnection.release();
+		m_hiddenDestroyConnection.release();
+	}
+
+	DestroyBuffers();
+	m_registry = nullptr;
+	m_renderManager = nullptr;
 }
 
 void InvisibleWallRenderSystem::SetRegistry(entt::registry* registry)
@@ -83,21 +89,6 @@ void InvisibleWallRenderSystem::OnHiddenDestroy(entt::registry& registry, entt::
 	{
 		m_dirty = true;
 	}
-}
-
-void InvisibleWallRenderSystem::Shutdown()
-{
-	if (m_registry)
-	{
-		m_invisibleWallConstructConnection.release();
-		m_invisibleWallDestroyConnection.release();
-		m_hiddenConstructConnection.release();
-		m_hiddenDestroyConnection.release();
-	}
-
-	DestroyBuffers();
-	m_registry = nullptr;
-	m_renderManager = nullptr;
 }
 
 void InvisibleWallRenderSystem::DestroyBuffers()

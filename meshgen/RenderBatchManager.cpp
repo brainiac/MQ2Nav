@@ -1,33 +1,22 @@
 //
-// MaterialBatchRenderer.cpp
+// RenderBatchManager.cpp
 //
 
 #include "pch.h"
-#include "MaterialBatchRenderer.h"
+#include "RenderBatchManager.h"
 
-#include "meshgen/MGBitmap.h"
+#include "meshgen/RenderBatch.h"
 #include "meshgen/ResourceManager.h"
-#include "meshgen/StaticMeshRenderSystem.h"
+#include "meshgen/MGBitmap.h"
 #include "meshgen/ZoneRenderManager.h"
 
 #include "eqglib/eqg_material.h"
 
 #include "glm/gtc/type_ptr.hpp"
 
-//============================================================================
-
 glm::vec4 g_globalAmbient = { 0.5f, 0.5f, 0.5f, 1.0f };
 
-MaterialBatchRenderer::MaterialBatchRenderer()
-{
-}
-
-MaterialBatchRenderer::~MaterialBatchRenderer()
-{
-	Shutdown();
-}
-
-void MaterialBatchRenderer::Init(ZoneRenderManager* renderManager)
+RenderBatchManager::RenderBatchManager(ZoneRenderManager* renderManager)
 {
 	m_renderManager = renderManager;
 
@@ -49,7 +38,7 @@ void MaterialBatchRenderer::Init(ZoneRenderManager* renderManager)
 	StaticMeshVertex::Init();
 }
 
-void MaterialBatchRenderer::Shutdown()
+RenderBatchManager::~RenderBatchManager()
 {
 	if (bgfx::isValid(m_uniformUseVertexColors))
 	{
@@ -84,8 +73,7 @@ void MaterialBatchRenderer::Shutdown()
 	m_renderManager = nullptr;
 }
 
-void MaterialBatchRenderer::RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch,
-	bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer)
+void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch, bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer)
 {
 	if (batch.indexCount == 0)
 		return;

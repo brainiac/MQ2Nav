@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "meshgen/MaterialBatchRenderer.h"
-
 #include "bgfx/bgfx.h"
 #include "entt/entity/registry.hpp"
 #include "glm/glm.hpp"
@@ -13,6 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
+class RenderBatchManager;
 class MGHierarchicalModel;
 class ZoneRenderManager;
 
@@ -27,11 +26,8 @@ namespace eqg
 class SkeletalMeshRenderSystem
 {
 public:
-	SkeletalMeshRenderSystem();
+	SkeletalMeshRenderSystem(ZoneRenderManager* renderManager);
 	~SkeletalMeshRenderSystem();
-
-	void Init(ZoneRenderManager* renderManager);
-	void Shutdown();
 
 	void SetRegistry(entt::registry* registry);
 	void SetDirty() { m_dirty = true; }
@@ -54,8 +50,6 @@ private:
 	entt::registry* m_registry = nullptr;
 	ZoneRenderManager* m_renderManager = nullptr;
 	bool m_useVertexColors = true;
-
-	MaterialBatchRenderer m_batchRenderer;
 
 	struct RenderBatch
 	{

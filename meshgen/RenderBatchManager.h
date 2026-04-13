@@ -1,28 +1,17 @@
 //
-// MaterialBatchRenderer.h
-//
-// Shared utility for rendering material batches with the staticmesh shader.
-// Used by both StaticMeshRenderSystem and SkeletalMeshRenderSystem.
+// RenderBatchManager.h
 //
 
 #pragma once
 
-#include "bgfx/bgfx.h"
-#include "glm/glm.hpp"
-
-struct MaterialBatch;
 class ZoneRenderManager;
+struct MaterialBatch;
 
-// Manages shared GPU resources for rendering material batches.
-// Owns the shader program, uniforms, and fallback texture.
-class MaterialBatchRenderer
+class RenderBatchManager
 {
 public:
-	MaterialBatchRenderer();
-	~MaterialBatchRenderer();
-
-	void Init(ZoneRenderManager* renderManager);
-	void Shutdown();
+	RenderBatchManager(ZoneRenderManager* renderManager);
+	~RenderBatchManager();
 
 	void RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch,
 		bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer);

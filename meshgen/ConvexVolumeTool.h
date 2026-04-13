@@ -7,7 +7,8 @@
 #include "meshgen/NavMeshTool.h"
 #include "common/NavMeshData.h"
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
+
 #include <vector>
 
 class ConvexVolumeToolState;

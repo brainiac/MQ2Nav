@@ -19,22 +19,32 @@
 
 //============================================================================
 
-AreaVolumeRenderSystem::AreaVolumeRenderSystem()
-{
-}
-
-AreaVolumeRenderSystem::~AreaVolumeRenderSystem()
-{
-	Shutdown();
-}
-
-void AreaVolumeRenderSystem::Init(ZoneRenderManager* renderManager)
+AreaVolumeRenderSystem::AreaVolumeRenderSystem(ZoneRenderManager* renderManager)
 {
 	m_renderManager = renderManager;
 
 	// Load shader programs
 	m_volumeProgram = g_resourceMgr->GetProgramHandle("areavolume");
 	m_linesProgram = g_resourceMgr->GetProgramHandle("lines");
+}
+
+AreaVolumeRenderSystem::~AreaVolumeRenderSystem()
+{
+	if (m_registry)
+	{
+		m_areaVolumeConstructConnection.release();
+		m_areaVolumeDestroyConnection.release();
+		m_hiddenConstructConnection.release();
+		m_hiddenDestroyConnection.release();
+	}
+
+	DestroyBuffers();
+
+	m_batches.clear();
+	m_entityToBatch.clear();
+	m_entityColorCache.clear();
+	m_registry = nullptr;
+	m_renderManager = nullptr;
 }
 
 void AreaVolumeRenderSystem::SetRegistry(entt::registry* registry)
@@ -97,25 +107,6 @@ void AreaVolumeRenderSystem::OnHiddenDestroy(entt::registry& registry, entt::ent
 	{
 		m_dirty = true;
 	}
-}
-
-void AreaVolumeRenderSystem::Shutdown()
-{
-	if (m_registry)
-	{
-		m_areaVolumeConstructConnection.release();
-		m_areaVolumeDestroyConnection.release();
-		m_hiddenConstructConnection.release();
-		m_hiddenDestroyConnection.release();
-	}
-
-	DestroyBuffers();
-
-	m_batches.clear();
-	m_entityToBatch.clear();
-	m_entityColorCache.clear();
-	m_registry = nullptr;
-	m_renderManager = nullptr;
 }
 
 void AreaVolumeRenderSystem::DestroyBuffers()

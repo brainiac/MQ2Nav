@@ -8,9 +8,9 @@
 
 #include "common/NavMesh.h"
 
-#include <glm/glm.hpp>
-#include <imgui/imgui.h>
-#include <spdlog/spdlog.h>
+#include "glm/glm.hpp"
+#include "imgui/imgui.h"
+#include "spdlog/spdlog.h"
 
 #include <memory>
 #include <mutex>

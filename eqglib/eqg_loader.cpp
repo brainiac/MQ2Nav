@@ -488,9 +488,6 @@ bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& f
 			EQG_LOG_ERROR("Failed to add new simple model definition to resource manager: {}", modelTag);
 			return false;
 		}
-
-		// FIXME
-		sModelPtr->InitStaticData();
 	}
 
 	std::string definitionTag = fmt::format("{}_ACTORDEF", tag);
@@ -883,7 +880,7 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 
 		std::shared_ptr<PointLight> pLight = m_resourceMgr->CreatePointLight(
 			string_pool + light->name, lightDef,
-			glm::vec3(light->pos.y, -light->pos.x, light->pos.z), light->radius);
+			glm::vec3(-light->pos.x, light->pos.z, light->pos.y), light->radius);
 		m_resourceMgr->AddLight(std::move(pLight));
 	}
 

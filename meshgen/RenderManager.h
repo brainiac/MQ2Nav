@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include <bgfx/bgfx.h>
+#include "bgfx/bgfx.h"
 
 class BgfxCallback;
 class Camera;

@@ -13,14 +13,12 @@
 #include "meshgen/MGTerrainTile.h"
 #include "meshgen/Scene.h"
 #include "meshgen/ZoneCollisionMesh.h"
-#include "common/NavMeshData.h"
 #include "mq/base/String.h"
 
 #include "eqglib/eqg_global_data.h"
 #include "eqglib/eqg_terrain_loader.h"
 #include "entt/entity/handle.hpp"
 #include "glm/gtx/matrix_decompose.hpp"
-#include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "rapidjson/document.h"
 #include "spdlog/spdlog.h"
@@ -1124,7 +1122,7 @@ void ZoneResourceManager::AddPointLight(const eqg::PointLightPtr& light)
 	entt::handle entity = m_scene->CreateEntity(light->GetDefinition()->GetTag());
 
 	TransformComponent& transform = entity.get<TransformComponent>();
-	transform.position = light->GetPosition().yzx;
+	transform.position = light->GetPosition();
 
 	PointLightComponent& lightComponent = entity.emplace<PointLightComponent>();
 	lightComponent.definition = light->GetDefinition();

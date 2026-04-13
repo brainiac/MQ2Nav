@@ -1,7 +1,7 @@
 #pragma once
 
-
 #include "meshgen/PanelManager.h"
+
 #include "entt/entity/fwd.hpp"
 
 class Editor;

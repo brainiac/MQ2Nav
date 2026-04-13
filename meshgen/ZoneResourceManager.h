@@ -6,7 +6,6 @@
 
 #include "eqglib/eqglib.h"
 #include "meshgen/Entity.h"
-#include "meshgen/MGTerrainTile.h"
 
 #include "glm/glm.hpp"
 #include <cstdint>
@@ -15,7 +14,10 @@
 #include <map>
 #include <unordered_map>
 
+class MGTerrainTile;
 class Scene;
+
+using MGTerrainTilePtr = std::shared_ptr<MGTerrainTile>;
 
 struct KeyFuncs
 {

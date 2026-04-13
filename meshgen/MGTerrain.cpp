@@ -106,7 +106,7 @@ bool MGTerrain::BuildGPUBuffers()
 	// Create bgfx buffers
 	m_vertexBuffer = bgfx::createVertexBuffer(
 		bgfx::copy(vertices.data(), static_cast<uint32_t>(vertices.size() * sizeof(StaticMeshVertex))),
-		StaticMeshVertex::ms_layout);
+		StaticMeshVertex::GetLayout());
 
 	m_indexBuffer = bgfx::createIndexBuffer(
 		bgfx::copy(indices.data(), static_cast<uint32_t>(indices.size() * sizeof(uint32_t))),

@@ -18,16 +18,37 @@
 
 //============================================================================
 
-PointLightRenderSystem::PointLightRenderSystem()
+// Vertex data for point light billboard instances
+struct PointLightInstanceVertex
 {
-}
+	glm::vec4 pos;      // xyz position, w unused
+	glm::vec4 color;    // rgba color from light definition
+	glm::vec4 data;     // x=size, y=radius
+	glm::vec4 uv;       // atlas UV region (u0, v0, u1, v1)
 
-PointLightRenderSystem::~PointLightRenderSystem()
-{
-	Shutdown();
-}
+	PointLightInstanceVertex(const glm::vec3& position, const glm::vec4& col, float size, float radius, const glm::vec4& atlasUV)
+		: pos(position.x, position.y, position.z, 1.0f)
+		, color(col)
+		, data(size, radius, 0, 0)
+		, uv(atlasUV)
+	{
+	}
 
-void PointLightRenderSystem::Init(ZoneRenderManager* renderManager)
+	static void Init()
+	{
+		ms_layout
+			.begin()
+				.add(bgfx::Attrib::TexCoord7, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord6, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord5, 4, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord4, 4, bgfx::AttribType::Float)
+			.end();
+	}
+
+	inline static bgfx::VertexLayout ms_layout;
+};
+
+PointLightRenderSystem::PointLightRenderSystem(ZoneRenderManager* renderManager)
 {
 	m_renderManager = renderManager;
 
@@ -36,6 +57,27 @@ void PointLightRenderSystem::Init(ZoneRenderManager* renderManager)
 	m_iconFont = LCIconFont;
 
 	PointLightInstanceVertex::Init();
+}
+
+PointLightRenderSystem::~PointLightRenderSystem()
+{
+	if (m_registry)
+	{
+		m_pointLightConstructConnection.release();
+		m_pointLightDestroyConnection.release();
+		m_hiddenConstructConnection.release();
+		m_hiddenDestroyConnection.release();
+	}
+
+	if (bgfx::isValid(m_texColorUniform))
+	{
+		bgfx::destroy(m_texColorUniform);
+		m_texColorUniform = BGFX_INVALID_HANDLE;
+	}
+
+	DestroyBuffers();
+	m_registry = nullptr;
+	m_renderManager = nullptr;
 }
 
 void PointLightRenderSystem::SetRegistry(entt::registry* registry)
@@ -85,27 +127,6 @@ void PointLightRenderSystem::OnHiddenDestroy(entt::registry& registry, entt::ent
 {
 	if (registry.any_of<PointLightComponent>(entity))
 		m_dirty = true;
-}
-
-void PointLightRenderSystem::Shutdown()
-{
-	if (m_registry)
-	{
-		m_pointLightConstructConnection.release();
-		m_pointLightDestroyConnection.release();
-		m_hiddenConstructConnection.release();
-		m_hiddenDestroyConnection.release();
-	}
-
-	if (bgfx::isValid(m_texColorUniform))
-	{
-		bgfx::destroy(m_texColorUniform);
-		m_texColorUniform = BGFX_INVALID_HANDLE;
-	}
-
-	DestroyBuffers();
-	m_registry = nullptr;
-	m_renderManager = nullptr;
 }
 
 void PointLightRenderSystem::DestroyBuffers()

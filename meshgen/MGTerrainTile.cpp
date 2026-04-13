@@ -219,7 +219,7 @@ bool MGTerrainTile::BuildGPUBuffers()
 	// Create vertex buffer
 	m_vertexBuffer = bgfx::createVertexBuffer(
 		bgfx::copy(vertices.data(), static_cast<uint32_t>(vertices.size() * sizeof(StaticMeshVertex))),
-		StaticMeshVertex::ms_layout);
+		StaticMeshVertex::GetLayout());
 
 	// Create index buffer
 	m_indexBuffer = bgfx::createIndexBuffer(

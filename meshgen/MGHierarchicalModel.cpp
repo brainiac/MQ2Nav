@@ -7,6 +7,7 @@
 
 #include "eqglib/eqg_material.h"
 
+#include "mq/base/Color.h"
 #include "spdlog/spdlog.h"
 
 #include <map>
@@ -24,6 +25,7 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 {
 	if (m_gpuBuffersBuilt)
 		return true;
+	m_gpuBuffersBuilt = true;
 
 	auto definition = GetDefinition();
 	if (!definition)
@@ -33,11 +35,6 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 	}
 
 	uint32_t numSkins = definition->GetNumAttachedSkins();
-	if (numSkins == 0)
-	{
-		SPDLOG_DEBUG("MGHierarchicalModel::BuildGPUBuffers: No skins for '{}'", definition->m_tag);
-		return false;
-	}
 
 	// Determine which skins to render (only the default active set)
 	uint32_t firstSkin = definition->GetFirstDefaultActiveSkin();
@@ -139,7 +136,7 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 			v.uv = hasUVs ? skin->uvs[i] : glm::vec2(0.0f, 0.0f);
 			v.colorDiffuse = hasColors ? skin->colors[i] : 0xFFFFFFFF;
 
-			allVertices.push_back(v);
+			allVertices.push_back(std::move(v));
 		}
 
 		// Group faces by material (attributes array stores material index per triangle)
@@ -184,14 +181,13 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 	// Create bgfx buffers
 	m_vertexBuffer = bgfx::createVertexBuffer(
 		bgfx::copy(allVertices.data(), static_cast<uint32_t>(allVertices.size() * sizeof(StaticMeshVertex))),
-		StaticMeshVertex::ms_layout);
+		StaticMeshVertex::GetLayout());
 
 	m_indexBuffer = bgfx::createIndexBuffer(
 		bgfx::copy(allIndices.data(), static_cast<uint32_t>(allIndices.size() * sizeof(uint32_t))),
 		BGFX_BUFFER_INDEX32);
 
 	m_indexCount = static_cast<uint32_t>(allIndices.size());
-	m_gpuBuffersBuilt = true;
 
 	SPDLOG_DEBUG("MGHierarchicalModel::BuildGPUBuffers: Built buffers for '{}' ({} verts, {} indices, {} batches)",
 		definition->m_tag, allVertices.size(), allIndices.size(), m_materialBatches.size());

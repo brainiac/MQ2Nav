@@ -6,10 +6,10 @@
 
 #include "meshgen/NavMeshTool.h"
 
-#include <DetourNavMesh.h>
-#include <DetourNavMeshQuery.h>
+#include "glm/glm.hpp"
+#include "recast/Detour/Include/DetourNavMesh.h"
+#include "recast/Detour/Include/DetourNavMeshQuery.h"
 
-#include <glm/glm.hpp>
 #include <vector>
 
 class NavMeshTesterTool : public Tool

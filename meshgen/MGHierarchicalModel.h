@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include "StaticMeshRenderSystem.h"
+#include "meshgen/RenderBatch.h"
 #include "eqglib/eqg_geometry.h"
 
 #include "bgfx/bgfx.h"
-#include "glm/glm.hpp"
 
 namespace eqg { class Material; }
 
