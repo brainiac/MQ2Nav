@@ -9,7 +9,7 @@
 #include "common/proto/NavMeshFile.pb.h"
 #include "mq/base/Enum.h"
 
-#include "extras/protobuf/ProtobufLibs.h"
+#include "mq/contrib/protobuf/ProtobufLibs.h"
 #include "google/protobuf/io/zero_copy_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/util/json_util.h"
