@@ -280,7 +280,24 @@ bool ZoneCollisionMesh::addHierarchicalModel(const glm::mat4& mtx, const eqg::Hi
 		return true;
 	}
 
-	return false;
+	// No dedicated collision mesh — fall back to bone-attached SimpleModel geometry.
+	bool addedAny = false;
+	uint32_t numBones = pDefinition->GetNumBones();
+	const auto& boneDefs = pDefinition->GetBones();
+
+	for (uint32_t boneIdx = 0; boneIdx < numBones; ++boneIdx)
+	{
+		eqg::Bone* bone = model->GetBone(boneIdx);
+		if (!bone || !bone->m_simpleAttachment)
+			continue;
+
+		glm::mat4 boneMtx = mtx * boneDefs[boneIdx].GetDefaultPoseMatrix();
+
+		if (addSimpleModel(boneMtx, bone->m_simpleAttachment.get()))
+			addedAny = true;
+	}
+
+	return addedAny;
 }
 
 

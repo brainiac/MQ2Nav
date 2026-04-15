@@ -8,16 +8,20 @@ SAMPLER2D(s_texColor, 0);
 // y = show invisible
 // z = is transparent texture
 // w = alpha ref
-uniform vec4 u_textureFlags; 
+uniform vec4 u_textureFlags;
+
+#define u_hasTexture (u_textureFlags.x > 0.5)
+#define u_isInvisibleTexture (u_textureFlags.z > 0.5)
+#define u_showInvisibleTextures (u_textureFlags.y > 0.5)
 
 
 void main()
 {
 	vec4 baseColor = v_color0;
 	
-	if (u_textureFlags.x > 0.5) // has texture
+	if (u_hasTexture)
 	{
-		if (u_textureFlags.z > 0.5 && u_textureFlags.y < 1.0) // is transparent and !showInvisibile
+		if (u_isInvisibleTexture && !u_showInvisibleTextures)
 		{
 			discard;
 		}
@@ -30,14 +34,12 @@ void main()
 		}
 
 		baseColor = vec4(texColor.xyz * v_color0.xyz, v_color0.w);
-
-
 	}
 	else if (u_textureFlags.y < 1.0)
 	{
 		discard;
 	}
-	else if (u_textureFlags.w > 0 && baseColor.a < u_textureFlags.w)
+	else if (u_alphaRef > 0 && baseColor.a < u_alphaRef)
 	{
 		discard;
 	}

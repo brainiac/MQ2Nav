@@ -16,6 +16,9 @@
 
 glm::vec4 g_globalAmbient = { 0.5f, 0.5f, 0.5f, 1.0f };
 
+glm::vec4 g_directionalLightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+glm::vec4 g_directionalLightNormal = { 0, -0.707f, -0.707f, 1.0f };
+
 RenderBatchManager::RenderBatchManager(ZoneRenderManager* renderManager)
 {
 	m_renderManager = renderManager;
@@ -28,6 +31,9 @@ RenderBatchManager::RenderBatchManager(ZoneRenderManager* renderManager)
 	m_texColorSampler = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
 	m_uniformTextureFlags = bgfx::createUniform("u_textureFlags", bgfx::UniformType::Vec4);
 	m_uniformGlobalAmbient = bgfx::createUniform("u_globalAmbient", bgfx::UniformType::Vec4);
+
+	m_uDirectionalLightColor = bgfx::createUniform("u_directionalLightColor", bgfx::UniformType::Vec4);
+	m_uDirectionalLightNormal = bgfx::createUniform("u_directionalLightNormal", bgfx::UniformType::Vec4);
 
 	// Create 1x1 white fallback texture
 	uint32_t whitePixel = 0xFFFFFFFF;
@@ -62,6 +68,18 @@ RenderBatchManager::~RenderBatchManager()
 	{
 		bgfx::destroy(m_uniformGlobalAmbient);
 		m_uniformGlobalAmbient = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_uDirectionalLightColor))
+	{
+		bgfx::destroy(m_uDirectionalLightColor);
+		m_uDirectionalLightColor = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_uDirectionalLightNormal))
+	{
+		bgfx::destroy(m_uDirectionalLightNormal);
+		m_uDirectionalLightNormal = BGFX_INVALID_HANDLE;
 	}
 
 	if (bgfx::isValid(m_whiteTexture))
@@ -150,6 +168,8 @@ void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const Ma
 	encoder->setUniform(m_uniformGlobalAmbient, glm::value_ptr(g_globalAmbient));
 	encoder->setUniform(m_uniformTextureFlags, glm::value_ptr(uTextureFlags));
 	encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(uUseVertexColors));
+	encoder->setUniform(m_uDirectionalLightColor, glm::value_ptr(g_directionalLightColor));
+	encoder->setUniform(m_uDirectionalLightNormal, glm::value_ptr(g_directionalLightNormal));
 
 	if (bgfx::isValid(vertexBuffer))
 		encoder->setVertexBuffer(0, vertexBuffer);

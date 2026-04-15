@@ -27,5 +27,7 @@ private:
 	bgfx::UniformHandle m_texColorSampler = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uniformTextureFlags = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uniformGlobalAmbient = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uDirectionalLightColor = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uDirectionalLightNormal = BGFX_INVALID_HANDLE;
 	bgfx::TextureHandle m_whiteTexture = BGFX_INVALID_HANDLE;
 };

@@ -11,6 +11,13 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+
+extern glm::vec4 g_globalAmbient;
+extern glm::vec4 g_directionalLightColor;
+extern glm::vec4 g_directionalLightNormal;
+
+
+
 PropertiesPanel::PropertiesPanel(Editor* editor)
 	: PanelWindow("Properties", "PropertiesPane")
 	, m_editor(editor)
@@ -56,6 +63,15 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 			{
 				eqg::world_clock::set_time_scale(time_scale);
 			}
+
+			ImGui::SeparatorText("Environment");
+
+			static glm::vec3 light(1.0f, 0.0f, 0.0f);
+
+			ImGui::ColorEdit3("Global Ambient", glm::value_ptr(g_globalAmbient));
+			//DirectionalLightWidget("Directional Light Angle", light, g_directionalLight);
+			ImGui::DragFloat3("Directional Light Vector", &g_directionalLightNormal.x, 0.01f, -glm::pi<float>(), glm::pi<float>());
+			ImGui::ColorEdit4("Directional Light Intensity", &g_directionalLightColor.x);
 		}
 	}
 

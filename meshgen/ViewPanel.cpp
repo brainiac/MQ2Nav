@@ -8,8 +8,6 @@
 
 #include "glm/gtc/type_ptr.hpp"
 
-extern glm::vec4 g_globalAmbient;
-
 ViewPanel::ViewPanel(Editor* editor)
 	: PanelWindow("View", "ViewPanel")
 	, m_editor(editor)
@@ -109,10 +107,6 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 
 			ImGui::Unindent();
 			ImGui::EndDisabled();
-
-			ImGui::SeparatorText("Environment");
-
-			ImGui::ColorEdit3("Global Ambient", glm::value_ptr(g_globalAmbient));
 		}
 
 		ImGui::SeparatorText("Navigation Mesh Render - Components");

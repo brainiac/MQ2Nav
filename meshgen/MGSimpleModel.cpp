@@ -70,7 +70,7 @@ bool MGSimpleModel::BuildGPUBuffers()
 		}
 		else
 		{
-			v.colorDiffuse = 0xFFFFFFFF;  // White, full alpha
+			v.colorDiffuse = 0xFF000000;  // White, full alpha
 		}
 
 		if (hasTint)

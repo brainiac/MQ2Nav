@@ -587,14 +587,16 @@ void ZoneRenderManager::RenderDebugDraw()
 
 		m_lastPointsSize = m_points.size();
 
-		bgfx::Encoder* encoder = bgfx::begin();
-		encoder->setMarker("DebugDraw: Points");
-		encoder->setVertexBuffer(0, s_shared.m_quad2VB);
-		encoder->setIndexBuffer(s_shared.m_quadIB);
-		encoder->setInstanceDataBuffer(m_ddPointsVB, 0, static_cast<uint32_t>(m_points.size()));
-		encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_BLEND_ALPHA);
-		encoder->submit(0, s_shared.m_pointsProgram);
-
+		if (bgfx::isValid(m_ddPointsVB))
+		{
+			bgfx::Encoder* encoder = bgfx::begin();
+			encoder->setMarker("DebugDraw: Points");
+			encoder->setVertexBuffer(0, s_shared.m_quad2VB);
+			encoder->setIndexBuffer(s_shared.m_quadIB);
+			encoder->setInstanceDataBuffer(m_ddPointsVB, 0, static_cast<uint32_t>(m_points.size()));
+			encoder->setState(BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_BLEND_ALPHA);
+			encoder->submit(0, s_shared.m_pointsProgram);
+		}
 		m_points.clear();
 	}
 
