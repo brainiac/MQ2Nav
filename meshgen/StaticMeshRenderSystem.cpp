@@ -18,9 +18,12 @@
 
 #include "eqglib/eqg_geometry.h"
 #include "eqglib/eqg_material.h"
+#include "eqglib/eqg_light.h"
 
 #include "entt/entity/handle.hpp"
 #include "spdlog/spdlog.h"
+
+#include <algorithm>
 
 //============================================================================
 
@@ -41,6 +44,8 @@ StaticMeshRenderSystem::~StaticMeshRenderSystem()
 		m_terrainTileDestroyConnection.release();
 		m_hiddenConstructConnection.release();
 		m_hiddenDestroyConnection.release();
+		m_pointLightConstructConnection.release();
+		m_pointLightDestroyConnection.release();
 	}
 
 	m_batches.clear();
@@ -63,6 +68,8 @@ void StaticMeshRenderSystem::SetRegistry(entt::registry* registry)
 		m_terrainTileDestroyConnection.release();
 		m_hiddenConstructConnection.release();
 		m_hiddenDestroyConnection.release();
+		m_pointLightConstructConnection.release();
+		m_pointLightDestroyConnection.release();
 
 		m_batches.clear();
 		m_terrain = nullptr;
@@ -90,6 +97,10 @@ void StaticMeshRenderSystem::SetRegistry(entt::registry* registry)
 			.connect<&StaticMeshRenderSystem::OnHiddenConstruct>(this);
 		m_hiddenDestroyConnection = m_registry->on_destroy<HiddenComponent>()
 			.connect<&StaticMeshRenderSystem::OnHiddenDestroy>(this);
+		m_pointLightConstructConnection = m_registry->on_construct<PointLightComponent>()
+			.connect<&StaticMeshRenderSystem::OnPointLightConstruct>(this);
+		m_pointLightDestroyConnection = m_registry->on_destroy<PointLightComponent>()
+			.connect<&StaticMeshRenderSystem::OnPointLightDestroy>(this);
 	}
 
 	m_dirty = true;
@@ -141,6 +152,16 @@ void StaticMeshRenderSystem::OnHiddenDestroy(entt::registry& registry, entt::ent
 	{
 		m_dirty = true;
 	}
+}
+
+void StaticMeshRenderSystem::OnPointLightConstruct(entt::registry& registry, entt::entity entity)
+{
+	m_dirty = true;
+}
+
+void StaticMeshRenderSystem::OnPointLightDestroy(entt::registry& registry, entt::entity entity)
+{
+	m_dirty = true;
 }
 
 void StaticMeshRenderSystem::RebuildRenderData()
@@ -221,6 +242,73 @@ void StaticMeshRenderSystem::RebuildRenderData()
 		SPDLOG_DEBUG("StaticMeshRenderSystem: Collected {} static mesh entities in {} batches", meshCount, m_batches.size());
 	}
 
+	// Collect visible point lights for light assignment
+	struct CachedLight
+	{
+		glm::vec3 position;
+		float radius;
+		glm::vec3 color;
+	};
+	std::vector<CachedLight> cachedLights;
+
+	{
+		auto lightView = m_registry->view<PointLightComponent, TransformComponent>();
+		for (auto entity : lightView)
+		{
+			if (m_registry->any_of<HiddenComponent>(entity))
+				continue;
+
+			const auto& lightComp = lightView.get<PointLightComponent>(entity);
+			const auto& transformComp = lightView.get<TransformComponent>(entity);
+
+			glm::vec3 lightColor = lightComp.definition->GetColor(0);
+			cachedLights.emplace_back(transformComp.position, lightComp.radius, lightColor);
+		}
+	}
+
+	// Assign closest point lights to each model
+	for (auto& [def, batch] : m_batches)
+	{
+		batch.lightAssignments.resize(batch.transforms.size());
+
+		for (size_t i = 0; i < batch.transforms.size(); ++i)
+		{
+			auto& assignment = batch.lightAssignments[i];
+			memset(&assignment, 0, sizeof(assignment));
+
+			glm::vec3 modelPos = glm::vec3(batch.transforms[i][3]);
+
+			// Find closest lights within radius
+			struct LightDist { size_t index; float distSq; };
+			std::vector<LightDist> candidates;
+
+			for (size_t li = 0; li < cachedLights.size(); ++li)
+			{
+				float distSq = glm::dot(
+					cachedLights[li].position - modelPos,
+					cachedLights[li].position - modelPos);
+				float radius = cachedLights[li].radius;
+
+				if (distSq < radius * radius)
+				{
+					candidates.emplace_back(li, distSq);
+				}
+			}
+
+			// Sort by distance, take closest
+			std::ranges::sort(candidates,
+				[](const LightDist& a, const LightDist& b) { return a.distSq < b.distSq; });
+
+			int count = std::min(static_cast<int>(candidates.size()), MAX_POINT_LIGHTS);
+			for (int j = 0; j < count; ++j)
+			{
+				const auto& light = cachedLights[candidates[j].index];
+				assignment.posRadius[j] = glm::vec4(light.position, light.radius);
+				assignment.colorIntensity[j] = glm::vec4(light.color, 0.0f);
+			}
+		}
+	}
+
 	m_dirty = false;
 }
 
@@ -263,6 +351,9 @@ void StaticMeshRenderSystem::Render()
 		return;
 
 	RenderBatchManager* batchMgr = m_renderManager->GetRenderBatchManager();
+
+	// Disable point lights for terrain
+	batchMgr->SetActivePointLights(nullptr);
 
 	// Render terrain first
 	if (m_terrain)
@@ -332,6 +423,17 @@ void StaticMeshRenderSystem::Render()
 
 			if (!model->HasGPUBuffers())
 				continue;
+
+			if (m_renderManager->UsePointLightShading())
+			{
+				// Set cached point light assignment for this model
+				const auto& assignment = batch.lightAssignments[i];
+				batchMgr->SetActivePointLights(&assignment);
+			}
+			else
+			{
+				batchMgr->SetActivePointLights(nullptr);
+			}
 
 			// Render each material batch
 			for (const auto& matBatch : model->GetMaterialBatches())

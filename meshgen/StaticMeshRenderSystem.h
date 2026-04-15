@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "meshgen/RenderBatchManager.h"
+
 #include "entt/entity/registry.hpp"
 #include "glm/glm.hpp"
 
@@ -45,6 +47,8 @@ private:
 	void OnTerrainTileDestroy(entt::registry& registry, entt::entity entity);
 	void OnHiddenConstruct(entt::registry& registry, entt::entity entity);
 	void OnHiddenDestroy(entt::registry& registry, entt::entity entity);
+	void OnPointLightConstruct(entt::registry& registry, entt::entity entity);
+	void OnPointLightDestroy(entt::registry& registry, entt::entity entity);
 
 private:
 	entt::registry* m_registry = nullptr;
@@ -56,6 +60,9 @@ private:
 		eqg::SimpleModelDefinition* definition = nullptr;
 		std::vector<glm::mat4> transforms;
 		std::vector<MGSimpleModel*> models;
+
+		// Cached point light assignments per model (parallel to transforms/models)
+		std::vector<ActivePointLights> lightAssignments;
 	};
 	std::unordered_map<eqg::SimpleModelDefinition*, RenderBatch> m_batches;
 
@@ -72,5 +79,7 @@ private:
 	entt::connection m_terrainTileDestroyConnection;
 	entt::connection m_hiddenConstructConnection;
 	entt::connection m_hiddenDestroyConnection;
+	entt::connection m_pointLightConstructConnection;
+	entt::connection m_pointLightDestroyConnection;
 };
 

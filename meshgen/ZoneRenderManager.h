@@ -225,6 +225,9 @@ public:
 	bool GetUseVertexTints() const;
 	void SetUseVertexTints(bool use);
 
+	bool UsePointLightShading() const { return m_usePointLightShading; }
+	void SetUsePointLightShading(bool use) { m_usePointLightShading = use; }
+
 private:
 	void DrawCollisionMesh();
 	void DrawGrid();
@@ -240,6 +243,7 @@ private:
 	bool m_drawGrid = true;
 	bool m_useVertexColors = true;
 	bool m_useVertexTints = false;
+	bool m_usePointLightShading = true;
 
 	std::unique_ptr<ZoneInputGeometryRender> m_zoneInputGeometry;
 	std::unique_ptr<ZoneNavMeshRender> m_navMeshRender;

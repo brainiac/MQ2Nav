@@ -35,6 +35,9 @@ RenderBatchManager::RenderBatchManager(ZoneRenderManager* renderManager)
 	m_uDirectionalLightColor = bgfx::createUniform("u_directionalLightColor", bgfx::UniformType::Vec4);
 	m_uDirectionalLightNormal = bgfx::createUniform("u_directionalLightNormal", bgfx::UniformType::Vec4);
 
+	m_uPointLightPosRadius = bgfx::createUniform("u_pointLightPosRadius", bgfx::UniformType::Vec4, MAX_POINT_LIGHTS);
+	m_uPointLightColorIntensity = bgfx::createUniform("u_pointLightColorIntensity", bgfx::UniformType::Vec4, MAX_POINT_LIGHTS);
+
 	// Create 1x1 white fallback texture
 	uint32_t whitePixel = 0xFFFFFFFF;
 	m_whiteTexture = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::RGBA8,
@@ -82,6 +85,24 @@ RenderBatchManager::~RenderBatchManager()
 		m_uDirectionalLightNormal = BGFX_INVALID_HANDLE;
 	}
 
+	if (bgfx::isValid(m_uPointLightPosRadius))
+	{
+		bgfx::destroy(m_uPointLightPosRadius);
+		m_uPointLightPosRadius = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_uPointLightColorIntensity))
+	{
+		bgfx::destroy(m_uPointLightColorIntensity);
+		m_uPointLightColorIntensity = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_uPointLightParams))
+	{
+		bgfx::destroy(m_uPointLightParams);
+		m_uPointLightParams = BGFX_INVALID_HANDLE;
+	}
+
 	if (bgfx::isValid(m_whiteTexture))
 	{
 		bgfx::destroy(m_whiteTexture);
@@ -89,6 +110,18 @@ RenderBatchManager::~RenderBatchManager()
 	}
 
 	m_renderManager = nullptr;
+}
+
+void RenderBatchManager::SetActivePointLights(const ActivePointLights* lights)
+{
+	if (lights != nullptr)
+	{
+		memcpy(&m_activePointLights, lights, sizeof(ActivePointLights));
+	}
+	else
+	{
+		memset(&m_activePointLights, 0, sizeof(m_activePointLights));
+	}
 }
 
 void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch, bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer)
@@ -170,6 +203,10 @@ void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const Ma
 	encoder->setUniform(m_uniformUseVertexColors, glm::value_ptr(uUseVertexColors));
 	encoder->setUniform(m_uDirectionalLightColor, glm::value_ptr(g_directionalLightColor));
 	encoder->setUniform(m_uDirectionalLightNormal, glm::value_ptr(g_directionalLightNormal));
+
+	// Set point light uniforms
+	encoder->setUniform(m_uPointLightPosRadius, m_activePointLights.posRadius, MAX_POINT_LIGHTS);
+	encoder->setUniform(m_uPointLightColorIntensity, m_activePointLights.colorIntensity, MAX_POINT_LIGHTS);
 
 	if (bgfx::isValid(vertexBuffer))
 		encoder->setVertexBuffer(0, vertexBuffer);

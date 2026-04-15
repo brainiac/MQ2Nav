@@ -48,9 +48,9 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		if (ImGui::Checkbox("Invisible Walls", &drawInvisibleWalls))
 			renderManager->SetDrawInvisibleWalls(drawInvisibleWalls);
 
-		bool drawPointLights = renderManager->GetDrawPointLights();
-		if (ImGui::Checkbox("Point Lights", &drawPointLights))
-			renderManager->SetDrawPointLights(drawPointLights);
+		bool usePointLighting = renderManager->UsePointLightShading();
+		if (ImGui::Checkbox("Point Light Shading", &usePointLighting))
+			renderManager->SetUsePointLightShading(usePointLighting);
 
 		ImGui::EndDisabled();
 		ImGui::Unindent();
@@ -62,6 +62,10 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		bool drawGrid = renderManager->GetDrawGrid();
 		if (ImGui::Checkbox("Draw Grid", &drawGrid))
 			renderManager->SetDrawGrid(drawGrid);
+
+		bool drawPointLights = renderManager->GetDrawPointLights();
+		if (ImGui::Checkbox("Draw Point Lights", &drawPointLights))
+			renderManager->SetDrawPointLights(drawPointLights);
 
 		//ImGui::SeparatorText("Debug Visualization");
 
