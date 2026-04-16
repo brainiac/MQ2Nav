@@ -181,7 +181,7 @@ void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
 
 	m_query.reset();
 
-	m_filter = dtQueryFilter{};
+	m_filter = NavPathFilter{};
 	m_filter.setIncludeFlags(+PolyFlags::All);
 	m_filter.setExcludeFlags(+PolyFlags::Disabled);
 	if (auto* mesh = g_mq2Nav->Get<NavMesh>())
@@ -330,6 +330,11 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	glm::vec3 spos;
 
 	// TODO: Cache the last known valid starting position to detect when moving off the mesh
+	if (m_destinationInfo && m_destinationInfo->options.searchRadius > 0)
+	{
+		m_filter.SetSearchOrigin(m_destinationInfo->options.searchOrigin);
+		m_filter.SetSearchRadius(m_destinationInfo->options.searchRadius);
+	}
 
 	m_query->findNearestPoly(
 		glm::value_ptr(startPos),
@@ -922,6 +927,26 @@ void NavigationLine::Update()
 	{
 		m_needsUpdate = true;
 	}
+}
+
+bool NavPathFilter::passFilter(const dtPolyRef ref, const dtMeshTile* tile, const dtPoly* poly) const
+{
+	if (m_searchRadius > 0)
+	{
+		glm::vec3 polyCenter = glm::vec3{ 0, 0, 0 };
+
+		for (int i = 0; i < poly->vertCount; ++i)
+		{
+			const float* v = &tile->verts[poly->verts[i] * 3];
+			polyCenter += glm::vec3{ v[0], v[1], v[2] };
+		}
+
+		polyCenter /= poly->vertCount;
+
+		if (distSqr(m_searchOrigin, polyCenter) > (m_searchRadius * m_searchRadius))
+			return false;
+	}
+	return dtQueryFilter::passFilter(ref, tile, poly);
 }
 
 //----------------------------------------------------------------------------
