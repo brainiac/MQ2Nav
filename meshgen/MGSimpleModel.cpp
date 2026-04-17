@@ -53,7 +53,6 @@ bool MGSimpleModel::BuildGPUBuffers()
 
 	bool hasUVs = !def->m_uvs.empty();
 	bool hasNormals = !def->m_normals.empty();
-	bool hasColors = !def->m_colors.empty();
 	bool hasTint = !def->m_colorTint.empty();
 
 	for (size_t i = 0; i < def->m_vertices.size(); ++i)
@@ -63,15 +62,8 @@ bool MGSimpleModel::BuildGPUBuffers()
 		v.normal = hasNormals ? def->m_normals[i] : glm::vec3(0.0f, 1.0f, 0.0f);
 		v.uv = hasUVs ? def->m_uvs[i] : glm::vec2(0.0f, 0.0f);
 
-		// Convert color to ABGR format
-		if (hasColors)
-		{
-			v.colorDiffuse = mq::MQColor(def->m_colors[i]).ToABGR();
-		}
-		else
-		{
-			v.colorDiffuse = 0xFF000000;  // White, full alpha
-		}
+		// Simple model doesn't use vertex coloring
+		v.colorDiffuse = 0xFF000000;
 
 		if (hasTint)
 		{

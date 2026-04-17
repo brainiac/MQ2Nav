@@ -204,7 +204,8 @@ bool MGHierarchicalModel::BuildGPUBuffers()
 			v.position = glm::vec3(boneMatrix * glm::vec4(simpleDef->m_vertices[i], 1.0f));
 			v.normal = hasNormals ? glm::normalize(glm::vec3(boneMatrix * glm::vec4(simpleDef->m_normals[i], 1.0f))) : glm::vec3(0.0f, 1.0f, 0.0f);
 			v.uv = hasUVs ? simpleDef->m_uvs[i] : glm::vec2(0.0f, 0.0f);
-			v.colorDiffuse = hasColors ? mq::MQColor(simpleDef->m_colors[i]).ToABGR() : 0xFFFFFFFF;
+			// simple model doesn't use vertex coloring
+			v.colorDiffuse = 0xFF000000;
 
 			allVertices.push_back(std::move(v));
 		}
