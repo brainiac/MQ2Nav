@@ -24,9 +24,6 @@
     <ClInclude Include="ZoneData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FindPattern.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -34,9 +31,6 @@
       <Filter>Proto Files\Generated Files</Filter>
     </ClInclude>
     <ClInclude Include="NavMeshData.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Enum.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="NavMesh.h">
@@ -60,9 +54,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZoneData.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FindPattern.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Utilities.cpp">

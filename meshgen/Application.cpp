@@ -31,6 +31,9 @@
 #include <filesystem>
 #include <sstream>
 
+#pragma comment(lib, "tinyexr")
+#pragma comment(lib, "lodepng")
+
 
 namespace fs = std::filesystem;
 

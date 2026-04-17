@@ -140,8 +140,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Enum.h" />
-    <ClInclude Include="FindPattern.h" />
     <ClInclude Include="Formatters.h" />
     <ClInclude Include="JsonProto.h" />
     <ClInclude Include="Logging.h" />
@@ -154,7 +152,6 @@
     <ClInclude Include="ZoneData.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="FindPattern.cpp" />
     <ClCompile Include="JsonProto.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NavMeshData.cpp" />

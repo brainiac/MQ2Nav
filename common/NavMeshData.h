@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "Enum.h"
-
-#include <glm/glm.hpp>
+#include "mq/base/Enum.h"
+#include "glm/glm.hpp"
 
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 enum struct PolyFlags : uint16_t

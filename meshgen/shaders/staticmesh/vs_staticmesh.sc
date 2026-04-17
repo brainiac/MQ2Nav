@@ -2,13 +2,8 @@ $input a_position, a_normal, a_color0, a_color1, a_texcoord0
 $output v_color0, v_texcoord0, v_worldPos, v_worldNormal
 
 #include "../common.sh"
+#include "staticmesh.sh"
 
-// x: 1.0 = use vertex colors, 0.0 = white
-// y: material alpha
-// z: has vertex tint
-uniform vec4 u_useVertexColors; 
-
-uniform vec4 u_globalAmbient;
 
 void main()
 {
