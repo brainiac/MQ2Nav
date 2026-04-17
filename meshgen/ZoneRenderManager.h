@@ -9,6 +9,8 @@
 #include "recast/DebugUtils/Include/DebugDraw.h"
 #include "recast/Detour/Include/DetourNavMesh.h"
 
+#include "meshgen/RenderBatchManager.h"
+
 #include <unordered_map>
 
 namespace eqg { struct SWorldTreeWLDData; }
@@ -17,7 +19,7 @@ class dtNavMesh;
 class dtNavMeshQuery;
 class NavMesh;
 class NavMeshProject;
-class RenderBatchManager;
+
 class ZoneInputGeometryRender;
 class ZoneNavMeshRender;
 class ZoneProject;
@@ -226,7 +228,9 @@ public:
 	void SetUseVertexTints(bool use);
 
 	bool UsePointLightShading() const { return m_usePointLightShading; }
-	void SetUsePointLightShading(bool use) { m_usePointLightShading = use; }
+	void SetUsePointLightShading(bool value) { m_usePointLightShading = value; }
+	PointLightShadingMode GetPointLightShadingMode() const { return m_pointLightShadingMode; }
+	void SetPointLightShadingMode(PointLightShadingMode mode) { m_pointLightShadingMode = mode; }
 
 private:
 	void DrawCollisionMesh();
@@ -242,8 +246,9 @@ private:
 	bool m_drawCollisionMesh = false;
 	bool m_drawGrid = true;
 	bool m_useVertexColors = true;
-	bool m_useVertexTints = false;
+	bool m_useVertexTints = true;
 	bool m_usePointLightShading = true;
+	PointLightShadingMode m_pointLightShadingMode = PointLightShadingMode::PerVertex;
 
 	std::unique_ptr<ZoneInputGeometryRender> m_zoneInputGeometry;
 	std::unique_ptr<ZoneNavMeshRender> m_navMeshRender;

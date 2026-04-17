@@ -48,9 +48,20 @@ void ViewPanel::OnImGuiRender(bool* p_open)
 		if (ImGui::Checkbox("Invisible Walls", &drawInvisibleWalls))
 			renderManager->SetDrawInvisibleWalls(drawInvisibleWalls);
 
-		bool usePointLighting = renderManager->UsePointLightShading();
-		if (ImGui::Checkbox("Point Light Shading", &usePointLighting))
-			renderManager->SetUsePointLightShading(usePointLighting);
+		bool usePointLightShading = renderManager->UsePointLightShading();
+		if (ImGui::Checkbox("Point Light Shading", &usePointLightShading))
+			renderManager->SetUsePointLightShading(usePointLightShading);
+
+		ImGui::Indent();
+		ImGui::BeginDisabled(!usePointLightShading);
+		static const char* modeNames[] = { "Per-Vertex", "Per-Fragment" };
+		int currentMode = static_cast<int>(renderManager->GetPointLightShadingMode());
+		if (ImGui::Combo("Shading Mode", &currentMode, modeNames, 2))
+		{
+			renderManager->SetPointLightShadingMode(static_cast<PointLightShadingMode>(currentMode));
+		}
+		ImGui::EndDisabled();
+		ImGui::Unindent();
 
 		ImGui::EndDisabled();
 		ImGui::Unindent();

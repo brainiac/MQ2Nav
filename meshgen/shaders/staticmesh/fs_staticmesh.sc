@@ -38,17 +38,23 @@ void main()
 	// Per-fragment lighting
 	vec3 normal = normalize(v_worldNormal);
 
-	// Directional light (Lambert)
-	vec3 lightDir = normalize(-u_directionalLightNormal.xyz);
-	vec3 ambient = u_directionalLightColor.rgb;
-	float ndotl = max(dot(normal, lightDir), 0.0);
-	vec3 lighting = ambient + (vec3_splat(1.0) - ambient) * ndotl;
+	// Per-fragment lighting mode (mode 2): compute all lighting here
+	if (u_pointLightMode > 1.5)
+	{
+		// Directional light (Lambert)
+		vec3 lightDir = normalize(-u_directionalLightNormal.xyz);
+		vec3 ambient = u_directionalLightColor.rgb;
+		float ndotl = max(dot(normal, lightDir), 0.0);
+		vec3 lighting = ambient + (vec3_splat(1.0) - ambient) * ndotl;
 
-	// Point lights
-	lighting = lighting
-		+ CalculatePointLightShading(0, normal, v_worldPos);
-		+ CalculatePointLightShading(1, normal, v_worldPos);
-		+ CalculatePointLightShading(2, normal, v_worldPos);
+		// Point lights
+		lighting = lighting
+			+ CalculatePointLightShading(0, normal, v_worldPos)
+			+ CalculatePointLightShading(1, normal, v_worldPos)
+			+ CalculatePointLightShading(2, normal, v_worldPos);
 
-	gl_FragColor = vec4(baseColor.rgb * lighting, baseColor.a);
+		baseColor = vec4(baseColor.rgb * lighting, baseColor.a);
+	}
+
+	gl_FragColor = baseColor;
 }

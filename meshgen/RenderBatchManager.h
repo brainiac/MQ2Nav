@@ -11,10 +11,16 @@ struct MaterialBatch;
 
 static constexpr int MAX_POINT_LIGHTS = 3;
 
+enum class PointLightShadingMode
+{
+	PerVertex = 0,
+	PerFragment = 1,
+};
+
 struct ActivePointLights
 {
 	glm::vec4 posRadius[MAX_POINT_LIGHTS];        // xyz = world position, w = radius
-	glm::vec4 colorIntensity[MAX_POINT_LIGHTS];   // rgb = color * intensity
+	glm::vec4 color[MAX_POINT_LIGHTS];            // rgb = color
 };
 
 class RenderBatchManager
@@ -27,6 +33,7 @@ public:
 		bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer);
 
 	void SetActivePointLights(const ActivePointLights* lights);
+	void SetPointLightShadingMode(PointLightShadingMode mode) { m_pointLightShadingMode = mode; }
 
 	bgfx::ProgramHandle GetProgram() const { return m_program; }
 	bool IsValid() const { return bgfx::isValid(m_program); }
@@ -35,19 +42,19 @@ private:
 	ZoneRenderManager* m_renderManager = nullptr;
 
 	bgfx::ProgramHandle m_program = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_uniformUseVertexColors = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uShadingMode = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_texColorSampler = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_uniformTextureFlags = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_uniformGlobalAmbient = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uTextureFlags = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uGlobalAmbient = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uDirectionalLightColor = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uDirectionalLightNormal = BGFX_INVALID_HANDLE;
 	bgfx::TextureHandle m_whiteTexture = BGFX_INVALID_HANDLE;
 
 	// Point light uniforms
 	bgfx::UniformHandle m_uPointLightPosRadius = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_uPointLightColorIntensity = BGFX_INVALID_HANDLE;
-	bgfx::UniformHandle m_uPointLightParams = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uPointLightColor = BGFX_INVALID_HANDLE;
 
 	// Current active point lights (set per-model before rendering)
 	ActivePointLights m_activePointLights;
+	PointLightShadingMode m_pointLightShadingMode = PointLightShadingMode::PerVertex;
 };

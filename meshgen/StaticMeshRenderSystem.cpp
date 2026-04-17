@@ -304,7 +304,7 @@ void StaticMeshRenderSystem::RebuildRenderData()
 			{
 				const auto& light = cachedLights[candidates[j].index];
 				assignment.posRadius[j] = glm::vec4(light.position, light.radius);
-				assignment.colorIntensity[j] = glm::vec4(light.color, 0.0f);
+				assignment.color[j] = glm::vec4(light.color, 0.0f);
 			}
 		}
 	}
@@ -429,6 +429,7 @@ void StaticMeshRenderSystem::Render()
 				// Set cached point light assignment for this model
 				const auto& assignment = batch.lightAssignments[i];
 				batchMgr->SetActivePointLights(&assignment);
+				batchMgr->SetPointLightShadingMode(m_renderManager->GetPointLightShadingMode());
 			}
 			else
 			{
