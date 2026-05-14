@@ -2,11 +2,10 @@
 #include "pch.h"
 #include "PropertiesPanel.h"
 
-#include "common/MathUtil.h"
 #include "meshgen/Editor.h"
 #include "meshgen/ZoneProject.h"
 #include "meshgen/ZoneResourceManager.h"
-#include "meshgen/ZoneCollisionMesh.h"
+#include "meshgen/ZoneRenderManager.h"
 #include "imgui/fonts/IconsFontAwesome.h"
 
 #include <glm/gtc/type_ptr.hpp>
@@ -15,6 +14,7 @@
 extern glm::vec4 g_globalAmbient;
 extern glm::vec4 g_directionalLightColor;
 extern glm::vec4 g_directionalLightNormal;
+extern glm::vec4 g_directionalLightBounceColor;
 
 
 
@@ -69,9 +69,12 @@ void PropertiesPanel::OnImGuiRender(bool* p_open)
 			static glm::vec3 light(1.0f, 0.0f, 0.0f);
 
 			ImGui::ColorEdit3("Global Ambient", glm::value_ptr(g_globalAmbient));
-			//DirectionalLightWidget("Directional Light Angle", light, g_directionalLight);
+			glm::vec4 constantAmbient = project->GetRenderManager()->GetConstantAmbientColor();
+			if (ImGui::ColorEdit4("Constant Ambient", &constantAmbient.x))
+				project->GetRenderManager()->SetConstantAmbientColor(constantAmbient);
 			ImGui::DragFloat3("Directional Light Vector", &g_directionalLightNormal.x, 0.01f, -glm::pi<float>(), glm::pi<float>());
-			ImGui::ColorEdit4("Directional Light Intensity", &g_directionalLightColor.x);
+			ImGui::ColorEdit4("Directional Light", &g_directionalLightColor.x);
+			ImGui::ColorEdit4("Bounce Light", &g_directionalLightBounceColor.x);
 		}
 	}
 

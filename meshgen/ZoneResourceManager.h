@@ -153,4 +153,6 @@ private:
 
 	// List of terrain tiles (for EQG zones with TerrainSystem)
 	std::vector<MGTerrainTilePtr> m_terrainTiles;
+
+	glm::vec4 m_constantAmbientColor;
 };

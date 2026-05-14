@@ -386,4 +386,14 @@ std::unique_ptr<uint8_t[]> ResourceManager::ReadFile(std::string_view filePath, 
 	return buffer;
 }
 
+void ResourceManager::SetConstantAmbientColor(uint32_t constantAmbientColor)
+{
+	m_constantAmbientColor = {
+		static_cast<float>(constantAmbientColor & 0x00ff0000 >> 16) / 255,
+		static_cast<float>(constantAmbientColor & 0x0000ff00 >>  8) / 255,
+		static_cast<float>(constantAmbientColor & 0x000000ff >>  0) / 255,
+		static_cast<float>(constantAmbientColor & 0xff000000 >> 24) / 255,
+	};
+}
+
 } // namespace eqg

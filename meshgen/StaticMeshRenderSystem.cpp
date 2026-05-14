@@ -429,7 +429,6 @@ void StaticMeshRenderSystem::Render()
 				// Set cached point light assignment for this model
 				const auto& assignment = batch.lightAssignments[i];
 				batchMgr->SetActivePointLights(&assignment);
-				batchMgr->SetPointLightShadingMode(m_renderManager->GetPointLightShadingMode());
 			}
 			else
 			{

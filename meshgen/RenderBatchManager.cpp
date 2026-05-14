@@ -17,7 +17,19 @@
 glm::vec4 g_globalAmbient = { 0.5f, 0.5f, 0.5f, 1.0f };
 
 glm::vec4 g_directionalLightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+glm::vec4 g_directionalLightBounceColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 glm::vec4 g_directionalLightNormal = { 0, -0.707f, -0.707f, 1.0f };
+
+static glm::mat4 computeWorldInverseTranspose(const glm::mat4& worldMatrix)
+{
+	glm::mat4 inv = glm::inverse(worldMatrix);
+
+	inv[0] = glm::vec4(glm::normalize(glm::vec3(inv[0])), inv[0].w);
+	inv[1] = glm::vec4(glm::normalize(glm::vec3(inv[1])), inv[1].w);
+	inv[2] = glm::vec4(glm::normalize(glm::vec3(inv[2])), inv[2].w);
+
+	return glm::transpose(inv);
+}
 
 RenderBatchManager::RenderBatchManager(ZoneRenderManager* renderManager)
 {
@@ -32,10 +44,13 @@ RenderBatchManager::RenderBatchManager(ZoneRenderManager* renderManager)
 	m_uShadingMode = bgfx::createUniform("u_shadingMode", bgfx::UniformType::Vec4);
 	m_uTextureFlags = bgfx::createUniform("u_textureFlags", bgfx::UniformType::Vec4);
 	m_uGlobalAmbient = bgfx::createUniform("u_globalAmbient", bgfx::UniformType::Vec4);
+	m_uSpecialAmbient = bgfx::createUniform("u_specialAmbient", bgfx::UniformType::Vec4);
 	m_uDirectionalLightColor = bgfx::createUniform("u_directionalLightColor", bgfx::UniformType::Vec4);
+	m_uDirectionalLightBounceColor = bgfx::createUniform("u_directionalLightBounceColor", bgfx::UniformType::Vec4);
 	m_uDirectionalLightNormal = bgfx::createUniform("u_directionalLightNormal", bgfx::UniformType::Vec4);
 	m_uPointLightPosRadius = bgfx::createUniform("u_pointLightPosRadius", bgfx::UniformType::Vec4, MAX_POINT_LIGHTS);
 	m_uPointLightColor = bgfx::createUniform("u_pointLightColor", bgfx::UniformType::Vec4, MAX_POINT_LIGHTS);
+	m_uNormalMatrix = bgfx::createUniform("u_normalMatrix", bgfx::UniformType::Mat4);
 
 	// Create 1x1 white fallback texture
 	uint32_t whitePixel = 0xFFFFFFFF;
@@ -72,10 +87,22 @@ RenderBatchManager::~RenderBatchManager()
 		m_uGlobalAmbient = BGFX_INVALID_HANDLE;
 	}
 
+	if (bgfx::isValid(m_uSpecialAmbient))
+	{
+		bgfx::destroy(m_uSpecialAmbient);
+		m_uSpecialAmbient = BGFX_INVALID_HANDLE;
+	}
+
 	if (bgfx::isValid(m_uDirectionalLightColor))
 	{
 		bgfx::destroy(m_uDirectionalLightColor);
 		m_uDirectionalLightColor = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_uDirectionalLightBounceColor))
+	{
+		bgfx::destroy(m_uDirectionalLightBounceColor);
+		m_uDirectionalLightBounceColor = BGFX_INVALID_HANDLE;
 	}
 
 	if (bgfx::isValid(m_uDirectionalLightNormal))
@@ -94,6 +121,12 @@ RenderBatchManager::~RenderBatchManager()
 	{
 		bgfx::destroy(m_uPointLightColor);
 		m_uPointLightColor = BGFX_INVALID_HANDLE;
+	}
+
+	if (bgfx::isValid(m_uNormalMatrix))
+	{
+		bgfx::destroy(m_uNormalMatrix);
+		m_uNormalMatrix = BGFX_INVALID_HANDLE;
 	}
 
 	if (bgfx::isValid(m_whiteTexture))
@@ -124,6 +157,9 @@ void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const Ma
 
 	bgfx::Encoder* encoder = bgfx::begin();
 	encoder->setTransform(glm::value_ptr(worldMtx));
+
+	glm::mat4 normalMatrix = computeWorldInverseTranspose(worldMtx);
+	encoder->setUniform(m_uNormalMatrix, glm::value_ptr(normalMatrix));
 
 	// Bind textures
 	bgfx::TextureHandle texHandle = BGFX_INVALID_HANDLE;
@@ -188,13 +224,18 @@ void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const Ma
 		useVertexColors ? 1.0f : 0.0f,  // 1.0 = modulate by vertex color, 0.0 = modulate by 1.0f
 		batch.material ? static_cast<float>(batch.material->m_alpha) / 255.0f : 1.0f, // use material alpha
 		useVertexTints && batch.isTint ? 1.0f : 0.0f,
-		m_activePointLights.posRadius[0].w < 0.001f ? 0 : (static_cast<float>(m_pointLightShadingMode) + 1.0f)
+		m_activePointLights.posRadius[0].w < 0.001f ? 0 : 1.0f
 	);
 
+	// Special ambient color is infravision/ultravision + constant ambient.
+	glm::vec4 uSpecialAmbient = m_renderManager->GetConstantAmbientColor();
+
 	encoder->setUniform(m_uGlobalAmbient, glm::value_ptr(g_globalAmbient));
+	encoder->setUniform(m_uSpecialAmbient, glm::value_ptr(uSpecialAmbient));
 	encoder->setUniform(m_uTextureFlags, glm::value_ptr(uTextureFlags));
 	encoder->setUniform(m_uShadingMode, glm::value_ptr(uShadingMode));
 	encoder->setUniform(m_uDirectionalLightColor, glm::value_ptr(g_directionalLightColor));
+	encoder->setUniform(m_uDirectionalLightBounceColor, glm::value_ptr(g_directionalLightBounceColor));
 	encoder->setUniform(m_uDirectionalLightNormal, glm::value_ptr(g_directionalLightNormal));
 
 	// Set point light uniforms

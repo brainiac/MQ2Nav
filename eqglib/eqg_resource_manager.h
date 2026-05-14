@@ -248,6 +248,9 @@ public:
 
 	//===============================================================================================
 
+	void SetConstantAmbientColor(uint32_t constantAmbientColor);
+	const glm::vec4& GetConstantAmbientColor() const { return m_constantAmbientColor; }
+
 	void SetTerrain(const TerrainPtr& terrain) { m_terrain = terrain; }
 	TerrainPtr GetTerrain() const { return m_terrain; }
 	TerrainPtr GetOrCreateTerrain()
@@ -288,6 +291,7 @@ private:
 	// There is only one terrain per zone.
 	TerrainPtr m_terrain;
 	TerrainSystemPtr m_terrainSystem;
+	glm::vec4 m_constantAmbientColor;
 
 	std::vector<ActorPtr> m_actors;
 	std::vector<PointLightPtr> m_lights;

@@ -436,12 +436,12 @@ void Editor::UI_DrawMainMenuBar()
 	}
 }
 
-static void ToolbarIconText(const char* text, const char* tooltip = nullptr, ImFont* font = nullptr)
+static void ToolbarIconText(const char* text, const char* tooltip = nullptr, ImFont* font = nullptr, float fontSize = 20.0f)
 {
 	float cursorY = ImGui::GetCursorPosY();
 	ImGui::SetCursorPosY(3);
 
-	ImGui::PushFont(font ? font : LCIconFontLarge);
+	ImGui::PushFont(font ? font : LCIconFontLarge, fontSize);
 	ImGui::Text("%s", text);
 	ImGui::PopFont();
 

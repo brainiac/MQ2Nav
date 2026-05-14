@@ -216,6 +216,8 @@ bool WLDLoader::Init(Archive* archive, const std::string& wld_name, int loadFlag
 				// This doesn't adhere to the typical structure. It is very simple so just read it
 				// directly here.
 				m_constantAmbient = *reinterpret_cast<uint32_t*>(obj.data);
+
+				m_resourceMgr->SetConstantAmbientColor(m_constantAmbient);
 			}
 		}
 		else

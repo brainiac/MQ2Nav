@@ -11,12 +11,6 @@ struct MaterialBatch;
 
 static constexpr int MAX_POINT_LIGHTS = 3;
 
-enum class PointLightShadingMode
-{
-	PerVertex = 0,
-	PerFragment = 1,
-};
-
 struct ActivePointLights
 {
 	glm::vec4 posRadius[MAX_POINT_LIGHTS];        // xyz = world position, w = radius
@@ -33,7 +27,6 @@ public:
 		bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer);
 
 	void SetActivePointLights(const ActivePointLights* lights);
-	void SetPointLightShadingMode(PointLightShadingMode mode) { m_pointLightShadingMode = mode; }
 
 	bgfx::ProgramHandle GetProgram() const { return m_program; }
 	bool IsValid() const { return bgfx::isValid(m_program); }
@@ -46,7 +39,9 @@ private:
 	bgfx::UniformHandle m_texColorSampler = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uTextureFlags = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uGlobalAmbient = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uSpecialAmbient = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uDirectionalLightColor = BGFX_INVALID_HANDLE;
+	bgfx::UniformHandle m_uDirectionalLightBounceColor = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uDirectionalLightNormal = BGFX_INVALID_HANDLE;
 	bgfx::TextureHandle m_whiteTexture = BGFX_INVALID_HANDLE;
 
@@ -54,7 +49,9 @@ private:
 	bgfx::UniformHandle m_uPointLightPosRadius = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle m_uPointLightColor = BGFX_INVALID_HANDLE;
 
+	// Normal matrix (world inverse transpose)
+	bgfx::UniformHandle m_uNormalMatrix = BGFX_INVALID_HANDLE;
+
 	// Current active point lights (set per-model before rendering)
 	ActivePointLights m_activePointLights;
-	PointLightShadingMode m_pointLightShadingMode = PointLightShadingMode::PerVertex;
 };

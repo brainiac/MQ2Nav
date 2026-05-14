@@ -229,8 +229,9 @@ public:
 
 	bool UsePointLightShading() const { return m_usePointLightShading; }
 	void SetUsePointLightShading(bool value) { m_usePointLightShading = value; }
-	PointLightShadingMode GetPointLightShadingMode() const { return m_pointLightShadingMode; }
-	void SetPointLightShadingMode(PointLightShadingMode mode) { m_pointLightShadingMode = mode; }
+
+	glm::vec4 GetConstantAmbientColor() const { return m_constantAmbientColor; }
+	void SetConstantAmbientColor(const glm::vec4& color) { m_constantAmbientColor = color; }
 
 private:
 	void DrawCollisionMesh();
@@ -248,7 +249,6 @@ private:
 	bool m_useVertexColors = true;
 	bool m_useVertexTints = true;
 	bool m_usePointLightShading = true;
-	PointLightShadingMode m_pointLightShadingMode = PointLightShadingMode::PerVertex;
 
 	std::unique_ptr<ZoneInputGeometryRender> m_zoneInputGeometry;
 	std::unique_ptr<ZoneNavMeshRender> m_navMeshRender;
@@ -274,6 +274,8 @@ private:
 	bgfx::DynamicVertexBufferHandle m_ddLinesVB = BGFX_INVALID_HANDLE;
 	bgfx::DynamicVertexBufferHandle m_ddTrisVB = BGFX_INVALID_HANDLE;
 	bgfx::DynamicIndexBufferHandle m_ddIndexBuffer = BGFX_INVALID_HANDLE;
+
+	glm::vec4 m_constantAmbientColor;
 };
 
 extern ZoneRenderManager* g_zoneRenderManager;

@@ -430,6 +430,9 @@ bool ZoneProject::LoadZoneData()
 
 	m_resourceMgr->BuildScene(*m_scene);
 
+	m_renderManager->SetConstantAmbientColor(
+		m_resourceMgr->GetResourceManager()->GetConstantAmbientColor());
+
 	m_zoneDataLoaded = true;
 	return true;
 }

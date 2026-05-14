@@ -17,6 +17,7 @@ $BgfxIncludeDir = "$VcPkgDir/include/bgfx"
 $ExtraShaderArgs = "-i $BgfxIncludeDir --platform windows -p s_5_0"
 
 if ($Debug) {
+    Write-Debug "Debug mode enabled. Adding debug flags to shader compilation."
     $ExtraShaderArgs += " --debug -O 0"
 } else {
     $ExtraShaderArgs += " -O 3"
