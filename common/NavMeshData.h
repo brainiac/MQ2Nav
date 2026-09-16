@@ -35,6 +35,7 @@ enum struct PolyArea : uint8_t
 	Door       = 4,
 	Prefer     = 5,
 	Avoid      = 6,
+	HighAvoid  = 7,
 
 	UserDefinedFirst = 10,
 	UserDefinedLast  = 60,
@@ -44,13 +45,17 @@ enum struct PolyArea : uint8_t
 
 struct PolyAreaType
 {
-	uint8_t id;             // PolyArea
+	// Initialized, because these are also built by hand and filled in field by field when
+	// read back from a file. A plain `PolyAreaType area;` left the bools indeterminate, and
+	// a garbage `selectable` decided whether a loaded area made it into the selectable list -
+	// which is what decides whether it gets written out again.
+	uint8_t id = 0;         // PolyArea
 	std::string name;
-	uint32_t color;
-	uint16_t flags;
-	float cost;
-	bool valid;
-	bool selectable;
+	uint32_t color = 0;
+	uint16_t flags = 0;
+	float cost = 1.0f;
+	bool valid = false;
+	bool selectable = false;
 };
 
 bool operator==(const PolyAreaType& a, const PolyAreaType& b);

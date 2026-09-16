@@ -172,6 +172,7 @@ void Editor::OnImGuiRender()
 
 	UI_DrawSettingsDialog();
 	UI_DrawImportExportSettingsDialog();
+	UI_DrawAreaTypesEditor();
 
 	if (m_showDemo)
 	{
@@ -394,7 +395,9 @@ void Editor::UI_DrawMainMenuBar()
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Area Types...", nullptr, m_project->IsNavMeshReady()))
+			// The ready check is the enabled flag, not the checkmark - passing it as the
+			// third argument ticked the item whenever a mesh was loaded.
+			if (ImGui::MenuItem("Area Types...", nullptr, m_showMapAreas, m_project->IsNavMeshReady()))
 				m_showMapAreas = !m_showMapAreas;
 
 			ImGui::Separator();
@@ -1038,6 +1041,7 @@ void Editor::UI_DrawAreaTypesEditor()
 			RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Water));
 			RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Prefer));
 			RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::Avoid));
+			RenderAreaType(navMesh.get(), navMesh->GetPolyArea((uint8_t)PolyArea::HighAvoid));
 
 			ImGui::Separator();
 

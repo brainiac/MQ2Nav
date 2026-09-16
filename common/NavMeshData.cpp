@@ -84,6 +84,20 @@ const std::vector<PolyAreaType> DefaultPolyAreas =
 		true,                    // valid
 		true,                    // selectable
 	},
+
+	// Cost is a straight multiplier on distance travelled - dtQueryFilter::getCost returns
+	// dtVdist(pa, pb) * areaCost - so this reads as "a step here is worth a hundred steps
+	// anywhere else". Still passable, unlike marking the area unwalkable, but only taken
+	// when the alternative is a hundred times longer or there is no alternative at all.
+	PolyAreaType{
+		7,                       // id
+		"High Avoid",            // name
+		RGBA(128, 32, 32, 255),  // color
+		+(PolyFlags::Walk),
+		100.0f,                  // cost
+		true,                    // valid
+		true,                    // selectable
+	},
 };
 
 bool IsUserDefinedPolyArea(uint8_t areaId)

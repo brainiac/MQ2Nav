@@ -524,6 +524,20 @@ void NavMesh::SaveToProto(nav::NavMeshFile& proto, PersistedDataFields fields)
 
 	if (+(fields & PersistedDataFields::AreaTypes))
 	{
+		// A built-in area that still matches its default is normally left out, on the grounds
+		// that whatever reads the file already knows what it is. That only holds while both
+		// ends agree on the set of built-ins: an area added later is unknown to anything
+		// older, which resolves it to a nameless area at cost 1 and quietly ignores what the
+		// volume was marked for. So any area a volume actually refers to is always written,
+		// and the mesh describes everything it uses regardless of who reads it.
+		std::array<bool, static_cast<int>(PolyArea::Last) + 1> areaInUse{};
+
+		for (const auto& volume : m_volumes)
+		{
+			if (volume->areaType < areaInUse.size())
+				areaInUse[volume->areaType] = true;
+		}
+
 		// save area definitions
 		for (const PolyAreaType* area : m_polyAreaList)
 		{
@@ -531,7 +545,7 @@ void NavMesh::SaveToProto(nav::NavMeshFile& proto, PersistedDataFields fields)
 			if (area->id == (uint8_t)PolyArea::Unwalkable)
 				continue;
 
-			if (!IsUserDefinedPolyArea(area->id))
+			if (!IsUserDefinedPolyArea(area->id) && !areaInUse[area->id])
 			{
 				if (area->id < DefaultPolyAreas.size()
 					&& *area == DefaultPolyAreas[area->id])
@@ -1079,7 +1093,13 @@ void NavMesh::UpdateArea(const PolyAreaType& areaType)
 			m_polyAreas[areaType.id].cost = areaType.cost;
 		}
 
-		if (areaType.selectable)
+		// Decided from the stored record rather than the incoming one. A user defined area
+		// has just been marked selectable above whatever it arrived as, and a built-in keeps
+		// the selectability it was initialized with, since only its color and cost are taken
+		// from the caller. Reading it off the argument meant an area loaded from a file - a
+		// path that never sets the field - was stored but left out of the selectable list,
+		// and the list is what gets written back out, so the area vanished on the next save.
+		if (m_polyAreas[areaType.id].selectable)
 		{
 			m_polyAreaList.push_back(&m_polyAreas[areaType.id]);
 		}
