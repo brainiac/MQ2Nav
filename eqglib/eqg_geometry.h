@@ -727,6 +727,13 @@ public:
 	void SetOrientation(const glm::vec3& orientation);
 	const glm::vec3& GetOrientation() const { return m_orientation; }
 
+	// The rotation an actor is actually placed with. Euler angles cannot be handed between
+	// stages without a composition convention agreeing at both ends, and glm::eulerAngles and
+	// the glm::quat(vec3) constructor do not agree, so anything that needs the orientation
+	// downstream should take this and leave the angles alone.
+	void SetRotation(const glm::quat& rotation);
+	const glm::quat& GetRotation() const { return m_rotation; }
+
 	void SetScale(float scale);
 	float GetScale() const { return m_scale; }
 
@@ -743,6 +750,7 @@ protected:
 
 	glm::vec3                      m_position = glm::vec3(0.0f);
 	glm::vec3                      m_orientation = glm::vec3(0.0f);
+	glm::quat                      m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 	float                          m_scale = 1.0f;
 	glm::mat4                      m_worldTransform;
 

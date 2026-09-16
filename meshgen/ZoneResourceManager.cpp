@@ -1059,7 +1059,10 @@ void ZoneResourceManager::AddActor(const eqg::ActorPtr& actor)
 
 	auto& transform = entity.get<TransformComponent>();
 	transform.position = actor->GetPosition();
-	transform.rotationEuler = actor->GetOrientation();
+	// Taken as a quaternion rather than as angles: TransformComponent builds its matrix from
+	// the quaternion anyway, and going through the Euler setter re-composes the rotation under
+	// a convention that does not always match the one it was built with.
+	transform.rotation = actor->GetRotation();
 	transform.scale = glm::vec3{ actor->GetScale() };
 
 	[[maybe_unused]]

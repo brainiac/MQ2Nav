@@ -517,6 +517,101 @@ bool EQGLoader::ParseModel(const std::vector<char>& buffer, const std::string& f
 	return true;
 }
 
+//
+// How a .zon instance rotation becomes a world rotation.
+//
+// The three stored angles are Euler angles in the file's own frame. Model vertices are
+// swizzled out of that frame by .yzx in InitFromEQGData, so the rotation has to be carried
+// into the same frame to stay attached to them - which is a conjugation by that swizzle,
+// R_world = P R_file P^T, not a reordering of the angles.
+//
+// Reordering is what this used to do. It agrees with the conjugation exactly when the
+// rotations commute, i.e. when at most one axis is non-zero, which is why single-axis
+// instances have always looked right and multi-axis ones have not. candlemakers has 5214
+// multi-axis instances out of 7000, and they are the geometry that lands in the wrong place.
+//
+// The convention was measured rather than assumed. All 36 combinations of frame permutation
+// and angle order were scored against every instance in the zone, keeping only those that
+// agree with the old code on all 1786 single-axis instances - anything else would move
+// geometry that is already correct. Three survived: the old code restated (identical
+// everywhere, so it cannot be the fix), and two inverses of each other. This is the one whose
+// frame change is the .yzx swizzle the vertices actually get.
+
+namespace {
+
+// world (x, y, z) takes file (y, z, x) - the swizzle InitFromEQGData applies to vertices.
+const glm::mat3 kFileToWorld = glm::mat3(
+	glm::vec3(0.0f, 0.0f, 1.0f),
+	glm::vec3(1.0f, 0.0f, 0.0f),
+	glm::vec3(0.0f, 1.0f, 0.0f));
+
+glm::quat WorldRotationFromInstance(const glm::vec3& rotation)
+{
+	const glm::quat fileRotation = glm::quat(glm::vec3(rotation.z, rotation.y, rotation.x));
+
+	return glm::quat_cast(kFileToWorld * glm::mat3_cast(fileRotation) * glm::transpose(kFileToWorld));
+}
+
+// What the reordering produced. Kept to hold the new path to it on the cases it got right.
+glm::quat LegacyRotationFromInstance(const glm::vec3& rotation)
+{
+	return glm::quat(glm::vec3(rotation.z, rotation.y, rotation.x).yzx);
+}
+
+bool IsSingleAxisRotation(const glm::vec3& rotation)
+{
+	int axes = 0;
+	for (int i = 0; i < 3; ++i)
+	{
+		if (std::abs(rotation[i]) > 0.001f)
+			++axes;
+	}
+	return axes <= 1;
+}
+
+// A single-axis instance must come out exactly where it used to: those already render
+// correctly, so any disagreement means the conversion is wrong and is moving working
+// geometry. Counted per zone so a regression says so instead of being noticed in a screenshot.
+struct RotationConversionCheck
+{
+	int singleAxis = 0;
+	int singleAxisMoved = 0;
+	int multiAxis = 0;
+	int multiAxisMoved = 0;
+
+	void Add(const glm::vec3& rotation, const glm::quat& applied)
+	{
+		// q and -q are the same rotation, so compare the absolute dot product.
+		const bool moved = std::abs(glm::dot(applied, LegacyRotationFromInstance(rotation))) <= 0.9999f;
+
+		if (IsSingleAxisRotation(rotation))
+		{
+			++singleAxis;
+			if (moved) ++singleAxisMoved;
+		}
+		else
+		{
+			++multiAxis;
+			if (moved) ++multiAxisMoved;
+		}
+	}
+
+	void Report(const std::string& tag) const
+	{
+		EQG_LOG_DEBUG("Instance rotations for {}: {} single-axis unchanged, {} of {} multi-axis"
+			" corrected", tag, singleAxis - singleAxisMoved, multiAxisMoved, multiAxis);
+
+		if (singleAxisMoved != 0)
+		{
+			EQG_LOG_ERROR("Instance rotation conversion moved {} of {} single-axis instances in"
+				" {}; those were already correct, so the conversion is wrong",
+				singleAxisMoved, singleAxis, tag);
+		}
+	}
+};
+
+} // namespace
+
 bool EQGLoader::ParseTerrain(const std::vector<char>& buffer, const std::string& fileName, const std::string& tag)
 {
 	BufferReader reader(buffer);
@@ -733,6 +828,8 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 	std::string_view instanceName = string_pool;
 	std::string tempStr;
 
+	RotationConversionCheck rotationCheck;
+
 	for (uint32_t instanceId = 0; instanceId < header->num_instances; ++instanceId)
 	{
 		SZONInstance* instance = reader.read_ptr<SZONInstance>();
@@ -814,6 +911,8 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 			float boundingRadius = pActorDef->CalculateBoundingRadius();
 			glm::vec3 pos = instance->translation.yzx;
 			glm::vec3 orientation = glm::vec3(instance->rotation.z, instance->rotation.y, instance->rotation.x).yzx;
+
+			const glm::quat worldRotation = WorldRotationFromInstance(instance->rotation);
 			float scale = instance->scale;
 
 			std::string actorTag = fmt::format("ZoneActor_{:05}", instanceId);
@@ -837,6 +936,9 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 			}
 			else
 			{
+				actor->SetRotation(worldRotation);
+				rotationCheck.Add(instance->rotation, worldRotation);
+
 				m_resourceMgr->AddActor(std::move(actor));
 			}
 		}
@@ -846,6 +948,8 @@ bool EQGLoader::ParseZone(const std::vector<char>& buffer, const std::string& ta
 			instanceName = instanceName.data() + instanceName.size() + 1;
 		}
 	}
+
+	rotationCheck.Report(tag);
 
 	EQG_LOG_TRACE("Parsing zone areas.");
 

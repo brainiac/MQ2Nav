@@ -185,8 +185,13 @@ std::shared_ptr<HierarchicalActor> ResourceManager::CreateHierarchicalActor(
 	const std::span<uint32_t>& RGBs,
 	std::string_view actorName)
 {
+	// HierarchicalActor takes the scale factor before the bounding radius, matching
+	// SimpleActor. Passing them the other way round hands each actor its bounding radius as
+	// a scale factor - a few hundred instead of a fraction - which is what made the floating
+	// rubble in ruinedrelic enormous, and dropped its collision triangles for being outside
+	// the max extents.
 	return std::make_shared<HierarchicalActor>(this, actorTag, actorDef, position, orientation,
-		boundingRadius, scale, collisionVolumeType, actorIndex, DMRGBTrackWLDData, RGBs, actorName);
+		scale, boundingRadius, collisionVolumeType, actorIndex, DMRGBTrackWLDData, RGBs, actorName);
 }
 
 std::shared_ptr<HierarchicalActor> ResourceManager::CreateHierarchicalActor(

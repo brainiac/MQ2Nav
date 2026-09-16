@@ -47,7 +47,6 @@ bool MGTerrain::BuildGPUBuffers()
 
 		// This needs to be updated with inputs from material and global ambient
 		v.colorDiffuse = mq::MQColor(m_rgbColors[i]).ToABGR();
-		vertices.push_back(v);
 	}
 
 	struct FacesByMaterial
@@ -65,15 +64,46 @@ bool MGTerrain::BuildGPUBuffers()
 		facesByMaterial[i].material = m_materialPalette->GetMaterial(i);
 	}
 
+	const uint16_t noMaterial = static_cast<uint16_t>(m_materialPalette->GetNumMaterials());
+
+	// Counted rather than assumed. A face whose material index is past the end of the palette
+	// used to index the vector out of bounds, and a vertex index past the end of the buffer
+	// draws whatever happens to be there - both show up as terrain that is missing or in the
+	// wrong place, with nothing said about it.
+	uint32_t badMaterial = 0;
+	uint32_t badVertex = 0;
+	uint32_t noMaterialFaces = 0;
+	const uint32_t vertexCount = static_cast<uint32_t>(vertices.size());
+
 	for (const auto& face : m_faces)
 	{
 		uint16_t materialIndex = face.materialIndex;
 		if (materialIndex == 0xffff)
-			materialIndex = static_cast<uint16_t>(m_materialPalette->GetNumMaterials());
+		{
+			materialIndex = noMaterial;
+			++noMaterialFaces;
+		}
+		else if (materialIndex > noMaterial)
+		{
+			++badMaterial;
+			materialIndex = noMaterial;
+		}
+
+		if (face.indices.x >= vertexCount || face.indices.y >= vertexCount || face.indices.z >= vertexCount)
+		{
+			++badVertex;
+			continue;
+		}
 
 		facesByMaterial[materialIndex].faces.push_back(face.indices.x);
 		facesByMaterial[materialIndex].faces.push_back(face.indices.y);
 		facesByMaterial[materialIndex].faces.push_back(face.indices.z);
+	}
+
+	if (badMaterial || badVertex)
+	{
+		SPDLOG_WARN("MGTerrain::BuildGPUBuffers: {} faces name a material past the palette of {},"
+			" {} name a vertex past the {} loaded", badMaterial, noMaterial, badVertex, vertexCount);
 	}
 
 	// Build index buffer in material order and create batches
@@ -116,8 +146,9 @@ bool MGTerrain::BuildGPUBuffers()
 	m_indexCount = static_cast<uint32_t>(indices.size());
 	m_gpuBuffersBuilt = true;
 
-	SPDLOG_INFO("MGTerrain::BuildGPUBuffers: Built buffers ({} verts, {} indices, {} batches)",
-		vertices.size(), indices.size(), m_materialBatches.size());
+	SPDLOG_INFO("MGTerrain::BuildGPUBuffers: Built buffers ({} verts, {} indices from {} faces,"
+		" {} batches, {} untextured faces)",
+		vertices.size(), indices.size(), m_faces.size(), m_materialBatches.size(), noMaterialFaces);
 
 	return true;
 }
