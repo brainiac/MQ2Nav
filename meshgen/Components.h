@@ -35,6 +35,13 @@ struct HiddenComponent
 {
 };
 
+// Marks an object the user has chosen to keep out of the collision mesh, and so out of any
+// navmesh built from it. Distinct from HiddenComponent, which also removes the object from
+// the scene: an excluded object is still drawn, so it can be seen not to be contributing.
+struct CollisionExcludedComponent
+{
+};
+
 struct HierarchicalComponent
 {
 	entt::entity parent = entt::null;

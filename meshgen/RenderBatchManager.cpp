@@ -150,7 +150,7 @@ void RenderBatchManager::SetActivePointLights(const ActivePointLights* lights)
 	}
 }
 
-void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch, bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer)
+void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch, bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer, float alphaScale)
 {
 	if (batch.indexCount == 0)
 		return;
@@ -222,7 +222,7 @@ void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const Ma
 	// Set the vertex colors uniform value
 	glm::vec4 uShadingMode(
 		useVertexColors ? 1.0f : 0.0f,  // 1.0 = modulate by vertex color, 0.0 = modulate by 1.0f
-		batch.material ? static_cast<float>(batch.material->m_alpha) / 255.0f : 1.0f, // use material alpha
+		(batch.material ? static_cast<float>(batch.material->m_alpha) / 255.0f : 1.0f) * alphaScale, // use material alpha
 		useVertexTints && batch.isTint ? 1.0f : 0.0f,
 		m_activePointLights.posRadius[0].w < 0.001f ? 0 : 1.0f
 	);
@@ -250,9 +250,18 @@ void RenderBatchManager::RenderMaterialBatch(const glm::mat4& worldMtx, const Ma
 	uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A |
 		BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CW;
 
-	if (isAlpha)
+	// A faded draw has to blend even if its material is opaque, and must not write depth,
+	// or it would hide whatever it is being faded out in front of.
+	bool isFaded = alphaScale < 1.0f;
+
+	if (isAlpha || isFaded)
 	{
 		state |= BGFX_STATE_BLEND_ALPHA;
+	}
+
+	if (isFaded)
+	{
+		isDepthWrite = false;
 	}
 
 	if (isAlphaAdditive)

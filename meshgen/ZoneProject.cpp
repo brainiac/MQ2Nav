@@ -437,6 +437,18 @@ bool ZoneProject::LoadZoneData()
 	return true;
 }
 
+bool ZoneProject::RebuildCollisionMesh()
+{
+	if (IsBusy() || !m_zoneDataLoaded)
+		return false;
+
+	if (!BuildCollisionMesh())
+		return false;
+
+	m_collisionMeshDirty = false;
+	return true;
+}
+
 bool ZoneProject::BuildCollisionMesh()
 {
 	assert(m_zoneDataLoaded);

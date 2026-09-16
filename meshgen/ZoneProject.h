@@ -168,6 +168,14 @@ public:
 	// Utilities
 	bool RaycastMesh(const glm::vec3& src, const glm::vec3& dest, float& tMin);
 
+	// Excluding an object from collision changes what a navmesh built from it would
+	// contain, but regenerating the collision mesh takes seconds on a large zone, so it is
+	// not done on every toggle. The change is recorded here and applied on the next
+	// RebuildCollisionMesh().
+	void MarkCollisionMeshDirty() { m_collisionMeshDirty = true; }
+	bool IsCollisionMeshDirty() const { return m_collisionMeshDirty; }
+	bool RebuildCollisionMesh();
+
 private:
 	bool LoadZoneData();  // Load zone data from EQ folder
 	bool BuildCollisionMesh(); // Generate chunky triangle mesh
@@ -186,6 +194,7 @@ private:
 	std::string      m_displayName;           // short/long name combined in display string
 	std::atomic_bool m_zoneLoading = false;
 	std::atomic_bool m_zoneDataLoaded = false; // zone data has been loaded
+	std::atomic_bool m_collisionMeshDirty = false; // collision exclusions changed since the last build
 	std::atomic_bool m_zoneLoaded = false;    // zone load has completed
 	std::atomic_bool m_busy = false;
 	glm::vec3        m_meshBMin, m_meshBMax;  // bounds of the currently loaded zone
