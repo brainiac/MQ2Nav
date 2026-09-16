@@ -13,7 +13,7 @@
 
 #include <unordered_map>
 
-namespace eqg { struct SWorldTreeWLDData; }
+namespace eqg { struct SWorldTreeWLDData; struct AreaEnvironment; }
 
 class dtNavMesh;
 class dtNavMeshQuery;
@@ -215,6 +215,28 @@ public:
 	bool GetDrawAreaVolumes() const;
 	void SetDrawAreaVolumes(bool draw);
 
+	// Filtered by kind as well. Teleports especially are worth being able to see on their
+	// own, without a zone's water and lava in the way - arcstoneruins draws 86 of them.
+	// The setters are out of line because they have to invalidate the area volume system's
+	// buffers, which are built once and cached.
+	bool GetDrawAreaWater() const { return m_drawAreaWater; }
+	void SetDrawAreaWater(bool draw);
+
+	bool GetDrawAreaLava() const { return m_drawAreaLava; }
+	void SetDrawAreaLava(bool draw);
+
+	bool GetDrawAreaTeleport() const { return m_drawAreaTeleport; }
+	void SetDrawAreaTeleport(bool draw);
+
+	// Slime, fog, portals, and areas that carry only a flag such as kill or slippery.
+	// Present so that turning the named kinds off cannot hide something silently.
+	bool GetDrawAreaOther() const { return m_drawAreaOther; }
+	void SetDrawAreaOther(bool draw);
+
+	// Sorts an area into the kinds above. Shared by both paths that draw areas: the zone's
+	// own boxes in RenderEntities, and the convex s3d areas in AreaVolumeRenderSystem.
+	bool ShouldDrawAreaKind(const eqg::AreaEnvironment& environment) const;
+
 	bool GetDrawInvisibleWalls() const;
 	void SetDrawInvisibleWalls(bool draw);
 
@@ -259,6 +281,11 @@ private:
 	std::unique_ptr<SkeletalMeshRenderSystem> m_skeletalMeshSystem;
 	std::unique_ptr<RenderBatchManager> m_renderBatchManager;
 	GeometryRenderMode m_geometryRenderMode = GeometryRenderMode::Models;
+
+	bool m_drawAreaWater = true;
+	bool m_drawAreaLava = true;
+	bool m_drawAreaTeleport = true;
+	bool m_drawAreaOther = true;
 	float m_pointSize = 0.5f;
 
 	std::vector<PointInstanceVertex> m_points;

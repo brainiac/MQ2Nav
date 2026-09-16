@@ -447,6 +447,13 @@ void ZoneRenderManager::RenderEntities()
 	if (!m_project || !m_project->GetScene())
 		return;
 
+	// This draws the zone's own areas - water, lava, teleports - as coloured boxes, while
+	// AreaVolumeRenderSystem handles the convex WLD areas. The Area Volumes toggle only
+	// ever reached that system, so it had no effect on these; honour it here too.
+	if (!GetDrawAreaVolumes())
+		return;
+
+
 	const auto& scene = m_project->GetScene();
 	auto& registry = scene->GetRegistry();
 
@@ -454,6 +461,9 @@ void ZoneRenderManager::RenderEntities()
 	for (auto [entity, transform, area] : view.each())
 	{
 		if (registry.any_of<HiddenComponent>(entity))
+			continue;
+
+		if (area.area && !ShouldDrawAreaKind(area.area->environment))
 			continue;
 
 		// Get world space transform matrix
@@ -687,6 +697,58 @@ bool ZoneRenderManager::GetDrawAreaVolumes() const
 void ZoneRenderManager::SetDrawAreaVolumes(bool draw)
 {
 	m_areaVolumeSystem->SetVisible(draw);
+}
+
+// The area volume system builds its geometry once and caches it, so a change of filter has
+// to invalidate that; the zone's own area boxes are rebuilt every frame and need nothing.
+void ZoneRenderManager::SetDrawAreaWater(bool draw)
+{
+	m_drawAreaWater = draw;
+	m_areaVolumeSystem->SetDirty();
+}
+
+void ZoneRenderManager::SetDrawAreaLava(bool draw)
+{
+	m_drawAreaLava = draw;
+	m_areaVolumeSystem->SetDirty();
+}
+
+void ZoneRenderManager::SetDrawAreaTeleport(bool draw)
+{
+	m_drawAreaTeleport = draw;
+	m_areaVolumeSystem->SetDirty();
+}
+
+void ZoneRenderManager::SetDrawAreaOther(bool draw)
+{
+	m_drawAreaOther = draw;
+	m_areaVolumeSystem->SetDirty();
+}
+
+bool ZoneRenderManager::ShouldDrawAreaKind(const eqg::AreaEnvironment& environment) const
+{
+	using Env = eqg::AreaEnvironment;
+
+	// Teleport is checked first: it is carried as a flag and can sit on top of any
+	// environment type, so an ATP_ area that is also water still counts as a teleport.
+	// This matches AreaEnvironmentToColor, which lets the same flag override the colour.
+	if ((environment.flags & (Env::Teleport | Env::TeleportIndex)) != Env::Flags_None)
+		return m_drawAreaTeleport;
+
+	switch (environment.type)
+	{
+	case Env::UnderWater:
+	case Env::UnderWater2:
+	case Env::UnderWater3:
+	case Env::UnderIceWater:
+		return m_drawAreaWater;
+
+	case Env::UnderLava:
+		return m_drawAreaLava;
+
+	default:
+		return m_drawAreaOther;
+	}
 }
 
 bool ZoneRenderManager::GetDrawInvisibleWalls() const

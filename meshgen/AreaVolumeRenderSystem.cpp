@@ -150,6 +150,18 @@ void AreaVolumeRenderSystem::RebuildBuffers()
 		if (m_registry->any_of<HiddenComponent>(entity))
 			continue;
 
+		// Filtered by kind, the same way the zone's own area boxes are. The environment
+		// lives on WldAreaComponent; a volume without one is left visible rather than
+		// guessed at.
+		if (m_renderManager)
+		{
+			if (auto* wldArea = m_registry->try_get<WldAreaComponent>(entity))
+			{
+				if (!m_renderManager->ShouldDrawAreaKind(wldArea->environment))
+					continue;
+			}
+		}
+
 		const auto& renderComp = view.get<AreaVolumeRenderComponent>(entity);
 		uint32_t color = renderComp.color;
 
