@@ -35,6 +35,7 @@ enum struct PersistedDataFields : uint32_t
 	ConvexVolumes          = 0x0004,
 	AreaTypes              = 0x0008,
 	Connections            = 0x0010,
+	MeshPatches            = 0x0020,
 
 	None                   = 0x0000,
 	All                    = 0xffff,
@@ -202,6 +203,25 @@ public:
 	void MoveConvexVolumeToIndex(uint32_t id, size_t index);
 
 	//------------------------------------------------------------------------
+	// Mesh patches. Geometry fed into the collision mesh before generation - see MeshPatch.
+
+	size_t GetMeshPatchCount() const { return m_patches.size(); }
+
+	const MeshPatch* GetMeshPatch(size_t index) const { return m_patches[index].get(); }
+	MeshPatch* GetMeshPatch(size_t index) { return m_patches[index].get(); }
+
+	const std::vector<std::unique_ptr<MeshPatch>>& GetMeshPatches() const { return m_patches; }
+
+	MeshPatch* AddMeshPatch(std::unique_ptr<MeshPatch> patch);
+	MeshPatch* AddMeshPatch(const std::vector<glm::vec3>& verts, const std::string& name,
+		MeshPatchType type = MeshPatchType::Surface);
+
+	MeshPatch* GetMeshPatchById(uint32_t id);
+	void DeleteMeshPatchById(uint32_t id);
+
+	std::vector<dtTileRef> GetTilesIntersectingMeshPatch(uint32_t id);
+
+	//------------------------------------------------------------------------
 	// off-mesh connections
 
 	size_t GetConnectionCount() const { return m_connections.size(); }
@@ -263,6 +283,10 @@ private:
 	std::vector<std::unique_ptr<ConvexVolume>> m_volumes;
 	std::unordered_map<uint32_t, ConvexVolume*> m_volumesById;
 	uint32_t m_nextVolumeId = 1;
+
+	std::vector<std::unique_ptr<MeshPatch>> m_patches;
+	std::unordered_map<uint32_t, MeshPatch*> m_patchesById;
+	uint32_t m_nextPatchId = 1;
 
 	// connections
 	std::vector<std::unique_ptr<OffMeshConnection>> m_connections;

@@ -171,6 +171,35 @@ message Connection
 	bool one_way = 7;
 }
 
+enum MeshPatchType
+{
+	// A plain surface fed to the collision mesh. Slope and erosion apply to it as they do
+	// to any other geometry.
+	Surface = 0;
+
+	// A solid box, held as exactly two opposite corners in vertices rather than a ring.
+	Box = 1;
+
+	// A run of quads, held in vertices as consecutive left/right pairs along its length.
+	Strip = 2;
+}
+
+message MeshPatch
+{
+	uint32 id = 1;
+
+	string name = 2;
+
+	// ordered ring of at least three points, triangulated as a fan
+	repeated vector3 vertices = 3;
+
+	// see MeshPatchType. Held as a uint32 rather than the enum so that a build which does
+	// not know a later type still parses the record cleanly, the same way Connection.type
+	// is handled. Zero means Surface, so a patch written before this field existed reads
+	// correctly.
+	uint32 type = 4;
+}
+
 message NavMeshFile
 {
 	// name of the zone that this mesh is for
@@ -190,4 +219,8 @@ message NavMeshFile
 
 	// connections (1.3+)
 	repeated Connection connections = 6;
+
+	// mesh patches - geometry added to the collision mesh before generation. A build
+	// input for MeshGenerator only; nothing reading the finished mesh needs these.
+	repeated MeshPatch mesh_patches = 7;
 }

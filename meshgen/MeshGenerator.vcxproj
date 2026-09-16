@@ -51,6 +51,7 @@
     <ClCompile Include="NavMeshPruneTool.cpp" />
     <ClCompile Include="NavMeshTesterTool.cpp" />
     <ClCompile Include="NavMeshTileTool.cpp" />
+    <ClCompile Include="MeshPatchTool.cpp" />
     <ClCompile Include="OffMeshConnectionTool.cpp" />
     <ClCompile Include="PanelManager.cpp" />
     <ClCompile Include="pch.cpp">
@@ -125,6 +126,7 @@
     <ClInclude Include="NavMeshPruneTool.h" />
     <ClInclude Include="NavMeshTesterTool.h" />
     <ClInclude Include="NavMeshTileTool.h" />
+    <ClInclude Include="MeshPatchTool.h" />
     <ClInclude Include="OffMeshConnectionTool.h" />
     <ClInclude Include="PanelManager.h" />
     <ClInclude Include="pch.h" />
