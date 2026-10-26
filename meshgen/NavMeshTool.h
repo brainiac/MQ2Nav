@@ -24,7 +24,6 @@
 #include <memory>
 #include <thread>
 
-class RecastContext;
 class InputGeom;
 class dtNavMesh;
 class dtNavMeshQuery;
@@ -98,7 +97,7 @@ public:
 	NavMeshTool(const std::shared_ptr<NavMesh>& navMesh);
 	virtual ~NavMeshTool();
 
-	void setContext(RecastContext* ctx) { m_ctx = ctx; }
+	void setContext(rcContext* ctx) { m_ctx = ctx; }
 
 	void handleDebug();
 	void handleTools();
@@ -107,7 +106,7 @@ public:
 	void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 	void handleGeometryChanged(InputGeom* geom);
 
-	bool handleBuild();
+	bool handleBuild(bool async = true, bool initializeTools = true);
 	void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift);
 
 	void GetTilePos(const glm::vec3& pos, int& tx, int& ty);
@@ -182,7 +181,7 @@ private:
 	std::map<ToolType, std::unique_ptr<ToolState>> m_toolStates;
 
 	// we don't own this
-	RecastContext* m_ctx = nullptr;
+	rcContext* m_ctx = nullptr;
 
 	std::shared_ptr<spdlog::logger> m_logger;
 

@@ -576,7 +576,7 @@ void NavMeshTool::handleGeometryChanged(class InputGeom* geom)
 	NavMeshUpdated();
 }
 
-bool NavMeshTool::handleBuild()
+bool NavMeshTool::handleBuild(bool async, bool initializeTools)
 {
 	if (!m_geom || !m_geom->getMeshLoader())
 	{
@@ -606,14 +606,17 @@ bool NavMeshTool::handleBuild()
 		return false;
 	}
 
-	BuildAllTiles(navMesh);
+	BuildAllTiles(navMesh, async);
 
-	if (m_tool)
+	if (initializeTools && m_tool)
 	{
 		m_tool->init(this);
 	}
 
-	initToolStates();
+	if (initializeTools)
+	{
+		initToolStates();
+	}
 
 	return true;
 }

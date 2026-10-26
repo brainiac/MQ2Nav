@@ -29,7 +29,8 @@ Building
 
 ##### Requirements
 
-* Visual Studio 2019
+* Visual Studio 2022 with the Desktop development with C++ and CMake tools workloads/components
+* MSVC v142 and v143 toolsets, plus a Windows 10 SDK
 
 MQ2Nav is a unique plugin. You do not want to add it to your solution. Instead you will build it in a separate solution apart from MacroQuest2.sln.
 
@@ -39,7 +40,7 @@ MQ2Nav is a unique plugin. You do not want to add it to your solution. Instead y
 4. **build MQ2Nav.dll:** select the Win32 architecture and build
 5. **build MeshGenerator.exe:** select the x64 architecture and build
 
-The first time you build, you'll download some NuGet packages.
+The first time you build, you'll download some NuGet packages. The bundled Protocol Buffers C++ runtime is pinned to upstream v21.12 (C++ 3.21.12); the `libprotobuf` project configures and builds it with CMake and produces a matching `protoc.exe` for the navmesh schema.
 
 The outputs will go into your Release (or Debug, depending on your selected configuration) folder.
 
@@ -68,6 +69,19 @@ Usage
 -----
 
 See the [wiki](https://github.com/brainiac/MQ2Nav/wiki) for more info
+
+### Headless mesh generation
+
+MeshGenerator also supports headless build and validation commands. Build output is staged under an explicit root and existing files are never overwritten. Build and validation emit one JSON result on stdout; diagnostics are written to stderr.
+
+```powershell
+.\MeshGenerator.exe build --zone lfaydark --eq-path "C:\EverQuest" --stage-root "C:\NavMesh-Staging"
+.\MeshGenerator.exe validate --zone lfaydark --mesh "C:\NavMesh-Staging\MQ2Nav\lfaydark.navmesh"
+```
+
+The optional `--mesh-root` points to the MacroQuest resources root used to locate `MQ2Nav\<zone>_doors.json`; it defaults to `--eq-path`. Use `--no-max-extents` only when you intentionally need to bypass MQ2Nav's built-in zone bounds. Headless generation is synchronous, uses the same Recast build path as the GUI, and validates the staged file with MQ2Nav's own loader before reporting success. It does not install the mesh into the live MacroQuest data directory.
+
+Exit codes are `0` for success, `2` for invalid arguments, `3` for missing/invalid source geometry, `4` for build or staging errors, `5` for mesh validation errors, and `70` for unexpected failures.
 
 Notes
 -----

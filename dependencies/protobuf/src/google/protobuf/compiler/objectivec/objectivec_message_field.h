@@ -41,36 +41,40 @@ namespace compiler {
 namespace objectivec {
 
 class MessageFieldGenerator : public ObjCObjFieldGenerator {
-  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field,
-                                              const Options& options);
+  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field);
 
  protected:
-  MessageFieldGenerator(const FieldDescriptor* descriptor,
-                        const Options& options);
+  explicit MessageFieldGenerator(const FieldDescriptor* descriptor);
+
+  MessageFieldGenerator(const MessageFieldGenerator&) = delete;
+  MessageFieldGenerator& operator=(const MessageFieldGenerator&) = delete;
+
   virtual ~MessageFieldGenerator();
-  virtual bool WantsHasProperty(void) const;
 
  public:
-  virtual void DetermineForwardDeclarations(set<string>* fwd_decls) const;
-
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(MessageFieldGenerator);
+  virtual void DetermineForwardDeclarations(
+      std::set<std::string>* fwd_decls,
+      bool include_external_types) const override;
+  virtual void DetermineObjectiveCClassDefinitions(
+      std::set<std::string>* fwd_decls) const override;
 };
 
 class RepeatedMessageFieldGenerator : public RepeatedFieldGenerator {
-  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field,
-                                              const Options& options);
+  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field);
 
  protected:
-  RepeatedMessageFieldGenerator(const FieldDescriptor* descriptor,
-                                const Options& options);
+  explicit RepeatedMessageFieldGenerator(const FieldDescriptor* descriptor);
   virtual ~RepeatedMessageFieldGenerator();
 
- public:
-  virtual void DetermineForwardDeclarations(set<string>* fwd_decls) const;
+  RepeatedMessageFieldGenerator(const RepeatedMessageFieldGenerator&) = delete;
+  RepeatedMessageFieldGenerator operator=(const RepeatedMessageFieldGenerator&) = delete;
 
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(RepeatedMessageFieldGenerator);
+ public:
+  virtual void DetermineForwardDeclarations(
+      std::set<std::string>* fwd_decls,
+      bool include_external_types) const override;
+  virtual void DetermineObjectiveCClassDefinitions(
+      std::set<std::string>* fwd_decls) const override;
 };
 
 }  // namespace objectivec

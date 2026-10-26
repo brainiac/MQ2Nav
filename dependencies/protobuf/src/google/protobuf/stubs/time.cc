@@ -10,23 +10,23 @@ namespace protobuf {
 namespace internal {
 
 namespace {
-static const int64 kSecondsPerMinute = 60;
-static const int64 kSecondsPerHour = 3600;
-static const int64 kSecondsPerDay = kSecondsPerHour * 24;
-static const int64 kSecondsPer400Years =
+static const int64_t kSecondsPerMinute = 60;
+static const int64_t kSecondsPerHour = 3600;
+static const int64_t kSecondsPerDay = kSecondsPerHour * 24;
+static const int64_t kSecondsPer400Years =
     kSecondsPerDay * (400 * 365 + 400 / 4 - 3);
 // Seconds from 0001-01-01T00:00:00 to 1970-01-01T:00:00:00
-static const int64 kSecondsFromEraToEpoch = 62135596800LL;
+static const int64_t kSecondsFromEraToEpoch = 62135596800LL;
 // The range of timestamp values we support.
-static const int64 kMinTime = -62135596800LL;  // 0001-01-01T00:00:00
-static const int64 kMaxTime = 253402300799LL;  // 9999-12-31T23:59:59
+static const int64_t kMinTime = -62135596800LL;  // 0001-01-01T00:00:00
+static const int64_t kMaxTime = 253402300799LL;  // 9999-12-31T23:59:59
 
 static const int kNanosPerMillisecond = 1000000;
 static const int kNanosPerMicrosecond = 1000;
 
 // Count the seconds from the given year (start at Jan 1, 00:00) to 100 years
 // after.
-int64 SecondsPer100Years(int year) {
+int64_t SecondsPer100Years(int year) {
   if (year % 400 == 0 || year % 400 > 300) {
     return kSecondsPerDay * (100 * 365 + 100 / 4);
   } else {
@@ -36,7 +36,7 @@ int64 SecondsPer100Years(int year) {
 
 // Count the seconds from the given year (start at Jan 1, 00:00) to 4 years
 // after.
-int64 SecondsPer4Years(int year) {
+int64_t SecondsPer4Years(int year) {
   if ((year % 100 == 0 || year % 100 > 96) &&
       !(year % 400 == 0 || year % 400 > 396)) {
     // No leap years.
@@ -51,7 +51,7 @@ bool IsLeapYear(int year) {
   return year % 400 == 0 || (year % 4 == 0 && year % 100 != 0);
 }
 
-int64 SecondsPerYear(int year) {
+int64_t SecondsPerYear(int year) {
   return kSecondsPerDay * (IsLeapYear(year) ? 366 : 365);
 }
 
@@ -59,7 +59,7 @@ static const int kDaysInMonth[13] = {
   0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 };
 
-int64 SecondsPerMonth(int month, bool leap) {
+int64_t SecondsPerMonth(int month, bool leap) {
   if (month == 2 && leap) {
     return kSecondsPerDay * (kDaysInMonth[month] + 1);
   }
@@ -80,16 +80,16 @@ bool ValidateDateTime(const DateTime& time) {
     return false;
   }
   if (time.month == 2 && IsLeapYear(time.year)) {
-    return time.month <= kDaysInMonth[time.month] + 1;
+    return time.day <= kDaysInMonth[time.month] + 1;
   } else {
-    return time.month <= kDaysInMonth[time.month];
+    return time.day <= kDaysInMonth[time.month];
   }
 }
 
 // Count the number of seconds elapsed from 0001-01-01T00:00:00 to the given
 // time.
-int64 SecondsSinceCommonEra(const DateTime& time) {
-  int64 result = 0;
+int64_t SecondsSinceCommonEra(const DateTime& time) {
+  int64_t result = 0;
   // Years should be between 1 and 9999.
   assert(time.year >= 1 && time.year <= 9999);
   int year = 1;
@@ -130,7 +130,7 @@ int64 SecondsSinceCommonEra(const DateTime& time) {
 
 // Format nanoseconds with either 3, 6, or 9 digits depending on the required
 // precision to represent the exact value.
-string FormatNanos(int32 nanos) {
+std::string FormatNanos(int32_t nanos) {
   if (nanos % kNanosPerMillisecond == 0) {
     return StringPrintf("%03d", nanos / kNanosPerMillisecond);
   } else if (nanos % kNanosPerMicrosecond == 0) {
@@ -142,12 +142,12 @@ string FormatNanos(int32 nanos) {
 
 // Parses an integer from a null-terminated char sequence. The method
 // consumes at most "width" chars. Returns a pointer after the consumed
-// integer, or NULL if the data does not start with an integer or the
+// integer, or nullptr if the data does not start with an integer or the
 // integer value does not fall in the range of [min_value, max_value].
 const char* ParseInt(const char* data, int width, int min_value,
                      int max_value, int* result) {
   if (!ascii_isdigit(*data)) {
-    return NULL;
+    return nullptr;
   }
   int value = 0;
   for (int i = 0; i < width; ++i, ++data) {
@@ -161,15 +161,15 @@ const char* ParseInt(const char* data, int width, int min_value,
     *result = value;
     return data;
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
 // Consumes the fractional parts of a second into nanos. For example,
 // "010" will be parsed to 10000000 nanos.
-const char* ParseNanos(const char* data, int32* nanos) {
+const char* ParseNanos(const char* data, int32_t* nanos) {
   if (!ascii_isdigit(*data)) {
-    return NULL;
+    return nullptr;
   }
   int value = 0;
   int len = 0;
@@ -190,29 +190,29 @@ const char* ParseNanos(const char* data, int32* nanos) {
   return data;
 }
 
-const char* ParseTimezoneOffset(const char* data, int64* offset) {
+const char* ParseTimezoneOffset(const char* data, int64_t* offset) {
   // Accept format "HH:MM". E.g., "08:00"
   int hour;
-  if ((data = ParseInt(data, 2, 0, 23, &hour)) == NULL) {
-    return NULL;
+  if ((data = ParseInt(data, 2, 0, 23, &hour)) == nullptr) {
+    return nullptr;
   }
   if (*data++ != ':') {
-    return NULL;
+    return nullptr;
   }
   int minute;
-  if ((data = ParseInt(data, 2, 0, 59, &minute)) == NULL) {
-    return NULL;
+  if ((data = ParseInt(data, 2, 0, 59, &minute)) == nullptr) {
+    return nullptr;
   }
   *offset = (hour * 60 + minute) * 60;
   return data;
 }
 }  // namespace
 
-bool SecondsToDateTime(int64 seconds, DateTime* time) {
+bool SecondsToDateTime(int64_t seconds, DateTime* time) {
   if (seconds < kMinTime || seconds > kMaxTime) {
     return false;
   }
-  // It's easier to calcuate the DateTime starting from 0001-01-01T00:00:00
+  // It's easier to calculate the DateTime starting from 0001-01-01T00:00:00
   seconds = seconds + kSecondsFromEraToEpoch;
   int year = 1;
   if (seconds >= kSecondsPer400Years) {
@@ -253,7 +253,7 @@ bool SecondsToDateTime(int64 seconds, DateTime* time) {
   return true;
 }
 
-bool DateTimeToSeconds(const DateTime& time, int64* seconds) {
+bool DateTimeToSeconds(const DateTime& time, int64_t* seconds) {
   if (!ValidateDateTime(time)) {
     return false;
   }
@@ -261,28 +261,28 @@ bool DateTimeToSeconds(const DateTime& time, int64* seconds) {
   return true;
 }
 
-void GetCurrentTime(int64* seconds, int32* nanos) {
+void GetCurrentTime(int64_t* seconds, int32_t* nanos) {
   // TODO(xiaofeng): Improve the accuracy of this implementation (or just
   // remove this method from protobuf).
-  *seconds = time(NULL);
+  *seconds = time(nullptr);
   *nanos = 0;
 }
 
-string FormatTime(int64 seconds, int32 nanos) {
+std::string FormatTime(int64_t seconds, int32_t nanos) {
   DateTime time;
   if (nanos < 0 || nanos > 999999999 || !SecondsToDateTime(seconds, &time)) {
     return "InvalidTime";
   }
-  string result = StringPrintf("%04d-%02d-%02dT%02d:%02d:%02d",
-                               time.year, time.month, time.day,
-                               time.hour, time.minute, time.second);
+  std::string result =
+      StringPrintf("%04d-%02d-%02dT%02d:%02d:%02d", time.year, time.month,
+                   time.day, time.hour, time.minute, time.second);
   if (nanos != 0) {
     result += "." + FormatNanos(nanos);
   }
   return result + "Z";
 }
 
-bool ParseTime(const string& value, int64* seconds, int32* nanos) {
+bool ParseTime(const std::string& value, int64_t* seconds, int32_t* nanos) {
   DateTime time;
   const char* data = value.c_str();
   // We only accept:
@@ -290,37 +290,37 @@ bool ParseTime(const string& value, int64* seconds, int32* nanos) {
   //   With UTC offset: 2015-05-20T13:29:35.120-08:00
 
   // Parse year
-  if ((data = ParseInt(data, 4, 1, 9999, &time.year)) == NULL) {
+  if ((data = ParseInt(data, 4, 1, 9999, &time.year)) == nullptr) {
     return false;
   }
   // Expect '-'
   if (*data++ != '-') return false;
   // Parse month
-  if ((data = ParseInt(data, 2, 1, 12, &time.month)) == NULL) {
+  if ((data = ParseInt(data, 2, 1, 12, &time.month)) == nullptr) {
     return false;
   }
   // Expect '-'
   if (*data++ != '-') return false;
   // Parse day
-  if ((data = ParseInt(data, 2, 1, 31, &time.day)) == NULL) {
+  if ((data = ParseInt(data, 2, 1, 31, &time.day)) == nullptr) {
     return false;
   }
   // Expect 'T'
   if (*data++ != 'T') return false;
   // Parse hour
-  if ((data = ParseInt(data, 2, 0, 23, &time.hour)) == NULL) {
+  if ((data = ParseInt(data, 2, 0, 23, &time.hour)) == nullptr) {
     return false;
   }
   // Expect ':'
   if (*data++ != ':') return false;
   // Parse minute
-  if ((data = ParseInt(data, 2, 0, 59, &time.minute)) == NULL) {
+  if ((data = ParseInt(data, 2, 0, 59, &time.minute)) == nullptr) {
     return false;
   }
   // Expect ':'
   if (*data++ != ':') return false;
   // Parse second
-  if ((data = ParseInt(data, 2, 0, 59, &time.second)) == NULL) {
+  if ((data = ParseInt(data, 2, 0, 59, &time.second)) == nullptr) {
     return false;
   }
   if (!DateTimeToSeconds(time, seconds)) {
@@ -330,7 +330,7 @@ bool ParseTime(const string& value, int64* seconds, int32* nanos) {
   if (*data == '.') {
     ++data;
     // Parse nanoseconds.
-    if ((data = ParseNanos(data, nanos)) == NULL) {
+    if ((data = ParseNanos(data, nanos)) == nullptr) {
       return false;
     }
   } else {
@@ -341,15 +341,15 @@ bool ParseTime(const string& value, int64* seconds, int32* nanos) {
     ++data;
   } else if (*data == '+') {
     ++data;
-    int64 offset;
-    if ((data = ParseTimezoneOffset(data, &offset)) == NULL) {
+    int64_t offset;
+    if ((data = ParseTimezoneOffset(data, &offset)) == nullptr) {
       return false;
     }
     *seconds -= offset;
   } else if (*data == '-') {
     ++data;
-    int64 offset;
-    if ((data = ParseTimezoneOffset(data, &offset)) == NULL) {
+    int64_t offset;
+    if ((data = ParseTimezoneOffset(data, &offset)) == nullptr) {
       return false;
     }
     *seconds += offset;

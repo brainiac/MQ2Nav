@@ -22,6 +22,7 @@
     <ClCompile Include="ChunkyTriMesh.cpp" />
     <ClCompile Include="ConvexVolumeTool.cpp" />
     <ClCompile Include="EQConfig.cpp" />
+    <ClCompile Include="HeadlessCli.cpp" />
     <ClCompile Include="DebugDraw.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGuiWidgets.cpp" />
@@ -54,6 +55,7 @@
     <ClInclude Include="imgui\imgui_impl_opengl2.h" />
     <ClInclude Include="imgui\imgui_impl_sdl.h" />
     <ClInclude Include="InputGeom.h" />
+    <ClInclude Include="HeadlessCli.h" />
     <ClInclude Include="Application.h" />
     <ClInclude Include="MapGeometryLoader.h" />
     <ClInclude Include="NavMeshInfoTool.h" />

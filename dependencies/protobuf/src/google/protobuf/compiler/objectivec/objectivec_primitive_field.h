@@ -31,8 +31,6 @@
 #ifndef GOOGLE_PROTOBUF_COMPILER_OBJECTIVEC_PRIMITIVE_FIELD_H__
 #define GOOGLE_PROTOBUF_COMPILER_OBJECTIVEC_PRIMITIVE_FIELD_H__
 
-#include <map>
-#include <string>
 #include <google/protobuf/compiler/objectivec/objectivec_field.h>
 
 namespace google {
@@ -41,47 +39,44 @@ namespace compiler {
 namespace objectivec {
 
 class PrimitiveFieldGenerator : public SingleFieldGenerator {
-  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field,
-                                              const Options& options);
+  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field);
 
  protected:
-  PrimitiveFieldGenerator(const FieldDescriptor* descriptor,
-                          const Options& options);
+  explicit PrimitiveFieldGenerator(const FieldDescriptor* descriptor);
   virtual ~PrimitiveFieldGenerator();
 
-  virtual void GenerateFieldStorageDeclaration(io::Printer* printer) const;
+  PrimitiveFieldGenerator(const PrimitiveFieldGenerator&) = delete;
+  PrimitiveFieldGenerator& operator=(const PrimitiveFieldGenerator&) = delete;
 
-  virtual int ExtraRuntimeHasBitsNeeded(void) const;
-  virtual void SetExtraRuntimeHasBitsBase(int index_base);
+  virtual void GenerateFieldStorageDeclaration(io::Printer* printer) const override;
 
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(PrimitiveFieldGenerator);
+  virtual int ExtraRuntimeHasBitsNeeded(void) const override;
+  virtual void SetExtraRuntimeHasBitsBase(int index_base) override;
 };
 
 class PrimitiveObjFieldGenerator : public ObjCObjFieldGenerator {
-  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field,
-                                              const Options& options);
+  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field);
 
  protected:
-  PrimitiveObjFieldGenerator(const FieldDescriptor* descriptor,
-                             const Options& options);
+  explicit PrimitiveObjFieldGenerator(const FieldDescriptor* descriptor);
   virtual ~PrimitiveObjFieldGenerator();
 
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(PrimitiveObjFieldGenerator);
+  PrimitiveObjFieldGenerator(const PrimitiveObjFieldGenerator&) = delete;
+  PrimitiveObjFieldGenerator& operator=(const PrimitiveObjFieldGenerator&) =
+      delete;
 };
 
 class RepeatedPrimitiveFieldGenerator : public RepeatedFieldGenerator {
-  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field,
-                                              const Options& options);
+  friend FieldGenerator* FieldGenerator::Make(const FieldDescriptor* field);
 
  protected:
-  RepeatedPrimitiveFieldGenerator(const FieldDescriptor* descriptor,
-                                  const Options& options);
+  explicit RepeatedPrimitiveFieldGenerator(const FieldDescriptor* descriptor);
   virtual ~RepeatedPrimitiveFieldGenerator();
 
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(RepeatedPrimitiveFieldGenerator);
+  RepeatedPrimitiveFieldGenerator(const RepeatedPrimitiveFieldGenerator&) =
+      delete;
+  RepeatedPrimitiveFieldGenerator& operator=(
+      const RepeatedPrimitiveFieldGenerator&) = delete;
 };
 
 }  // namespace objectivec
