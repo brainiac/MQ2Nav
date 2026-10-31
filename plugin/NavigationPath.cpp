@@ -636,19 +636,11 @@ void NavigationLine::InvalidateDeviceObjects()
 
 void NavigationLine::ReleasePath()
 {
-#if HAS_DIRECTX_9
 	if (m_vertexBuffer)
 	{
 		m_vertexBuffer->Release();
 		m_vertexBuffer = nullptr;
 	}
-#elif HAS_DIRECTX_11
-	if (m_vertexBuffer11)
-	{
-		m_vertexBuffer11->Release();
-		m_vertexBuffer11 = nullptr;
-	}
-#endif
 }
 
 void NavigationLine::Render()
@@ -759,14 +751,14 @@ void NavigationLine::Render()
 		return;
 	if (m_needsUpdate && m_path)
 		GenerateBuffers();
-	if (!m_vertexBuffer11)
+	if (!m_vertexBuffer)
 		return;
 
 	const LineStyle& style = gNavigationLineStyle;
 	auto color = [](const ImColor& c, float opacity) { return glm::vec4{ c.Value.x, c.Value.y, c.Value.z, opacity }; };
 	float innerWidth = style.lineWidth - (2 * style.borderWidth);
 
-	dx11->BindVolumeLines(m_vertexBuffer11, sizeof(TVertex));
+	dx11->BindVolumeLines(m_vertexBuffer, sizeof(TVertex));
 
 	// Same passes as the VolumeLine technique in VolumeLines.fx
 	for (int pass = 0; pass < 4; ++pass)
@@ -845,7 +837,7 @@ void NavigationLine::GenerateBuffers()
 	if (!dx11)
 		return;
 
-	if (!m_vertexBuffer11 || size > m_lastSize)
+	if (!m_vertexBuffer || size > m_lastSize)
 	{
 		ReleasePath();
 
@@ -855,14 +847,14 @@ void NavigationLine::GenerateBuffers()
 		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-		if (FAILED(dx11->GetDevice()->CreateBuffer(&desc, nullptr, &m_vertexBuffer11)))
+		if (FAILED(dx11->GetDevice()->CreateBuffer(&desc, nullptr, &m_vertexBuffer)))
 			return;
 	}
 
 	m_lastSize = size;
 
 	D3D11_MAPPED_SUBRESOURCE mapped;
-	if (FAILED(dx11->GetContext()->Map(m_vertexBuffer11, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+	if (FAILED(dx11->GetContext()->Map(m_vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
 		return;
 	vertexDest = static_cast<TVertex*>(mapped.pData);
 #endif
@@ -955,7 +947,7 @@ void NavigationLine::GenerateBuffers()
 #if HAS_DIRECTX_9
 	m_vertexBuffer->Unlock();
 #else
-	dx11->GetContext()->Unmap(m_vertexBuffer11, 0);
+	dx11->GetContext()->Unmap(m_vertexBuffer, 0);
 #endif
 	m_needsUpdate = false;
 }

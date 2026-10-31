@@ -702,12 +702,15 @@ void ModelLoader::OnUpdateUI(bool visible)
 			{
 				if (ImGui::TreeNode(pItem->Name, "%s (%d)", pItem->Name, pItem->DropID))
 				{
+					ImGui::PushID(pItem);
+
 					ImGui::LabelText("DropId", "%d", pItem->DropID);
 					ImGui::LabelText("SubId", "%d", pItem->DropSubID);
 					ImGui::LabelText("Name", "%s", pItem->Name);
 					ImGui::LabelText("Heading", "%.2f", pItem->Heading);
 					ImGui::DragFloat3("Position", &pItem->Y);
 
+					ImGui::PopID();
 					ImGui::TreePop();
 				}
 

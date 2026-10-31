@@ -237,9 +237,12 @@ private:
 		float        type;
 	};
 
+#if HAS_DIRECTX_9
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;
 	IDirect3DVertexDeclaration9* m_vDeclaration = nullptr;
-	ID3D11Buffer* m_vertexBuffer11 = nullptr;
+#elif HAS_DIRECTX_11
+	ID3D11Buffer* m_vertexBuffer = nullptr;
+#endif
 
 	struct RenderCommand
 	{
