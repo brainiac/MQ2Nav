@@ -12,8 +12,6 @@
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "d3dcompiler")
 
-using Microsoft::WRL::ComPtr;
-
 //----------------------------------------------------------------------------
 // Shaders
 
@@ -141,10 +139,10 @@ struct VolumeLineConstants
 
 //----------------------------------------------------------------------------
 
-static ComPtr<ID3DBlob> CompileShader(const char* source, size_t length, const char* name,
+static wil::com_ptr<ID3DBlob> CompileShader(const char* source, size_t length, const char* name,
 	const char* entryPoint, const char* target)
 {
-	ComPtr<ID3DBlob> blob, errors;
+	wil::com_ptr<ID3DBlob> blob, errors;
 
 	HRESULT hr = D3DCompile(source, length, name, nullptr, nullptr, entryPoint, target,
 		D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &blob, &errors);
@@ -158,7 +156,7 @@ static ComPtr<ID3DBlob> CompileShader(const char* source, size_t length, const c
 	return blob;
 }
 
-static ComPtr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device* device, UINT size)
+static wil::com_ptr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device* device, UINT size)
 {
 	D3D11_BUFFER_DESC desc = {};
 	desc.ByteWidth = size;
@@ -166,7 +164,7 @@ static ComPtr<ID3D11Buffer> CreateConstantBuffer(ID3D11Device* device, UINT size
 	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	ComPtr<ID3D11Buffer> buffer;
+	wil::com_ptr<ID3D11Buffer> buffer;
 	device->CreateBuffer(&desc, nullptr, &buffer);
 	return buffer;
 }
@@ -177,8 +175,8 @@ bool RenderDX11::Initialize(ID3D11Device* device)
 	m_device->GetImmediateContext(&m_context);
 
 	// Geometry shaders + input layout matching RenderList::Vertex (pos, D3DCOLOR, uv)
-	ComPtr<ID3DBlob> vs = CompileShader(s_geometryShader, sizeof(s_geometryShader) - 1, "MQ2Nav_Geometry", "VSMain", "vs_4_0");
-	ComPtr<ID3DBlob> ps = CompileShader(s_geometryShader, sizeof(s_geometryShader) - 1, "MQ2Nav_Geometry", "PSMain", "ps_4_0");
+	wil::com_ptr<ID3DBlob> vs = CompileShader(s_geometryShader, sizeof(s_geometryShader) - 1, "MQ2Nav_Geometry", "VSMain", "vs_4_0");
+	wil::com_ptr<ID3DBlob> ps = CompileShader(s_geometryShader, sizeof(s_geometryShader) - 1, "MQ2Nav_Geometry", "PSMain", "ps_4_0");
 	if (!vs || !ps)
 		return false;
 
@@ -198,7 +196,7 @@ bool RenderDX11::Initialize(ID3D11Device* device)
 		return false;
 	}
 
-	m_geometryCB = CreateConstantBuffer(m_device.Get(), sizeof(GeometryConstants));
+	m_geometryCB = CreateConstantBuffer(m_device.get(), sizeof(GeometryConstants));
 	if (!m_geometryCB)
 		return false;
 
@@ -243,8 +241,8 @@ bool RenderDX11::Initialize(ID3D11Device* device)
 
 bool RenderDX11::InitializeVolumeLines()
 {
-	ComPtr<ID3DBlob> vs = CompileShader(s_volumeLineShader, sizeof(s_volumeLineShader) - 1, "MQ2Nav_VolumeLines", "VSMain", "vs_4_0");
-	ComPtr<ID3DBlob> ps = CompileShader(s_volumeLineShader, sizeof(s_volumeLineShader) - 1, "MQ2Nav_VolumeLines", "PSMain", "ps_4_0");
+	wil::com_ptr<ID3DBlob> vs = CompileShader(s_volumeLineShader, sizeof(s_volumeLineShader) - 1, "MQ2Nav_VolumeLines", "VSMain", "vs_4_0");
+	wil::com_ptr<ID3DBlob> ps = CompileShader(s_volumeLineShader, sizeof(s_volumeLineShader) - 1, "MQ2Nav_VolumeLines", "PSMain", "ps_4_0");
 	if (!vs || !ps)
 		return false;
 
@@ -269,7 +267,7 @@ bool RenderDX11::InitializeVolumeLines()
 		return false;
 	}
 
-	m_volumeCB = CreateConstantBuffer(m_device.Get(), sizeof(VolumeLineConstants));
+	m_volumeCB = CreateConstantBuffer(m_device.get(), sizeof(VolumeLineConstants));
 	if (!m_volumeCB)
 		return false;
 
@@ -320,47 +318,47 @@ void RenderDX11::UpdateConstants(ID3D11Buffer* buffer, const T& data)
 
 void RenderDX11::BindGeometry(const glm::mat4& world, bool depthTest)
 {
-	UpdateConstants(m_geometryCB.Get(), GeometryConstants{ m_viewProj * world });
+	UpdateConstants(m_geometryCB.get(), GeometryConstants{ m_viewProj * world });
 
 	// Everything bound here is saved and restored by MQ around the render callback.
-	m_context->IASetInputLayout(m_geometryLayout.Get());
-	m_context->VSSetShader(m_geometryVS.Get(), nullptr, 0);
-	m_context->VSSetConstantBuffers(0, 1, m_geometryCB.GetAddressOf());
+	m_context->IASetInputLayout(m_geometryLayout.get());
+	m_context->VSSetShader(m_geometryVS.get(), nullptr, 0);
+	m_context->VSSetConstantBuffers(0, 1, m_geometryCB.addressof());
 	m_context->GSSetShader(nullptr, nullptr, 0);
-	m_context->PSSetShader(m_geometryPS.Get(), nullptr, 0);
+	m_context->PSSetShader(m_geometryPS.get(), nullptr, 0);
 
-	m_context->OMSetBlendState(m_blendAlpha.Get(), nullptr, 0xffffffff);
-	m_context->OMSetDepthStencilState(depthTest ? m_depthTestOn.Get() : m_depthTestOff.Get(), 0);
-	m_context->RSSetState(m_geometryRaster.Get());
+	m_context->OMSetBlendState(m_blendAlpha.get(), nullptr, 0xffffffff);
+	m_context->OMSetDepthStencilState(depthTest ? m_depthTestOn.get() : m_depthTestOff.get(), 0);
+	m_context->RSSetState(m_geometryRaster.get());
 }
 
 void RenderDX11::BindVolumeLines(ID3D11Buffer* vertexBuffer, UINT stride)
 {
 	UINT offset = 0;
-	m_context->IASetInputLayout(m_volumeLayout.Get());
+	m_context->IASetInputLayout(m_volumeLayout.get());
 	m_context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 	m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	m_context->VSSetShader(m_volumeVS.Get(), nullptr, 0);
-	m_context->VSSetConstantBuffers(0, 1, m_volumeCB.GetAddressOf());
+	m_context->VSSetShader(m_volumeVS.get(), nullptr, 0);
+	m_context->VSSetConstantBuffers(0, 1, m_volumeCB.addressof());
 	m_context->GSSetShader(nullptr, nullptr, 0);
-	m_context->PSSetShader(m_volumePS.Get(), nullptr, 0);
+	m_context->PSSetShader(m_volumePS.get(), nullptr, 0);
 
-	m_context->OMSetBlendState(m_blendAlpha.Get(), nullptr, 0xffffffff);
-	m_context->RSSetState(m_volumeRaster.Get());
+	m_context->OMSetBlendState(m_blendAlpha.get(), nullptr, 0xffffffff);
+	m_context->RSSetState(m_volumeRaster.get());
 
-	ComPtr<ID3D11DepthStencilView> dsv;
+	wil::com_ptr<ID3D11DepthStencilView> dsv;
 	m_context->OMGetRenderTargets(0, nullptr, &dsv);
 	if (dsv)
 	{
-		m_context->ClearDepthStencilView(dsv.Get(), D3D11_CLEAR_STENCIL, 1.0f, 0);
+		m_context->ClearDepthStencilView(dsv.get(), D3D11_CLEAR_STENCIL, 1.0f, 0);
 	}
 }
 
 void RenderDX11::SetVolumeLinePass(int pass, const glm::vec4& lineColor, const glm::vec4& linkColor, float lineWidth)
 {
-	UpdateConstants(m_volumeCB.Get(), VolumeLineConstants{ m_viewProj, lineColor, linkColor, lineWidth });
+	UpdateConstants(m_volumeCB.get(), VolumeLineConstants{ m_viewProj, lineColor, linkColor, lineWidth });
 
-	m_context->OMSetDepthStencilState(m_volumeDepth[pass].Get(), pass < 2 ? 1 : 0);
+	m_context->OMSetDepthStencilState(m_volumeDepth[pass].get(), pass < 2 ? 1 : 0);
 }
 
 #endif // HAS_DIRECTX_11

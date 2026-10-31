@@ -3,4 +3,5 @@ glm
 rapidjson
 protobuf
 spdlog
+wil
 zlib

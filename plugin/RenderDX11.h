@@ -11,7 +11,7 @@
 #if HAS_DIRECTX_11
 
 #include <d3d11.h>
-#include <wrl/client.h>
+#include <wil/com.h>
 #include <glm/glm.hpp>
 
 class RenderDX11
@@ -19,8 +19,8 @@ class RenderDX11
 public:
 	bool Initialize(ID3D11Device* device);
 
-	ID3D11Device* GetDevice() const { return m_device.Get(); }
-	ID3D11DeviceContext* GetContext() const { return m_context.Get(); }
+	ID3D11Device* GetDevice() const { return m_device.get(); }
+	ID3D11DeviceContext* GetContext() const { return m_context.get(); }
 
 	// Camera for the current frame (glm convention: clip = viewProj * pos).
 	void SetViewProj(const glm::mat4& viewProj) { m_viewProj = viewProj; }
@@ -41,31 +41,31 @@ private:
 	template <typename T>
 	void UpdateConstants(ID3D11Buffer* buffer, const T& data);
 
-	Microsoft::WRL::ComPtr<ID3D11Device> m_device;
-	Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_context;
+	wil::com_ptr<ID3D11Device> m_device;
+	wil::com_ptr<ID3D11DeviceContext> m_context;
 
 	glm::mat4 m_viewProj{ 1.0f };
 
-	Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendAlpha;
+	wil::com_ptr<ID3D11BlendState> m_blendAlpha;
 
 	// Geometry pipeline
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> m_geometryVS;
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> m_geometryPS;
-	Microsoft::WRL::ComPtr<ID3D11InputLayout> m_geometryLayout;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> m_geometryCB;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_geometryRaster;
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthTestOn;
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthTestOff;
+	wil::com_ptr<ID3D11VertexShader> m_geometryVS;
+	wil::com_ptr<ID3D11PixelShader> m_geometryPS;
+	wil::com_ptr<ID3D11InputLayout> m_geometryLayout;
+	wil::com_ptr<ID3D11Buffer> m_geometryCB;
+	wil::com_ptr<ID3D11RasterizerState> m_geometryRaster;
+	wil::com_ptr<ID3D11DepthStencilState> m_depthTestOn;
+	wil::com_ptr<ID3D11DepthStencilState> m_depthTestOff;
 
 	// Volume line pipeline
 	bool InitializeVolumeLines();
 
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> m_volumeVS;
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> m_volumePS;
-	Microsoft::WRL::ComPtr<ID3D11InputLayout> m_volumeLayout;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> m_volumeCB;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_volumeRaster;
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_volumeDepth[4];
+	wil::com_ptr<ID3D11VertexShader> m_volumeVS;
+	wil::com_ptr<ID3D11PixelShader> m_volumePS;
+	wil::com_ptr<ID3D11InputLayout> m_volumeLayout;
+	wil::com_ptr<ID3D11Buffer> m_volumeCB;
+	wil::com_ptr<ID3D11RasterizerState> m_volumeRaster;
+	wil::com_ptr<ID3D11DepthStencilState> m_volumeDepth[4];
 };
 
 // Returns the active pipeline, or nullptr if the device is not acquired.
