@@ -5,6 +5,7 @@
 #pragma once
 
 #include "plugin/Renderable.h"
+#include "plugin/RenderDX9.h"
 #include "plugin/RenderDX11.h"
 
 #include <mq/Plugin.h>
@@ -13,6 +14,14 @@
 #include <list>
 
 class RenderHooks;
+
+// The renderer for the graphics API the client was built with. Both backends
+// expose the same functions, so shared code can call either one.
+#if HAS_DIRECTX_11
+using RenderBackend = RenderDX11;
+#else
+using RenderBackend = RenderDX9;
+#endif
 
 class RenderHandler
 {
@@ -33,20 +42,16 @@ public:
 
 	void PerformRender();
 
-#if HAS_DIRECTX_11
-	RenderDX11* GetDX11() const { return m_deviceAcquired ? m_dx11.get() : nullptr; }
-#endif
+	RenderBackend* GetBackend() const { return m_deviceAcquired ? m_backend.get() : nullptr; }
 
 private:
 	bool m_deviceAcquired = false; // implies that g_pDevice is valid to use
 
 	std::list<Renderable*> m_renderables;
 
-#if HAS_DIRECTX_11
-	std::unique_ptr<RenderDX11> m_dx11;
-#endif
+	std::unique_ptr<RenderBackend> m_backend;
 };
 
-// utility function to reset the state of the current direct3d9 device
-void ResetDeviceState();
+// Returns the active renderer, or nullptr if the device is not acquired.
+RenderBackend* GetRenderBackend();
 

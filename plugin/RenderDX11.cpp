@@ -8,6 +8,7 @@
 #if HAS_DIRECTX_11
 
 #include <d3dcompiler.h>
+#include <mq/api/RenderDoc.h>
 
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "d3dcompiler")
@@ -303,6 +304,24 @@ bool RenderDX11::InitializeVolumeLines()
 	}
 
 	return true;
+}
+
+void RenderDX11::BeginFrame()
+{
+	RenderDoc_BeginEvent(MQColor(255, 0, 0), L"RenderHandler::PerformRender");
+
+	// EQ's renderer still tracks the D3D9-style transforms.
+	glm::mat4 view, proj;
+	gpD3D9Device->GetTransform(D3DTS_VIEW, reinterpret_cast<D3DMATRIX*>(&view));
+	gpD3D9Device->GetTransform(D3DTS_PROJECTION, reinterpret_cast<D3DMATRIX*>(&proj));
+
+	// Row-major D3D matrices read as column-major glm are transposed, so the order flips.
+	m_viewProj = proj * view;
+}
+
+void RenderDX11::EndFrame()
+{
+	RenderDoc_EndEvent();
 }
 
 template <typename T>

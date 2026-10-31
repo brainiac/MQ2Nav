@@ -22,9 +22,9 @@ public:
 	ID3D11Device* GetDevice() const { return m_device.get(); }
 	ID3D11DeviceContext* GetContext() const { return m_context.get(); }
 
-	// Camera for the current frame (glm convention: clip = viewProj * pos).
-	void SetViewProj(const glm::mat4& viewProj) { m_viewProj = viewProj; }
-	const glm::mat4& GetViewProj() const { return m_viewProj; }
+	// Captures the camera for the frame. Call around all rendering for the frame.
+	void BeginFrame();
+	void EndFrame();
 
 	// Binds the position+color pipeline used by RenderList.
 	void BindGeometry(const glm::mat4& world, bool depthTest);
@@ -34,8 +34,12 @@ public:
 
 	// Sets the constants and depth/stencil state for one of the four volume line passes:
 	// 0 = hidden line, 1 = visible line, 2 = hidden border, 3 = visible border.
-	// Colors carry the opacity in alpha.
 	void SetVolumeLinePass(int pass, const glm::vec4& lineColor, const glm::vec4& linkColor, float lineWidth);
+
+	// Draws one line segment (a triangle strip) in the current pass.
+	void DrawVolumeLine(UINT startVertex, UINT primitiveCount) { m_context->Draw(primitiveCount + 2, startVertex); }
+
+	void EndVolumeLines() {}
 
 private:
 	template <typename T>
@@ -44,7 +48,7 @@ private:
 	wil::com_ptr<ID3D11Device> m_device;
 	wil::com_ptr<ID3D11DeviceContext> m_context;
 
-	glm::mat4 m_viewProj{ 1.0f };
+	glm::mat4 m_viewProj{ 1.0f }; // glm convention: clip = viewProj * pos
 
 	wil::com_ptr<ID3D11BlendState> m_blendAlpha;
 
@@ -67,8 +71,5 @@ private:
 	wil::com_ptr<ID3D11RasterizerState> m_volumeRaster;
 	wil::com_ptr<ID3D11DepthStencilState> m_volumeDepth[4];
 };
-
-// Returns the active pipeline, or nullptr if the device is not acquired.
-RenderDX11* GetRenderDX11();
 
 #endif // HAS_DIRECTX_11

@@ -38,13 +38,13 @@ bool s_drawBoundingBoxes = false;
 class ModelData : public Renderable
 {
 public:
-	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo, eqlib::Direct3DDevice9* device)
+	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo)
 		: m_switchID(doorId)
 		, m_modelInfo(modelInfo)
 	{
-		m_grpBB = std::make_unique<RenderGroup>(device);
+		m_grpBB = std::make_unique<RenderGroup>();
 #if RENDER_MODELS
-		m_grpModel = std::make_unique<RenderGroup>(device);
+		m_grpModel = std::make_unique<RenderGroup>();
 #endif
 		RegenerateMesh();
 
@@ -198,9 +198,6 @@ public:
 
 				if (m_targetted || m_highlight || s_drawBoundingBoxes)
 				{
-#if HAS_DIRECTX_9
-					gpD3D9Device->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
-#endif
 					m_grpBB->SetDepthTest(!zDisabled && !s_visibleOverride);
 					m_grpBB->SetTransform(&scale);
 					m_grpBB->Render();
@@ -395,7 +392,7 @@ void ModelLoader::UpdateModels()
 			if (modelInfo = zoneData->GetModelInfo(pSwitch->Name))
 			{
 				// Create new model object
-				std::shared_ptr<ModelData> md = std::make_shared<ModelData>(pSwitch->ID, modelInfo, gpD3D9Device);
+				std::shared_ptr<ModelData> md = std::make_shared<ModelData>(pSwitch->ID, modelInfo);
 				m_modelData[pSwitch->ID] = md;
 			}
 		}

@@ -155,6 +155,7 @@
     <ClCompile Include="NavMeshRenderer.cpp" />
     <ClCompile Include="PluginMain.cpp" />
     <ClCompile Include="RenderDX11.cpp" />
+    <ClCompile Include="RenderDX9.cpp" />
     <ClCompile Include="RenderHandler.cpp" />
     <ClCompile Include="RenderList.cpp" />
     <ClCompile Include="UiController.cpp" />
@@ -179,6 +180,7 @@
     <ClInclude Include="NavMeshRenderer.h" />
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="RenderDX11.h" />
+    <ClInclude Include="RenderDX9.h" />
     <ClInclude Include="RenderHandler.h" />
     <ClInclude Include="RenderList.h" />
     <ClInclude Include="SwitchHandler.h" />
