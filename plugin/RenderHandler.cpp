@@ -7,6 +7,8 @@
 
 #include "plugin/MQ2Navigation.h"
 
+#include <mq/api/RenderDoc.h>
+
 #include <cassert>
 #include <DetourDebugDraw.h>
 #include <RecastDebugDraw.h>
@@ -48,6 +50,19 @@ void RenderHandler::CreateDeviceObjects()
 	if (!gpD3D9Device)
 		return;
 
+#if HAS_DIRECTX_11
+	if (!gpD3D11Device)
+		return;
+
+	m_dx11 = std::make_unique<RenderDX11>();
+	if (!m_dx11->Initialize(gpD3D11Device))
+	{
+		SPDLOG_ERROR("Failed to initialize DirectX 11 rendering");
+		m_dx11.reset();
+		return;
+	}
+#endif
+
 	for (auto& p : m_renderables)
 	{
 		p->CreateDeviceObjects();
@@ -65,6 +80,10 @@ void RenderHandler::InvalidateDeviceObjects()
 	{
 		p->InvalidateDeviceObjects();
 	}
+
+#if HAS_DIRECTX_11
+	m_dx11.reset();
+#endif
 }
 
 void RenderHandler::AddRenderable(Renderable* renderable)
@@ -94,9 +113,22 @@ void RenderHandler::RemoveRenderable(Renderable* renderable)
 
 void RenderHandler::PerformRender()
 {
+#if HAS_DIRECTX_11
+	if (!m_deviceAcquired || !gpD3D9Device)
+		return;
+
+	RenderDoc_ScopedEvent event(MQColor(255, 0, 0), L"RenderHandler::PerformRender");
+
+	// EQ's renderer still tracks the D3D9-style transforms.
+	glm::mat4 view, proj;
+	gpD3D9Device->GetTransform(D3DTS_VIEW, reinterpret_cast<D3DMATRIX*>(&view));
+	gpD3D9Device->GetTransform(D3DTS_PROJECTION, reinterpret_cast<D3DMATRIX*>(&proj));
+
+	// Row-major D3D matrices read as column-major glm are transposed, so the order flips.
+	m_dx11->SetViewProj(proj * view);
+#else
 	ResetDeviceState();
 
-#if HAS_DIRECTX_9
 	D3DPERF_BeginEvent(D3DCOLOR_XRGB(255, 0, 0), L"RenderHandler::PerformRender");
 #endif
 
@@ -109,6 +141,13 @@ void RenderHandler::PerformRender()
 	D3DPERF_EndEvent();
 #endif
 }
+
+#if HAS_DIRECTX_11
+RenderDX11* GetRenderDX11()
+{
+	return g_renderHandler ? g_renderHandler->GetDX11() : nullptr;
+}
+#endif
 
 void ResetDeviceState()
 {

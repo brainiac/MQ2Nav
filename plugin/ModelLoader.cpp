@@ -196,14 +196,15 @@ public:
 				}
 #endif
 
-#if HAS_DIRECTX_9
 				if (m_targetted || m_highlight || s_drawBoundingBoxes)
 				{
+#if HAS_DIRECTX_9
 					gpD3D9Device->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
+#endif
+					m_grpBB->SetDepthTest(!zDisabled && !s_visibleOverride);
 					m_grpBB->SetTransform(&scale);
 					m_grpBB->Render();
 				}
-#endif
 			}
 		}
 	}

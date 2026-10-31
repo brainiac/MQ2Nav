@@ -19,6 +19,8 @@
 #include <memory>
 #include <vector>
 
+struct ID3D11Buffer;
+
 //----------------------------------------------------------------------------
 
 class RenderList : public Renderable
@@ -55,6 +57,7 @@ public:
 
 	void SetTransform(glm::mat4* mtx) { m_mtx = mtx; }
 	void SetEQCoords(bool eqCoords) { m_eqCoords = eqCoords; }
+	void SetDepthTest(bool depthTest) { m_depthTest = depthTest; } // DX11 only, DX9 uses D3DRS_ZENABLE
 
 	PrimitiveType GetType() const { return m_type; }
 
@@ -115,11 +118,15 @@ private:
 
 	glm::mat4* m_mtx = nullptr;
 	bool m_eqCoords = false;
+	bool m_depthTest = true;
 
 private:
 	eqlib::Direct3DDevice9* m_pDevice = nullptr;
 	eqlib::Direct3DVertexBuffer9* m_pVB = nullptr;
 	eqlib::Direct3DIndexBuffer9* m_pIB = nullptr;
+
+	ID3D11Buffer* m_pVB11 = nullptr;
+	ID3D11Buffer* m_pIB11 = nullptr;
 
 	std::vector<Vertex> m_vertices;
 
@@ -167,6 +174,12 @@ public:
 	{
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
 			m_primLists[i]->SetEQCoords(eqCoords);
+	}
+
+	inline void SetDepthTest(bool depthTest)
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+			m_primLists[i]->SetDepthTest(depthTest);
 	}
 
 	void SetTransform(glm::mat4* mtx)

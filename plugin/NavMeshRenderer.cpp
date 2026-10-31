@@ -175,9 +175,9 @@ void NavMeshRenderer::Render()
 			pDevice->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
 		}
 	}
+#endif
 
 	m_primGroup->Render();
-#endif
 }
 
 //----------------------------------------------------------------------------

@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include "RenderList.h"
+#include "RenderDX11.h"
 
 #include <imgui.h>
 
@@ -221,6 +222,37 @@ void RenderList::Render()
 			break;
 		}
 	}
+#elif HAS_DIRECTX_11
+	RenderDX11* dx11 = GetRenderDX11();
+	if (!dx11)
+		return;
+
+	GenerateBuffers();
+
+	if (!m_pVB11 || !m_pIB11)
+		return;
+
+	dx11->BindGeometry(m_mtx ? *m_mtx : glm::mat4{ 1.0f }, m_depthTest);
+	m_mtx = nullptr;
+
+	ID3D11DeviceContext* context = dx11->GetContext();
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	context->IASetVertexBuffers(0, 1, &m_pVB11, &stride, &offset);
+	context->IASetIndexBuffer(m_pIB11, DXGI_FORMAT_R32_UINT, 0);
+
+	switch (m_type)
+	{
+	case Prim_Points: context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST); break;
+	case Prim_Lines: context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST); break;
+	default: context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); break;
+	}
+
+	for (auto& p : m_prims)
+	{
+		if (!p->indices.empty())
+			context->DrawIndexed((UINT)p->indices.size(), p->startingIndex, 0);
+	}
 #endif
 }
 
@@ -292,6 +324,45 @@ void RenderList::GenerateBuffers()
 		m_pVB->Unlock();
 		m_pIB->Unlock();
 	}
+#elif HAS_DIRECTX_11
+	if (m_pVB11 && m_pIB11)
+		return;
+
+	InvalidateDeviceObjects();
+
+	// Build the index buffer contents and the starting index of each primitive list
+	std::vector<uint32_t> indices;
+	for (auto& p : m_prims)
+	{
+		p->startingIndex = (uint32_t)indices.size();
+		indices.insert(indices.end(), p->indices.begin(), p->indices.end());
+	}
+
+	if (m_vertices.empty() || indices.empty())
+		return;
+
+	ID3D11Device* device = GetRenderDX11()->GetDevice();
+
+	D3D11_BUFFER_DESC desc = {};
+	desc.Usage = D3D11_USAGE_IMMUTABLE;
+	D3D11_SUBRESOURCE_DATA data = {};
+
+	desc.ByteWidth = (UINT)(m_vertices.size() * sizeof(Vertex));
+	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	data.pSysMem = m_vertices.data();
+	if (FAILED(device->CreateBuffer(&desc, &data, &m_pVB11)))
+		return;
+
+	desc.ByteWidth = (UINT)(indices.size() * sizeof(uint32_t));
+	desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	data.pSysMem = indices.data();
+	if (FAILED(device->CreateBuffer(&desc, &data, &m_pIB11)))
+	{
+		InvalidateDeviceObjects();
+		return;
+	}
+
+	m_lastRender = (int)m_prims.size();
 #endif
 }
 
@@ -308,6 +379,18 @@ void RenderList::InvalidateDeviceObjects()
 	{
 		m_pIB->Release();
 		m_pIB = nullptr;
+	}
+#elif HAS_DIRECTX_11
+	if (m_pVB11)
+	{
+		m_pVB11->Release();
+		m_pVB11 = nullptr;
+	}
+
+	if (m_pIB11)
+	{
+		m_pIB11->Release();
+		m_pIB11 = nullptr;
 	}
 #endif
 }
