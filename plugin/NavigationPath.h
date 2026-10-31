@@ -28,6 +28,7 @@ class NavMesh;
 class NavigationLine;
 struct DestinationInfo;
 struct ID3DXEffect;
+struct ID3D11Buffer;
 
 struct StraightPath
 {
@@ -238,6 +239,7 @@ private:
 
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;
 	IDirect3DVertexDeclaration9* m_vDeclaration = nullptr;
+	ID3D11Buffer* m_vertexBuffer11 = nullptr;
 
 	struct RenderCommand
 	{

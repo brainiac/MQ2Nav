@@ -623,8 +623,6 @@ void NavigationLine::InvalidateDeviceObjects()
 		m_effect = nullptr;
 	}
 
-	ReleasePath();
-
 	if (m_vDeclaration)
 	{
 		m_vDeclaration->Release();
@@ -632,6 +630,7 @@ void NavigationLine::InvalidateDeviceObjects()
 	}
 #endif
 
+	ReleasePath();
 	m_loaded = false;
 }
 
@@ -642,6 +641,12 @@ void NavigationLine::ReleasePath()
 	{
 		m_vertexBuffer->Release();
 		m_vertexBuffer = nullptr;
+	}
+#elif HAS_DIRECTX_11
+	if (m_vertexBuffer11)
+	{
+		m_vertexBuffer11->Release();
+		m_vertexBuffer11 = nullptr;
 	}
 #endif
 }
@@ -748,12 +753,57 @@ void NavigationLine::Render()
 
 	gpD3D9Device->SetRenderState(D3DRS_ZENABLE, depthTest);
 	gpD3D9Device->SetRenderState(D3DRS_ZFUNC, depthFunc);
+#elif HAS_DIRECTX_11
+	RenderDX11* dx11 = GetRenderDX11();
+	if (!m_loaded || !dx11)
+		return;
+	if (m_needsUpdate && m_path)
+		GenerateBuffers();
+	if (!m_vertexBuffer11)
+		return;
+
+	const LineStyle& style = gNavigationLineStyle;
+	auto color = [](const ImColor& c, float opacity) { return glm::vec4{ c.Value.x, c.Value.y, c.Value.z, opacity }; };
+	float innerWidth = style.lineWidth - (2 * style.borderWidth);
+
+	dx11->BindVolumeLines(m_vertexBuffer11, sizeof(TVertex));
+
+	// Same passes as the VolumeLine technique in VolumeLines.fx
+	for (int pass = 0; pass < 4; ++pass)
+	{
+		switch (pass)
+		{
+		case 0: // hidden
+			if (style.hiddenOpacity == 0)
+				continue;
+			dx11->SetVolumeLinePass(pass, color(style.hiddenColor, style.hiddenOpacity), color(style.hiddenColor, style.hiddenOpacity), innerWidth);
+			break;
+
+		case 1: // visible
+			dx11->SetVolumeLinePass(pass, color(style.visibleColor, style.opacity), color(style.linkColor, style.opacity), innerWidth);
+			break;
+
+		case 2: // border - hidden
+			if (style.hiddenOpacity == 0)
+				continue;
+			dx11->SetVolumeLinePass(pass, color(style.borderColor, style.hiddenOpacity), color(style.borderColor, style.hiddenOpacity), style.lineWidth);
+			break;
+
+		case 3: // border - visible
+			dx11->SetVolumeLinePass(pass, color(style.borderColor, style.opacity), color(style.borderColor, style.opacity), style.lineWidth);
+			break;
+		}
+
+		for (auto& cmd : m_commands)
+		{
+			dx11->GetContext()->Draw(cmd.PrimitiveCount + 2, cmd.StartVertex);
+		}
+	}
 #endif
 }
 
 void NavigationLine::GenerateBuffers()
 {
-#if HAS_DIRECTX_9
 	const std::vector<int>& renderPath = m_path->GetRenderPath();
 	int size = (int)renderPath.size();
 
@@ -761,7 +811,9 @@ void NavigationLine::GenerateBuffers()
 		return;
 
 	int bufferLength = (size - 1) * 4;
+	TVertex* vertexDest = nullptr;
 
+#if HAS_DIRECTX_9
 	if (!m_vertexBuffer || size > m_lastSize)
 	{
 		if (m_vertexBuffer) {
@@ -785,10 +837,35 @@ void NavigationLine::GenerateBuffers()
 	}
 
 	m_lastSize = size;
-	TVertex* vertexDest = nullptr;
 
 	if (m_vertexBuffer->Lock(0, bufferLength * sizeof(TVertex), (void**)&vertexDest, D3DLOCK_DISCARD) < 0)
 		return;
+#else
+	RenderDX11* dx11 = GetRenderDX11();
+	if (!dx11)
+		return;
+
+	if (!m_vertexBuffer11 || size > m_lastSize)
+	{
+		ReleasePath();
+
+		D3D11_BUFFER_DESC desc = {};
+		desc.ByteWidth = bufferLength * sizeof(TVertex);
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		if (FAILED(dx11->GetDevice()->CreateBuffer(&desc, nullptr, &m_vertexBuffer11)))
+			return;
+	}
+
+	m_lastSize = size;
+
+	D3D11_MAPPED_SUBRESOURCE mapped;
+	if (FAILED(dx11->GetContext()->Map(m_vertexBuffer11, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+		return;
+	vertexDest = static_cast<TVertex*>(mapped.pData);
+#endif
 
 	glm::vec3* pt = &m_path->m_currentPath->verts[0];
 	uint8_t* flags = &m_path->m_currentPath->flags[0];
@@ -875,7 +952,10 @@ void NavigationLine::GenerateBuffers()
 		index += 4;
 	}
 
+#if HAS_DIRECTX_9
 	m_vertexBuffer->Unlock();
+#else
+	dx11->GetContext()->Unmap(m_vertexBuffer11, 0);
 #endif
 	m_needsUpdate = false;
 }
