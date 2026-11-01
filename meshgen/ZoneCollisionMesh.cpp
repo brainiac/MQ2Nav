@@ -23,6 +23,25 @@ void ZoneCollisionMesh::clear()
 	delete[] m_verts;
 	delete[] m_normals;
 	delete[] m_tris;
+
+	// Everything below has to be reset, not just freed. This used to run only once, at
+	// load, where the pointers were already null and the counts zero - so leaving them
+	// stale went unnoticed. Called a second time it left dangling pointers with counts
+	// that still described the freed data: addVertex would memcpy out of freed memory to
+	// grow, and finalize would delete m_normals again.
+	m_verts = nullptr;
+	m_normals = nullptr;
+	m_tris = nullptr;
+
+	m_vertCount = 0;
+	m_triCount = 0;
+	vcap = 0;
+	tcap = 0;
+
+	m_chunkyMesh.reset();
+
+	m_boundsMin = glm::vec3(0.0f);
+	m_boundsMax = glm::vec3(0.0f);
 }
 
 void ZoneCollisionMesh::setMaxExtents(const std::pair<glm::vec3, glm::vec3>& maxExtents)
@@ -196,6 +215,10 @@ void ZoneCollisionMesh::addActor(entt::handle handle, const eqg::Actor* actor)
 	TransformComponent& transform = handle.get<TransformComponent>();
 
 	if (handle.any_of<HiddenComponent>())
+		return;
+
+	// Excluded by the user in the Scene Objects list. Still drawn, just not collided with.
+	if (handle.any_of<CollisionExcludedComponent>())
 		return;
 
 	// Get model transform

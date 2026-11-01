@@ -8,6 +8,7 @@
 #include "meshgen/NavMeshPruneTool.h"
 #include "meshgen/NavMeshTesterTool.h"
 #include "meshgen/NavMeshTileTool.h"
+#include "meshgen/MeshPatchTool.h"
 #include "meshgen/OffMeshConnectionTool.h"
 #include "meshgen/WaypointsTool.h"
 #include "meshgen/ZoneProject.h"
@@ -191,6 +192,12 @@ void NavMeshTool::handleTools()
 	if (ToolButton(ICON_MD_LINK, "Connections Tool", type == ToolType::OFFMESH_CONNECTION)) // connections tool
 	{
 		setTool(new OffMeshConnectionTool);
+	}
+	ImGui::SameLine();
+
+	if (ToolButton(ICON_MD_HEALING, "Mesh Patch Tool", type == ToolType::MESH_PATCH)) // patch geometry
+	{
+		setTool(new MeshPatchTool);
 	}
 	ImGui::SameLine();
 

@@ -23,8 +23,12 @@ public:
 	RenderBatchManager(ZoneRenderManager* renderManager);
 	~RenderBatchManager();
 
+	// alphaScale fades the whole draw out, for showing an object that is present but not
+	// taking part - anything below 1 also forces alpha blending on, since a material that
+	// never asked to be blended would otherwise ignore it.
 	void RenderMaterialBatch(const glm::mat4& worldMtx, const MaterialBatch& batch,
-		bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer);
+		bgfx::VertexBufferHandle vertexBuffer, bgfx::IndexBufferHandle indexBuffer,
+		float alphaScale = 1.0f);
 
 	void SetActivePointLights(const ActivePointLights* lights);
 

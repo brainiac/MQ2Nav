@@ -437,6 +437,18 @@ bool ZoneProject::LoadZoneData()
 	return true;
 }
 
+bool ZoneProject::RebuildCollisionMesh()
+{
+	if (IsBusy() || !m_zoneDataLoaded)
+		return false;
+
+	if (!BuildCollisionMesh())
+		return false;
+
+	m_collisionMeshDirty = false;
+	return true;
+}
+
 bool ZoneProject::BuildCollisionMesh()
 {
 	assert(m_zoneDataLoaded);
@@ -454,6 +466,14 @@ bool ZoneProject::BuildCollisionMesh()
 
 	if (m_resourceMgr->BuildCollisionMesh(*m_collisionMesh))
 	{
+		AddMeshPatchesToCollisionMesh();
+
+		// The resource manager finalized the mesh before returning, which was before the
+		// patches went in. Without this their triangles sit in the vertex list but never
+		// reach the chunky tri mesh, which is the only thing the builder reads - so the
+		// patches would quietly do nothing on every full rebuild.
+		m_collisionMesh->finalize();
+
 		m_meshBMin = m_collisionMesh->m_boundsMin;
 		m_meshBMax = m_collisionMesh->m_boundsMax;
 
@@ -461,6 +481,125 @@ bool ZoneProject::BuildCollisionMesh()
 	}
 
 	return false;
+}
+
+// Mesh patches are user authored geometry, added after the zone's own so that a patch can
+// lie over the surface it is repairing. They are ordinary triangles from here on: Recast
+// voxelizes them like anything else, which is the point - the generator gets a clean
+// surface to work from rather than having its output corrected afterwards.
+// Triangulated as a fan, so the ring has to be convex to come out right. The tool only
+// produces quads; a ring built by hand is the user's responsibility.
+//
+// Winding decides whether a triangle is walkable: rcMarkWalkableTriangles takes the face
+// normal and rejects anything not pointing up. A patch is authored by clicking, so the ring
+// comes out either way round depending on which side was clicked first - hence the flip
+// rather than trusting the caller.
+static void AddUpwardTriangle(ZoneCollisionMesh& collisionMesh,
+	const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+{
+	if (glm::cross(b - a, c - a).y < 0.0f)
+		collisionMesh.addTriangle(a, c, b);
+	else
+		collisionMesh.addTriangle(a, b, c);
+}
+
+// Box patches are solid: the top face is what gets walked on, and the sides and bottom are
+// there so the box reads as an obstacle from every other direction rather than a surface
+// that can be passed through from below.
+static void AddBoxTriangles(ZoneCollisionMesh& collisionMesh, const glm::vec3& c0, const glm::vec3& c1)
+{
+	const glm::vec3 lo = glm::min(c0, c1);
+	const glm::vec3 hi = glm::max(c0, c1);
+
+	const glm::vec3 v[8] = {
+		{ lo.x, lo.y, lo.z }, { hi.x, lo.y, lo.z }, { hi.x, lo.y, hi.z }, { lo.x, lo.y, hi.z },
+		{ lo.x, hi.y, lo.z }, { hi.x, hi.y, lo.z }, { hi.x, hi.y, hi.z }, { lo.x, hi.y, hi.z },
+	};
+
+	// Each face as two triangles, wound outwards. Only the top face matters for walkability,
+	// but the others still have to be rasterized or the box would be hollow to the voxelizer.
+	static const int faces[12][3] = {
+		{ 4, 5, 6 }, { 4, 6, 7 },   // top      (+y)
+		{ 0, 2, 1 }, { 0, 3, 2 },   // bottom   (-y)
+		{ 0, 1, 5 }, { 0, 5, 4 },   // -z
+		{ 3, 7, 6 }, { 3, 6, 2 },   // +z
+		{ 0, 4, 7 }, { 0, 7, 3 },   // -x
+		{ 1, 2, 6 }, { 1, 6, 5 },   // +x
+	};
+
+	for (const auto& f : faces)
+		collisionMesh.addTriangle(v[f[0]], v[f[1]], v[f[2]]);
+}
+
+// Strips are pairs of vertices along a run, each consecutive pair of pairs making a quad.
+// Every quad is triangulated on its own, so unlike a fan the run does not have to be planar.
+static void AddStripTriangles(ZoneCollisionMesh& collisionMesh, const std::vector<glm::vec3>& verts)
+{
+	for (size_t i = 0; i + 3 < verts.size(); i += 2)
+	{
+		AddUpwardTriangle(collisionMesh, verts[i], verts[i + 1], verts[i + 3]);
+		AddUpwardTriangle(collisionMesh, verts[i], verts[i + 3], verts[i + 2]);
+	}
+}
+
+static void AddPatchTriangles(ZoneCollisionMesh& collisionMesh, const MeshPatch& patch)
+{
+	switch (patch.type)
+	{
+	case MeshPatchType::Box:
+		if (patch.verts.size() >= 2)
+			AddBoxTriangles(collisionMesh, patch.verts[0], patch.verts[1]);
+		break;
+
+	case MeshPatchType::Strip:
+		AddStripTriangles(collisionMesh, patch.verts);
+		break;
+
+	default:
+		for (size_t i = 1; i + 1 < patch.verts.size(); ++i)
+			AddUpwardTriangle(collisionMesh, patch.verts[0], patch.verts[i], patch.verts[i + 1]);
+		break;
+	}
+}
+
+// A box needs only its two corners, a strip needs at least two pairs, a surface a ring.
+static bool IsPatchUsable(const MeshPatch& patch)
+{
+	switch (patch.type)
+	{
+	case MeshPatchType::Box:   return patch.verts.size() >= 2;
+	case MeshPatchType::Strip: return patch.verts.size() >= 4 && patch.verts.size() % 2 == 0;
+	default:                   return patch.verts.size() >= 3;
+	}
+}
+
+void ZoneProject::AddMeshPatchesToCollisionMesh()
+{
+	auto navMesh = GetNavMesh();
+	if (!navMesh)
+		return;
+
+	for (const auto& patch : navMesh->GetMeshPatches())
+	{
+		if (IsPatchUsable(*patch))
+			AddPatchTriangles(*m_collisionMesh, *patch);
+	}
+}
+
+// Adds a single patch to the collision mesh already in memory. Rebuilding tiles regenerates
+// them from that mesh rather than from the zone data, so a patch that is only recorded in
+// the navmesh has no effect until its geometry is in there too - and regenerating the whole
+// collision mesh for one patch takes seconds on a large zone.
+bool ZoneProject::AddMeshPatchGeometry(const MeshPatch& patch)
+{
+	if (!m_collisionMesh || !IsPatchUsable(patch))
+		return false;
+
+	AddPatchTriangles(*m_collisionMesh, patch);
+
+	// Rebuilds the bounds and the chunky triangle mesh, which is what the navmesh builder
+	// actually reads.
+	return m_collisionMesh->finalize();
 }
 
 

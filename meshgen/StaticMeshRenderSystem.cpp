@@ -27,6 +27,9 @@
 
 //============================================================================
 
+// Faded enough to read as excluded, solid enough to still make out the shape.
+static constexpr float kCollisionExcludedAlpha = 0.3f;
+
 StaticMeshRenderSystem::StaticMeshRenderSystem(ZoneRenderManager* renderManager)
 {
 	m_renderManager = renderManager;
@@ -237,6 +240,7 @@ void StaticMeshRenderSystem::RebuildRenderData()
 			batch.definition = def;
 			batch.transforms.push_back(worldMatrix);
 			batch.models.push_back(meshComp.model);
+			batch.collisionExcluded.push_back(m_registry->any_of<CollisionExcludedComponent>(entity));
 			++meshCount;
 		}
 		SPDLOG_DEBUG("StaticMeshRenderSystem: Collected {} static mesh entities in {} batches", meshCount, m_batches.size());
@@ -435,6 +439,11 @@ void StaticMeshRenderSystem::Render()
 				batchMgr->SetActivePointLights(nullptr);
 			}
 
+			// Objects excluded from collision are still drawn, but faded, so it is obvious
+			// which ones are not contributing to the navmesh.
+			float alphaScale = (i < batch.collisionExcluded.size() && batch.collisionExcluded[i])
+				? kCollisionExcludedAlpha : 1.0f;
+
 			// Render each material batch
 			for (const auto& matBatch : model->GetMaterialBatches())
 			{
@@ -442,7 +451,7 @@ void StaticMeshRenderSystem::Render()
 					continue;
 
 				batchMgr->RenderMaterialBatch(transform, matBatch,
-					model->GetVertexBuffer(), model->GetIndexBuffer());
+					model->GetVertexBuffer(), model->GetIndexBuffer(), alphaScale);
 			}
 		}
 	}

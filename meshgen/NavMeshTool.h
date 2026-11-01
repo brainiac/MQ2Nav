@@ -47,6 +47,7 @@ enum struct ToolType : uint32_t
 	NAVMESH_PRUNE,
 	OFFMESH_CONNECTION,
 	CONVEX_VOLUME,
+	MESH_PATCH,
 	WAYPOINTS,
 	INFO,
 	MAX_TOOLS
@@ -111,6 +112,7 @@ public:
 
 	std::shared_ptr<NavMesh> GetNavMesh() const { return m_navMesh; }
 	std::shared_ptr<NavMeshProject> GetNavMeshProj() const { return m_navMeshProj; }
+	std::shared_ptr<ZoneProject> GetZoneProj() const { return m_zoneProj; }
 
 	void setTool(Tool* tool);
 	ToolState* getToolState(ToolType type) const;

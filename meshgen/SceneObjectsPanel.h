@@ -18,6 +18,7 @@ public:
 
 private:
 	void DrawEntityRow(const entt::handle& handle);
+	void DrawCollisionCheckbox(const entt::handle& handle);
 
 private:
 	Editor* m_editor;

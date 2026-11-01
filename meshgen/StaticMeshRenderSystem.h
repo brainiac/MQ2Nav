@@ -61,6 +61,10 @@ private:
 		std::vector<glm::mat4> transforms;
 		std::vector<MGSimpleModel*> models;
 
+		// Parallel to transforms/models: excluded objects are drawn faded so it is
+		// visible that they are present but not contributing collision.
+		std::vector<bool> collisionExcluded;
+
 		// Cached point light assignments per model (parallel to transforms/models)
 		std::vector<ActivePointLights> lightAssignments;
 	};

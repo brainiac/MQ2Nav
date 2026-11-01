@@ -240,6 +240,14 @@ bool ZoneResourceManager::BuildCollisionMesh(ZoneCollisionMesh& collisionMesh)
 
 	collisionMesh.clear();
 
+	// The invisible wall loop below feeds AddFace, which appends to these. They are not
+	// per-zone state, they are per-build state, so a rebuild would otherwise add a second
+	// copy of every invisible wall on top of the first.
+	collide_verts.clear();
+	collide_indices.clear();
+	collide_vert_to_index.clear();
+	current_collide_index = 0;
+
 	// load terrain geometry
 	if (auto terrainSystem = m_resourceMgr->GetTerrainSystem())
 	{

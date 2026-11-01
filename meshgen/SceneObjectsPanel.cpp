@@ -6,6 +6,7 @@
 #include "imgui/scoped_helpers.h"
 #include "meshgen/Editor.h"
 #include "meshgen/Scene.h"
+#include "meshgen/ZoneRenderManager.h"
 
 #include "entt/entity/handle.hpp"
 
@@ -40,7 +41,24 @@ void SceneObjectsPanel::OnImGuiRender(bool* p_open)
 
 			if (m_filterByDistance)
 			{
-				ImGui::SliderFloat("Distance Filter", &m_distanceFilter, 0.0f, 100.0f);
+				ImGui::SliderFloat("Distance Filter", &m_distanceFilter, 0.0f, 500.0f);
+			}
+
+			// Rebuilding takes seconds on a large zone, so exclusions are collected up and
+			// applied when asked for rather than on every click.
+			if (m_project->IsCollisionMeshDirty())
+			{
+				if (ImGui::Button("Rebuild collision mesh"))
+				{
+					if (m_project->RebuildCollisionMesh() && g_zoneRenderManager)
+					{
+						// The collision view draws from buffers built off the old mesh.
+						g_zoneRenderManager->Rebuild();
+					}
+				}
+
+				ImGui::SameLine();
+				ImGui::TextUnformatted("collision exclusions have changed");
 			}
 
 			// Entity list
@@ -54,7 +72,7 @@ void SceneObjectsPanel::OnImGuiRender(bool* p_open)
 					| ImGuiTableFlags_Reorderable
 					| ImGuiTableFlags_ScrollY;
 
-				constexpr int numColumns = 2;
+				constexpr int numColumns = 3;
 				glm::vec3 cameraPos = m_editor->GetCamera().GetPosition();
 				float distanceFilterSq = m_distanceFilter * m_distanceFilter;
 
@@ -62,6 +80,7 @@ void SceneObjectsPanel::OnImGuiRender(bool* p_open)
 				{
 					ImGui::TableSetupColumn("Name");
 					ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+					ImGui::TableSetupColumn("Collide", ImGuiTableColumnFlags_WidthFixed, 50.0f);
 
 					ImGui::TableSetupScrollFreeze(0, 1);
 					ImGui::TableHeadersRow();
@@ -102,6 +121,35 @@ void SceneObjectsPanel::OnImGuiRender(bool* p_open)
 	ImGui::End();
 }
 
+void SceneObjectsPanel::DrawCollisionCheckbox(const entt::handle& entity)
+{
+	// Only objects that actually reach the collision mesh can be excluded from it. Point
+	// lights and area volumes never do, and neither do actors the loader found no collision
+	// geometry for - showing them a checkbox that changes nothing would be a lie.
+	if (!entity.all_of<ActorComponent, CollisionComponent>())
+		return;
+
+	bool collides = !entity.any_of<CollisionExcludedComponent>();
+
+	if (ImGui::Checkbox("##collide", &collides))
+	{
+		entt::handle mutableEntity = entity;
+
+		if (collides)
+			mutableEntity.remove<CollisionExcludedComponent>();
+		else
+			mutableEntity.emplace<CollisionExcludedComponent>();
+
+		if (m_project)
+			m_project->MarkCollisionMeshDirty();
+	}
+
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("Include this object in the collision mesh, and so in any navmesh built from it");
+	}
+}
+
 void SceneObjectsPanel::DrawEntityRow(const entt::handle& entity)
 {
 	IdentityComponent& tag = entity.get<IdentityComponent>();
@@ -139,6 +187,9 @@ void SceneObjectsPanel::DrawEntityRow(const entt::handle& entity)
 	{
 		ImGui::TextUnformatted("Area Volume (old)");
 	}
+
+	ImGui::TableNextColumn();
+	DrawCollisionCheckbox(entity);
 
 	ImGui::PopID();
 }
