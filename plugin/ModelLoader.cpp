@@ -38,13 +38,13 @@ bool s_drawBoundingBoxes = false;
 class ModelData : public Renderable
 {
 public:
-	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo, eqlib::Direct3DDevice9* device)
+	ModelData(int doorId, const std::shared_ptr<ModelInfo>& modelInfo)
 		: m_switchID(doorId)
 		, m_modelInfo(modelInfo)
 	{
-		m_grpBB = std::make_unique<RenderGroup>(device);
+		m_grpBB = std::make_unique<RenderGroup>();
 #if RENDER_MODELS
-		m_grpModel = std::make_unique<RenderGroup>(device);
+		m_grpModel = std::make_unique<RenderGroup>();
 #endif
 		RegenerateMesh();
 
@@ -196,14 +196,12 @@ public:
 				}
 #endif
 
-#if HAS_DIRECTX_9
 				if (m_targetted || m_highlight || s_drawBoundingBoxes)
 				{
-					gpD3D9Device->SetRenderState(D3DRS_ZENABLE, !zDisabled && !s_visibleOverride);
+					m_grpBB->SetDepthTest(!zDisabled && !s_visibleOverride);
 					m_grpBB->SetTransform(&scale);
 					m_grpBB->Render();
 				}
-#endif
 			}
 		}
 	}
@@ -394,7 +392,7 @@ void ModelLoader::UpdateModels()
 			if (modelInfo = zoneData->GetModelInfo(pSwitch->Name))
 			{
 				// Create new model object
-				std::shared_ptr<ModelData> md = std::make_shared<ModelData>(pSwitch->ID, modelInfo, gpD3D9Device);
+				std::shared_ptr<ModelData> md = std::make_shared<ModelData>(pSwitch->ID, modelInfo);
 				m_modelData[pSwitch->ID] = md;
 			}
 		}
@@ -701,12 +699,15 @@ void ModelLoader::OnUpdateUI(bool visible)
 			{
 				if (ImGui::TreeNode(pItem->Name, "%s (%d)", pItem->Name, pItem->DropID))
 				{
+					ImGui::PushID(pItem);
+
 					ImGui::LabelText("DropId", "%d", pItem->DropID);
 					ImGui::LabelText("SubId", "%d", pItem->DropSubID);
 					ImGui::LabelText("Name", "%s", pItem->Name);
 					ImGui::LabelText("Heading", "%.2f", pItem->Heading);
 					ImGui::DragFloat3("Position", &pItem->Y);
 
+					ImGui::PopID();
 					ImGui::TreePop();
 				}
 

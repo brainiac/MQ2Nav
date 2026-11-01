@@ -10,7 +10,6 @@
 #include "common/NavMeshData.h"
 #include "common/Utilities.h"
 #include "plugin/DebugDrawDX.h"
-#include "plugin/EmbedResources.h"
 #include "plugin/MQ2Navigation.h"
 #include "plugin/PluginSettings.h"
 #include "plugin/NavMeshLoader.h"
@@ -21,7 +20,6 @@
 #include <DetourNode.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/spdlog.h>
-#include <dxsdk-d3dx/d3dx9.h>
 
 
 //----------------------------------------------------------------------------
@@ -270,7 +268,7 @@ void NavigationPath::UpdatePath(bool force, bool incremental)
 
 	if (m_renderPaths && !m_debugDrawGrp && gpD3D9Device)
 	{
-		m_debugDrawGrp = std::make_unique<RenderGroup>(gpD3D9Device);
+		m_debugDrawGrp = std::make_unique<RenderGroup>();
 		g_renderHandler->AddRenderable(m_debugDrawGrp.get());
 	}
 
@@ -553,207 +551,80 @@ void NavigationLine::SetNavigationPath(NavigationPath* path)
 
 bool NavigationLine::CreateDeviceObjects()
 {
-	if (!m_visible)
-		return true;
-	if (m_loaded)
-		return true;
-
-#if HAS_DIRECTX_9
-	auto shaderFile = LoadResource(IDR_VOLUMELINES_FX);
-	if (shaderFile.empty())
-		return false;
-
-	ID3DXBuffer* errors = nullptr;
-
-	HRESULT hr = D3DXCreateEffect(
-		gpD3D9Device,
-		shaderFile.data(),
-		(uint32_t)shaderFile.length(),
-		nullptr,
-		nullptr,
-		0,
-		nullptr,
-		&m_effect,
-		&errors);
-
-	if (FAILED(hr))
-	{
-		if (errors)
-		{
-			SPDLOG_ERROR("Error loading navigation line shader: {}",
-				std::string_view{ (const char*)errors->GetBufferPointer(), errors->GetBufferSize() });
-
-			errors->Release();
-			errors = nullptr;
-		}
-
-		InvalidateDeviceObjects();
-		return false;
-	}
-
-	D3DVERTEXELEMENT9 vertexElements[] =
-	{
-		{ 0,  0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION,  0 },
-		{ 0, 12,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,  0 },
-		{ 0, 24,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  0 },
-		{ 0, 36,  D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  1 },
-		{ 0, 40,  D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  2 },
-		{ 0, 44,  D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD,  3 },
-		D3DDECL_END()
-	};
-
-	hr = gpD3D9Device->CreateVertexDeclaration(vertexElements, &m_vDeclaration);
-	if (FAILED(hr))
-	{
-		InvalidateDeviceObjects();
-		return false;
-	}
-#endif
-
-	m_loaded = true;
+	// The shaders belong to the render backend, the vertex buffer is created on demand.
+	if (m_visible)
+		m_loaded = true;
 	return true;
 }
 
 void NavigationLine::InvalidateDeviceObjects()
 {
-#if HAS_DIRECTX_9
-	if (m_effect)
-	{
-		m_effect->Release();
-		m_effect = nullptr;
-	}
-
 	ReleasePath();
-
-	if (m_vDeclaration)
-	{
-		m_vDeclaration->Release();
-		m_vDeclaration = nullptr;
-	}
-#endif
-
 	m_loaded = false;
 }
 
 void NavigationLine::ReleasePath()
 {
-#if HAS_DIRECTX_9
 	if (m_vertexBuffer)
 	{
 		m_vertexBuffer->Release();
 		m_vertexBuffer = nullptr;
 	}
-#endif
 }
 
 void NavigationLine::Render()
 {
-#if HAS_DIRECTX_9
-	if (!m_loaded)
+	RenderBackend* renderer = GetRenderBackend();
+	if (!m_loaded || !renderer)
 		return;
 	if (m_needsUpdate && m_path)
 		GenerateBuffers();
 	if (!m_vertexBuffer)
 		return;
 
-	D3DXMATRIX world;
-	D3DXMatrixIdentity(&world);
-	gpD3D9Device->SetTransform(D3DTS_WORLD, &world);
+	const LineStyle& style = gNavigationLineStyle;
+	auto color = [](const ImColor& c, float opacity) { return glm::vec4{ c.Value.x, c.Value.y, c.Value.z, opacity }; };
+	float innerWidth = style.lineWidth - (2 * style.borderWidth);
 
-	D3DXMATRIX view, proj, mWVP, mWV;
-	gpD3D9Device->GetTransform(D3DTS_VIEW, &view);
-	gpD3D9Device->GetTransform(D3DTS_PROJECTION, &proj);
+	renderer->BindVolumeLines(m_vertexBuffer, sizeof(TVertex));
 
-	mWV = world * view;
-	mWVP = world * view * proj;
-
-	// We will not be using a viewing transformation, so the view matrix will be identity.
-	m_effect->SetMatrix("mWV", &mWV);
-	m_effect->SetMatrix("mWVP", &mWVP);
-
-	DWORD depthTest = 0, depthFunc = 0;
-	gpD3D9Device->GetRenderState(D3DRS_ZENABLE, &depthTest);
-	gpD3D9Device->GetRenderState(D3DRS_ZFUNC, &depthFunc);
-
-	gpD3D9Device->SetVertexDeclaration(m_vDeclaration);
-	gpD3D9Device->SetStreamSource(0, m_vertexBuffer, 0, sizeof(TVertex));
-
-	gpD3D9Device->Clear(0, 0, D3DCLEAR_STENCIL, 0, 0, 0);
-
-	UINT passes = 0;
-	m_effect->Begin(&passes, 0);
-
-	for (int iPass = 0; iPass < passes; iPass++)
+	// Same passes as the VolumeLine technique in VolumeLines.fx
+	for (int pass = 0; pass < 4; ++pass)
 	{
-		m_effect->BeginPass(iPass);
-
-		switch (iPass)
+		switch (pass)
 		{
 		case 0: // hidden
-			if (gNavigationLineStyle.hiddenOpacity == 0)
-			{
-				m_effect->EndPass();
+			if (style.hiddenOpacity == 0)
 				continue;
-			}
-			gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_GREATER);
-			m_effect->SetFloat("opacity", gNavigationLineStyle.hiddenOpacity);
-			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth));
-			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.hiddenColor);
-			m_effect->SetVector("linkColor", (D3DXVECTOR4*)&gNavigationLineStyle.hiddenColor);
+			renderer->SetVolumeLinePass(pass, color(style.hiddenColor, style.hiddenOpacity), color(style.hiddenColor, style.hiddenOpacity), innerWidth);
 			break;
 
 		case 1: // visible
-			gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-			m_effect->SetFloat("opacity", gNavigationLineStyle.opacity);
-			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth - (2 * gNavigationLineStyle.borderWidth));
-			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.visibleColor);
-			m_effect->SetVector("linkColor", (D3DXVECTOR4*)&gNavigationLineStyle.linkColor);
+			renderer->SetVolumeLinePass(pass, color(style.visibleColor, style.opacity), color(style.linkColor, style.opacity), innerWidth);
 			break;
 
 		case 2: // border - hidden
-			if (gNavigationLineStyle.hiddenOpacity == 0)
-			{
-				m_effect->EndPass();
+			if (style.hiddenOpacity == 0)
 				continue;
-			}
-			gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_GREATER);
-			m_effect->SetFloat("opacity", gNavigationLineStyle.hiddenOpacity);
-			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth);
-			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
-			m_effect->SetVector("linkColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
+			renderer->SetVolumeLinePass(pass, color(style.borderColor, style.hiddenOpacity), color(style.borderColor, style.hiddenOpacity), style.lineWidth);
 			break;
 
 		case 3: // border - visible
-			gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-			m_effect->SetFloat("opacity", gNavigationLineStyle.opacity);
-			m_effect->SetFloat("lineWidth", gNavigationLineStyle.lineWidth);
-			m_effect->SetVector("lineColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
-			m_effect->SetVector("linkColor", (D3DXVECTOR4*)&gNavigationLineStyle.borderColor);
+			renderer->SetVolumeLinePass(pass, color(style.borderColor, style.opacity), color(style.borderColor, style.opacity), style.lineWidth);
 			break;
 		}
 
-		m_effect->CommitChanges();
-
-		// render
 		for (auto& cmd : m_commands)
 		{
-			gpD3D9Device->DrawPrimitive(D3DPT_TRIANGLESTRIP,
-				cmd.StartVertex, cmd.PrimitiveCount);
+			renderer->DrawVolumeLine(cmd.StartVertex, cmd.PrimitiveCount);
 		}
-
-		m_effect->EndPass();
 	}
 
-	m_effect->End();
-
-	gpD3D9Device->SetRenderState(D3DRS_ZENABLE, depthTest);
-	gpD3D9Device->SetRenderState(D3DRS_ZFUNC, depthFunc);
-#endif
+	renderer->EndVolumeLines();
 }
 
 void NavigationLine::GenerateBuffers()
 {
-#if HAS_DIRECTX_9
 	const std::vector<int>& renderPath = m_path->GetRenderPath();
 	int size = (int)renderPath.size();
 
@@ -761,19 +632,20 @@ void NavigationLine::GenerateBuffers()
 		return;
 
 	int bufferLength = (size - 1) * 4;
+	TVertex* vertexDest = nullptr;
 
+	RenderBackend* renderer = GetRenderBackend();
+	if (!renderer)
+		return;
+
+#if HAS_DIRECTX_9
 	if (!m_vertexBuffer || size > m_lastSize)
 	{
 		if (m_vertexBuffer) {
 			m_vertexBuffer->Release();
 		}
 
-		if (!gpD3D9Device) {
-			m_vertexBuffer = nullptr;
-			return;
-		}
-
-		HRESULT hr = gpD3D9Device->CreateVertexBuffer(bufferLength * sizeof(TVertex),
+		HRESULT hr = renderer->GetDevice()->CreateVertexBuffer(bufferLength * sizeof(TVertex),
 			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT,
 			&m_vertexBuffer, nullptr);
 
@@ -785,10 +657,31 @@ void NavigationLine::GenerateBuffers()
 	}
 
 	m_lastSize = size;
-	TVertex* vertexDest = nullptr;
 
 	if (m_vertexBuffer->Lock(0, bufferLength * sizeof(TVertex), (void**)&vertexDest, D3DLOCK_DISCARD) < 0)
 		return;
+#else
+	if (!m_vertexBuffer || size > m_lastSize)
+	{
+		ReleasePath();
+
+		D3D11_BUFFER_DESC desc = {};
+		desc.ByteWidth = bufferLength * sizeof(TVertex);
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		if (FAILED(renderer->GetDevice()->CreateBuffer(&desc, nullptr, &m_vertexBuffer)))
+			return;
+	}
+
+	m_lastSize = size;
+
+	D3D11_MAPPED_SUBRESOURCE mapped;
+	if (FAILED(renderer->GetContext()->Map(m_vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+		return;
+	vertexDest = static_cast<TVertex*>(mapped.pData);
+#endif
 
 	glm::vec3* pt = &m_path->m_currentPath->verts[0];
 	uint8_t* flags = &m_path->m_currentPath->flags[0];
@@ -875,7 +768,10 @@ void NavigationLine::GenerateBuffers()
 		index += 4;
 	}
 
+#if HAS_DIRECTX_9
 	m_vertexBuffer->Unlock();
+#else
+	renderer->GetContext()->Unmap(m_vertexBuffer, 0);
 #endif
 	m_needsUpdate = false;
 }

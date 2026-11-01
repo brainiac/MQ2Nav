@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include "RenderList.h"
+#include "RenderHandler.h"
 
 #include <imgui.h>
 
@@ -28,13 +29,11 @@ static inline int PrimVertexCount(RenderList::PrimitiveType type)
 	return 0;
 }
 
-RenderList::RenderList(eqlib::Direct3DDevice9* pDevice, PrimitiveType type)
-	: m_pDevice(pDevice)
-	, m_type(type)
+RenderList::RenderList(PrimitiveType type)
+	: m_type(type)
 	, m_tempMax(PrimVertexCount(type))
 	, m_currentPrim(nullptr)
 {
-	assert(m_pDevice != nullptr);
 }
 
 RenderList::~RenderList()
@@ -161,24 +160,22 @@ void RenderList::End()
 
 void RenderList::Render()
 {
-#if HAS_DIRECTX_9
+	RenderBackend* renderer = GetRenderBackend();
+	if (!renderer)
+		return;
+
 	GenerateBuffers();
 
 	if (!m_pVB || !m_pIB)
 		return;
 
-	m_pDevice->SetStreamSource(0, m_pVB, 0, sizeof(Vertex));
-	m_pDevice->SetIndices(m_pIB);
-	m_pDevice->SetFVF(VertexType);
+	renderer->BindGeometry(m_mtx ? *m_mtx : glm::mat4{ 1.0f }, m_depthTest);
+	m_mtx = nullptr;
 
-	if (m_mtx)
-	{
-		m_pDevice->SetTransform(D3DTS_WORLD, (D3DMATRIX*)m_mtx);
-		m_mtx = nullptr;
-	}
-
-	int start = std::max(0u, m_firstRender);
-	int end = std::min<int>((int)m_prims.size(), m_lastRender);
+#if HAS_DIRECTX_9
+	IDirect3DDevice9* device = renderer->GetDevice();
+	device->SetStreamSource(0, m_pVB, 0, sizeof(Vertex));
+	device->SetIndices(m_pIB);
 
 	for (auto& p : m_prims)
 	{
@@ -190,7 +187,7 @@ void RenderList::Render()
 		switch (m_type)
 		{
 		case Prim_Points:
-			m_pDevice->DrawIndexedPrimitive(D3DPT_POINTLIST,
+			device->DrawIndexedPrimitive(D3DPT_POINTLIST,
 				0,                       // BaseVertexIndex
 				l->indices[0],           // MinIndex
 				l->vertices,             // NumVertices
@@ -200,7 +197,7 @@ void RenderList::Render()
 			break;
 
 		case Prim_Lines:
-			m_pDevice->DrawIndexedPrimitive(D3DPT_LINELIST,
+			device->DrawIndexedPrimitive(D3DPT_LINELIST,
 				0,                       // BaseVertexIndex
 				l->indices[0],           // MinIndex
 				l->vertices,             // NumVertices
@@ -211,7 +208,7 @@ void RenderList::Render()
 
 		case Prim_Triangles:
 		case Prim_Quads:
-			m_pDevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,
+			device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,
 				0,                       // BaseVertexIndex
 				l->indices[0],           // MinIndex
 				l->vertices,             // NumVertices
@@ -221,20 +218,40 @@ void RenderList::Render()
 			break;
 		}
 	}
+#elif HAS_DIRECTX_11
+	ID3D11DeviceContext* context = renderer->GetContext();
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	context->IASetVertexBuffers(0, 1, &m_pVB, &stride, &offset);
+	context->IASetIndexBuffer(m_pIB, DXGI_FORMAT_R32_UINT, 0);
+
+	switch (m_type)
+	{
+	case Prim_Points: context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST); break;
+	case Prim_Lines: context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST); break;
+	default: context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); break;
+	}
+
+	for (auto& p : m_prims)
+	{
+		if (!p->indices.empty())
+			context->DrawIndexed((UINT)p->indices.size(), p->startingIndex, 0);
+	}
 #endif
 }
 
 void RenderList::GenerateBuffers()
 {
 #if HAS_DIRECTX_9
+	IDirect3DDevice9* device = GetRenderBackend()->GetDevice();
 	bool rebuildBuffers = false;
 	int vertexSize = 0, indexSize = 0;
 
 	if (!m_pVB && !m_vertices.empty())
 	{
 		vertexSize = (int)m_vertices.size();
-		if (m_pDevice->CreateVertexBuffer(vertexSize * sizeof(Vertex),
-			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, VertexType, D3DPOOL_DEFAULT, &m_pVB, nullptr) < 0)
+		if (device->CreateVertexBuffer(vertexSize * sizeof(Vertex),
+			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &m_pVB, nullptr) < 0)
 		{
 			return;
 		}
@@ -248,7 +265,7 @@ void RenderList::GenerateBuffers()
 		for (auto& p : m_prims)
 			indexSize += (int)p->indices.size();
 
-		if (m_pDevice->CreateIndexBuffer(indexSize * sizeof(uint32_t),
+		if (device->CreateIndexBuffer(indexSize * sizeof(uint32_t),
 			D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &m_pIB, nullptr) < 0)
 		{
 			return;
@@ -292,12 +309,50 @@ void RenderList::GenerateBuffers()
 		m_pVB->Unlock();
 		m_pIB->Unlock();
 	}
+#elif HAS_DIRECTX_11
+	if (m_pVB && m_pIB)
+		return;
+
+	InvalidateDeviceObjects();
+
+	// Build the index buffer contents and the starting index of each primitive list
+	std::vector<uint32_t> indices;
+	for (auto& p : m_prims)
+	{
+		p->startingIndex = (uint32_t)indices.size();
+		indices.insert(indices.end(), p->indices.begin(), p->indices.end());
+	}
+
+	if (m_vertices.empty() || indices.empty())
+		return;
+
+	ID3D11Device* device = GetRenderBackend()->GetDevice();
+
+	D3D11_BUFFER_DESC desc = {};
+	desc.Usage = D3D11_USAGE_IMMUTABLE;
+	D3D11_SUBRESOURCE_DATA data = {};
+
+	desc.ByteWidth = (UINT)(m_vertices.size() * sizeof(Vertex));
+	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	data.pSysMem = m_vertices.data();
+	if (FAILED(device->CreateBuffer(&desc, &data, &m_pVB)))
+		return;
+
+	desc.ByteWidth = (UINT)(indices.size() * sizeof(uint32_t));
+	desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	data.pSysMem = indices.data();
+	if (FAILED(device->CreateBuffer(&desc, &data, &m_pIB)))
+	{
+		InvalidateDeviceObjects();
+		return;
+	}
+
+	m_lastRender = (int)m_prims.size();
 #endif
 }
 
 void RenderList::InvalidateDeviceObjects()
 {
-#if HAS_DIRECTX_9
 	if (m_pVB)
 	{
 		m_pVB->Release();
@@ -309,16 +364,11 @@ void RenderList::InvalidateDeviceObjects()
 		m_pIB->Release();
 		m_pIB = nullptr;
 	}
-#endif
 }
 
 bool RenderList::CreateDeviceObjects()
 {
-	if (!m_pDevice)
-		return false;
-
 	// We'll create our objects when we need them.
-
 	return true;
 }
 

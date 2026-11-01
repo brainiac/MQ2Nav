@@ -27,7 +27,7 @@
 class NavMesh;
 class NavigationLine;
 struct DestinationInfo;
-struct ID3DXEffect;
+struct ID3D11Buffer;
 
 struct StraightPath
 {
@@ -220,7 +220,6 @@ public:
 
 private:
 	NavigationPath* m_path = nullptr;
-	ID3DXEffect* m_effect = nullptr;
 
 	// The vertex structure we'll be using for line drawing. Each line is defined as two vertices,
 	// and the vertex shader will create a quad from these two vertices. However, since the vertex
@@ -236,8 +235,11 @@ private:
 		float        type;
 	};
 
+#if HAS_DIRECTX_9
 	IDirect3DVertexBuffer9* m_vertexBuffer = nullptr;
-	IDirect3DVertexDeclaration9* m_vDeclaration = nullptr;
+#elif HAS_DIRECTX_11
+	ID3D11Buffer* m_vertexBuffer = nullptr;
+#endif
 
 	struct RenderCommand
 	{

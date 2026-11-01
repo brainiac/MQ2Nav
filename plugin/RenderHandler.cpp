@@ -14,15 +14,6 @@
 
 #include <glm/glm.hpp>
 
-#if HAS_DIRECTX_9
-#pragma comment(lib, "d3d9")
-#ifdef _DEBUG
-#pragma comment(lib, "d3dx9d")
-#else
-#pragma comment(lib, "d3dx9")
-#endif
-#endif
-
 //============================================================================
 
 RenderHandler::RenderHandler()
@@ -48,6 +39,22 @@ void RenderHandler::CreateDeviceObjects()
 	if (!gpD3D9Device)
 		return;
 
+#if HAS_DIRECTX_11
+	if (!gpD3D11Device)
+		return;
+	auto device = gpD3D11Device;
+#else
+	auto device = gpD3D9Device;
+#endif
+
+	m_backend = std::make_unique<RenderBackend>();
+	if (!m_backend->Initialize(device))
+	{
+		SPDLOG_ERROR("Failed to initialize rendering");
+		m_backend.reset();
+		return;
+	}
+
 	for (auto& p : m_renderables)
 	{
 		p->CreateDeviceObjects();
@@ -65,6 +72,8 @@ void RenderHandler::InvalidateDeviceObjects()
 	{
 		p->InvalidateDeviceObjects();
 	}
+
+	m_backend.reset();
 }
 
 void RenderHandler::AddRenderable(Renderable* renderable)
@@ -94,99 +103,20 @@ void RenderHandler::RemoveRenderable(Renderable* renderable)
 
 void RenderHandler::PerformRender()
 {
-	ResetDeviceState();
+	if (!m_deviceAcquired)
+		return;
 
-#if HAS_DIRECTX_9
-	D3DPERF_BeginEvent(D3DCOLOR_XRGB(255, 0, 0), L"RenderHandler::PerformRender");
-#endif
+	m_backend->BeginFrame();
 
 	for (auto& r : m_renderables)
 	{
 		r->Render();
 	}
 
-#if HAS_DIRECTX_9
-	D3DPERF_EndEvent();
-#endif
+	m_backend->EndFrame();
 }
 
-void ResetDeviceState()
+RenderBackend* GetRenderBackend()
 {
-#if HAS_DIRECTX_9
-	gpD3D9Device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
-	gpD3D9Device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
-	gpD3D9Device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
-	gpD3D9Device->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
-	gpD3D9Device->SetRenderState(D3DRS_ZENABLE, true);
-	gpD3D9Device->SetRenderState(D3DRS_FOGENABLE, false);
-	gpD3D9Device->SetRenderState(D3DRS_ZWRITEENABLE, true);
-	gpD3D9Device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-	gpD3D9Device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
-	gpD3D9Device->SetRenderState(D3DRS_CLIPPING, true);
-	gpD3D9Device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	gpD3D9Device->SetRenderState(D3DRS_DEPTHBIAS, 0);
-	gpD3D9Device->SetRenderState(D3DRS_DITHERENABLE, false);
-	gpD3D9Device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-	gpD3D9Device->SetRenderState(D3DRS_LASTPIXEL, true);
-	gpD3D9Device->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, true);
-	gpD3D9Device->SetRenderState(D3DRS_MULTISAMPLEMASK, 0xFFFFFFFF);
-	gpD3D9Device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-	gpD3D9Device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
-	gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESS);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP0, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP1, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP2, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP3, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP4, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP5, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP6, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP7, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP8, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP9, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP10, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP11, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP12, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP13, 0);
-	gpD3D9Device->SetRenderState(D3DRS_WRAP15, 0);
-
-	// disable the rest of the texture stages
-	for (int i = 1; i < 8; i++)
-	{
-		gpD3D9Device->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		gpD3D9Device->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
-	}
-	gpD3D9Device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-	gpD3D9Device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-
-
-	gpD3D9Device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-	gpD3D9Device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-	gpD3D9Device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	gpD3D9Device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-
-	gpD3D9Device->SetRenderState(D3DRS_ALPHATESTENABLE, true);
-	gpD3D9Device->SetRenderState(D3DRS_ALPHAREF, 0);
-	gpD3D9Device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
-
-	gpD3D9Device->SetRenderState(D3DRS_ZENABLE, true);
-	gpD3D9Device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-	gpD3D9Device->SetRenderState(D3DRS_ZWRITEENABLE, true);
-
-	gpD3D9Device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-	gpD3D9Device->SetRenderState(D3DRS_LIGHTING, false);
-	gpD3D9Device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
-
-	gpD3D9Device->SetRenderState(D3DRS_STENCILENABLE, false);
-
-	// disable the rest of the texture stages
-	for (int i = 0; i < 8; i++)
-	{
-		gpD3D9Device->SetTextureStageState(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		gpD3D9Device->SetTextureStageState(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
-	}
-
-	glm::mat4 matrix = glm::identity<glm::mat4>();
-
-	gpD3D9Device->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&matrix);
-#endif
+	return g_renderHandler ? g_renderHandler->GetBackend() : nullptr;
 }

@@ -19,6 +19,8 @@
 #include <memory>
 #include <vector>
 
+struct ID3D11Buffer;
+
 //----------------------------------------------------------------------------
 
 class RenderList : public Renderable
@@ -34,7 +36,7 @@ public:
 		Prim_Count
 	};
 
-	RenderList(eqlib::Direct3DDevice9* d3dDevice, PrimitiveType type);
+	RenderList(PrimitiveType type);
 	~RenderList();
 
 	void Reset();
@@ -55,6 +57,7 @@ public:
 
 	void SetTransform(glm::mat4* mtx) { m_mtx = mtx; }
 	void SetEQCoords(bool eqCoords) { m_eqCoords = eqCoords; }
+	void SetDepthTest(bool depthTest) { m_depthTest = depthTest; }
 
 	PrimitiveType GetType() const { return m_type; }
 
@@ -90,7 +93,6 @@ private:
 		D3DCOLOR    col;
 		glm::vec2   uv;
 	};
-	static const DWORD VertexType = (D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 
 	PrimitiveType m_type;
 
@@ -115,11 +117,16 @@ private:
 
 	glm::mat4* m_mtx = nullptr;
 	bool m_eqCoords = false;
+	bool m_depthTest = true;
 
 private:
-	eqlib::Direct3DDevice9* m_pDevice = nullptr;
+#if HAS_DIRECTX_9
 	eqlib::Direct3DVertexBuffer9* m_pVB = nullptr;
 	eqlib::Direct3DIndexBuffer9* m_pIB = nullptr;
+#elif HAS_DIRECTX_11
+	ID3D11Buffer* m_pVB = nullptr;
+	ID3D11Buffer* m_pIB = nullptr;
+#endif
 
 	std::vector<Vertex> m_vertices;
 
@@ -133,11 +140,11 @@ private:
 class RenderGroup : public Renderable
 {
 public:
-	RenderGroup(eqlib::Direct3DDevice9* device)
+	RenderGroup()
 	{
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
 		{
-			m_primLists[i].reset(new RenderList(device, static_cast<RenderList::PrimitiveType>(i)));
+			m_primLists[i].reset(new RenderList(static_cast<RenderList::PrimitiveType>(i)));
 			m_primsEnabled[i] = true;
 		}
 	}
@@ -167,6 +174,12 @@ public:
 	{
 		for (int i = 0; i < RenderList::Prim_Count; ++i)
 			m_primLists[i]->SetEQCoords(eqCoords);
+	}
+
+	inline void SetDepthTest(bool depthTest)
+	{
+		for (int i = 0; i < RenderList::Prim_Count; ++i)
+			m_primLists[i]->SetDepthTest(depthTest);
 	}
 
 	void SetTransform(glm::mat4* mtx)
