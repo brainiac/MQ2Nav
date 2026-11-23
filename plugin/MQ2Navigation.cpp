@@ -1647,6 +1647,8 @@ void MQ2NavigationPlugin::ParseOptions(std::string_view line, int idx, Navigatio
 
 	GetArg(buffer, mutableLine, idx++);
 
+	bool haveSearchOrigin = false;
+
 	while (strlen(buffer) > 0)
 	{
 		std::string_view arg{ buffer };
@@ -1701,6 +1703,29 @@ void MQ2NavigationPlugin::ParseOptions(std::string_view line, int idx, Navigatio
 			{
 				args->tag = value;
 			}
+			else if (key == "searchradius")
+			{
+				options.searchRadius = GetIntFromString(value, 0);
+			}
+			else if (key == "searchorigin")
+			{
+				// Same order as /nav loc and EQ's /loc output: "y x [z]" (quote it: searchorigin="y x z").
+				// Stored in navmesh coordinates: (EQ X, height, EQ Y).
+				std::vector<std::string_view> parts = mq::split_view(value, ' ', false);
+				if (parts.size() == 3 || parts.size() == 2)
+				{
+					const float eqY = GetFloatFromString(parts[0], 0);
+					const float eqX = GetFloatFromString(parts[1], 0);
+					const float eqZ = parts.size() == 3 ? GetFloatFromString(parts[2], 0)
+						: (pLocalPlayer ? pLocalPlayer->FloorHeight : 0.f);
+					options.searchOrigin = { eqX, eqZ, eqY };
+					haveSearchOrigin = true;
+				}
+				else
+				{
+					SPDLOG_ERROR("Invalid argument for searchorigin (expected \"y x [z]\"): {}", value);
+				}
+			}
 		}
 		catch (const std::exception& ex)
 		{
@@ -1708,6 +1733,12 @@ void MQ2NavigationPlugin::ParseOptions(std::string_view line, int idx, Navigatio
 		}
 
 		GetArg(buffer, mutableLine, idx++);
+	}
+
+	// searchradius without searchorigin: centre the radius on the player's current position
+	if (options.searchRadius > 0 && !haveSearchOrigin && pLocalPlayer)
+	{
+		options.searchOrigin = { pLocalPlayer->X, pLocalPlayer->FloorHeight, pLocalPlayer->Y };
 	}
 }
 

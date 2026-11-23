@@ -179,7 +179,7 @@ void NavigationPath::SetNavMesh(const std::shared_ptr<dtNavMesh>& navMesh,
 
 	m_query.reset();
 
-	m_filter = dtQueryFilter{};
+	m_filter = NavPathFilter{};
 	m_filter.setIncludeFlags(+PolyFlags::All);
 	m_filter.setExcludeFlags(+PolyFlags::Disabled);
 	if (auto* mesh = g_mq2Nav->Get<NavMesh>())
@@ -328,6 +328,12 @@ std::unique_ptr<StraightPath> NavigationPath::RecomputePath(
 	glm::vec3 spos;
 
 	// TODO: Cache the last known valid starting position to detect when moving off the mesh
+	// Apply (or clear, when searchRadius is 0) the radius restriction for this destination
+	if (m_destinationInfo)
+	{
+		m_filter.SetSearchOrigin(m_destinationInfo->options.searchOrigin);
+		m_filter.SetSearchRadius(m_destinationInfo->options.searchRadius);
+	}
 
 	m_query->findNearestPoly(
 		glm::value_ptr(startPos),
@@ -818,6 +824,51 @@ void NavigationLine::Update()
 	{
 		m_needsUpdate = true;
 	}
+}
+
+bool NavPathFilter::passFilter(const dtPolyRef ref, const dtMeshTile* tile, const dtPoly* poly) const
+{
+	if (m_searchRadius > 0 && !IsPolyWithinRadius(tile, poly))
+		return false;
+
+	return dtQueryFilter::passFilter(ref, tile, poly);
+}
+
+bool NavPathFilter::IsPolyWithinRadius(const dtMeshTile* tile, const dtPoly* poly) const
+{
+	// 2D test on the mesh x/z plane (EQ x/y), like a radius drawn on the map - height is ignored.
+	// A polygon passes if any part of it is within the radius. Testing only its centre would reject a
+	// large polygon that contains the origin, and then even the start position can't be found.
+	const float radiusSqr = static_cast<float>(m_searchRadius) * static_cast<float>(m_searchRadius);
+	const float* origin = glm::value_ptr(m_searchOrigin);
+	const int nverts = poly->vertCount;
+
+	float verts[DT_VERTS_PER_POLYGON * 3];
+	for (int i = 0; i < nverts; ++i)
+		dtVcopy(&verts[i * 3], &tile->verts[poly->verts[i] * 3]);
+
+	// Off-mesh connections are a line between two points: both ends must be inside
+	if (poly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION || nverts < 3)
+	{
+		for (int i = 0; i < nverts; ++i)
+		{
+			if (dtVdist2DSqr(origin, &verts[i * 3]) > radiusSqr)
+				return false;
+		}
+		return true;
+	}
+
+	float edgeDistSqr[DT_VERTS_PER_POLYGON];
+	float edgeT[DT_VERTS_PER_POLYGON];
+	if (dtDistancePtPolyEdgesSqr(origin, verts, nverts, edgeDistSqr, edgeT))
+		return true; // origin is inside the polygon
+
+	for (int i = 0; i < nverts; ++i)
+	{
+		if (edgeDistSqr[i] <= radiusSqr)
+			return true;
+	}
+	return false;
 }
 
 //----------------------------------------------------------------------------
