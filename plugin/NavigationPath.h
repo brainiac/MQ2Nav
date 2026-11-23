@@ -57,6 +57,25 @@ private:
 	int alloc = 0;
 };
 
+// Query filter that can restrict a path to navmesh polygons within a 2D radius of an origin
+// (e.g. keep a pull path inside the camp radius). Requires DT_VIRTUAL_QUERYFILTER so Detour
+// calls the passFilter override.
+class NavPathFilter : public dtQueryFilter
+{
+private:
+	int m_searchRadius = 0;            // 0 = no radius restriction
+	glm::vec3 m_searchOrigin{ 0.f };   // navmesh coordinates
+
+	bool IsPolyWithinRadius(const dtMeshTile* tile, const dtPoly* poly) const;
+
+public:
+	NavPathFilter() = default;
+	~NavPathFilter() override = default;
+	bool passFilter(const dtPolyRef ref, const dtMeshTile* tile, const dtPoly* poly) const override;
+	void SetSearchRadius(int radius) { m_searchRadius = radius; }
+	void SetSearchOrigin(const glm::vec3& pos) { m_searchOrigin = pos; }
+};
+
 class NavigationPath
 {
 	friend class NavigationLine;
@@ -176,7 +195,7 @@ private:
 	std::vector<int> m_renderPath;
 	bool m_followingLink = false;
 
-	dtQueryFilter m_filter;
+	NavPathFilter m_filter;
 	glm::vec3 m_extents = { 5, 10, 5 }; // note: X, Z, Y
 
 	mq::Signal<>::ScopedConnection m_navMeshConn;
@@ -259,3 +278,4 @@ private:
 };
 
 extern NavigationLine::LineStyle gNavigationLineStyle;
+

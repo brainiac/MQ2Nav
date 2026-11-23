@@ -49,6 +49,8 @@ struct NavigationOptions
 	bool paused = false;           // pathing is paused
 	bool track = true;             // if spawn is to be tracked
 	FacingType facing = FacingType::Forward; //  Forward = normal, Backward = move along path facing backward.
+	int searchRadius = 0;          // if > 0, the path may only use navmesh polygons within this 2D radius of searchOrigin
+	glm::vec3 searchOrigin{ 0.f }; // centre of searchRadius, in navmesh coordinates (EQ X, height, EQ Y)
 
 	// set a new default log level while the path is running. info is the default.
 	spdlog::level::level_enum logLevel = spdlog::level::info;
