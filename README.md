@@ -58,6 +58,8 @@ Usage
 
 See the [wiki](https://github.com/brainiac/MQ2Nav/wiki) for more info
 
+`MeshTool.exe` can convert, check and compare navmesh files from the command line. See [MeshTool](doc/MeshTool.md).
+
 
 Notes
 -----
