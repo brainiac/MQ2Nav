@@ -25,8 +25,8 @@ object on stdout. Run `MeshGenerator.exe build --help` for every option.
   `--box "Y1,X1:Y2,X2"` (a `/loc` box) and by any new connections or volumes. Settings come from the base mesh. Grid
   cells with no tile in the base are refused, with a list.
 - **Other.** `--threads N` caps the build threads. `--mesh-version 4|5` picks the file version; carried and region
-  builds keep the input mesh's version. `--mesh-root` points to the MacroQuest resources folder used to find
-  `MQ2Nav\<zone>_doors.json` and defaults to `--eq-path`. `--no-max-extents` skips the built-in zone bounds.
+  builds keep the input mesh's version. `--mesh-root` is the folder holding `<zone>_doors.json`,
+  usually MacroQuest's `resources\MQ2Nav`, and defaults to `--eq-path`. Without it, doors are not part of the mesh. `--no-max-extents` skips the built-in zone bounds.
 
 The result also lists off-mesh connections whose ends are no longer on the mesh.
 
