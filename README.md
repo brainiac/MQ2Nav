@@ -58,6 +58,8 @@ Usage
 
 See the [wiki](https://github.com/brainiac/MQ2Nav/wiki) for more info
 
+`MeshGenerator.exe build` builds a navmesh without the GUI. See [building without the GUI](doc/HeadlessBuild.md).
+
 
 Notes
 -----

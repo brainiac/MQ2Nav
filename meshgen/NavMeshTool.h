@@ -100,6 +100,9 @@ public:
 
 	void setContext(RecastContext* ctx) { m_ctx = ctx; }
 
+	// Build settings, for headless builds that set them before handleBuild.
+	NavMeshConfig& GetConfig() { return m_config; }
+
 	void handleDebug();
 	void handleTools();
 	void handleRender();
@@ -107,7 +110,8 @@ public:
 	void handleRenderOverlay(const glm::mat4& proj, const glm::mat4& model, const glm::ivec4& view);
 	void handleGeometryChanged(InputGeom* geom);
 
-	bool handleBuild();
+	// async=false builds every tile before returning (headless builds).
+	bool handleBuild(bool async = true);
 	void handleClick(const glm::vec3& s, const glm::vec3& p, bool shift);
 
 	void GetTilePos(const glm::vec3& pos, int& tx, int& ty);

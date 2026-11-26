@@ -20,6 +20,7 @@
     <ClCompile Include="imgui\imgui_impl_opengl2.cpp" />
     <ClCompile Include="imgui\imgui_impl_sdl2.cpp" />
     <ClCompile Include="InputGeom.cpp" />
+    <ClCompile Include="HeadlessBuild.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MapGeometryLoader.cpp" />
     <ClCompile Include="NavMeshInfoTool.cpp" />
@@ -45,6 +46,7 @@
     <ClInclude Include="imgui\imgui_impl_sdl2.h" />
     <ClInclude Include="InputGeom.h" />
     <ClInclude Include="Application.h" />
+    <ClInclude Include="HeadlessBuild.h" />
     <ClInclude Include="MapGeometryLoader.h" />
     <ClInclude Include="NavMeshInfoTool.h" />
     <ClInclude Include="NavMeshTool.h" />
