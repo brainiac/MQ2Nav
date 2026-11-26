@@ -6,6 +6,7 @@
 #include <args/args.hxx>
 
 #include "common/NavMesh.h"
+#include "MeshCommands.h"
 
 #include <filesystem>
 #include <fmt/format.h>
@@ -24,6 +25,19 @@ int main(int argc, char** argv)
 		args::Positional<std::string> inputMesh(convert, "input", "Input navmesh file to load", args::Options::Required);
 		args::Positional<std::string> outputMesh(convert, "output", "Output navmesh file to save");
 		args::ValueFlag<int> meshVersion(convert, "version", "Navmesh version to save (defaults to latest)", { "version" }, (int)NavMeshHeaderVersion::Latest);
+	args::Command validate(commands, "validate", "Load a navmesh and report its tiles, polygons, connections and volumes");
+		args::Positional<std::string> validateMesh(validate, "mesh", "Navmesh file to check", args::Options::Required);
+		args::Flag validateJson(validate, "json", "Print the result as JSON", { "json" });
+	args::Command exportCmd(commands, "export", "Write a navmesh's off-mesh connections, convex volumes, area types and settings to JSON");
+		args::Positional<std::string> exportMesh(exportCmd, "mesh", "Navmesh file to read", args::Options::Required);
+		args::Positional<std::string> exportOut(exportCmd, "output", "JSON file to write (never overwritten)", args::Options::Required);
+		args::Flag exportJson(exportCmd, "json", "Print the result as JSON", { "json" });
+	args::Command diff(commands, "diff", "Compare two navmeshes: connections, volumes, area types, settings and tile geometry");
+		args::Positional<std::string> diffOld(diff, "old", "Navmesh to compare from", args::Options::Required);
+		args::Positional<std::string> diffNew(diff, "new", "Navmesh to compare to", args::Options::Required);
+		args::ValueFlag<float> diffTolerance(diff, "distance", "How far apart matching points may be (default 0.5)", { "tolerance" }, 0.5f);
+		args::Flag diffStrict(diff, "strict", "Also fail when settings or tile geometry changed", { "strict" });
+		args::Flag diffJson(diff, "json", "Print the result as JSON", { "json" });
 
 	args::Group arguments("arguments");
 	args::GlobalOptions globals(parser, arguments);
@@ -118,6 +132,18 @@ int main(int argc, char** argv)
 		{
 			fmt::print("Failed!\n");
 		}
+	}
+	else if (validate)
+	{
+		return ValidateMesh(validateMesh.Get(), validateJson);
+	}
+	else if (exportCmd)
+	{
+		return ExportMesh(exportMesh.Get(), exportOut.Get(), exportJson);
+	}
+	else if (diff)
+	{
+		return DiffMeshes(diffOld.Get(), diffNew.Get(), diffTolerance.Get(), diffStrict, diffJson);
 	}
 	else
 	{
